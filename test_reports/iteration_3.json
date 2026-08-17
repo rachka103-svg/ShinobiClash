@@ -1,0 +1,33 @@
+{
+  "summary": "Iteration 3 regression + new-feature test for SHINOBI CLASH (Spire, Gallery, Trials, /battle/:mode/:id). Backend: 29 passed / 3 skipped (admin-state-dependent), 0 failed. New tests cover catalog.trials, profile.spire_floor, /game/spire/complete (win+advance / replay-no-advance with reduced ryo 62 vs 155 / skip-floor disallowed / lose=null), /game/trial/complete (win=rewards+inventory, invalid=404, lose=null). Frontend Playwright (admin@shinobi.com): TopBar has nav-spire & nav-gallery; Lobby has tile-spire & tile-gallery. Gallery /gallery: 38 cards, gallery-count='12/38 collected', filter-rarity-LR → 2 cards, filter-element-Fire → 6 cards, 12 owned badges, gallery-detail-dialog opens on click. Spire /spire: spire-progress shows 'Highest Floor 1', floor stepper up/down work, three trial cards/buttons present (t_scroll/t_crystal/t_gold), challenge-btn present. Spire battle: clicking challenge-btn → /battle/spire/2 (player was on floor 1), battle page loads with 'SPIRE · FLOOR' bar, won in <50 actions, victory overlay shows result-next-floor-btn + result-back-btn + spire-advance; afterwards /spire reports 'Highest Floor 2'. Campaign regression: battle-btn-s1 → /battle/campaign/s1, won, overlay shows result-back-btn (CAMPAIGN) + result-lobby-btn (LOBBY). Trial flow: trial-btn-t_crystal → /battle/trial/t_crystal loaded successfully (auto-battle didn't finish in the test loop but page rendered and navigation works).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "TopBar @ 1440px", "issues": ["Eight nav items (Lobby, Campaign, Spire, Roster, Gallery, Team, Summon, Ranks) fit but get visually tight against the Ryo + name block; on slightly smaller laptops they may overlap or wrap. Consider collapsing less-used items into an overflow menu."]},
+      {"screen": "Spire progress card", "issues": ["text-content reads as 'Highest Floor1Floor 3 Floor 2 Floor 1 ✓' with no separator between the headline number and the per-floor checklist — visually OK with line breaks, but accessibility/text readers will read it as one run-on string."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_shinobi_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Optional) Auto-battle in trial dungeons can be slow with the default greedy strategy — none of this is an app bug, but if you want trial battles to feel snappier, consider reducing default trial enemy levels for the lowest-tier trial or tightening AI attack pacing.",
+    "(Optional/minor) Add separators/aria labels to spire-progress so screen readers don't read 'Highest Floor1' as one word.",
+    "(Optional) /api/game/spire/complete returns advancing=False with full reward payload (reduced) when a non-sequential floor (e.g., floor=5 when spire_floor=0) is posted. This matches the spec (no skip), but the API silently grants farming rewards for unreachable floors; consider returning rewards=null or 400 for floors > spire_floor+1 to prevent grinding floor 999 for tomes."
+  ],
+  "critical_code_review_comments": [
+    "server.py /game/spire/complete: posting any future floor (e.g. floor=99 when spire_floor=0) is accepted, gives reduced rewards, and only blocks advancement. This is a farming/cheese risk — should clamp floor <= spire_floor+1.",
+    "Battle.jsx is now 447 lines and growing as modes are added; close to (but under) the 700-line guideline — recommend splitting Fighter / ResultOverlay into separate components for next iteration.",
+    "TrialCompleteIn doesn't validate result is one of ('win','lose') — any non-'win' string silently produces a lose response. Add Literal/enum validation.",
+    "SpireCompleteIn and TrialCompleteIn both ignore participants/survivors when computing rewards (only used for hero_exp distribution); consider asserting they're non-empty for wins to prevent zero-team wins from being submitted.",
+    "Auth flow still relies on @app.on_event('startup') (deprecated in FastAPI 2026); migrate to lifespan handler. Carried over from prior iteration."
+  ],
+  "updated_files": ["/app/backend/tests/test_shinobi_api.py"],
+  "success_rate": {"backend": "100% (29/29 non-skipped, 3 skipped)", "frontend": "100% of tested flows (campaign regression, spire challenge+advance, gallery, trial navigation)"},
+  "test_credentials": "admin@shinobi.com / admin123 — has plenty of Ryo (49645), a strong team, blaze@L20.",
+  "seed_data_creation": "None added; tests create transient TEST_ users via /auth/register fixture (no teardown — same as iterations 1/2). Note: admin's spire_floor advanced from 1 → 2 during the Playwright run (real DB write).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run backend with: python -m pytest /app/backend/tests/test_shinobi_api.py -v. The admin's spire_floor will increase by 1 per Playwright run (the test wins floor spire_floor+1). For a clean re-test, reset via Mongo: db.users.updateOne({email:'admin@shinobi.com'},{$set:{spire_floor:0}}). Auto-battle helper: spam first enabled jutsu, click first .ring-fox enemy, ~700ms tick — wins simple stages in 20-30 actions, may need 50 for spire floors >2 or trial dungeons.",
+  "rca_of_issue": "No bugs found in iteration-3 features. Pre-existing stale assertions in test_summon_ticket_fails_without_tickets and test_use_exp_insufficient_count were updated to match the welcome inventory (1 ticket + 5 minor tomes) granted on registration — these were not regressions in this iteration but inconsistencies between earlier tests and the current seed."
+}

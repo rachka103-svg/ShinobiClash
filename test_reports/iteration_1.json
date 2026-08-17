@@ -1,0 +1,37 @@
+{
+  "summary": "First-pass end-to-end testing of SHINOBI CLASH. Backend pytest suite (23 tests) covering auth, catalog/stages, profile/team, battle rewards (win/lose, first_clear, persistence), summon, levelup and leaderboard — all 23 passed. Frontend Playwright flows verified: login (admin), lobby, roster + level-up dialog, team builder save, campaign → /battle/s1, full turn-based battle played to VICTORY with rewards overlay (+350 Ryo, +40 EXP), summon (Ryo -300, new ninja), and leaderboard renders 15 ranked rows. App is in great shape.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/register", "issue": "Uses pydantic EmailStr which rejects reserved-use TLDs like .test (returns 422). Not a real bug but worth noting for any test scripts using `*.test` emails."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Roster detail dialog", "issues": ["Radix DialogContent missing DialogTitle / aria-describedby — produces an a11y console warning. Should add a (possibly VisuallyHidden) DialogTitle and Description for screen readers."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_shinobi_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Optional/minor) Add a DialogTitle + Description (or VisuallyHidden equivalent) to the Roster ninja-detail dialog to satisfy Radix a11y warning.",
+    "(Optional) Consider relaxing email validation or documenting that reserved TLDs (.test, .invalid) will be rejected."
+  ],
+  "critical_code_review_comments": [
+    "server.py: CORS allow_origins is hard-coded to a single FRONTEND_URL env value (good). CORS_ORIGINS=\"*\" in backend/.env is unused — remove or wire it up to avoid confusion.",
+    "server.py uses @app.on_event('startup'/'shutdown') which is deprecated in modern FastAPI; consider migrating to lifespan handlers.",
+    "set_auth_cookies sets secure=False — fine for current proxy setup but flag for production hardening (Secure + SameSite=None when behind HTTPS cross-site).",
+    "/api/game/levelup returns the bare profile dict, while /battle/complete and /summon return wrappers ({profile, ...}). Inconsistent response shape across endpoints — frontend handles it, but a uniform contract is nicer.",
+    "/api/game/leaderboard scans all users (find({}).to_list(200)) and computes power in Python; fine at small scale but won't scale. Index/cache for later.",
+    "Battle.jsx is a single 391-line file — close to the 700-line guideline cap but acceptable; consider extracting Fighter component into its own file."
+  ],
+  "updated_files": ["/app/backend/tests/test_shinobi_api.py", "/app/backend/tests/__init__.py"],
+  "success_rate": {"backend": "100% (23/23)", "frontend": "100% of tested flows"},
+  "test_credentials": "admin@shinobi.com / admin123 (from /app/memory/test_credentials.md). Registered test users use pattern test_*_<uuid>@shinobiclash.io (pydantic EmailStr rejects .test TLD).",
+  "seed_data_creation": "Admin seeded on startup with 5000 Ryo + starters. Several TEST_ users created during pytest (some now have cleared stages/summons). No teardown implemented — left intentionally for leaderboard verification.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest suite lives at /app/backend/tests/test_shinobi_api.py — run with `python -m pytest backend/tests/test_shinobi_api.py -v`. To win a battle in Playwright reliably: pick a non-basic enabled jutsu via `[data-testid^=\"jutsu-\"]:not([disabled])` and then click an enemy `[data-testid^=\"fighter-\"]` whose className contains `ring-fox` (highlight). Round budget of ~150 iterations with 900ms wait covers s1. Battle result panel shows CAMPAIGN+LOBBY on win, CAMPAIGN+RETRY on lose (no retry on win — matches spec).",
+  "rca_of_issue": "No bugs found requiring RCA. Initial backend test failures (422 on /api/auth/register) were a test-side issue caused by using `@*.test` reserved TLD which pydantic's EmailStr rejects; fixed by switching to `@shinobiclash.io`. Initial UI battle timeout was a test-script issue: enemy fighter targeting must filter for `ring-fox` class (highlight=true); after fix, battle completed in 36 iters with VICTORY."
+}

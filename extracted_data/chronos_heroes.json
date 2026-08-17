@@ -1,0 +1,5225 @@
+{
+  "game": "Chronos Legends",
+  "total_heroes": 100,
+  "rarity_distribution": {
+    "Common": 25,
+    "Rare": 28,
+    "Epic": 22,
+    "Legendary": 18,
+    "Mythic": 7
+  },
+  "element_distribution": {
+    "Fire": 16,
+    "Water": 15,
+    "Earth": 16,
+    "Wind": 16,
+    "Light": 19,
+    "Dark": 18
+  },
+  "rarity_stat_multiplier": {
+    "Common": 1,
+    "Rare": 1.35,
+    "Epic": 1.8,
+    "Legendary": 2.4,
+    "Mythic": 3.2
+  },
+  "notes": "Stats shown use the random component fixed at its midpoint (the original seeds them with Math.random, so live values vary). Skill names/types/passives are deterministic; the active multiplier shown also uses the midpoint of its random range.",
+  "heroes": [
+    {
+      "name": "Ember Scout",
+      "title": "Flame Seeker",
+      "element": "Fire",
+      "rarity": "Common",
+      "lore": "A young fire adept who survived a volcanic eruption and emerged with ember-hardened skin.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Ember's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Ember's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Fire deity Ember Scout the Flame Seeker, A young fire adept who survived a volcanic eruption and emer, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Ashclaw",
+      "title": "Cinder Beast",
+      "element": "Fire",
+      "rarity": "Common",
+      "lore": "A feral creature born in smoldering ruins, its claws permanently coated in ash and embers.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Ashclaw's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Ashclaw's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Fire deity Ashclaw the Cinder Beast, A feral creature born in smoldering ruins, its claws permane, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Flickering Jin",
+      "title": "Spirit of Small Flames",
+      "element": "Fire",
+      "rarity": "Common",
+      "lore": "A mischievous fire spirit that inhabits old lanterns, lighting the way for lost travelers.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Flickering's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Flickering's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Fire deity Flickering Jin the Spirit of Small Flames, A mischievous fire spirit that inhabits old lanterns, lighti, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Saltide",
+      "title": "Shore Warden",
+      "element": "Water",
+      "rarity": "Common",
+      "lore": "A coastal guard who learned to read currents and tides, defending fishing villages from sea raids.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Saltide's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Saltide's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Water deity Saltide the Shore Warden, A coastal guard who learned to read currents and tides, defe, deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Brook Nymph",
+      "title": "River Dancer",
+      "element": "Water",
+      "rarity": "Common",
+      "lore": "A playful spirit who leaps between streams, healing those who hear her song.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Brook's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Brook's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Water deity Brook Nymph the River Dancer, A playful spirit who leaps between streams, healing those wh, deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Murkdiver",
+      "title": "Deep Scavenger",
+      "element": "Water",
+      "rarity": "Common",
+      "lore": "A mysterious diver who salvages relics from sunken ships, breathing water as easily as air.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Murkdiver's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Murkdiver's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Water deity Murkdiver the Deep Scavenger, A mysterious diver who salvages relics from sunken ships, br, deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Stoneback",
+      "title": "Rock Tortoise",
+      "element": "Earth",
+      "rarity": "Common",
+      "lore": "An ancient tortoise whose shell has petrified over centuries into living rock armor.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Stoneback's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Stoneback's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Earth deity Stoneback the Rock Tortoise, An ancient tortoise whose shell has petrified over centuries, deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Bramblethorn",
+      "title": "Forest Prickle",
+      "element": "Earth",
+      "rarity": "Common",
+      "lore": "A thorny forest creature that uses camouflage to ambush prey in dense undergrowth.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Bramblethorn's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Bramblethorn's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Earth deity Bramblethorn the Forest Prickle, A thorny forest creature that uses camouflage to ambush prey, deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Clay Shaper",
+      "title": "Mud Artisan",
+      "element": "Earth",
+      "rarity": "Common",
+      "lore": "A humble craftsman who discovered that the clay of sacred rivers holds protective magic.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Clay's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Clay's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Earth deity Clay Shaper the Mud Artisan, A humble craftsman who discovered that the clay of sacred ri, deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Dust Wisp",
+      "title": "Desert Wanderer",
+      "element": "Wind",
+      "rarity": "Common",
+      "lore": "A being of condensed desert wind who guides travelers through sandstorms.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Dust's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Dust's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Wind deity Dust Wisp the Desert Wanderer, A being of condensed desert wind who guides travelers throug, electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Zephyr Imp",
+      "title": "Wind Trickster",
+      "element": "Wind",
+      "rarity": "Common",
+      "lore": "A small mischievous imp that enjoys tangling kite strings and scattering merchants' wares.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Zephyr's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Zephyr's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Wind deity Zephyr Imp the Wind Trickster, A small mischievous imp that enjoys tangling kite strings an, electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Stormling",
+      "title": "Cloud Child",
+      "element": "Wind",
+      "rarity": "Common",
+      "lore": "Born inside a thunderstorm, this child commands small gusts and crackling static.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Stormling's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Stormling's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Wind deity Stormling the Cloud Child, Born inside a thunderstorm, this child commands small gusts , electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Glow Sentinel",
+      "title": "Lantern Knight",
+      "element": "Light",
+      "rarity": "Common",
+      "lore": "A devoted knight who carries an enchanted lantern that banishes minor darkness.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Glow's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Glow's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Light deity Glow Sentinel the Lantern Knight, A devoted knight who carries an enchanted lantern that banis, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Radiant Fawn",
+      "title": "Sacred Deer",
+      "element": "Light",
+      "rarity": "Common",
+      "lore": "A holy deer said to appear at dawn, blessing those who see it with good fortune.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Radiant's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Radiant's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Light deity Radiant Fawn the Sacred Deer, A holy deer said to appear at dawn, blessing those who see i, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Sunweaver",
+      "title": "Ray Binder",
+      "element": "Light",
+      "rarity": "Common",
+      "lore": "A humble monk who weaves sunlight into cloth that protects against dark magic.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Sunweaver's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Sunweaver's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Light deity Sunweaver the Ray Binder, A humble monk who weaves sunlight into cloth that protects a, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Shade Walker",
+      "title": "Dusk Wanderer",
+      "element": "Dark",
+      "rarity": "Common",
+      "lore": "A wanderer who treads the boundary between light and shadow, unseen by either side.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Shade's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Shade's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Dark deity Shade Walker the Dusk Wanderer, A wanderer who treads the boundary between light and shadow,, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Grave Moth",
+      "title": "Cemetery Spirit",
+      "element": "Dark",
+      "rarity": "Common",
+      "lore": "A moth born from a grave flower that absorbs the lingering regrets of the recently departed.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Grave's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Grave's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Dark deity Grave Moth the Cemetery Spirit, A moth born from a grave flower that absorbs the lingering r, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Hollow Echo",
+      "title": "Voice of the Void",
+      "element": "Dark",
+      "rarity": "Common",
+      "lore": "A disembodied echo trapped between worlds, whispering forgotten secrets to those who listen.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Hollow's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Hollow's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Dark deity Hollow Echo the Voice of the Void, A disembodied echo trapped between worlds, whispering forgot, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Cinder Whelp",
+      "title": "Newborn Drake",
+      "element": "Fire",
+      "rarity": "Common",
+      "lore": "A tiny fire drake still learning to breathe flame — but already surprisingly fierce.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Cinder's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Cinder's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Fire deity Cinder Whelp the Newborn Drake, A tiny fire drake still learning to breathe flame — but alre, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Tidechaser",
+      "title": "Wave Runner",
+      "element": "Water",
+      "rarity": "Common",
+      "lore": "A swift sailor who races the tide itself and has never once lost.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Tidechaser's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Tidechaser's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Water deity Tidechaser the Wave Runner, A swift sailor who races the tide itself and has never once , deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Moss Guard",
+      "title": "Grove Protector",
+      "element": "Earth",
+      "rarity": "Common",
+      "lore": "An ancient tree spirit condensed into humanoid form to protect a sacred grove.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Moss's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Moss's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Earth deity Moss Guard the Grove Protector, An ancient tree spirit condensed into humanoid form to prote, deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Gust Blade",
+      "title": "Wind Swordsman",
+      "element": "Wind",
+      "rarity": "Common",
+      "lore": "A swordsman who has trained in mountaintop winds until his strikes move like hurricanes.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Gust's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Gust's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Wind deity Gust Blade the Wind Swordsman, A swordsman who has trained in mountaintop winds until his s, electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Dawn Acolyte",
+      "title": "Morning Devotee",
+      "element": "Light",
+      "rarity": "Common",
+      "lore": "A devoted acolyte who rises before dawn to pray and channels a fraction of solar power.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Dawn's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Dawn's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Light deity Dawn Acolyte the Morning Devotee, A devoted acolyte who rises before dawn to pray and channels, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Twilight Hound",
+      "title": "Dusk Tracker",
+      "element": "Dark",
+      "rarity": "Common",
+      "lore": "A black hound that hunts at twilight, tracking souls trying to flee the underworld.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Twilight's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Twilight's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Dark deity Twilight Hound the Dusk Tracker, A black hound that hunts at twilight, tracking souls trying , deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Pyre Dancer",
+      "title": "Flame Acrobat",
+      "element": "Fire",
+      "rarity": "Common",
+      "lore": "A performer who dances through flames at festivals, eventually becoming one with the fire.",
+      "base_hp": 95,
+      "base_attack": 20,
+      "base_defense": 13,
+      "base_speed": 12,
+      "skill_name": "Pyre's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.0,
+      "skills": [
+        {
+          "name": "Pyre's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.0,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.2), anime girl, Common Fire deity Pyre Dancer the Flame Acrobat, A performer who dances through flames at festivals, eventual, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Prometheus",
+      "title": "The Fire Bringer",
+      "element": "Fire",
+      "rarity": "Rare",
+      "lore": "Titan who stole fire from the gods and gifted it to humanity, chained eternally for his defiance.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Prometheus's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Prometheus's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Fire Burst",
+          "desc": "Erupts with Fire energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Fire deity Prometheus the The Fire Bringer, Titan who stole fire from the gods and gifted it to humanity, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Vulcan",
+      "title": "Forge Master",
+      "element": "Fire",
+      "rarity": "Rare",
+      "lore": "Roman god of the forge, crafting thunderbolts for Jupiter and armor for heroes.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Vulcan's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Vulcan's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Fire Burst",
+          "desc": "Erupts with Fire energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Fire deity Vulcan the Forge Master, Roman god of the forge, crafting thunderbolts for Jupiter an, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Kagutsuchi",
+      "title": "Blazing Spirit",
+      "element": "Fire",
+      "rarity": "Rare",
+      "lore": "Japanese god of fire whose birth killed his own mother — volcanoes mark his path.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Kagutsuchi's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Kagutsuchi's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Fire Burst",
+          "desc": "Erupts with Fire energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Fire deity Kagutsuchi the Blazing Spirit, Japanese god of fire whose birth killed his own mother — vol, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Brigid",
+      "title": "Sacred Flame",
+      "element": "Fire",
+      "rarity": "Rare",
+      "lore": "Celtic goddess of hearth fire, poetry, and the forge. Her eternal flame has never been extinguished.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Brigid's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Brigid's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Fire Burst",
+          "desc": "Erupts with Fire energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Fire deity Brigid the Sacred Flame, Celtic goddess of hearth fire, poetry, and the forge. Her et, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Poseidon",
+      "title": "Sea Lord",
+      "element": "Water",
+      "rarity": "Rare",
+      "lore": "Greek god of the seas, earthquakes, and storms. His trident splits coastlines with a flick.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Poseidon's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Poseidon's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Water Burst",
+          "desc": "Erupts with Water energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Water deity Poseidon the Sea Lord, Greek god of the seas, earthquakes, and storms. His trident , deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Sedna",
+      "title": "Ocean Mother",
+      "element": "Water",
+      "rarity": "Rare",
+      "lore": "Inuit goddess of the sea whose severed fingers became seals and whales.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Sedna's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Sedna's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Water Burst",
+          "desc": "Erupts with Water energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Water deity Sedna the Ocean Mother, Inuit goddess of the sea whose severed fingers became seals , deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Yemoja",
+      "title": "River Queen",
+      "element": "Water",
+      "rarity": "Rare",
+      "lore": "Yoruba orisha of rivers and sea, mother of all water spirits and protector of women.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Yemoja's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Yemoja's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Water Burst",
+          "desc": "Erupts with Water energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Water deity Yemoja the River Queen, Yoruba orisha of rivers and sea, mother of all water spirits, deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Ryujin",
+      "title": "Dragon King",
+      "element": "Water",
+      "rarity": "Rare",
+      "lore": "Japanese dragon king of the sea whose underwater palace stores 10,000 years of rainfall.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Ryujin's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Ryujin's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Water Burst",
+          "desc": "Erupts with Water energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Water deity Ryujin the Dragon King, Japanese dragon king of the sea whose underwater palace stor, deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Gaia",
+      "title": "World Mother",
+      "element": "Earth",
+      "rarity": "Rare",
+      "lore": "Primordial goddess of the Earth — her body is the ground itself and her heartbeat the tectonic pulse.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Gaia's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Gaia's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Earth Burst",
+          "desc": "Erupts with Earth energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Earth deity Gaia the World Mother, Primordial goddess of the Earth — her body is the ground its, deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Cernunnos",
+      "title": "Horned King",
+      "element": "Earth",
+      "rarity": "Rare",
+      "lore": "Celtic god of nature and animals. His antlers command the beasts of all forests.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Cernunnos's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Cernunnos's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Earth Burst",
+          "desc": "Erupts with Earth energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Earth deity Cernunnos the Horned King, Celtic god of nature and animals. His antlers command the be, deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Demeter",
+      "title": "Harvest Queen",
+      "element": "Earth",
+      "rarity": "Rare",
+      "lore": "Greek goddess of grain — when she grieves, crops fail; when she smiles, the earth blooms.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Demeter's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Demeter's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Earth Burst",
+          "desc": "Erupts with Earth energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Earth deity Demeter the Harvest Queen, Greek goddess of grain — when she grieves, crops fail; when , deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Enkidu",
+      "title": "Wild Man",
+      "element": "Earth",
+      "rarity": "Rare",
+      "lore": "Created from clay by the gods, the wild man Enkidu became the greatest friend of Gilgamesh.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Enkidu's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Enkidu's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Earth Burst",
+          "desc": "Erupts with Earth energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Earth deity Enkidu the Wild Man, Created from clay by the gods, the wild man Enkidu became th, deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Thor",
+      "title": "Thunder God",
+      "element": "Wind",
+      "rarity": "Rare",
+      "lore": "Norse god of thunder whose hammer Mjolnir shatters mountains and calls lightning from clear skies.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Thor's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Thor's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Wind Burst",
+          "desc": "Erupts with Wind energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Wind deity Thor the Thunder God, Norse god of thunder whose hammer Mjolnir shatters mountains, electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Fujin",
+      "title": "Wind Demon",
+      "element": "Wind",
+      "rarity": "Rare",
+      "lore": "Japanese god of wind who carries a magical bag from which all winds blow.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Fujin's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Fujin's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Wind Burst",
+          "desc": "Erupts with Wind energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Wind deity Fujin the Wind Demon, Japanese god of wind who carries a magical bag from which al, electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Aeolus",
+      "title": "Storm Keeper",
+      "element": "Wind",
+      "rarity": "Rare",
+      "lore": "Greek keeper of the winds, who imprisoned all gales in a bag given to Odysseus.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Aeolus's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Aeolus's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Wind Burst",
+          "desc": "Erupts with Wind energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Wind deity Aeolus the Storm Keeper, Greek keeper of the winds, who imprisoned all gales in a bag, electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Boreas",
+      "title": "North Gale",
+      "element": "Wind",
+      "rarity": "Rare",
+      "lore": "Greek god of the violent north wind who abducted a princess and sired Argonauts.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Boreas's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Boreas's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Wind Burst",
+          "desc": "Erupts with Wind energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Wind deity Boreas the North Gale, Greek god of the violent north wind who abducted a princess , electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Apollo",
+      "title": "Sun Archer",
+      "element": "Light",
+      "rarity": "Rare",
+      "lore": "Greek god of the sun, music, and prophecy whose silver arrows strike from impossible distances.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Apollo's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Apollo's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Light deity Apollo the Sun Archer, Greek god of the sun, music, and prophecy whose silver arrow, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Baldur",
+      "title": "The Radiant",
+      "element": "Light",
+      "rarity": "Rare",
+      "lore": "Most beloved Norse god, so radiant light emanates from his skin. His death plunged all into mourning.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Baldur's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Baldur's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Light deity Baldur the The Radiant, Most beloved Norse god, so radiant light emanates from his s, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Lugh",
+      "title": "Shining One",
+      "element": "Light",
+      "rarity": "Rare",
+      "lore": "Celtic god of the sun and master of all crafts, wielder of the invincible spear Lúin.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Lugh's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Lugh's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Light deity Lugh the Shining One, Celtic god of the sun and master of all crafts, wielder of t, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Mithra",
+      "title": "Light Covenant",
+      "element": "Light",
+      "rarity": "Rare",
+      "lore": "Persian god of light, truth, and covenant whose mystery cult spread across the Roman world.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Mithra's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Mithra's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Light deity Mithra the Light Covenant, Persian god of light, truth, and covenant whose mystery cult, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Anubis",
+      "title": "Soul Judge",
+      "element": "Dark",
+      "rarity": "Rare",
+      "lore": "Egyptian god of death who weighs souls against the feather of truth in the Hall of Two Truths.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Anubis's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Anubis's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Dark deity Anubis the Soul Judge, Egyptian god of death who weighs souls against the feather o, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Hel",
+      "title": "Death Queen",
+      "element": "Dark",
+      "rarity": "Rare",
+      "lore": "Norse goddess half living, half corpse — she rules all who did not die in glorious battle.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Hel's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Hel's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Dark deity Hel the Death Queen, Norse goddess half living, half corpse — she rules all who d, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Nyx",
+      "title": "Eternal Night",
+      "element": "Dark",
+      "rarity": "Rare",
+      "lore": "Greek primordial goddess of night so ancient and powerful that even Zeus fears her.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Nyx's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Nyx's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Dark deity Nyx the Eternal Night, Greek primordial goddess of night so ancient and powerful th, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Izanami",
+      "title": "Underworld Bride",
+      "element": "Dark",
+      "rarity": "Rare",
+      "lore": "Japanese goddess of death who vowed to kill 1,000 people each day after her husband fled her.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Izanami's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Izanami's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Dark deity Izanami the Underworld Bride, Japanese goddess of death who vowed to kill 1,000 people eac, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Hermes",
+      "title": "Swift Messenger",
+      "element": "Wind",
+      "rarity": "Rare",
+      "lore": "Greek messenger of the gods who guides souls to the underworld with his caduceus staff.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Hermes's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Hermes's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Wind Burst",
+          "desc": "Erupts with Wind energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Wind deity Hermes the Swift Messenger, Greek messenger of the gods who guides souls to the underwor, electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Ra",
+      "title": "Sun King",
+      "element": "Fire",
+      "rarity": "Rare",
+      "lore": "Supreme Egyptian solar deity who sails his golden barque across the sky and battles Apep each night.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Ra's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Ra's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Fire Burst",
+          "desc": "Erupts with Fire energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Fire deity Ra the Sun King, Supreme Egyptian solar deity who sails his golden barque acr, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Sobek",
+      "title": "Crocodile God",
+      "element": "Water",
+      "rarity": "Rare",
+      "lore": "Egyptian god of the Nile whose crocodile form embodies both danger and the river's power.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Sobek's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Sobek's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Water Burst",
+          "desc": "Erupts with Water energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Water deity Sobek the Crocodile God, Egyptian god of the Nile whose crocodile form embodies both , deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Persephone",
+      "title": "Spring and Shadow",
+      "element": "Dark",
+      "rarity": "Rare",
+      "lore": "Queen of the underworld — when she ascends, the world flowers; when she descends, it mourns.",
+      "base_hp": 128,
+      "base_attack": 27,
+      "base_defense": 18,
+      "base_speed": 16,
+      "skill_name": "Persephone's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.2,
+      "skills": [
+        {
+          "name": "Persephone's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.2,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.7,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "30% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.3,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.3), detailed anime character, Rare Dark deity Persephone the Spring and Shadow, Queen of the underworld — when she ascends, the world flower, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Surtur",
+      "title": "Flame Giant",
+      "element": "Fire",
+      "rarity": "Epic",
+      "lore": "Norse fire giant who rules Muspelheim. His flaming sword is brighter than the sun itself.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Surtur's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Surtur's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Fire Burst",
+          "desc": "Erupts with Fire energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Fire deity Surtur the Flame Giant, Norse fire giant who rules Muspelheim. His flaming sword is , crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Pele",
+      "title": "Volcano Goddess",
+      "element": "Fire",
+      "rarity": "Epic",
+      "lore": "Hawaiian goddess of volcanoes who shapes new islands from the ocean floor with her lava.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Pele's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Pele's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Fire Burst",
+          "desc": "Erupts with Fire energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Fire deity Pele the Volcano Goddess, Hawaiian goddess of volcanoes who shapes new islands from th, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Xiuhtecuhtli",
+      "title": "Turquoise Lord",
+      "element": "Fire",
+      "rarity": "Epic",
+      "lore": "Aztec god of fire and time who must be reborn every 52 years in the New Fire Ceremony.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Xiuhtecuhtli's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Xiuhtecuhtli's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Fire Burst",
+          "desc": "Erupts with Fire energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Fire deity Xiuhtecuhtli the Turquoise Lord, Aztec god of fire and time who must be reborn every 52 years, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Agni",
+      "title": "Divine Flame",
+      "element": "Fire",
+      "rarity": "Epic",
+      "lore": "Vedic god of sacred fire and messenger of the gods, carrying offerings from mortals to the heavens.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Agni's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Agni's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Fire Burst",
+          "desc": "Erupts with Fire energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Fire deity Agni the Divine Flame, Vedic god of sacred fire and messenger of the gods, carrying, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Tiamat",
+      "title": "Primordial Sea Dragon",
+      "element": "Water",
+      "rarity": "Epic",
+      "lore": "Babylonian goddess of the salt sea — the primordial dragon from whose body the world was made.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Tiamat's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Tiamat's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Water Burst",
+          "desc": "Erupts with Water energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Water deity Tiamat the Primordial Sea Dragon, Babylonian goddess of the salt sea — the primordial dragon f, deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Poseidon",
+      "title": "Earthshaker",
+      "element": "Water",
+      "rarity": "Epic",
+      "lore": "When this aspect of the sea god fully awakens, he shatters coastlines with a single strike of his trident.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Poseidon's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Poseidon's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Water Burst",
+          "desc": "Erupts with Water energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Water deity Poseidon the Earthshaker, When this aspect of the sea god fully awakens, he shatters c, deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Ao Guang",
+      "title": "Dragon King of the East",
+      "element": "Water",
+      "rarity": "Epic",
+      "lore": "Chinese Dragon King of the Eastern Sea who commands rain, storms, and the tides.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Ao's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Ao's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Water Burst",
+          "desc": "Erupts with Water energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Water deity Ao Guang the Dragon King of the East, Chinese Dragon King of the Eastern Sea who commands rain, st, deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Mazu",
+      "title": "Empress of the Sea",
+      "element": "Water",
+      "rarity": "Epic",
+      "lore": "Chinese sea goddess who flies over water to rescue the drowning — her red robe seen in every ocean.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Mazu's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Mazu's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Water Burst",
+          "desc": "Erupts with Water energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Water deity Mazu the Empress of the Sea, Chinese sea goddess who flies over water to rescue the drown, deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Pachamama",
+      "title": "Earth Spirit",
+      "element": "Earth",
+      "rarity": "Epic",
+      "lore": "Inca earth mother who sustains all Andean life. Earthquakes are her trembling; harvests her gift.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Pachamama's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Pachamama's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Earth Burst",
+          "desc": "Erupts with Earth energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Earth deity Pachamama the Earth Spirit, Inca earth mother who sustains all Andean life. Earthquakes , deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Osiris",
+      "title": "Resurrection King",
+      "element": "Earth",
+      "rarity": "Epic",
+      "lore": "Egyptian god of agriculture and the afterlife who taught humanity to farm after his own resurrection.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Osiris's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Osiris's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Earth Burst",
+          "desc": "Erupts with Earth energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Earth deity Osiris the Resurrection King, Egyptian god of agriculture and the afterlife who taught hum, deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Coatlicue",
+      "title": "She of the Serpent Skirt",
+      "element": "Earth",
+      "rarity": "Epic",
+      "lore": "Aztec earth goddess whose skirt is woven from living serpents — creator and destroyer alike.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Coatlicue's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Coatlicue's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Earth Burst",
+          "desc": "Erupts with Earth energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Earth deity Coatlicue the She of the Serpent Skirt, Aztec earth goddess whose skirt is woven from living serpent, deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Freyr",
+      "title": "Lord of Sunshine",
+      "element": "Earth",
+      "rarity": "Epic",
+      "lore": "Norse god of fertility who commands the harvest. He gave up his magic sword for love.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Freyr's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Freyr's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Earth Burst",
+          "desc": "Erupts with Earth energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Earth deity Freyr the Lord of Sunshine, Norse god of fertility who commands the harvest. He gave up , deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Zeus",
+      "title": "Sky Father",
+      "element": "Wind",
+      "rarity": "Epic",
+      "lore": "King of Olympian gods who hurls lightning from Mount Olympus and governs justice among all beings.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Zeus's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Zeus's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Wind Burst",
+          "desc": "Erupts with Wind energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Wind deity Zeus the Sky Father, King of Olympian gods who hurls lightning from Mount Olympus, electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Indra",
+      "title": "Storm Sovereign",
+      "element": "Wind",
+      "rarity": "Epic",
+      "lore": "Vedic king of the gods who wields the thunderbolt Vajra and slew the dragon Vritra.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Indra's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Indra's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Wind Burst",
+          "desc": "Erupts with Wind energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Wind deity Indra the Storm Sovereign, Vedic king of the gods who wields the thunderbolt Vajra and , electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Quetzalcoatl",
+      "title": "Feathered Serpent",
+      "element": "Wind",
+      "rarity": "Epic",
+      "lore": "Aztec god of wind and knowledge who gave humanity maize and the calendar before departing.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Quetzalcoatl's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Quetzalcoatl's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Wind Burst",
+          "desc": "Erupts with Wind energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Wind deity Quetzalcoatl the Feathered Serpent, Aztec god of wind and knowledge who gave humanity maize and , electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Stribog",
+      "title": "Lord of the Eight Winds",
+      "element": "Wind",
+      "rarity": "Epic",
+      "lore": "Slavic god of winds whose grandsons are the eight winds that circle the earth in constant motion.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Stribog's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Stribog's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Wind Burst",
+          "desc": "Erupts with Wind energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Wind deity Stribog the Lord of the Eight Winds, Slavic god of winds whose grandsons are the eight winds that, electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Horus",
+      "title": "Sky Falcon",
+      "element": "Light",
+      "rarity": "Epic",
+      "lore": "Egyptian falcon god — his right eye is the sun, his left the moon. He defeated Set and became divine king.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Horus's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Horus's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Light deity Horus the Sky Falcon, Egyptian falcon god — his right eye is the sun, his left the, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Athena",
+      "title": "War Sage",
+      "element": "Light",
+      "rarity": "Epic",
+      "lore": "Greek goddess of wisdom and strategy who sprang fully armored from Zeus's head.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Athena's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Athena's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Light deity Athena the War Sage, Greek goddess of wisdom and strategy who sprang fully armore, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Freya",
+      "title": "Golden Lady",
+      "element": "Light",
+      "rarity": "Epic",
+      "lore": "Norse goddess of love who chooses half the battle's fallen for her hall — the other half go to Odin.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Freya's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Freya's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Light deity Freya the Golden Lady, Norse goddess of love who chooses half the battle's fallen f, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Gilgamesh",
+      "title": "Golden King",
+      "element": "Light",
+      "rarity": "Epic",
+      "lore": "Legendary king of Uruk, two-thirds divine, who sought immortality and found wisdom instead.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Gilgamesh's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Gilgamesh's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Light deity Gilgamesh the Golden King, Legendary king of Uruk, two-thirds divine, who sought immort, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Hades",
+      "title": "Death Lord",
+      "element": "Dark",
+      "rarity": "Epic",
+      "lore": "Greek god of the underworld who rules the dead with cold justice from his invisible throne.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Hades's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Hades's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Dark deity Hades the Death Lord, Greek god of the underworld who rules the dead with cold jus, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Set",
+      "title": "God of Chaos",
+      "element": "Dark",
+      "rarity": "Epic",
+      "lore": "Egyptian god of chaos who murdered his brother Osiris yet also defends Ra's barque each night.",
+      "base_hp": 171,
+      "base_attack": 36,
+      "base_defense": 24,
+      "base_speed": 21,
+      "skill_name": "Set's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.4,
+      "skills": [
+        {
+          "name": "Set's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.4,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 1.8,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.24,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Battle Instinct",
+          "desc": "35% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.35,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Elemental Surge",
+          "desc": "Attack surges 45% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.45,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.4), highly detailed fantasy anime character, dramatic lighting, Epic Dark deity Set the God of Chaos, Egyptian god of chaos who murdered his brother Osiris yet al, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Morrigan",
+      "title": "Phantom Queen",
+      "element": "Dark",
+      "rarity": "Legendary",
+      "lore": "Celtic goddess of war, fate, and death. Her shape-shifting ravens decide who lives and dies on the battlefield.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Morrigan's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Morrigan's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Dark deity Morrigan the Phantom Queen, Celtic goddess of war, fate, and death. Her shape-shifting r, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Hecate",
+      "title": "Goddess of Crossroads",
+      "element": "Dark",
+      "rarity": "Legendary",
+      "lore": "Greek goddess of magic and the underworld who haunts crossroads with torches and hounds.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Hecate's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Hecate's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Dark deity Hecate the Goddess of Crossroads, Greek goddess of magic and the underworld who haunts crossro, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Loki",
+      "title": "Trickster Unbound",
+      "element": "Dark",
+      "rarity": "Legendary",
+      "lore": "The Norse trickster whose chains are destined to break at Ragnarok, unleashing full chaos on creation.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Loki's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Loki's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Dark deity Loki the Trickster Unbound, The Norse trickster whose chains are destined to break at Ra, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Ereshkigal",
+      "title": "Queen of the Great Below",
+      "element": "Dark",
+      "rarity": "Legendary",
+      "lore": "Sumerian queen of the underworld who strips power from all who descend — including gods.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Ereshkigal's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Ereshkigal's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Dark deity Ereshkigal the Queen of the Great Below, Sumerian queen of the underworld who strips power from all w, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Amaterasu",
+      "title": "Sun Goddess",
+      "element": "Light",
+      "rarity": "Legendary",
+      "lore": "Supreme Japanese goddess who rules the heavens. When she hid in a cave, the world fell to eternal darkness.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Amaterasu's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Amaterasu's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Light deity Amaterasu the Sun Goddess, Supreme Japanese goddess who rules the heavens. When she hid, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "King Arthur",
+      "title": "Once and Future King",
+      "element": "Light",
+      "rarity": "Legendary",
+      "lore": "Legendary king of Camelot who wielded Excalibur and will return when Britain needs him most.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "King's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "King's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Light deity King Arthur the Once and Future King, Legendary king of Camelot who wielded Excalibur and will ret, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Helios",
+      "title": "Sun Chariot",
+      "element": "Light",
+      "rarity": "Legendary",
+      "lore": "Titan who drove the golden sun chariot. His son Phaethon nearly burned the world in one ride.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Helios's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Helios's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Light deity Helios the Sun Chariot, Titan who drove the golden sun chariot. His son Phaethon nea, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Hyperion",
+      "title": "High One",
+      "element": "Light",
+      "rarity": "Legendary",
+      "lore": "Titan of heavenly light, father of the sun, moon, and dawn — the first light that ever existed.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Hyperion's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Hyperion's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Light deity Hyperion the High One, Titan of heavenly light, father of the sun, moon, and dawn —, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Surya",
+      "title": "Charioteer of Heaven",
+      "element": "Fire",
+      "rarity": "Legendary",
+      "lore": "The Hindu sun god whose radiance is so intense even gods must shield their eyes.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Surya's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Surya's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Fire Burst",
+          "desc": "Erupts with Fire energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Fire deity Surya the Charioteer of Heaven, The Hindu sun god whose radiance is so intense even gods mus, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Hephaestus",
+      "title": "Divine Artificer",
+      "element": "Fire",
+      "rarity": "Legendary",
+      "lore": "Greatest craftsman among gods — forged Achilles' armor, Eros' bow, and chains that held Prometheus.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Hephaestus's Strike",
+      "skill_description": "Channels Fire power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Hephaestus's Strike",
+          "desc": "Channels Fire power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Fire Burst",
+          "desc": "Erupts with Fire energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Fire deity Hephaestus the Divine Artificer, Greatest craftsman among gods — forged Achilles' armor, Eros, crimson and molten gold palette, ember sparks, volcanic cracks, fiery hair, heat haze, phoenix feathers, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Leviathan",
+      "title": "Serpent of the Abyss",
+      "element": "Water",
+      "rarity": "Legendary",
+      "lore": "The great Biblical sea monster whose hide no weapon of man can pierce. Its wake glows in the deep.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Leviathan's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Leviathan's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Water Burst",
+          "desc": "Erupts with Water energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Water deity Leviathan the Serpent of the Abyss, The great Biblical sea monster whose hide no weapon of man c, deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Varuna",
+      "title": "Keeper of Cosmic Order",
+      "element": "Water",
+      "rarity": "Legendary",
+      "lore": "Ancient Vedic god of water and truth who watches all mortal deeds with his thousand eyes.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Varuna's Strike",
+      "skill_description": "Channels Water power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Varuna's Strike",
+          "desc": "Channels Water power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Water Burst",
+          "desc": "Erupts with Water energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Water deity Varuna the Keeper of Cosmic Order, Ancient Vedic god of water and truth who watches all mortal , deep ocean teal and pearl white, flowing water ribbons, bioluminescent bubbles, seafoam lace, aquamarine rim lighting, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Cybele",
+      "title": "Great Mountain Mother",
+      "element": "Earth",
+      "rarity": "Legendary",
+      "lore": "Phrygian mother goddess whose lion chariot shakes the earth and whose drums echo off mountain peaks.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Cybele's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Cybele's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Earth Burst",
+          "desc": "Erupts with Earth energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Earth deity Cybele the Great Mountain Mother, Phrygian mother goddess whose lion chariot shakes the earth , deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Ninhursag",
+      "title": "Lady of the Sacred Mountain",
+      "element": "Earth",
+      "rarity": "Legendary",
+      "lore": "Sumerian mother goddess who shapes all living creatures from clay and oversees fertility.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Ninhursag's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Ninhursag's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Earth Burst",
+          "desc": "Erupts with Earth energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Earth deity Ninhursag the Lady of the Sacred Mountain, Sumerian mother goddess who shapes all living creatures from, deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Enlil",
+      "title": "Lord of Wind and Breath",
+      "element": "Wind",
+      "rarity": "Legendary",
+      "lore": "Sumerian god of wind who separated earth from sky with his breath and nearly destroyed humanity.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Enlil's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Enlil's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Wind Burst",
+          "desc": "Erupts with Wind energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Wind deity Enlil the Lord of Wind and Breath, Sumerian god of wind who separated earth from sky with his b, electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Vayu",
+      "title": "Breath of the Universe",
+      "element": "Wind",
+      "rarity": "Legendary",
+      "lore": "Hindu god of wind and breath — the cosmic life-force and father of Hanuman and Bhima.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Vayu's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Vayu's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Wind Burst",
+          "desc": "Erupts with Wind energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Wind deity Vayu the Breath of the Universe, Hindu god of wind and breath — the cosmic life-force and fat, electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Nut",
+      "title": "Goddess of the Starry Sky",
+      "element": "Light",
+      "rarity": "Legendary",
+      "lore": "Egyptian goddess of the sky whose body arches over the earth covered in stars each night.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Nut's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Nut's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Light deity Nut the Goddess of the Starry Sky, Egyptian goddess of the sky whose body arches over the earth, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Baron Samedi",
+      "title": "Lord of the Dead",
+      "element": "Dark",
+      "rarity": "Legendary",
+      "lore": "Haitian Vodou loa who smokes cigars at crossroads and alone decides who lives or dies — for a price.",
+      "base_hp": 228,
+      "base_attack": 48,
+      "base_defense": 32,
+      "base_speed": 28,
+      "skill_name": "Baron's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.6,
+      "skills": [
+        {
+          "name": "Baron's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.6,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.0,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.27,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Undying Will",
+          "desc": "40% chance to counter-attack when struck",
+          "type": "counter",
+          "value": 0.4,
+          "icon": "🔄",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Divine Rage",
+          "desc": "Attack surges 60% when HP drops below 40%",
+          "type": "rage",
+          "value": 0.6,
+          "icon": "💢",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), premium gacha game art, ultra-detailed costume, cinematic lighting, Legendary Dark deity Baron Samedi the Lord of the Dead, Haitian Vodou loa who smokes cigars at crossroads and alone , deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Ahura Mazda",
+      "title": "Wise Lord of All Light",
+      "element": "Light",
+      "rarity": "Mythic",
+      "lore": "The supreme deity of Zoroastrianism, embodiment of truth and cosmic order locked in eternal battle with darkness.",
+      "base_hp": 304,
+      "base_attack": 64,
+      "base_defense": 43,
+      "base_speed": 38,
+      "skill_name": "Ahura's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.9,
+      "skills": [
+        {
+          "name": "Ahura's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.9,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.2,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.31,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Mythic Aura",
+          "desc": "Reduces all incoming damage by 25%",
+          "type": "damage_reduce",
+          "value": 0.25,
+          "icon": "🌟",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Undying Legend",
+          "desc": "30% chance to survive a killing blow with 1 HP once per battle",
+          "type": "survive",
+          "value": 0.3,
+          "icon": "💫",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), divine deity, godlike presence, otherworldly beauty, Mythic Light deity Ahura Mazda the Wise Lord of All Light, The supreme deity of Zoroastrianism, embodiment of truth and, radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Gaia Primordial",
+      "title": "Before the Beginning",
+      "element": "Earth",
+      "rarity": "Mythic",
+      "lore": "The ultimate form of Gaia before the Titans were born — the raw world-consciousness itself, older than thought.",
+      "base_hp": 304,
+      "base_attack": 64,
+      "base_defense": 43,
+      "base_speed": 38,
+      "skill_name": "Gaia's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.9,
+      "skills": [
+        {
+          "name": "Gaia's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.9,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Earth Burst",
+          "desc": "Erupts with Earth energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.2,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.31,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Mythic Aura",
+          "desc": "Reduces all incoming damage by 25%",
+          "type": "damage_reduce",
+          "value": 0.25,
+          "icon": "🌟",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Undying Legend",
+          "desc": "30% chance to survive a killing blow with 1 HP once per battle",
+          "type": "survive",
+          "value": 0.3,
+          "icon": "💫",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), divine deity, godlike presence, otherworldly beauty, Mythic Earth deity Gaia Primordial the Before the Beginning, The ultimate form of Gaia before the Titans were born — the , deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Apep",
+      "title": "Chaos Serpent of the Void",
+      "element": "Dark",
+      "rarity": "Mythic",
+      "lore": "The Egyptian eternal chaos serpent who attacks the solar barque each night. One night it may finally win.",
+      "base_hp": 304,
+      "base_attack": 64,
+      "base_defense": 43,
+      "base_speed": 38,
+      "skill_name": "Apep's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.9,
+      "skills": [
+        {
+          "name": "Apep's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.9,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.2,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.31,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Mythic Aura",
+          "desc": "Reduces all incoming damage by 25%",
+          "type": "damage_reduce",
+          "value": 0.25,
+          "icon": "🌟",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Undying Legend",
+          "desc": "30% chance to survive a killing blow with 1 HP once per battle",
+          "type": "survive",
+          "value": 0.3,
+          "icon": "💫",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), divine deity, godlike presence, otherworldly beauty, Mythic Dark deity Apep the Chaos Serpent of the Void, The Egyptian eternal chaos serpent who attacks the solar bar, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Brahma",
+      "title": "Creator of All Worlds",
+      "element": "Light",
+      "rarity": "Mythic",
+      "lore": "The Hindu creator god who shaped the universe from nothing. Each of his four heads speaks a different Veda.",
+      "base_hp": 304,
+      "base_attack": 64,
+      "base_defense": 43,
+      "base_speed": 38,
+      "skill_name": "Brahma's Strike",
+      "skill_description": "Channels Light power into a devastating single blow",
+      "skill_multiplier": 2.9,
+      "skills": [
+        {
+          "name": "Brahma's Strike",
+          "desc": "Channels Light power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.9,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Light Burst",
+          "desc": "Erupts with Light energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.2,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.31,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Mythic Aura",
+          "desc": "Reduces all incoming damage by 25%",
+          "type": "damage_reduce",
+          "value": 0.25,
+          "icon": "🌟",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Undying Legend",
+          "desc": "30% chance to survive a killing blow with 1 HP once per battle",
+          "type": "survive",
+          "value": 0.3,
+          "icon": "💫",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), divine deity, godlike presence, otherworldly beauty, Mythic Light deity Brahma the Creator of All Worlds, The Hindu creator god who shaped the universe from nothing. , radiant celestial gold and ivory, divine halo crown, glowing sigils, volumetric god rays, luminous skin, stardust, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Ymir",
+      "title": "First Being",
+      "element": "Earth",
+      "rarity": "Mythic",
+      "lore": "The Norse primordial frost giant from whose body the entire world was made — his blood became the seas.",
+      "base_hp": 304,
+      "base_attack": 64,
+      "base_defense": 43,
+      "base_speed": 38,
+      "skill_name": "Ymir's Strike",
+      "skill_description": "Channels Earth power into a devastating single blow",
+      "skill_multiplier": 2.9,
+      "skills": [
+        {
+          "name": "Ymir's Strike",
+          "desc": "Channels Earth power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.9,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Earth Burst",
+          "desc": "Erupts with Earth energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.2,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.31,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Mythic Aura",
+          "desc": "Reduces all incoming damage by 25%",
+          "type": "damage_reduce",
+          "value": 0.25,
+          "icon": "🌟",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Undying Legend",
+          "desc": "30% chance to survive a killing blow with 1 HP once per battle",
+          "type": "survive",
+          "value": 0.3,
+          "icon": "💫",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), divine deity, godlike presence, otherworldly beauty, Mythic Earth deity Ymir the First Being, The Norse primordial frost giant from whose body the entire , deep emerald and amber, living vines, ancient tree roots, golden pollen particles, earthy dappled sunlight, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Izanagi",
+      "title": "He Who Invites Creation",
+      "element": "Wind",
+      "rarity": "Mythic",
+      "lore": "The Japanese creator god who stirred the primordial ocean with a jeweled spear to create the islands of the world.",
+      "base_hp": 304,
+      "base_attack": 64,
+      "base_defense": 43,
+      "base_speed": 38,
+      "skill_name": "Izanagi's Strike",
+      "skill_description": "Channels Wind power into a devastating single blow",
+      "skill_multiplier": 2.9,
+      "skills": [
+        {
+          "name": "Izanagi's Strike",
+          "desc": "Channels Wind power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.9,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Wind Burst",
+          "desc": "Erupts with Wind energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.2,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.31,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Mythic Aura",
+          "desc": "Reduces all incoming damage by 25%",
+          "type": "damage_reduce",
+          "value": 0.25,
+          "icon": "🌟",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Undying Legend",
+          "desc": "30% chance to survive a killing blow with 1 HP once per battle",
+          "type": "survive",
+          "value": 0.3,
+          "icon": "💫",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), divine deity, godlike presence, otherworldly beauty, Mythic Wind deity Izanagi the He Who Invites Creation, The Japanese creator god who stirred the primordial ocean wi, electric violet and silver, swirling cyclone, crackling lightning, translucent storm-cloud fabric, silver streaks in hair, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    },
+    {
+      "name": "Erebus",
+      "title": "Primordial Darkness",
+      "element": "Dark",
+      "rarity": "Mythic",
+      "lore": "One of the first beings in all existence — not a god but darkness itself, predating the gods and the world.",
+      "base_hp": 304,
+      "base_attack": 64,
+      "base_defense": 43,
+      "base_speed": 38,
+      "skill_name": "Erebus's Strike",
+      "skill_description": "Channels Dark power into a devastating single blow",
+      "skill_multiplier": 2.9,
+      "skills": [
+        {
+          "name": "Erebus's Strike",
+          "desc": "Channels Dark power into a devastating single blow",
+          "type": "damage_single",
+          "mult": 2.9,
+          "icon": "⚡",
+          "isPassive": false,
+          "id": "active_0"
+        },
+        {
+          "name": "Dark Burst",
+          "desc": "Erupts with Dark energy striking all enemies",
+          "type": "damage_all",
+          "mult": 2.2,
+          "icon": "💥",
+          "isPassive": false,
+          "id": "active_1"
+        },
+        {
+          "name": "Elemental Blessing",
+          "desc": "Channels elemental energy to restore team HP",
+          "type": "heal_team",
+          "value": 0.31,
+          "icon": "✨",
+          "isPassive": false,
+          "id": "active_2"
+        },
+        {
+          "name": "Mythic Aura",
+          "desc": "Reduces all incoming damage by 25%",
+          "type": "damage_reduce",
+          "value": 0.25,
+          "icon": "🌟",
+          "isPassive": true,
+          "id": "passive_0"
+        },
+        {
+          "name": "Undying Legend",
+          "desc": "30% chance to survive a killing blow with 1 HP once per battle",
+          "type": "survive",
+          "value": 0.3,
+          "icon": "💫",
+          "isPassive": true,
+          "id": "passive_1"
+        }
+      ],
+      "image": {
+        "in_zip": false,
+        "source": "AI-generated at seed time via Stable Horde, stored in base44 file storage",
+        "generation_prompt": "(masterpiece:1.5), divine deity, godlike presence, otherworldly beauty, Mythic Dark deity Erebus the Primordial Darkness, One of the first beings in all existence — not a god but dar, deep violet and midnight black, void energy tendrils, glowing rune tattoos, moonlit mist, shadowy wings, crescent moon motifs, elaborate fantasy costume, glowing eyes, portrait"
+      }
+    }
+  ]
+}

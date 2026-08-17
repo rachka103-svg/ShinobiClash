@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 2 regression + new-feature test of SHINOBI CLASH (38 heroes, items, hero EXP, ascension, ticket summon). Updated pytest suite: 24/24 PASSED including catalog=38 with 5 items + LR rarity, portrait 200s for both /ninjas/* and /heroes/*, profile inventory + per-hero level_cap/ascension/exp_to_next, battle /complete with hero_exp + item drops, summon currency=ryo|ticket, /game/hero/use-exp (success + capped + insufficient), /game/hero/ascend (success + not-at-cap + invalid), confirmed old /game/levelup is REMOVED, leaderboard ok. Frontend Playwright: admin login → Roster shows inventory strip (50/20/5/80/10), 8 roster cards. Blaze (cap 20) detail dialog shows MAX label, EXP-tome buttons DISABLED, Ascend ENABLED — clicking Ascend transitions label to '0 / 3410' (cap raised). EXP tome on Ripple decremented inventory 50→49 and updated EXP label (178/206 → 222/316). Summon: ticket and Ryo both produce summon-result card. Campaign s1 battle reached VICTORY in 16 actions; result overlay shows reward-hero-exp (Blaze/Ripple/Zephyr +64xp each) and reward-items (Greater EXP Tome ×1) alongside Ryo+EXP. Team page save-team-button present.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Roster ninja-detail dialog", "issues": ["Radix DialogContent still missing a DialogTitle (a11y warning carried over from iteration 1)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_shinobi_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Optional/minor) Add VisuallyHidden DialogTitle to NinjaDetail dialog for a11y.",
+    "(Optional) Update /app/memory/test_credentials.md — it still lists the removed POST /api/game/levelup endpoint and does not document /game/hero/use-exp, /game/hero/ascend, or that admin is seeded with 50000 Ryo + crystals/tomes/tickets + capped Blaze."
+  ],
+  "critical_code_review_comments": [
+    "Admin seeding of the special test inventory (blaze@20, crystals, tomes, tickets, 50000 Ryo) is NOT present in server.py startup — it is currently a runtime/manual state in the database. Future deploys (fresh DB) will produce an admin with only starters + 5000 Ryo and the Ascend / use-exp / ticket-summon flows would not be exercisable out-of-the-box. Recommend extending the @app.on_event('startup') seeder to set these fields when admin is first created (or migrate to FastAPI lifespan to do it idempotently).",
+    "Old endpoint POST /api/game/levelup is gone (correctly), but test_credentials.md still documents it — drift between docs and code.",
+    "server.py uses deprecated @app.on_event hooks (FastAPI lifespan should be used in 2026).",
+    "Battle.jsx, Roster.jsx file sizes should be checked vs the 700-line guideline; consider splitting Battle's Fighter/Result components.",
+    "CORSMiddleware is added AFTER app.include_router(api_router); in FastAPI this still works because middlewares are applied at app level, but the more conventional order is add_middleware before include_router."
+  ],
+  "updated_files": ["/app/backend/tests/test_shinobi_api.py"],
+  "success_rate": {"backend": "100% (24/24)", "frontend": "100% of tested flows"},
+  "test_credentials": "admin@shinobi.com / admin123 (seeded with blaze@L20 cap, inv: exp_tome_minor 50, exp_tome_greater 20, exp_tome_ancient 5, ascension_crystal 80, summon_ticket 10, 50000 Ryo). NOTE: this seed state is in the live DB, not in server.py startup code — fresh deploys will not have it.",
+  "seed_data_creation": "Reset admin's blaze to L20/asc0 + topped inventory back to spec values before the Playwright run (direct Mongo update). Several TEST_ users created by pytest fixtures (auto-registered, no teardown).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest entrypoint: `python -m pytest /app/backend/tests/test_shinobi_api.py -v`. The admin's blaze/inventory may be in any state after prior runs (use-exp consumed tomes, ascend used crystals). For Playwright ascension testing you may need to reset via Mongo: db.users.updateOne({email:'admin@shinobi.com', 'ninjas.template_id':'blaze'}, {$set:{'ninjas.$.level':20,'ninjas.$.ascension':0,'ryo':50000,inventory:{exp_tome_minor:50,exp_tome_greater:20,exp_tome_ancient:5,ascension_crystal:80,summon_ticket:10}}}). Battle s1 reliably ends in <30 actions when picking the strongest enabled jutsu and clicking the highlighted enemy (.ring-fox class).",
+  "rca_of_issue": "No bugs found. Initial admin seed state discrepancy noted as future-deployment risk (see critical_code_review_comments)."
+}

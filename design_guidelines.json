@@ -1,0 +1,115 @@
+{
+  "project_context": {
+    "domain": "Gaming (Anime Turn-based RPG)",
+    "app_type": "hybrid_fullstack",
+    "theme": "Dark",
+    "archetype": "Archetype 7 (Electric & Neon adapted for Premium Anime)",
+    "vibe": "Cinematic, high-energy, mysterious. A premium gacha/RPG feel blending dark voids with explosive neon chakra energy and subtle organic ink/scroll textures."
+  },
+  "colors": {
+    "backgrounds": {
+      "app_base": "#05050A",
+      "panel_solid": "#0B0B14",
+      "glass_overlay": "rgba(5, 5, 10, 0.65)"
+    },
+    "brand_primary": {
+      "chakra_cyan": "#00E5FF",
+      "fox_fire_orange": "#FF5722",
+      "jutsu_purple": "#D500F9"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#94A3B8",
+      "muted": "#475569",
+      "inverse": "#000000"
+    },
+    "rarity_system": {
+      "common": "#9E9E9E",
+      "rare": "#29B6F6",
+      "epic": "#AB47BC",
+      "legendary": "#FFCA28"
+    },
+    "semantic": {
+      "hp_bar": "#FF1744",
+      "energy_bar": "#00E5FF",
+      "success": "#00E676"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Bebas Neue",
+      "body": "Outfit"
+    },
+    "usage_rules": [
+      "H1/H2 (Bebas Neue): Use for levels, character names, massive section titles, and damage numbers. Must have tracking-wide or tracking-tight depending on size.",
+      "Body (Outfit): Use for HUD labels, stats, descriptions. Maintain high contrast.",
+      "No generic sans fonts (Inter, Roboto) allowed for headings.",
+      "Use text-shadow for damage numbers floating above characters."
+    ]
+  },
+  "surfaces_and_materials": {
+    "menus_and_lobby": "Use The 'Tracing Beam' or sharp 'Grid Borders' look. Dark backgrounds with 1px neon borders (cyan/orange).",
+    "battle_hud": "Glassmorphism. Heavy blur (backdrop-blur-xl), dark sheer tint (bg-black/60), and top-only bright borders (border-t border-cyan-500/50). Keeps the battle visible.",
+    "cards_roster": "Cardless or Neumorphic (Clay & Crisp). Sharp corners or max 4px radius. 1px bright border based on Rarity color."
+  },
+  "layout_and_spacing": {
+    "general": "Mobile-first responsive. Use 'The Bento Grid Protocol' for the Lobby/Dashboard. Generous padding (p-6, p-8) for breathing room.",
+    "battle_screen": "Control Room Grid. Bottom-heavy combat HUD. Horizontal strip for party members. Circular or tight rectangular action buttons."
+  },
+  "motion_and_interaction": {
+    "rules": [
+      "Hover: Brighten border colors, slight text-shadow glow.",
+      "Click/Active: scale-95, pop animation.",
+      "Turn Indicator: Active character portrait must have a pulsing drop-shadow (Chakra cyan glow)."
+    ]
+  },
+  "testing_requirements": {
+    "data_testid": "CRITICAL: All interactive and key informational elements (buttons, links, form inputs, character cards, jutsu buttons, hp bars) MUST include a kebab-case data-testid attribute (e.g., data-testid='login-submit-button', data-testid='attack-jutsu-button')."
+  },
+  "technical_constraints": {
+    "file_extensions": "CRITICAL: The project uses .js and .jsx files. Do NOT generate or expect .tsx files. All components must be written in Javascript (ES6+)."
+  },
+  "component_guidelines": {
+    "login_register": "Full-screen anime landscape background. Central glassmorphism panel. Customized Shadcn inputs (dark bg, sharp borders).",
+    "dashboard_lobby": "Left side: Hero character portrait. Right side: Bento grid navigation (Campaign, Arena, Roster). Top bar: Level, Gold, Energy.",
+    "roster_collection": "Grid layout. Character portraits with colored bottom borders indicating rarity. No standard Vercel cards.",
+    "battle_hud": "Wide immersive background. Isometric character placement. Bottom command cluster. Target highlighting via crosshair or glowing ground circle."
+  },
+  "media_assets": {
+    "backgrounds": [
+      {
+        "category": "login_and_menus",
+        "url": "https://images.unsplash.com/photo-1504892612018-159ffa1d147f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1NzZ8MHwxfHNlYXJjaHwzfHxhbmltZSUyMGxhbmRzY2FwZSUyMG5pZ2h0dGltZXxlbnwwfHx8fDE3ODEwMjU1MjB8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Anime style mountain night landscape."
+      },
+      {
+        "category": "campaign_map",
+        "url": "https://images.unsplash.com/photo-1536152470836-b943b246224c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1NzZ8MHwxfHNlYXJjaHwxfHxhbmltZSUyMGxhbmRzY2FwZSUyMG5pZ2h0dGltZXxlbnwwfHx8fDE3ODEwMjU1MjB8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Nighttime mountain and forest landscape."
+      }
+    ],
+    "textures": [
+      {
+        "category": "scroll_parchment",
+        "url": "https://images.unsplash.com/photo-1519972064555-542444e71b54?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1NzZ8MHwxfHNlYXJjaHwyfHxqYXBhbmVzZSUyMHNjcm9sbCUyMHBhcmNobWVudCUyMHRleHR1cmV8ZW58MHx8fHwxNzgxMDI1NTIwfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Creased parchment for organic texture overlays."
+      }
+    ],
+    "characters_and_portraits": [
+      {
+        "category": "enemy_silhouette",
+        "url": "https://images.unsplash.com/photo-1749214358403-f6eeba9ae251?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODh8MHwxfHNlYXJjaHwyfHxzYW11cmFpJTIwd2FycmlvciUyMHNpbGhvdWV0dGV8ZW58MHx8fHwxNzgxMDI1NTIwfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Samurai silhouette, use as enemy placeholder."
+      },
+      {
+        "category": "jutsu_skill_icon_placeholder",
+        "url": "https://images.unsplash.com/photo-1555597673-b21d5c935865?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwxfHxnbG93aW5nJTIwbWFydGlhbCUyMGFydHMlMjBlbmVyZ3l8ZW58MHx8fHwxNzgxMDI1NTIwfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Glowing martial arts pose, use as action placeholder."
+      }
+    ]
+  },
+  "iconography": {
+    "library": "lucide-react",
+    "instructions": "Use lucide-react for all standard icons. Ensure icons inside battle HUD have high contrast and slight glows if representing energy/magic."
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "summary": "Full backend + frontend e2e testing of the new Admin Art Studio (3rd /admin tab) and its two new endpoints. 9/9 backend pytest cases passed including a REAL Gemini-3.1-flash-image-preview generation call (count=2, ~22s) and a REAL openai gpt-4o-mini describe call. Frontend Playwright run drove the full flow end-to-end: login as admin -> /admin -> Art Studio tab -> autodescribe (493-char visual description) -> generate (4 PNG/JPEG data-URL variations rendered in ~12s) -> select card 0 (checkmark visible) -> download (TEST_Storm_Ronin_1.jpg dispatched) -> Apply as Portrait on hero 'blaze' -> success toast + GET /api/game/catalog confirmed blaze.portrait flipped to /custom/blaze.png?v=1781130005 (live-synced). Test cleanup: blaze override removed from db.game_config.portrait_overrides, /app/frontend/public/custom/blaze.png removed, both test_artportrait_*.png files removed, backend restarted, blaze portrait re-verified back to /ninjas/blaze.png.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/admin/art/generate", "issue": "count cap is implemented in code (max(1, min(4, body.count))) but Pydantic ArtGenerateIn does not declare ge/le constraints, so callers requesting count=999 get a silent clamp instead of a 422. Behaviour is safe (cap holds, credits protected) but the API contract is less self-documenting."},
+      {"endpoint": "POST /api/admin/art/generate", "issue": "If _generate_art_image returns None (no images in LlmChat response) it is silently dropped (not raised). With 4 parallel attempts this is fine; with count=1 and a model failure the endpoint will 502 with 'Art generation failed' which is correct, but logs only record true Exceptions, not None-returns. Add logger.warning for None branch."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin Art Studio (and likely other admin tabs)", "issues": ["React console warning during render: 'In HTML, <%s> cannot be a child of <%s>' (span inside <option>). Originates from one of the <select> dropdowns (most likely art-element / art-style / art-apply-target render of options). Causes a hydration warning; does not break functionality."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_art_studio.py",
+    "/app/test_reports/pytest/art_studio_results.xml"
+  ],
+  "action_items": [
+    "(low) Add ge=1, le=4 to ArtGenerateIn.count for explicit 422 instead of silent clamp.",
+    "(low) Fix the <span> inside <option> hydration warning in the Admin selects (probably an icon/badge inside the option text).",
+    "(info) iteration_4 left a stale portrait_overrides.boulder => /custom/boulder.png in db.game_config and /app/frontend/public/custom/boulder.png on disk. Not from this iteration — flagging for cleanup."
+  ],
+  "critical_code_review_comments": [
+    "ART_MODELS hard-codes the two Gemini model IDs; ok for now, but consider sourcing from env so a future model swap doesn't require a code change + redeploy.",
+    "_generate_art_image creates a fresh LlmChat session per image (uuid). With count=4 in parallel this is 4 separate sessions; fine but expensive. Consider caching the LlmChat object per request when supported.",
+    "admin_art_generate uses asyncio.gather(..., return_exceptions=True) which is great. However exceptions are only logged with logger.warning — no per-variation error is returned to the caller. UX could surface 'returned 2/4 variations (2 failed)' instead of silently dropping.",
+    "_build_art_prompt is a pure string builder — would benefit from a small unit test (independent of the network).",
+    "ArtGenerateIn.count has no validator (see minor backend issue above)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_art_studio.py (new)",
+    "/app/frontend/public/custom/blaze.png (removed — test cleanup)",
+    "/app/frontend/public/custom/test_artportrait_bf67d0.png (removed)",
+    "/app/frontend/public/custom/test_artportrait_f77c8e.png (removed)",
+    "db.game_config.portrait_overrides.blaze (unset — test cleanup, backend restarted)"
+  ],
+  "success_rate": {"backend": "100% (9/9, includes real AI describe + real Gemini generate)", "frontend": "100% (full e2e: tab, form, autodescribe, generate, select, download, apply, live-sync verified)"},
+  "test_credentials": "admin@shinobi.com / admin123 (admin) and dynamically-registered TEST_artplayer_<uuid>@example.com / testpass1 (player)",
+  "seed_data_creation": "None permanent. Backend test TestArtApplyAsPortrait creates+deletes a throwaway custom hero per run (id=test_artportrait_<6hex>). Frontend e2e applied art to STATIC hero 'blaze' — fully reverted post-test (db override unset, custom png deleted, backend restarted, GET /api/game/catalog confirms blaze.portrait == /ninjas/blaze.png).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Art Studio backend suite at /app/backend/tests/test_art_studio.py — 9 cases: 4 auth-gating (401/403 for describe+generate), 2 describe (real gpt-4o-mini call + blank-name 422), 2 generate (real Gemini flash count=2 marked @pytest.mark.slow + a no-op placeholder), 1 apply-as-portrait integration. Run with `pytest backend/tests/test_art_studio.py -m 'not slow'` for regressions to skip the ~25s Gemini call. Frontend testids: admin-tab-art, art-form, art-name, art-element, art-style, art-description, art-autodescribe, art-pose, art-model-pro, art-model-flash, art-generate, art-results, art-image-0..3, art-download-<id>, art-apply-target, art-apply-btn — all verified present and functional. ART_MODELS map in server.py: pro=gemini-3-pro-image-preview, flash=gemini-3.1-flash-image-preview. Backend response for /admin/art/generate is {images:[{id:int, data_url:str}], prompt:str, model:str}.",
+  "rca of the issue": "No bugs found. Feature is fully functional. Only minor polish items (count validator, span-in-option hydration warning) listed under action_items."
+}
