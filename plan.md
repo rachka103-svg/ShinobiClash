@@ -1,4 +1,4 @@
-# plan.md — Shinobi Clash: Energy + Missions + Async Arena (Logic) + Cinematic RPG UI Redesign (Visual) + Phase 2A Foundation (Systems)
+# plan.md — Shinobi Clash: Energy + Missions + Async Arena (Logic) + Cinematic RPG UI Redesign (Visual) + Phase 2A Foundation (Systems) + Phase 3B Combat Integration + Phase 3C-A Art Manifest
 
 ## 1) Objectives
 - Preserve **core backend integrity** and working gameplay loops:
@@ -6,7 +6,7 @@
   - Energy gating + regen
   - Daily missions (server-authoritative, resets daily)
   - Async Arena logic
-  - Existing battle engine + formulas
+  - Existing battle engine + formulas (Battle.jsx + lib/battle.js)
 - Maintain a **fast-paced, grind-heavy, long-term RPG foundation**:
   - 60–80+ collectible heroes, extensible beyond 200 without UI rewrites
   - Meaningful roles, factions, tags, and kit identity (team building focus)
@@ -14,9 +14,20 @@
   - Endless-ready campaign stage architecture (chapter 100+, stage 1000+)
   - Boss framework capable of multi-phase strategic encounters
 - Continue transforming the frontend from a CRUD/dashboard feel into a **premium cinematic gacha RPG** (mobile-first, artwork-first) — **but only when the plan is in the UI phases**.
-- **Hard constraints (must continue to obey):**
-  - Do **not** redesign Summon UI unless/until its phase (and user explicitly authorizes). Currently: **Summon UI redesign is paused**.
-  - Avoid monolithic, hero-specific hardcoding in UI or battle logic.
+
+### Updated design-direction objective (new)
+- Use **Goddess Era** as an **inspiration/quality bar** for **character artwork production** (painterly anime/CG splash art, dynamic elemental posing, rarity-scaled ornate costuming), **without copying** its specific characters or UI.
+- **Do not restyle UI chrome yet** (frames, gold ornamentation, summon ceremony) until real art assets arrive; revisit UI styling in a later phase once final character art is in-hand.
+
+### Hard constraints (must continue to obey)
+- Do **not** redesign Summon UI unless/until its phase and the user explicitly authorizes.
+  - Current status: Summon UI redesign is paused.
+- Avoid monolithic, hero-specific hardcoding in UI or battle logic.
+- Battle.jsx / lib/battle.js remains the **single authoritative combat engine** for:
+  - Campaign
+  - Spire
+  - Arena
+  - Future PvE modes
 
 ---
 
@@ -104,8 +115,6 @@ Files:
   - Added via `_hero_jutsus` for generated heroes.
   - Backfilled for the original 12 heroes.
 
-> Note: These mechanics are currently **data-defined**. Full in-battle resolution of each `effect_type` is intentionally deferred until the dedicated battle extension step.
-
 #### 2A.4 — Long-term progression foundation ✅ COMPLETE (stars + shards + duplicates have value)
 - Hero instances now include:
   - `stars` (1–6)
@@ -144,6 +153,110 @@ Files:
 
 ---
 
+## 3B) Combat Ability & Boss Mechanics Integration ✅ COMPLETE (Verified)
+> Objective: integrate Phase 2A mechanics + boss framework into the **existing** Battle.jsx/lib/battle.js combat engine.
+> Scope control: implement **6 representative mechanics only** + boss shield/enrage/elemental shift.
+
+### 3B.1 — Audit of existing combat engine ✅ COMPLETE
+- Existing battle engine is client-side:
+  - `frontend/src/pages/Battle.jsx` (turn loop, UI)
+  - `frontend/src/lib/battle.js` (formulas, turn order helpers)
+- Confirmed single-engine reuse across Campaign/Spire/Arena.
+
+### 3B.2 — Central ability resolution layer ✅ COMPLETE
+- Added reusable combat resolvers (data-driven by `passive.effect_type`):
+  - `resolveDamage()` (damage computation w/ conditional modifiers)
+  - `resolveOnHitEffects()` (marks + DoT attachment + detonation burst)
+  - `resolveDeath()` (revival gate)
+- Only 6 effect_types are actively wired; all other mechanics remain data-only.
+
+### 3B.3 — Status effect framework ✅ COMPLETE
+- Added extensible status representation on each combatant:
+  - `statuses: [{id, effectType, source, stacks, duration, magnitude}]`
+- Implemented turn lifecycle integration:
+  - `tickStatuses()` triggers DoT at start of target’s own turn
+  - Expiration handled via duration decrement/removal
+
+### 3B.4 — Six representative mechanics wired to real combat ✅ COMPLETE
+- Execute bonus (damage conditional): `execute_low_hp` (Shade)
+- DoT: `escalating_dot` (Apep)
+- Mark stack + detonation: `stacking_mark_detonate` (Sekhmet)
+- Shield: `team_shield` (Brahma)
+- Revival: `revive_once` (Osiris)
+- Berserker scaling: `hp_scaling_power` (Ares)
+
+### 3B.5 — Boss mechanics runtime ✅ COMPLETE
+- Exposed boss framework to frontend:
+  - `/api/game/stages` now returns `{ stages, boss_mechanics }`
+  - `GameContext` now stores `bossMechanics`
+- Implemented boss runtime:
+  - Shield phase (real shield value; AoE hit tracking break condition)
+  - Enrage phase (persistent stat boosts)
+  - Elemental shift (boss element changes mid-fight)
+
+### 3B.6 — Combat events architecture ✅ COMPLETE
+- Every meaningful combat action produces structured events via `makeEvent()`:
+  - ATTACK, SKILL, DAMAGE, CRITICAL, HEAL
+  - SHIELD_APPLIED, SHIELD_BROKEN
+  - DEBUFF_APPLIED, DOT_TRIGGERED
+  - REVIVAL, DEATH
+  - BOSS_PHASE_CHANGE
+  - VICTORY/DEFEAT
+
+### 3B.7 — Minimal battle UI additions ✅ COMPLETE
+- Fighter chips for:
+  - Active statuses (MARK / CURSE)
+  - Boss-phase badges (WARDED, RAGE)
+- No full battle UI redesign; no elaborate VFX.
+
+### 3B.8 — Testing ✅ COMPLETE (Verified by testing_agent_v3)
+- Backend:
+  - `backend_test.py` **34/34 pass**
+  - `phase2a_test.py` **19/19 pass**
+  - `phase3b_test.py` **3/3 pass**
+- Frontend:
+  - Campaign battle end-to-end automation ✅
+  - Spire battle automation ✅
+  - Arena: backend verified; UI availability may depend on attempts remaining (non-blocking)
+- JS unit tests:
+  - `frontend/src/lib/battle.abilities.test.mjs` **10/10 pass**
+
+---
+
+## 3C-A) Hero Art Production Manifest ✅ COMPLETE (Verified)
+> Objective: prepare for professional hero artwork production and safe asset replacement.
+> **No artwork generated automatically. No gameplay changes.**
+
+### 3C-A.1 — Identify placeholder heroes ✅ COMPLETE
+- Catalog scan found **31** heroes flagged `is_placeholder_art: true`.
+
+### 3C-A.2 — Produce authoritative art manifest ✅ COMPLETE
+- Manifest created at:
+  - `/app/memory/HERO_ART_MANIFEST.md`
+- Includes for each placeholder hero:
+  - ID, name, rarity, element, role, faction, tags
+  - lore + personality + signature mechanic
+  - visual concept
+  - current asset path + required replacement path
+  - recommended dimensions/aspect ratio
+- Added global art-direction brief:
+  - "Goddess Era"-inspired painterly anime/CG gacha aesthetic (inspiration only, not copying)
+
+### 3C-A.3 — Asset architecture / replacement safety ✅ COMPLETE
+- Confirmed centralized `portrait` field is the single source of truth for hero art.
+- Confirmed admin portrait override endpoints mutate only the `portrait` field.
+- Removed one dead-code portrait fallback in `frontend/src/components/NinjaCard.jsx` to ensure no hidden pathing.
+- Verified by testing_agent_v3:
+  - Roster/Gallery render without broken images
+  - Placeholder heroes correctly show `/heroes/_placeholder.png`
+
+### 3C-A.4 — Design-direction decision (logged) ✅ COMPLETE
+- **Character-art brief only** for now.
+- **UI chrome restyle deferred** until real art arrives.
+- Goddess Era is inspiration/quality bar only.
+
+---
+
 ## 2B) Cinematic RPG UI Redesign Roadmap (Visual-Only)
 > **Critical rule:** Do NOT touch battle/arena/summon logic. Visual presentation only.
 > Build strictly in order, inspect on **mobile viewport after each phase**, then pause for user validation.
@@ -166,77 +279,60 @@ Files:
 ### Phase D (P0) — Home/Lobby Screen Redesign ✅ COMPLETE (Verified)
 **What changed (visual-only):** `src/pages/Lobby.jsx` full rewrite.
 - Full-bleed cinematic **Squad Leader** banner (48vh mobile / 56vh desktop)
-  - Leader portrait fills banner.
-  - Elemental aura wash + rarity edge glow.
-  - Bottom scrim overlay for legible text.
-  - Leader name/title/rarity/element/level displayed consistently with HeroShowcase styling.
-- Unboxed **HUD strip** (Energy / Ryo / Power) with glowing icon-pill readouts.
-- Primary CTA **Continue Mission** redesigned as a large glowing gradient card
-  - Enemy preview thumbnails.
-  - Circular glowing Play button.
-  - Alternate state “ALL MISSIONS CLEARED” with gold/amber treatment.
-- Quick-access tiles reskinned as cinematic gradient tiles (rounded-2xl, glowing icon circles).
-- Preserved testids and kept `EnergyWidget` + `MissionsPanel` untouched.
-
-Verification:
-- `esbuild` compiles clean.
-- Mobile viewport verified (390px), no horizontal scroll.
-- `testing_agent_v3`: **100% pass**, including **34/34 backend regression tests**.
+- Unboxed HUD strip (Energy / Ryo / Power)
+- Continue Mission CTA redesign
+- Cinematic quick-access tiles
 
 ---
 
 ### Phase E (P1) — Campaign Screen Redesign ⏭️ NEXT (Not started)
 Goal: Replace list-card feel with stage progression + cinematic previews.
 - Visual redesign only: keep stage data, gating, and `startBattle()` behavior unchanged.
-- UI direction:
-  - Chapter sections become cinematic stage nodes / mission panels.
-  - Enemy previews remain portrait-first.
-  - Rewards become iconic chips (Ryo/items/materials) rather than text rows.
-  - Energy cost remains visible near primary action.
-  - Maintain `data-testid` coverage where feasible.
 - After implementation: screenshot inspection on mobile and pause for user validation.
 
 ### Phase F (P1) — Spire / Farming Content Redesign (Not started)
-- Clarify repeatable loops (Gold/XP/material farms) with cinematic presentation.
 - Visual-only changes.
 
-### Phase G (P2) — Summon Screen Redesign (Not started — **PAUSED BY USER**) 
-- Summon UI redesign/animations explicitly paused until foundation priorities are satisfied.
-- When resumed: major event feel, rarity presentation, dramatic reveals.
-- **Do not change summon odds/logic**.
+### Phase G (P2) — Summon Screen Redesign (Not started — **PAUSED BY USER**)
+- Summon UI redesign/animations explicitly paused.
 
 ### Phase H (P2) — Battle Arena (Visual redesign ONLY) (Not started)
-- Redesign Arena page UI only.
-- **Do not change** opponent selection, attempts, rating logic.
+- Visual-only.
 
 ### Phase I (P3) — Combat Effects / Polish (Not started)
-- Visual polish: animations, damage numbers, cinematic transitions.
-- No gameplay logic changes.
+- Visual polish only (animations, damage numbers, cinematic transitions).
 
 ---
 
 ## 3) Next Actions
-1. **User validation checkpoint:** confirm Phase 2A foundation direction is correct (roster size, rarity distribution, shard/star loop, stage generator/boss framework).
-2. Decide the next systems step (recommended order):
-   - **Battle effect_type wiring**: incrementally support key `MECHANIC_LIBRARY.effect_type` behaviors in the battle runtime (without a giant monolith).
-   - **Boss runtime support**: consume `boss_mechanic` phase data during combat (shield windows/enrage/adds).
-3. After systems confirmation, resume UI roadmap with **Phase E (Campaign redesign)** (visual-only) and pause after completion.
+1. **Art production kickoff:** use `/app/memory/HERO_ART_MANIFEST.md` to brief external artists.
+   - Produce Priority A batch first.
+   - Deliver PNG portraits at 3:4 aspect, recommended 1024×1365+.
+   - Drop final files into `frontend/public/heroes/{hero_id}.png` or use admin portrait overrides.
+2. **User validation checkpoint:** confirm the art-direction brief is correct (Goddess Era-inspired, not copying).
+3. Once real art assets begin landing, decide the next workstream:
+   - (A) Resume UI Roadmap with **Phase E** (Campaign visual redesign) while keeping Summon UI paused
+   - (B) Or wait for more art to arrive before further UI work so layouts can be tuned to real portraits
 
 ---
 
 ## 4) Success Criteria
-### Systems (Phase 2A)
-- Catalog supports **60–80 heroes** (now 69) and can scale further without UI rewrites.
+### Systems
+- Catalog supports 60–80 heroes (now 69) and can scale further.
 - 8 rarity tiers exist with meaningful distribution and support.
-- Heroes have roles, factions, tags, base stats + extended stats.
-- Mechanics/abilities are **data-driven** and reusable.
-- Duplicate/merge value exists via shards → stars.
-- Stage definitions scale (procedural generation proven) and boss framework exists.
-- Existing battle engine remains intact and regression suite passes.
+- Mechanics are data-driven; battle engine remains single-source-of-truth.
+- Six representative mechanics are fully functional in real combat.
+- Boss phase mechanics (shield/enrage/element shift) function in real combat.
+- Full regression suite passes.
+
+### Art Production Readiness (Phase 3C-A)
+- Placeholder heroes identified (31).
+- Manifest provides complete production fields + priorities.
+- Centralized asset replacement works and is safe (portrait-only swap).
+- Goddess Era-inspired art brief captured (inspiration only, no cloning).
 
 ### Visual (Cinematic UI)
 - No regressions to backend/game logic.
 - Mobile-first, no horizontal scroll.
 - Artwork-first layouts with scrims/vignettes and controlled glow.
 - Avoid generic dashboard cards; use HUD-like strips and cinematic tiles.
-- Phase D accepted: Lobby is a cinematic hub, verified by automated testing.

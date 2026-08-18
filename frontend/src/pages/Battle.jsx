@@ -1,21 +1,25 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Zap, Coins, Trophy, Skull, ArrowRight } from "lucide-react";
+import { Heart, Zap, Coins, Trophy, Skull, ArrowRight, Flame } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
-import { buildCombatant, buildOrder, rollDamage, spireEnemies } from "@/lib/battle";
+import {
+  buildCombatant, buildOrder, resolveDamage, resolveOnHitEffects, resolveDeath,
+  tickStatuses, applyBattleStartPassives, checkBossPhaseTransitions, makeEvent, spireEnemies,
+} from "@/lib/battle";
 import { ELEMENT, RARITY } from "@/lib/styles";
 import api from "@/lib/api";
 
 let _uid = 0;
 const nextUid = () => `c${_uid++}`;
+const cloneArr = (arr) => arr.map((c) => ({ ...c, statuses: (c.statuses || []).map((s) => ({ ...s })) }));
 
 export default function Battle() {
   const { mode = "campaign", id } = useParams();
   const navigate = useNavigate();
   const { user, setUser } = useAuth();
-  const { catalogById, advantage, stages, items, trials, catalog } = useGame();
+  const { catalogById, advantage, stages, items, trials, catalog, bossMechanics } = useGame();
 
   // Arena opponents are ephemeral (frozen snapshots) — stashed in
   // sessionStorage by the Arena page right before navigating in here, since
@@ -52,6 +56,7 @@ export default function Battle() {
   const [floaters, setFloaters] = useState([]); // {id, uid, text, color}
   const [resultData, setResultData] = useState(null);
   const [shakeUid, setShakeUid] = useState(null);
+  const [events, setEvents] = useState([]); // structured combat event log (Phase 3B) — for future VFX/animation
 
   const combRef = useRef([]);
   const orderRef = useRef([]);
@@ -60,6 +65,7 @@ export default function Battle() {
 
   const setCombs = (next) => { combRef.current = next; setCombsState(next); };
   const pushLog = (msg) => setLog((l) => [msg, ...l].slice(0, 30));
+  const pushEvents = (evs) => { if (evs?.length) setEvents((e) => [...e, ...evs].slice(-80)); };
 
   // ---------- init ----------
   useEffect(() => {
@@ -69,7 +75,19 @@ export default function Battle() {
       .filter(Boolean)
       .map((inst) => buildCombatant(nextUid(), "ally", catalogById[inst.template_id], inst.level, inst.ascension || 0, inst.instance_id));
     const enemies = enemiesDef.map((e) => buildCombatant(nextUid(), "enemy", catalogById[e.template_id], e.level, e.ascension || 0));
+    // Wire the boss-mechanic framework onto the boss stage's single enemy
+    // (only real Campaign boss stages set stage.boss_mechanic — Spire and
+    // Arena naturally skip this and run through the exact same engine).
+    if (mode === "campaign" && stage?.is_boss && stage?.boss_mechanic && enemies[0]) {
+      enemies[0].bossMechanicId = stage.boss_mechanic;
+      enemies[0].bossPhaseIndex = -1;
+    }
     const all = [...allies, ...enemies];
+    const startEvents = applyBattleStartPassives(all);
+    if (startEvents.length) {
+      pushEvents(startEvents);
+      startEvents.forEach((e) => e.text && pushLog(e.text));
+    }
     setCombs(all);
     orderRef.current = buildOrder(all);
     ptrRef.current = 0;
@@ -85,22 +103,45 @@ export default function Battle() {
     if (!aliveSide(arr, "ally")) { setPhase("lose"); return; }
     if (!aliveSide(arr, "enemy")) { setPhase("win"); return; }
 
+    const work = cloneArr(arr);
     let p = ptr;
     let ord = order;
     // skip dead actors
-    while (p < ord.length && !arr.find((c) => c.uid === ord[p])?.alive) p++;
+    while (p < ord.length && !work.find((c) => c.uid === ord[p])?.alive) p++;
     if (p >= ord.length) {
-      ord = buildOrder(arr);
+      ord = buildOrder(work);
       p = 0;
       setRound((r) => r + 1);
     }
     orderRef.current = ord;
     ptrRef.current = p;
-    const actor = arr.find((c) => c.uid === ord[p]);
+    const actor = work.find((c) => c.uid === ord[p]);
+
+    // Start-of-turn status resolution (Withering Curse DoT ticks). Trigger
+    // timing: "start of the affected combatant's own turn" (Phase 3B item 6).
+    const evs = [];
+    const { dmg: dotDmg } = tickStatuses(actor);
+    if (dotDmg > 0 && actor.alive) {
+      actor.hp = Math.max(0, actor.hp - dotDmg);
+      pushLog(`${actor.name} suffers ${dotDmg} from a lingering curse.`);
+      evs.push(makeEvent("DOT_TRIGGERED", { targetUid: actor.uid, value: dotDmg }));
+      if (actor.hp === 0) {
+        const revived = resolveDeath(actor, evs);
+        pushLog(revived ? `${actor.name} refuses to fall!` : `${actor.name} succumbs to the curse.`);
+      }
+    }
+    pushEvents(evs);
+
+    if (!actor.alive) {
+      // Died to the DoT before acting — resolve the round and move on.
+      setCombs(work);
+      setTimeout(() => beginTurnAt(p + 1, work, ord), 500);
+      return;
+    }
 
     // chakra regen at start of turn
-    const regen = arr.map((c) => c.uid === actor.uid ? { ...c, chakra: Math.min(c.maxChakra, c.chakra + 20) } : c);
-    setCombs(regen);
+    actor.chakra = Math.min(actor.maxChakra, actor.chakra + 20);
+    setCombs(work);
     setActiveUid(actor.uid);
     setTargeting(null);
     if (actor.side === "ally") setPhase("select");
@@ -114,17 +155,18 @@ export default function Battle() {
   // ---------- apply an action ----------
   const applyAction = useCallback((actor, jutsu, targetUid) => {
     setPhase("busy");
-    let arr = combRef.current.map((c) => ({ ...c }));
+    let arr = cloneArr(combRef.current);
     const act = arr.find((c) => c.uid === actor.uid);
     // pay / gain chakra
     act.chakra = Math.max(0, act.chakra - jutsu.chakra_cost + (jutsu.chakra_gain || 0));
     act.chakra = Math.min(act.maxChakra, act.chakra);
 
     const newFloaters = [];
+    const newEvents = [];
     const addFloat = (uid, text, color) => newFloaters.push({ id: `${Date.now()}-${uid}-${Math.random()}`, uid, text, color });
 
     const applyDamage = (target) => {
-      const { dmg, crit, mult } = rollDamage(act, target, jutsu, advantage);
+      const { dmg, crit, mult, notes } = resolveDamage(act, target, jutsu, advantage);
       let remaining = dmg;
       if (target.shield > 0) {
         const absorbed = Math.min(target.shield, remaining);
@@ -132,41 +174,83 @@ export default function Battle() {
         remaining -= absorbed;
       }
       target.hp = Math.max(0, target.hp - remaining);
-      if (target.hp === 0) target.alive = false;
-      const color = mult > 1 ? "#FFCA28" : mult < 1 ? "#94A3B8" : "#FF1744";
-      addFloat(target.uid, `${crit ? "CRIT " : ""}-${dmg}`, color);
+
+      // Boss shield-phase break tracking: 3 AoE hits while shielded forces
+      // the shield down early, regardless of remaining shield value.
+      if (target.bossMechanicId && target.shieldPhaseActive && jutsu.type === "aoe") {
+        target.aoeHitsTaken = (target.aoeHitsTaken || 0) + 1;
+        if (target.aoeHitsTaken >= 3 && target.shield > 0) {
+          target.shield = 0;
+          target.shieldBrokenPhase = target.bossPhaseIndex;
+          target.shieldPhaseActive = false;
+          newEvents.push(makeEvent("SHIELD_BROKEN", { targetUid: target.uid }));
+          pushLog(`${target.name}'s shield shatters!`);
+        }
+      }
+
+      const color = notes.includes("execute") ? "#E040FB" : mult > 1 ? "#FFCA28" : mult < 1 ? "#94A3B8" : "#FF1744";
+      addFloat(target.uid, `${crit ? "CRIT " : ""}${notes.includes("execute") ? "EXECUTE " : ""}-${dmg}`, color);
+      newEvents.push(makeEvent(crit ? "CRITICAL" : "DAMAGE", { actorUid: act.uid, targetUid: target.uid, value: dmg }));
       setShakeUid(target.uid);
       setTimeout(() => setShakeUid(null), 400);
+
+      if (target.hp === 0) {
+        const revived = resolveDeath(target, newEvents);
+        if (revived) addFloat(target.uid, "REVIVED!", "#FFD54F");
+      } else {
+        // On-hit secondary effects (Blood Mark stacks, Withering Curse) —
+        // only while the target is still standing.
+        const { burstDamage, events: hitEvents } = resolveOnHitEffects(act, target, jutsu);
+        newEvents.push(...hitEvents);
+        if (burstDamage > 0) {
+          target.hp = Math.max(0, target.hp - burstDamage);
+          addFloat(target.uid, `MARK -${burstDamage}`, "#E040FB");
+          if (target.hp === 0) {
+            const revived = resolveDeath(target, newEvents);
+            if (revived) addFloat(target.uid, "REVIVED!", "#FFD54F");
+          }
+        }
+      }
     };
 
     if (jutsu.type === "attack") {
       const t = arr.find((c) => c.uid === targetUid);
+      newEvents.push(makeEvent("ATTACK", { actorUid: act.uid, targetUid: t.uid, jutsuId: jutsu.id }));
       applyDamage(t);
       pushLog(`${act.name} used ${jutsu.name} on ${t.name}.`);
     } else if (jutsu.type === "aoe") {
-      const enemies = arr.filter((c) => c.side !== act.side && c.alive);
-      enemies.forEach(applyDamage);
+      const enemiesArr = arr.filter((c) => c.side !== act.side && c.alive);
+      newEvents.push(makeEvent("SKILL", { actorUid: act.uid, jutsuId: jutsu.id }));
+      enemiesArr.forEach(applyDamage);
       pushLog(`${act.name} unleashed ${jutsu.name}!`);
     } else if (jutsu.type === "heal") {
       const t = arr.find((c) => c.uid === targetUid);
       const heal = Math.round((jutsu.power / 100) * act.atk + jutsu.power);
       t.hp = Math.min(t.maxHp, t.hp + heal);
       addFloat(t.uid, `+${heal}`, "#00E676");
+      newEvents.push(makeEvent("HEAL", { actorUid: act.uid, targetUid: t.uid, value: heal }));
       pushLog(`${act.name} healed ${t.name} with ${jutsu.name}.`);
     } else if (jutsu.type === "shield") {
       const t = arr.find((c) => c.uid === targetUid);
       const sh = Math.round(act.def * 2.5 + 150);
       t.shield += sh;
       addFloat(t.uid, `SHIELD`, "#29B6F6");
+      newEvents.push(makeEvent("SHIELD_APPLIED", { actorUid: act.uid, targetUid: t.uid, value: sh }));
       pushLog(`${act.name} shielded ${t.name}.`);
     }
 
+    // Boss phase transitions (shield / enrage / elemental shift) — checked
+    // after every action since HP thresholds can be crossed by any hit.
+    const bossEvents = checkBossPhaseTransitions(arr, bossMechanics);
+    bossEvents.forEach((e) => { newEvents.push(e); if (e.text) pushLog(`${e.text}!`); });
+
     setFloaters((f) => [...f, ...newFloaters]);
     newFloaters.forEach((nf) => setTimeout(() => setFloaters((f) => f.filter((x) => x.id !== nf.id)), 950));
+    pushEvents(newEvents);
 
     setCombs(arr);
     advance(arr);
-  }, [advantage, advance]);
+  }, [advantage, advance, bossMechanics]);
 
   // ---------- enemy AI ----------
   useEffect(() => {
@@ -208,6 +292,7 @@ export default function Battle() {
   useEffect(() => {
     if ((phase === "win" || phase === "lose") && !reportedRef.current) {
       reportedRef.current = true;
+      pushEvents([makeEvent(phase === "win" ? "VICTORY" : "DEFEAT", {})]);
       const allyCombs = combRef.current.filter((c) => c.side === "ally");
       const participants = allyCombs.map((c) => c.instanceId).filter(Boolean);
       const survivors = allyCombs.filter((c) => c.alive).map((c) => c.instanceId).filter(Boolean);
@@ -454,6 +539,16 @@ function Fighter({ c, active, shake, floaters, highlight, onClick, flip }) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         {!c.alive && <Skull className="absolute inset-0 m-auto w-8 h-8 text-white/70" />}
         <span className="absolute top-0.5 right-0.5 text-[9px] font-display text-white bg-black/50 px-1 rounded">Lv{c.level}</span>
+        {c.enraged && (
+          <span data-testid={`enraged-${c.uid}`} className="absolute top-0.5 left-0.5 flex items-center gap-0.5 text-[8px] font-display text-white bg-red-600/80 px-1 rounded">
+            <Flame className="w-2.5 h-2.5" /> RAGE
+          </span>
+        )}
+        {c.shieldPhaseActive && (
+          <span data-testid={`shield-phase-${c.uid}`} className="absolute bottom-0.5 left-0.5 text-[8px] font-display text-white bg-sky-600/80 px-1 rounded">
+            WARDED
+          </span>
+        )}
       </button>
 
       <p className="text-[10px] text-white font-semibold mt-1 truncate w-full text-center" style={{ color: el.color }}>{c.name.split(" ")[0]}</p>
@@ -466,6 +561,20 @@ function Fighter({ c, active, shake, floaters, highlight, onClick, flip }) {
       <div className="w-full h-1.5 rounded bg-black/60 overflow-hidden mt-0.5">
         <div className="h-full ck-bar-fill rounded" style={{ width: `${ckPct}%`, background: "#00E5FF" }} />
       </div>
+      {/* Active statuses (marks / DoTs) — minimal readout, no VFX yet */}
+      {c.statuses?.length > 0 && (
+        <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center" data-testid={`statuses-${c.uid}`}>
+          {c.statuses.map((s) => (
+            <span
+              key={s.id}
+              title={s.effectType}
+              className="text-[7px] leading-none px-1 py-0.5 rounded bg-black/70 text-rose-300 border border-rose-400/30"
+            >
+              {s.effectType === "blood_mark" ? `MARK ${s.stacks}` : s.effectType === "curse_dot" ? "CURSE" : s.effectType}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -558,7 +558,10 @@ async def catalog():
 
 @api_router.get("/game/stages")
 async def stages():
-    return {"stages": gd.STAGES}
+    # boss_mechanics ships the reusable phase framework (shield/enrage/
+    # elemental-shift definitions) referenced by `boss_mechanic` on boss
+    # stages, so the client combat engine can resolve them during battle.
+    return {"stages": gd.STAGES, "boss_mechanics": gd.BOSS_MECHANICS}
 
 
 @api_router.get("/game/profile")

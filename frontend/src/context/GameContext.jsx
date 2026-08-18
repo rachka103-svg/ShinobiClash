@@ -8,6 +8,7 @@ export function GameProvider({ children }) {
   const [catalogById, setCatalogById] = useState({});
   const [advantage, setAdvantage] = useState({});
   const [stages, setStages] = useState([]);
+  const [bossMechanics, setBossMechanics] = useState({});
   const [items, setItems] = useState({});
   const [trials, setTrials] = useState([]);
   const [summonCost, setSummonCost] = useState(300);
@@ -40,6 +41,7 @@ export function GameProvider({ children }) {
       const [c, s] = await Promise.all([api.get("/game/catalog"), api.get("/game/stages")]);
       applyCatalog(c.data);
       setStages(s.data.stages);
+      setBossMechanics(s.data.boss_mechanics || {});
     } catch (err) {
       // Never let a failed/slow initial load crash the app — surface a
       // graceful, dismissible/retryable error instead of throwing.
@@ -55,7 +57,7 @@ export function GameProvider({ children }) {
 
   return (
     <GameContext.Provider value={{
-      catalog, catalogById, advantage, stages, items, trials, summonCost, banner,
+      catalog, catalogById, advantage, stages, bossMechanics, items, trials, summonCost, banner,
       loading, catalogError, retryCatalog: loadInitialData, refreshCatalog,
     }}>
       {children}

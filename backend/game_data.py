@@ -312,6 +312,7 @@ SIGNATURE_MECHANIC_MAP = {
     "fenrir": "vengeful_counter", "perun": "static_paralysis", "tlaloc": "bulwark_stance",
     "izanami": "soul_harvest", "ymir": "aegis_of_the_pack", "chronos": "chrono_lock",
     "yggdrasil_spirit": "world_tree_bloom",
+    "osiris": "phoenix_revival",  # "Resurrection King" — thematically perfect for the revive-once mechanic
 }
 
 

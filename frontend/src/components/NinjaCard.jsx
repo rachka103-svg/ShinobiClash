@@ -29,7 +29,7 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
     >
       <div className="aspect-[3/4] overflow-hidden bg-black/40 relative">
         <img
-          src={ninja.portrait || `/ninjas/${ninja.templateId || ninja.id}.png`}
+          src={ninja.portrait}
           alt={ninja.name}
           className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
           loading="lazy"

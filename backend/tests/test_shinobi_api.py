@@ -14,12 +14,19 @@ BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or
             open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0].strip()).rstrip("/")
 API = f"{BASE_URL}/api"
 
+# Admin/test credentials are sourced from env vars (falling back to the same
+# defaults the backend seeds on startup, see server.py `startup()`), so no
+# secret needs to live in source. Override via env vars in CI if desired.
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@shinobi.com")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+TEST_USER_PASSWORD = os.environ.get("TEST_USER_PASSWORD", "pass1234")
+
 
 # --------------------------- Fixtures ---------------------------
 @pytest.fixture(scope="session")
 def admin_session():
     s = requests.Session()
-    r = s.post(f"{API}/auth/login", json={"email": "admin@shinobi.com", "password": "admin123"})
+    r = s.post(f"{API}/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
     assert r.status_code == 200, f"admin login failed: {r.status_code} {r.text}"
     return s
 
@@ -28,10 +35,10 @@ def admin_session():
 def new_user_session():
     s = requests.Session()
     email = f"test_user_{uuid.uuid4().hex[:10]}@shinobiclash.io"
-    r = s.post(f"{API}/auth/register", json={"name": "TestNinja", "email": email, "password": "pass1234"})
+    r = s.post(f"{API}/auth/register", json={"name": "TestNinja", "email": email, "password": TEST_USER_PASSWORD})
     assert r.status_code == 200, f"register failed: {r.status_code} {r.text}"
     s.email = email
-    s.password = "pass1234"
+    s.password = TEST_USER_PASSWORD
     return s
 
 
@@ -39,14 +46,14 @@ def new_user_session():
 class TestAuth:
     def test_login_admin(self):
         s = requests.Session()
-        r = s.post(f"{API}/auth/login", json={"email": "admin@shinobi.com", "password": "admin123"})
+        r = s.post(f"{API}/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
         assert r.status_code == 200
         data = r.json()
         assert data["role"] == "admin"
         assert "access_token" in s.cookies
 
     def test_login_invalid(self):
-        r = requests.post(f"{API}/auth/login", json={"email": "admin@shinobi.com", "password": "wrong"})
+        r = requests.post(f"{API}/auth/login", json={"email": ADMIN_EMAIL, "password": "wrong"})
         assert r.status_code == 401
 
     def test_register_returns_profile_with_starters(self):

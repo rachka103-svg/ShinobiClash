@@ -1,34 +1,18 @@
 [
   {
-    "content": "Expand rarity system to 8 tiers + roles/factions/tags",
+    "content": "Generate Hero Art Production Manifest for 31 placeholder heroes",
     "status": "completed"
   },
   {
-    "content": "Expand hero catalog from 38 to 69 heroes with lore/kits/passives",
+    "content": "Verify centralized portrait asset architecture (fix 1 dead-code fallback in NinjaCard.jsx)",
     "status": "completed"
   },
   {
-    "content": "Add ability/mechanic library + signature mechanics",
+    "content": "Confirm replacement-safety via admin portrait override endpoints",
     "status": "completed"
   },
   {
-    "content": "Add progression model: stars, hero_shards, star-up, duplicate->shards",
-    "status": "completed"
-  },
-  {
-    "content": "Add scalable stage generator + boss mechanic framework, expand to 36 stages",
-    "status": "completed"
-  },
-  {
-    "content": "Update frontend rarity color/tier maps",
-    "status": "completed"
-  },
-  {
-    "content": "Run full regression + new-feature test pass via testing_agent_v3",
-    "status": "completed"
-  },
-  {
-    "content": "Update plan.md with Phase 2A foundation summary",
-    "status": "completed"
+    "content": "Call testing_agent_v3 to verify Phase 3B combat mechanics (pending confirmation) + Phase 3C-A safety",
+    "status": "in_progress"
   }
 ]
