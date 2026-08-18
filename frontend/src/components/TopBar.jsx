@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Swords, Users, Scroll, Trophy, Sparkles, LogOut, Coins, Home, Castle, LayoutGrid, Wand2, Crosshair } from "lucide-react";
+import { Swords, Users, Scroll, Trophy, Sparkles, LogOut, Coins, Home, Castle, LayoutGrid, Wand2, Crosshair, MoreHorizontal } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import EnergyWidget from "@/components/EnergyWidget";
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 
 const NAV = [
   { to: "/", label: "Lobby", icon: Home, testid: "nav-lobby" },
@@ -15,11 +16,19 @@ const NAV = [
   { to: "/leaderboard", label: "Ranks", icon: Trophy, testid: "nav-leaderboard" },
 ];
 
+// Only the highest-frequency actions get a fixed thumb-reachable slot on
+// mobile; everything else lives one tap away behind "More" so the strip
+// never needs a sideways scroll to be fully visible.
+const MOBILE_PRIMARY_PATHS = ["/", "/campaign", "/roster", "/summon"];
+
 export const TopBar = () => {
   const { user, logout, refreshProfile } = useAuth();
   const loc = useLocation();
   const navigate = useNavigate();
   const nav = user?.role === "admin" ? [...NAV, { to: "/admin", label: "Admin", icon: Wand2, testid: "nav-admin" }] : NAV;
+  const primaryNav = nav.filter((n) => MOBILE_PRIMARY_PATHS.includes(n.to));
+  const moreNav = nav.filter((n) => !MOBILE_PRIMARY_PATHS.includes(n.to));
+  const moreActive = moreNav.some((n) => n.to === loc.pathname);
 
   const handleLogout = async () => {
     await logout();
@@ -74,19 +83,53 @@ export const TopBar = () => {
         </div>
       </div>
 
-      {/* mobile nav */}
-      <nav className="md:hidden flex items-center justify-between px-2 pb-2 gap-1 overflow-x-auto">
-        {nav.map((n) => {
+      {/* mobile nav — 4 primary tabs + More, always fits without scrolling */}
+      <nav className="md:hidden flex items-center justify-between px-1 pb-2 gap-1">
+        {primaryNav.map((n) => {
           const active = loc.pathname === n.to;
           const Icon = n.icon;
           return (
             <Link key={n.to} to={n.to} data-testid={`m-${n.testid}`}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded text-[10px] ${active ? "text-chakra" : "text-slate-400"}`}>
-              <Icon className="w-4 h-4" />
+              className={`flex flex-1 flex-col items-center gap-0.5 px-1 py-1.5 rounded text-[10px] transition-colors ${active ? "text-chakra" : "text-slate-400"}`}>
+              <Icon className="w-5 h-5" />
               {n.label}
             </Link>
           );
         })}
+        <Sheet>
+          <SheetTrigger asChild>
+            <button
+              data-testid="m-nav-more"
+              className={`flex flex-1 flex-col items-center gap-0.5 px-1 py-1.5 rounded text-[10px] transition-colors ${moreActive ? "text-chakra" : "text-slate-400"}`}
+            >
+              <MoreHorizontal className="w-5 h-5" />
+              More
+            </button>
+          </SheetTrigger>
+          <SheetContent side="bottom" data-testid="more-sheet" className="bg-[#0B0B14] border-white/10 rounded-t-2xl max-h-[70vh]">
+            <SheetHeader>
+              <SheetTitle className="font-display text-2xl tracking-wide text-white text-left">More</SheetTitle>
+            </SheetHeader>
+            <div className="grid grid-cols-4 gap-2 mt-4 pb-6">
+              {moreNav.map((n) => {
+                const active = loc.pathname === n.to;
+                const Icon = n.icon;
+                return (
+                  <SheetClose asChild key={n.to}>
+                    <Link
+                      to={n.to}
+                      data-testid={`more-${n.testid}`}
+                      className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl transition-colors ${active ? "text-chakra bg-cyan-500/10" : "text-slate-300 hover:bg-white/5"}`}
+                    >
+                      <Icon className="w-6 h-6" />
+                      <span className="text-[11px] font-medium">{n.label}</span>
+                    </Link>
+                  </SheetClose>
+                );
+              })}
+            </div>
+          </SheetContent>
+        </Sheet>
       </nav>
     </header>
   );

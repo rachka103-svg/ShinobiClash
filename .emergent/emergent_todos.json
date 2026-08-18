@@ -1,26 +1,18 @@
 [
   {
-    "content": "Priority 1: Daily Energy + Missions (backend + frontend + tests)",
+    "content": "Redesign Lobby.jsx into cinematic Home/Lobby hub (Phase D)",
     "status": "completed"
   },
   {
-    "content": "Priority 1: testing_agent_v3 validation",
+    "content": "Verify frontend compiles (esbuild) with no errors",
     "status": "completed"
   },
   {
-    "content": "Priority 2: Arena backend (snapshots, matchmaking, attempts, rating, leaderboard tie-in)",
+    "content": "Verify visually via testing agent (mobile viewport) - Lobby banner, HUD, CTA, tiles",
     "status": "completed"
   },
   {
-    "content": "Priority 2: Arena frontend (Arena page, Battle.jsx arena mode, nav, leaderboard tabs)",
-    "status": "completed"
-  },
-  {
-    "content": "Priority 2: backend/tests/test_arena.py + full regression suite",
-    "status": "completed"
-  },
-  {
-    "content": "Priority 2: testing_agent_v3 full E2E validation (Arena + regression)",
+    "content": "Update plan.md marking Phase D complete",
     "status": "completed"
   }
 ]
