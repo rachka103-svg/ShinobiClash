@@ -85,3 +85,11 @@ Casual mobile/web gamer who enjoys anime gacha RPGs (collect heroes, build a tea
 ## Next Tasks
 1. Jutsu cast VFX + battle SFX for "juice".
 2. Friends/guild list to make Arena opponents feel less anonymous.
+
+## Implemented (2026-08-18 — Graceful initial-load error handling)
+- **Root cause fixed**: neither `AuthContext`'s `/auth/me` nor `GameContext`'s `/game/catalog`+`/game/stages` initial on-load calls had real error handling — a failed/slow request could leave the app in a broken state with no user-facing recovery path (and, separately, a stale/incompatible transitive `webpack-dev-server` version — pinned via `yarn add webpack-dev-server@4.15.2 -D` to match CRA5's dev-server API — was found and fixed while verifying this, since it was fully blocking the frontend from booting).
+- `lib/api.js`: added a `15s` request timeout so a hung request fails predictably instead of hanging forever.
+- `AuthContext`: `fetchMe` now distinguishes a real `4xx` auth decision (genuinely logged out) from a network/timeout/`5xx`-gateway error (`authError` state) — the latter no longer wrongly bounces the user to `/login`. `refreshProfile` (used by the Energy widget's background poll) is now failure-safe (keeps last known profile instead of throwing).
+- `GameContext`: initial catalog/stages load is now wrapped in try/catch with a `catalogError` state + `retryCatalog()`, instead of an unhandled promise rejection.
+- `App.js`: new in-app `ErrorScreen` (styled "Connection Trouble" + Retry button) shown by `Protected`/`PublicOnly`/`AdminOnly` on `authError`; new dismissible `CatalogErrorBanner` shown inline (non-blocking) on `catalogError`. Verified live by stopping the backend — confirms a graceful themed fallback appears (no crash/blank/dev-overlay), and recovers cleanly once the backend is back + Retry is pressed.
+- Full backend suite re-verified unaffected (99 passed, same 2 pre-existing unrelated baseline failures).

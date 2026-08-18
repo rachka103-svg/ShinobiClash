@@ -13,6 +13,7 @@ export function GameProvider({ children }) {
   const [summonCost, setSummonCost] = useState(300);
   const [banner, setBanner] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState(null);
 
   const applyCatalog = useCallback((data) => {
     setCatalog(data.ninjas);
@@ -32,20 +33,31 @@ export function GameProvider({ children }) {
     return data.ninjas;
   }, [applyCatalog]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [c, s] = await Promise.all([api.get("/game/catalog"), api.get("/game/stages")]);
-        applyCatalog(c.data);
-        setStages(s.data.stages);
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const loadInitialData = useCallback(async () => {
+    setLoading(true);
+    setCatalogError(null);
+    try {
+      const [c, s] = await Promise.all([api.get("/game/catalog"), api.get("/game/stages")]);
+      applyCatalog(c.data);
+      setStages(s.data.stages);
+    } catch (err) {
+      // Never let a failed/slow initial load crash the app — surface a
+      // graceful, dismissible/retryable error instead of throwing.
+      setCatalogError("Couldn't load game data. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   }, [applyCatalog]);
 
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
   return (
-    <GameContext.Provider value={{ catalog, catalogById, advantage, stages, items, trials, summonCost, banner, loading, refreshCatalog }}>
+    <GameContext.Provider value={{
+      catalog, catalogById, advantage, stages, items, trials, summonCost, banner,
+      loading, catalogError, retryCatalog: loadInitialData, refreshCatalog,
+    }}>
       {children}
     </GameContext.Provider>
   );

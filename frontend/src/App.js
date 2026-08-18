@@ -1,9 +1,9 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
-import { Swords } from "lucide-react";
+import { Swords, WifiOff, RotateCw } from "lucide-react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { GameProvider } from "@/context/GameContext";
+import { GameProvider, useGame } from "@/context/GameContext";
 import { TopBar } from "@/components/TopBar";
 import Login from "@/pages/Login";
 import Lobby from "@/pages/Lobby";
@@ -25,9 +25,42 @@ const LoadingScreen = () => (
   </div>
 );
 
+/** Graceful, in-app fallback for a failed/slow initial request — never a
+ * blank page or a browser-level crash overlay. Offers a one-tap retry. */
+const ErrorScreen = ({ message, onRetry }) => (
+  <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#05050A] px-6 text-center" data-testid="error-screen">
+    <WifiOff className="w-10 h-10 text-fox" />
+    <p className="font-display text-2xl tracking-widest text-white">CONNECTION TROUBLE</p>
+    <p className="text-sm text-slate-400 max-w-sm">{message}</p>
+    <button
+      onClick={onRetry}
+      data-testid="error-retry-button"
+      className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-display text-lg tracking-wide bg-chakra text-[#05050A] hover:bg-cyan-300 transition-colors"
+    >
+      <RotateCw className="w-4 h-4" /> RETRY
+    </button>
+  </div>
+);
+
+/** Lightweight, dismissible-by-retry banner shown when the live game catalog
+ * failed to load — never blocks rendering the rest of the app since pages
+ * already fall back to empty defaults gracefully. */
+const CatalogErrorBanner = () => {
+  const { catalogError, retryCatalog } = useGame();
+  if (!catalogError) return null;
+  return (
+    <div className="sticky top-0 z-50 bg-fox/15 border-b border-fox/40 text-fox text-sm px-4 py-2 flex items-center justify-center gap-3" data-testid="catalog-error-banner">
+      <WifiOff className="w-4 h-4" />
+      <span>{catalogError}</span>
+      <button onClick={retryCatalog} data-testid="catalog-retry-button" className="underline hover:text-white transition-colors">Retry</button>
+    </div>
+  );
+};
+
 function Shell({ children, bare }) {
   return (
     <div className="App grain min-h-screen relative">
+      {!bare && <CatalogErrorBanner />}
       {!bare && <TopBar />}
       <main className="relative z-10">{children}</main>
     </div>
@@ -35,23 +68,26 @@ function Shell({ children, bare }) {
 }
 
 function Protected({ children, bare }) {
-  const { user, loading } = useAuth();
+  const { user, loading, authError, retryAuth } = useAuth();
   const loc = useLocation();
   if (loading) return <LoadingScreen />;
+  if (authError) return <ErrorScreen message={authError} onRetry={retryAuth} />;
   if (!user) return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
   return <Shell bare={bare}>{children}</Shell>;
 }
 
 function PublicOnly({ children }) {
-  const { user, loading } = useAuth();
+  const { user, loading, authError, retryAuth } = useAuth();
   if (loading) return <LoadingScreen />;
+  if (authError) return <ErrorScreen message={authError} onRetry={retryAuth} />;
   if (user) return <Navigate to="/" replace />;
   return children;
 }
 
 function AdminOnly({ children }) {
-  const { user, loading } = useAuth();
+  const { user, loading, authError, retryAuth } = useAuth();
   if (loading) return <LoadingScreen />;
+  if (authError) return <ErrorScreen message={authError} onRetry={retryAuth} />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== "admin") return <Navigate to="/" replace />;
   return <Shell>{children}</Shell>;

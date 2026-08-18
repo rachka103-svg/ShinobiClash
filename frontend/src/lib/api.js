@@ -3,6 +3,7 @@ import axios from "axios";
 const api = axios.create({
   baseURL: `${process.env.REACT_APP_BACKEND_URL}/api`,
   withCredentials: true,
+  timeout: 15000, // a hung/slow request should fail predictably, not hang forever
 });
 
 export function formatApiErrorDetail(detail) {
