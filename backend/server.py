@@ -146,6 +146,10 @@ class AscendIn(BaseModel):
     instance_id: str
 
 
+class StarUpIn(BaseModel):
+    instance_id: str
+
+
 class SpireCompleteIn(BaseModel):
     floor: int
     result: str
@@ -352,7 +356,14 @@ def arena_team_public(snapshot_team: list) -> list:
 # Game profile helpers
 # ---------------------------------------------------------------------------
 def new_ninja_instance(template_id: str, level: int = 1) -> dict:
-    return {"instance_id": str(uuid.uuid4()), "template_id": template_id, "level": level, "exp": 0, "ascension": 0}
+    return {"instance_id": str(uuid.uuid4()), "template_id": template_id, "level": level, "exp": 0, "ascension": 0, "stars": 1}
+
+
+def _star_bonus_mult(stars: int) -> float:
+    """Each star beyond the 1st adds a small, permanent stat bonus — this is
+    what gives duplicate summons (converted to shards, see /game/summon)
+    real long-term value instead of being wasted."""
+    return 1 + max(0, (stars or 1) - 1) * 0.04
 
 
 def public_user(user: dict) -> dict:
@@ -361,19 +372,28 @@ def public_user(user: dict) -> dict:
     for inst in ninjas:
         inst.setdefault("exp", 0)
         inst.setdefault("ascension", 0)
+        inst.setdefault("stars", 1)
         asc = inst["ascension"]
         tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
         if not tmpl:
             continue
         rarity = tmpl["rarity"]
-        inst["power"] = gd.ninja_power(inst["template_id"], inst["level"], asc)
-        inst["stats"] = gd.compute_stats(inst["template_id"], inst["level"], asc)
+        star_mult = _star_bonus_mult(inst["stars"])
+        base_power = gd.ninja_power(inst["template_id"], inst["level"], asc)
+        base_stats = gd.compute_stats(inst["template_id"], inst["level"], asc)
+        inst["power"] = round(base_power * star_mult)
+        inst["stats"] = {k: (round(v * star_mult) if k in ("hp", "atk", "def") else v) for k, v in base_stats.items()}
         inst["exp_to_next"] = gd.hero_exp_to_next(inst["level"])
         inst["level_cap"] = gd.level_cap(rarity, asc)
         inst["ascension_max"] = gd.ASCENSION_MAX[rarity]
         inst["max_level"] = gd.max_level(rarity)
+        inst["stars_max"] = gd.STAR_LEVEL_MAX
+        inst["star_up_cost"] = gd.star_up_cost(rarity, inst["stars"]) if inst["stars"] < gd.STAR_LEVEL_MAX else None
+        inst["faction"] = tmpl.get("faction")
+        inst["role"] = tmpl.get("role")
+        inst["passive"] = tmpl.get("passive")
     team_power = sum(
-        gd.ninja_power(i["template_id"], i["level"], i.get("ascension", 0))
+        round(gd.ninja_power(i["template_id"], i["level"], i.get("ascension", 0)) * _star_bonus_mult(i.get("stars", 1)))
         for i in ninjas if i["instance_id"] in user.get("team", [])
     )
     return {
@@ -387,6 +407,7 @@ def public_user(user: dict) -> dict:
         "ryo": user.get("ryo", 0),
         "ninjas": ninjas,
         "inventory": user.get("inventory", {}),
+        "hero_shards": user.get("hero_shards", {}),
         "team": user.get("team", []),
         "cleared_stages": user.get("cleared_stages", []),
         "spire_floor": user.get("spire_floor", 0),
@@ -531,7 +552,8 @@ async def me(user: dict = Depends(get_current_user)):
 async def catalog():
     return {"ninjas": gd.NINJA_CATALOG, "element_advantage": gd.ELEMENT_ADVANTAGE,
             "items": gd.ITEMS, "summon_cost": gd.SUMMON_COST, "trials": gd.TRIALS,
-            "banner": banner_info()}
+            "banner": banner_info(), "factions": gd.FACTIONS, "roles": gd.ROLES,
+            "tags": gd.TAGS, "rarities": gd.RARITIES}
 
 
 @api_router.get("/game/stages")
@@ -779,19 +801,59 @@ async def summon(body: SummonIn, user: dict = Depends(get_current_user)):
         chosen = featured  # rate-up: featured hero pulled
     else:
         chosen = random.choice(pool)
-    inst = new_ninja_instance(chosen)
+    tmpl = gd.CATALOG_BY_ID[chosen]
+
+    # Duplicate protection: a copy of a hero already owned is NEVER wasted —
+    # it converts into shards that fuel that hero's star-up progression
+    # instead of cluttering the roster with an unusable extra instance.
+    hero_shards = user.setdefault("hero_shards", {})
+    is_duplicate = any(n["template_id"] == chosen for n in user.get("ninjas", []))
+    shards_gained = 0
+    if is_duplicate:
+        shards_gained = gd.SHARD_YIELD_PER_DUPLICATE[tmpl["rarity"]]
+        hero_shards[chosen] = hero_shards.get(chosen, 0) + shards_gained
+    else:
+        user.setdefault("ninjas", []).append(new_ninja_instance(chosen))
+
     if use_ticket:
         inventory["summon_ticket"] -= 1
         user["inventory"] = inventory
     else:
         user["ryo"] -= gd.SUMMON_COST
-    user.setdefault("ninjas", []).append(inst)
     bump_mission(user, "summon")
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"ryo": user["ryo"], "ninjas": user["ninjas"], "inventory": inventory, "daily": user["daily"]}})
-    tmpl = gd.CATALOG_BY_ID[chosen]
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ryo": user["ryo"], "ninjas": user["ninjas"], "inventory": inventory,
+        "daily": user["daily"], "hero_shards": hero_shards,
+    }})
     return {"profile": public_user(user),
             "summoned": {"template_id": chosen, "name": tmpl["name"], "rarity": tmpl["rarity"],
-                         "element": tmpl["element"], "role": tmpl["role"], "portrait": tmpl["portrait"]}}
+                         "element": tmpl["element"], "role": tmpl["role"], "portrait": tmpl["portrait"],
+                         "duplicate": is_duplicate, "shards_gained": shards_gained}}
+
+
+@api_router.post("/game/hero/star-up")
+async def star_up(body: StarUpIn, user: dict = Depends(get_current_user)):
+    """Spend shards (earned from duplicate summons) to raise a hero's star
+    level, granting a small permanent stat bonus. Part of the long-term
+    merge/duplicate progression system — duplicates always have value."""
+    inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == body.instance_id), None)
+    if not inst:
+        raise HTTPException(status_code=404, detail="Hero not found")
+    tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Hero template not found")
+    stars = inst.get("stars", 1)
+    if stars >= gd.STAR_LEVEL_MAX:
+        raise HTTPException(status_code=400, detail="This hero is already at maximum star level")
+    cost = gd.star_up_cost(tmpl["rarity"], stars)
+    hero_shards = user.setdefault("hero_shards", {})
+    have = hero_shards.get(inst["template_id"], 0)
+    if have < cost:
+        raise HTTPException(status_code=400, detail=f"Not enough shards ({have}/{cost})")
+    hero_shards[inst["template_id"]] = have - cost
+    inst["stars"] = stars + 1
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"ninjas": user["ninjas"], "hero_shards": hero_shards}})
+    return {"profile": public_user(user), "instance_id": inst["instance_id"], "stars": inst["stars"]}
 
 
 @api_router.post("/game/hero/use-exp")

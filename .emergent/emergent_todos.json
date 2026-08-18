@@ -1,18 +1,34 @@
 [
   {
-    "content": "Redesign Lobby.jsx into cinematic Home/Lobby hub (Phase D)",
+    "content": "Expand rarity system to 8 tiers + roles/factions/tags",
     "status": "completed"
   },
   {
-    "content": "Verify frontend compiles (esbuild) with no errors",
+    "content": "Expand hero catalog from 38 to 69 heroes with lore/kits/passives",
     "status": "completed"
   },
   {
-    "content": "Verify visually via testing agent (mobile viewport) - Lobby banner, HUD, CTA, tiles",
+    "content": "Add ability/mechanic library + signature mechanics",
     "status": "completed"
   },
   {
-    "content": "Update plan.md marking Phase D complete",
+    "content": "Add progression model: stars, hero_shards, star-up, duplicate->shards",
+    "status": "completed"
+  },
+  {
+    "content": "Add scalable stage generator + boss mechanic framework, expand to 36 stages",
+    "status": "completed"
+  },
+  {
+    "content": "Update frontend rarity color/tier maps",
+    "status": "completed"
+  },
+  {
+    "content": "Run full regression + new-feature test pass via testing_agent_v3",
+    "status": "completed"
+  },
+  {
+    "content": "Update plan.md with Phase 2A foundation summary",
     "status": "completed"
   }
 ]

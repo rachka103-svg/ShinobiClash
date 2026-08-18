@@ -1,17 +1,15 @@
 import { Sparkles } from "lucide-react";
 import { RARITY } from "@/lib/styles";
 
-const TIER = { R: 0, SR: 1, SSR: 2, UR: 3, LR: 4 };
-
 /**
  * Glowing, gem-like rarity badge used on the hero showcase (top-right of portrait).
  * Higher rarities pulse and sparkle like popular gacha titles.
  */
 export const RarityBadge = ({ rarity, size = "md" }) => {
   const r = RARITY[rarity] || RARITY.R;
-  const tier = TIER[rarity] ?? 0;
+  const tier = r.tier ?? 0;
   const dim = size === "lg" ? "w-16 h-16 text-4xl" : "w-11 h-11 text-2xl";
-  const elite = tier >= 3; // UR / LR
+  const elite = tier >= 4; // UR and above
 
   return (
     <div className="flex flex-col items-center gap-1 select-none" data-testid={`rarity-badge-${rarity}`}>

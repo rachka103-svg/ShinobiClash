@@ -1,14 +1,24 @@
-# plan.md — Shinobi Clash: Energy + Missions + Async Arena (Logic) + Cinematic RPG UI Redesign (Visual)
+# plan.md — Shinobi Clash: Energy + Missions + Async Arena (Logic) + Cinematic RPG UI Redesign (Visual) + Phase 2A Foundation (Systems)
 
 ## 1) Objectives
-- Keep **backend and game logic** intact (auth, battle, summon). Visual changes must not alter formulas, schemas, or core logic.
-- Maintain the already-implemented **server-authoritative Energy** system that gates battle starts (consume on attempt; no refunds).
-- Maintain the already-implemented **Daily Missions** system that progresses from server-side events, is claimable once, and resets daily.
-- Preserve and avoid changes to **Async Arena** and **Summon** logic (visual redesign only when their phases arrive).
-- Transform the frontend from a CRUD/dashboard feel into a **FAST-PACED, GRINDY, CINEMATIC ACTION RPG**:
-  - **Mobile-first**, no horizontal scrolling.
-  - **Artwork-first** (60–80% of screen weight where applicable), layered gradients/scrims.
-  - Avoid generic SaaS cards/borders; use glows, rarity/element color language, HUD-like strips.
+- Preserve **core backend integrity** and working gameplay loops:
+  - Auth (JWT cookies)
+  - Energy gating + regen
+  - Daily missions (server-authoritative, resets daily)
+  - Async Arena logic
+  - Existing battle engine + formulas
+- Maintain a **fast-paced, grind-heavy, long-term RPG foundation**:
+  - 60–80+ collectible heroes, extensible beyond 200 without UI rewrites
+  - Meaningful roles, factions, tags, and kit identity (team building focus)
+  - Long-term hero progression (beyond a simple level cap)
+  - Endless-ready campaign stage architecture (chapter 100+, stage 1000+)
+  - Boss framework capable of multi-phase strategic encounters
+- Continue transforming the frontend from a CRUD/dashboard feel into a **premium cinematic gacha RPG** (mobile-first, artwork-first) — **but only when the plan is in the UI phases**.
+- **Hard constraints (must continue to obey):**
+  - Do **not** redesign Summon UI unless/until its phase (and user explicitly authorizes). Currently: **Summon UI redesign is paused**.
+  - Avoid monolithic, hero-specific hardcoding in UI or battle logic.
+
+---
 
 ## 2) Implementation Steps
 
@@ -55,9 +65,88 @@ Tests: ✅ implemented
 
 ---
 
+## 2A) Hero/Progression Foundation Rebuild (Systems-First) ✅ COMPLETE (Steps 1–3 + partial 5–6)
+> This phase explicitly prioritized **game foundation** over UI polish.
+> Summon UI redesign and summon animations are explicitly paused.
+
+### What is complete in Phase 2A
+
+#### 2A.1 — Hero data architecture ✅ COMPLETE
+- Expanded rarity system from 5 tiers to 8 tiers:
+  - **N, R, SR, SSR, UR, GR, LR, MYTHIC**
+- Expanded base stat model to support future growth without schema churn:
+  - Added **crit_rate, crit_damage, accuracy, resistance** to `RARITY_BASE` and hero stat derivation.
+- Roles expanded from 4 to 8:
+  - **Attacker, Assassin, Tank, Mage, Support, Healer, Control, Bruiser**
+  - Added `ROLE_MOD` coverage for all 8.
+- Added identity systems:
+  - **FACTIONS (10)**
+  - **TAGS (19)** secondary tags (AOE, DOT, STUN, etc.)
+  - Each hero now has `faction`, `tags`, and `passive`.
+
+Files:
+- `backend/game_data.py`
+- `backend/server.py` (catalog metadata returned)
+
+#### 2A.2 — Catalog expansion (60–80 roster target) ✅ COMPLETE
+- Expanded catalog from **38 → 69 heroes**.
+- Added **31 new heroes** spanning all rarities and roles with real names/lore.
+- Introduced placeholder art system for new heroes:
+  - Heroes without final art are flagged with `is_placeholder_art: true` and use `portrait: /heroes/_placeholder.png`.
+  - Placeholder is clearly marked; no fake “final” art claims.
+
+#### 2A.3 — Ability/Passive identity architecture ✅ COMPLETE (data-driven)
+- Added `MECHANIC_LIBRARY` (24 named mechanics) and a generic passive per role via `ROLE_GENERIC_PASSIVE`.
+- Implemented a “complexity curve”:
+  - ~**35%** of heroes have a **signature** passive (24/69) via `SIGNATURE_MECHANIC_MAP`.
+  - The remainder use simpler role-based passives.
+- UR+ heroes now have a **4th ultimate ability**:
+  - Added via `_hero_jutsus` for generated heroes.
+  - Backfilled for the original 12 heroes.
+
+> Note: These mechanics are currently **data-defined**. Full in-battle resolution of each `effect_type` is intentionally deferred until the dedicated battle extension step.
+
+#### 2A.4 — Long-term progression foundation ✅ COMPLETE (stars + shards + duplicates have value)
+- Hero instances now include:
+  - `stars` (1–6)
+- User doc now includes:
+  - `hero_shards` dictionary keyed by hero template id
+- Duplicate summon behavior:
+  - If hero already owned → **convert to shards** (no duplicate hero instance added)
+  - `SHARD_YIELD_PER_DUPLICATE` controls shard yield by rarity
+- New endpoint:
+  - `POST /api/game/hero/star-up` consumes shards and increments `stars`
+- `public_user()` now exposes:
+  - `stars_max`, `star_up_cost`, `hero_shards` and applies a small power/stat multiplier per star
+
+#### 2A.5 — Endless-ready stage architecture ✅ COMPLETE (architecture + proof)
+- Added procedural stage generation:
+  - `generate_campaign_stages(start_chapter, end_chapter, stages_per_chapter)`
+  - Proven by generating Chapters 5–8 → total stages **12 → 36**
+- Added reusable boss framework (data layer):
+  - `BOSS_MECHANICS` with phases, enrage, shields, elemental shifts, adds
+  - Two POC bosses: `sealed_titan`, `abyssal_warden`
+  - Boss stages flag `is_boss: true` + `boss_mechanic` id
+
+#### 2A.6 — Frontend “glue” only (no redesign) ✅ COMPLETE
+- Updated visual rarity token map to include 8 tiers:
+  - `frontend/src/lib/theme.js` rarity map expanded
+- Updated existing screens so new tiers render correctly:
+  - `Roster.jsx`, `Gallery.jsx` rarity filters/sorting updated
+  - `Admin.jsx` rarity + role lists updated
+  - `NinjaCard.jsx`, `RarityBadge.jsx`, `RarityFx.jsx` tier logic updated to be data-driven
+
+#### 2A.7 — Testing ✅ COMPLETE
+- Existing regression suite: **34/34 pass** (`backend_test.py`)
+- New Phase 2A validation suite: **19/19 pass** (`phase2a_test.py`)
+- Total: **53/53 pass**, no regressions to:
+  - auth, battle loop, leveling, ascension, energy, missions, arena
+
+---
+
 ## 2B) Cinematic RPG UI Redesign Roadmap (Visual-Only)
 > **Critical rule:** Do NOT touch battle/arena/summon logic. Visual presentation only.
-> Build strictly in order, inspecting on a **mobile viewport after each phase**, then pause for user validation.
+> Build strictly in order, inspect on **mobile viewport after each phase**, then pause for user validation.
 
 ### Phase A (P0) — Global Visual System ✅ COMPLETE
 - Added global design tokens in `src/lib/theme.js` (rarity/element colors, glows, scrims, typography, surfaces).
@@ -87,31 +176,33 @@ Tests: ✅ implemented
   - Circular glowing Play button.
   - Alternate state “ALL MISSIONS CLEARED” with gold/amber treatment.
 - Quick-access tiles reskinned as cinematic gradient tiles (rounded-2xl, glowing icon circles).
-- **Preserved existing testids** and kept `EnergyWidget` + `MissionsPanel` untouched.
+- Preserved testids and kept `EnergyWidget` + `MissionsPanel` untouched.
 
-**Verification:** ✅ COMPLETE
-- `esbuild` compiles clean; no lint issues.
-- Mobile viewport verified (390px) — **no horizontal scroll**.
-- `testing_agent_v3` report: **100% pass**, including **34/34 backend regression tests** and full frontend UX checks.
+Verification:
+- `esbuild` compiles clean.
+- Mobile viewport verified (390px), no horizontal scroll.
+- `testing_agent_v3`: **100% pass**, including **34/34 backend regression tests**.
 
 ---
 
 ### Phase E (P1) — Campaign Screen Redesign ⏭️ NEXT (Not started)
 Goal: Replace list-card feel with stage progression + cinematic previews.
 - Visual redesign only: keep stage data, gating, and `startBattle()` behavior unchanged.
-- Proposed UI direction:
-  - Chapter sections become **cinematic stage nodes** or compact “mission panels” with strong artwork emphasis.
-  - Enemy previews remain portrait-first; rewards (Ryo/items) become iconic chips, not text rows.
+- UI direction:
+  - Chapter sections become cinematic stage nodes / mission panels.
+  - Enemy previews remain portrait-first.
+  - Rewards become iconic chips (Ryo/items/materials) rather than text rows.
   - Energy cost remains visible near primary action.
-  - Maintain `data-testid` coverage for existing tests where feasible.
-- After implementation: run screenshot inspection on mobile and stop for user validation.
+  - Maintain `data-testid` coverage where feasible.
+- After implementation: screenshot inspection on mobile and pause for user validation.
 
 ### Phase F (P1) — Spire / Farming Content Redesign (Not started)
-- Clarify repeatable loops (Gold farm, XP farm, etc.) with cinematic, action-forward presentation.
+- Clarify repeatable loops (Gold/XP/material farms) with cinematic presentation.
 - Visual-only changes.
 
-### Phase G (P2) — Summon Screen Redesign (Not started)
-- Make summon feel like a major event: rarity presentation, dramatic reveals.
+### Phase G (P2) — Summon Screen Redesign (Not started — **PAUSED BY USER**) 
+- Summon UI redesign/animations explicitly paused until foundation priorities are satisfied.
+- When resumed: major event feel, rarity presentation, dramatic reveals.
 - **Do not change summon odds/logic**.
 
 ### Phase H (P2) — Battle Arena (Visual redesign ONLY) (Not started)
@@ -122,17 +213,30 @@ Goal: Replace list-card feel with stage progression + cinematic previews.
 - Visual polish: animations, damage numbers, cinematic transitions.
 - No gameplay logic changes.
 
+---
+
 ## 3) Next Actions
-1. **Pause for user verification of Phase D (Lobby).**
-2. Begin **Phase E (Campaign redesign)** (visual-only) and inspect on mobile viewport.
-3. Stop after Phase E for user validation before moving to Phase F.
+1. **User validation checkpoint:** confirm Phase 2A foundation direction is correct (roster size, rarity distribution, shard/star loop, stage generator/boss framework).
+2. Decide the next systems step (recommended order):
+   - **Battle effect_type wiring**: incrementally support key `MECHANIC_LIBRARY.effect_type` behaviors in the battle runtime (without a giant monolith).
+   - **Boss runtime support**: consume `boss_mechanic` phase data during combat (shield windows/enrage/adds).
+3. After systems confirmation, resume UI roadmap with **Phase E (Campaign redesign)** (visual-only) and pause after completion.
+
+---
 
 ## 4) Success Criteria
-- No regressions to backend/game logic; auth/battle/summon/arena remain untouched.
-- Cinematic RPG UI standards met:
-  - Mobile-first, no horizontal scrolling.
-  - Artwork-first layouts with scrims/vignettes and controlled glow.
-  - No generic dashboard cards; HUD-like strips and cinematic tiles.
-- Phase D accepted:
-  - Lobby is a cinematic hub with leader banner, clear CTA, and quick access navigation.
-  - Verified by automated testing: **100% pass** and stable across previously redesigned screens (Roster/HeroShowcase/EliteBurst/TopBar).
+### Systems (Phase 2A)
+- Catalog supports **60–80 heroes** (now 69) and can scale further without UI rewrites.
+- 8 rarity tiers exist with meaningful distribution and support.
+- Heroes have roles, factions, tags, base stats + extended stats.
+- Mechanics/abilities are **data-driven** and reusable.
+- Duplicate/merge value exists via shards → stars.
+- Stage definitions scale (procedural generation proven) and boss framework exists.
+- Existing battle engine remains intact and regression suite passes.
+
+### Visual (Cinematic UI)
+- No regressions to backend/game logic.
+- Mobile-first, no horizontal scroll.
+- Artwork-first layouts with scrims/vignettes and controlled glow.
+- Avoid generic dashboard cards; use HUD-like strips and cinematic tiles.
+- Phase D accepted: Lobby is a cinematic hub, verified by automated testing.

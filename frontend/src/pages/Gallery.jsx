@@ -8,8 +8,8 @@ import { RarityBadge } from "@/components/RarityBadge";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
-const RARITY_FILTERS = ["All", "LR", "UR", "SSR", "SR", "R"];
-const RARITY_ORDER = { LR: 4, UR: 3, SSR: 2, SR: 1, R: 0 };
+const RARITY_FILTERS = ["All", "MYTHIC", "LR", "GR", "UR", "SSR", "SR", "R", "N"];
+const RARITY_ORDER = { MYTHIC: 7, LR: 6, GR: 5, UR: 4, SSR: 3, SR: 2, R: 1, N: 0 };
 
 export default function Gallery() {
   const { user } = useAuth();

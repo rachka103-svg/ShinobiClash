@@ -10,8 +10,8 @@ import EliteBurst from "@/components/EliteBurst";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
-const RARITY_ORDER = { R: 0, SR: 1, SSR: 2, UR: 3, LR: 4 };
-const RARITY_FILTERS = ["ALL", "LR", "UR", "SSR", "SR", "R"];
+const RARITY_ORDER = { N: 0, R: 1, SR: 2, SSR: 3, UR: 4, GR: 5, LR: 6, MYTHIC: 7 };
+const RARITY_FILTERS = ["ALL", "MYTHIC", "LR", "GR", "UR", "SSR", "SR", "R", "N"];
 const ELEMENT_FILTERS = ["ALL", "Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
 const ascensionCost = (rarity, asc) => ({
   ascension_crystal: 5 + asc * 5 + RARITY_ORDER[rarity] * 3,

@@ -44,11 +44,14 @@ export const ACCENT = {
 
 // ---- Rarity — strong, distinct, unmistakable at a glance ---------------
 export const RARITY = {
-  R: { label: "R", color: "#9E9E9E", name: "Common", tier: 0 },
-  SR: { label: "SR", color: "#29B6F6", name: "Rare", tier: 1 },
-  SSR: { label: "SSR", color: "#AB47BC", name: "Epic", tier: 2 },
-  UR: { label: "UR", color: "#FFCA28", name: "Legendary", tier: 3 },
-  LR: { label: "LR", color: "#FF2D78", name: "Mythic", tier: 4 },
+  N: { label: "N", color: "#7C7C86", name: "Novice", tier: 0 },
+  R: { label: "R", color: "#9E9E9E", name: "Common", tier: 1 },
+  SR: { label: "SR", color: "#29B6F6", name: "Rare", tier: 2 },
+  SSR: { label: "SSR", color: "#AB47BC", name: "Epic", tier: 3 },
+  UR: { label: "UR", color: "#FFCA28", name: "Legendary", tier: 4 },
+  GR: { label: "GR", color: "#FF4081", name: "Ascendant", tier: 5 },
+  LR: { label: "LR", color: "#FF2D78", name: "Radiant", tier: 6 },
+  MYTHIC: { label: "MYTHIC", color: "#64FFDA", name: "Mythic", tier: 7 },
 };
 
 // ---- Elements — communicate identity through color, not labels alone ---
