@@ -1,31 +1,59 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Heart, Sword, Shield, Wind, Star, ChevronsUp, Gem, ScrollText, BookOpen, Ticket, Coins, Sparkles, Zap } from "lucide-react";
+import { Loader2, Heart, Sword, Shield, Wind, Star, ChevronsUp, Gem, Coins, Sparkles, Zap, Layers, Crown } from "lucide-react";
+import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
-import { NinjaCard } from "@/components/NinjaCard";
+import HeroPortrait from "@/components/HeroPortrait";
 import { RarityBadge } from "@/components/RarityBadge";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 const RARITY_ORDER = { R: 0, SR: 1, SSR: 2, UR: 3, LR: 4 };
+const RARITY_FILTERS = ["ALL", "LR", "UR", "SSR", "SR", "R"];
+const ELEMENT_FILTERS = ["ALL", "Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
 const ascensionCost = (rarity, asc) => ({
   ascension_crystal: 5 + asc * 5 + RARITY_ORDER[rarity] * 3,
   ryo: 500 + asc * 400 + RARITY_ORDER[rarity] * 300,
 });
-const ITEM_ICONS = { exp_tome_minor: ScrollText, exp_tome_greater: ScrollText, exp_tome_ancient: BookOpen, ascension_crystal: Gem, summon_ticket: Ticket };
+const ITEM_ICONS = { exp_tome_minor: Layers, exp_tome_greater: Layers, exp_tome_ancient: Layers, ascension_crystal: Gem, summon_ticket: Sparkles };
+
+/** Minimal, unboxed filter pill — text + thin ring, filled only when active. */
+const FilterChip = ({ active, color, onClick, children, testid }) => (
+  <button
+    onClick={onClick}
+    data-testid={testid}
+    className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all"
+    style={
+      active
+        ? { background: color, color: "#05050A", boxShadow: `0 0 14px ${color}88` }
+        : { color: "rgba(203,213,225,0.7)", border: "1px solid rgba(255,255,255,0.12)" }
+    }
+  >
+    {children}
+  </button>
+);
 
 export default function Roster() {
   const { user, setUser } = useAuth();
   const { catalogById, items } = useGame();
   const [selected, setSelected] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [rarityFilter, setRarityFilter] = useState("ALL");
+  const [elementFilter, setElementFilter] = useState("ALL");
 
   const inv = user?.inventory || {};
   const owned = (user?.ninjas || [])
     .map((inst) => ({ ...inst, ...catalogById[inst.template_id], rarity: catalogById[inst.template_id]?.rarity }))
     .sort((a, b) => (RARITY_ORDER[b.rarity] - RARITY_ORDER[a.rarity]) || b.power - a.power);
+
+  const filtered = useMemo(
+    () => owned.filter((n) => (rarityFilter === "ALL" || n.rarity === rarityFilter) && (elementFilter === "ALL" || n.element === elementFilter)),
+    [owned, rarityFilter, elementFilter]
+  );
+
+  const highestRarity = owned[0]?.rarity;
 
   const sel = selected ? user.ninjas.find((n) => n.instance_id === selected) : null;
   const selTpl = sel ? catalogById[sel.template_id] : null;
@@ -61,29 +89,84 @@ export default function Roster() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8" data-testid="roster-page">
-      <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-display text-5xl tracking-wide text-white">ROSTER</h1>
-          <p className="text-slate-400">{owned.length} heroes in your ranks.</p>
+      {/* ---------- Header ---------- */}
+      <div className="mb-1">
+        <h1 className="font-display text-5xl sm:text-6xl tracking-wide text-white leading-none">ROSTER</h1>
+        <p className="text-slate-400 mt-1">Build your ultimate squad.</p>
+      </div>
+
+      {/* ---------- Slim summary strip — no boxed stat cards ---------- */}
+      <div className="flex items-center gap-5 sm:gap-8 mt-5 mb-6 overflow-x-auto pb-1" data-testid="roster-summary">
+        <div className="shrink-0">
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">Heroes</p>
+          <p className="font-display text-2xl text-white leading-none">{owned.length}</p>
         </div>
-        <div className="flex items-center gap-2" data-testid="inventory-strip">
-          {["exp_tome_minor", "exp_tome_greater", "exp_tome_ancient", "ascension_crystal", "summon_ticket"].map((id) => {
-            const Icon = ITEM_ICONS[id];
-            return (
-              <div key={id} className="flex items-center gap-1 px-2.5 py-1.5 rounded panel" title={items[id]?.name} data-testid={`inv-${id}`}>
-                <Icon className="w-4 h-4" style={{ color: items[id]?.color || "#fff" }} />
-                <span className="font-display text-lg text-white">{inv[id] || 0}</span>
-              </div>
-            );
-          })}
+        <div className="w-px h-8 bg-white/10 shrink-0" />
+        <div className="shrink-0 flex items-center gap-1.5">
+          <Crown className="w-4 h-4" style={{ color: highestRarity ? RARITY[highestRarity].color : "#475569" }} />
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">Best</p>
+            <p className="font-display text-xl leading-none" style={{ color: highestRarity ? RARITY[highestRarity].color : "#fff" }}>
+              {highestRarity ? RARITY[highestRarity].name : "—"}
+            </p>
+          </div>
+        </div>
+        <div className="w-px h-8 bg-white/10 shrink-0" />
+        <div className="shrink-0 flex items-center gap-1.5">
+          <Zap className="w-4 h-4 text-fox" />
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">Squad Power</p>
+            <p className="font-display text-xl text-white leading-none">{user?.team_power ?? 0}</p>
+          </div>
+        </div>
+        <div className="w-px h-8 bg-white/10 shrink-0" />
+        <div className="shrink-0 flex items-center gap-1.5">
+          <Gem className="w-4 h-4 text-jutsu" />
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">Crystals</p>
+            <p className="font-display text-xl text-white leading-none">{inv.ascension_crystal || 0}</p>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        {owned.map((n) => (
-          <NinjaCard key={n.instance_id} ninja={n} testid={`roster-card-${n.template_id}`} onClick={() => setSelected(n.instance_id)} />
-        ))}
+      {/* ---------- Filters — minimal pill rows ---------- */}
+      <div className="space-y-2 mb-6">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1" data-testid="rarity-filters">
+          {RARITY_FILTERS.map((r) => (
+            <FilterChip key={r} active={rarityFilter === r} color={r === "ALL" ? "#00E5FF" : RARITY[r].color} onClick={() => setRarityFilter(r)} testid={`filter-rarity-${r}`}>
+              {r === "ALL" ? "All" : r}
+            </FilterChip>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1" data-testid="element-filters">
+          {ELEMENT_FILTERS.map((el) => (
+            <FilterChip key={el} active={elementFilter === el} color={el === "ALL" ? "#00E5FF" : ELEMENT[el].color} onClick={() => setElementFilter(el)} testid={`filter-element-${el}`}>
+              {el === "ALL" ? "All Elements" : el}
+            </FilterChip>
+          ))}
+        </div>
       </div>
+
+      {/* ---------- Collection grid — portrait-first ---------- */}
+      {filtered.length === 0 ? (
+        <div className="text-center py-20 text-slate-500" data-testid="roster-empty">
+          <Sparkles className="w-8 h-8 mx-auto mb-2 text-slate-700" />
+          No heroes match these filters yet.
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+          {filtered.map((n, i) => (
+            <motion.div key={n.instance_id} className="w-full" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.02, 0.3) }}>
+              <HeroPortrait
+                hero={n}
+                mode="compact"
+                onClick={() => setSelected(n.instance_id)}
+                testid={`roster-card-${n.template_id}`}
+              />
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent
