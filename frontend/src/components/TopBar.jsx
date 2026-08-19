@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Swords, Users, Scroll, Trophy, Sparkles, LogOut, Coins, Gem, Home, Castle, LayoutGrid, Wand2, Crosshair, MoreHorizontal } from "lucide-react";
+import { Swords, Users, Scroll, Trophy, Sparkles, LogOut, Coins, Gem, Home, Castle, LayoutGrid, Wand2, Crosshair, MoreHorizontal, Landmark, Anvil } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import EnergyWidget from "@/components/EnergyWidget";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
@@ -7,11 +7,13 @@ import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose 
 const NAV = [
   { to: "/", label: "Lobby", icon: Home, testid: "nav-lobby" },
   { to: "/campaign", label: "Campaign", icon: Scroll, testid: "nav-campaign" },
+  { to: "/dungeons", label: "Dungeons", icon: Landmark, testid: "nav-dungeons" },
   { to: "/spire", label: "Spire", icon: Castle, testid: "nav-spire" },
   { to: "/arena", label: "Arena", icon: Crosshair, testid: "nav-arena" },
   { to: "/roster", label: "Roster", icon: Users, testid: "nav-roster" },
   { to: "/gallery", label: "Gallery", icon: LayoutGrid, testid: "nav-gallery" },
   { to: "/team", label: "Team", icon: Swords, testid: "nav-team" },
+  { to: "/forge", label: "Forge", icon: Anvil, testid: "nav-forge" },
   { to: "/summon", label: "Summon", icon: Sparkles, testid: "nav-summon" },
   { to: "/leaderboard", label: "Ranks", icon: Trophy, testid: "nav-leaderboard" },
 ];

@@ -17,6 +17,8 @@ import Spire from "@/pages/Spire";
 import Gallery from "@/pages/Gallery";
 import Admin from "@/pages/Admin";
 import Arena from "@/pages/Arena";
+import Forge from "@/pages/Forge";
+import Dungeons from "@/pages/Dungeons";
 
 const LoadingScreen = () => (
   <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#05050A]" data-testid="loading-screen">
@@ -105,6 +107,8 @@ function AppRoutes() {
       <Route path="/roster" element={<Protected><Roster /></Protected>} />
       <Route path="/team" element={<Protected><TeamBuilder /></Protected>} />
       <Route path="/summon" element={<Protected><Summon /></Protected>} />
+      <Route path="/forge" element={<Protected><Forge /></Protected>} />
+      <Route path="/dungeons" element={<Protected><Dungeons /></Protected>} />
       <Route path="/leaderboard" element={<Protected><Leaderboard /></Protected>} />
       <Route path="/admin" element={<AdminOnly><Admin /></AdminOnly>} />
       <Route path="/battle/:mode/:id" element={<Protected bare><Battle /></Protected>} />

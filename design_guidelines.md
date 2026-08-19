@@ -1,325 +1,471 @@
 {
-  "design_system_scope": {
-    "screen": "/campaign (Campaign.jsx)",
-    "goal": "Replace flat stage list with a cinematic World → Chapter → Stage → Battle map experience, without changing data/logic/APIs.",
-    "non_goals": [
-      "No changes to battle-start flow, energy validation, rewards, completion logic",
-      "No new palette/typography; must use existing tokens + existing glow/scrim/vignette helpers",
-      "No heavy 3D, no continuously animated backgrounds, no excessive particles"
+  "project": {
+    "name": "Shinobi Clash",
+    "scope": "Extend existing dark cinematic mobile-first gacha RPG UI for Bulk Train/Evolve, Gear/Forge, Summon Ceremony redesign, Resource Dungeons hub, Crafting + Material Fusion.",
+    "non_negotiables": [
+      "Keep existing design tokens/palette/utilities (base #05050A, panel #0B0B14, chakra cyan #00E5FF, fox orange #FF5722, jutsu magenta #D500F9, amber for gold/rare).",
+      "Mobile-first. NO page-level horizontal scrolling ever (use min-w-0 on flex children; avoid negative margins that widen layout).",
+      "Performance: animate transform/opacity only; no continuous background animation.",
+      "Use shadcn/ui components from /app/frontend/src/components/ui (JS files).",
+      "Use framer-motion + lucide-react only (no new heavy libs).",
+      "All interactive + key informational elements MUST include data-testid (kebab-case, role-based).",
+      "Summon reveal must be skippable (tap-to-skip / skip button) and not annoying on x10."
     ]
   },
 
-  "brand_attributes": [
-    "premium fantasy RPG",
-    "dark atmospheric",
-    "rare-rarity gold accents",
-    "cinematic lighting + layered depth",
-    "touch-first clarity (mobile)"
-  ],
-
-  "existing_tokens_to_use_not_replace": {
-    "base": "--base (#05050A)",
-    "panel": "--panel (#0B0B14)",
-    "chakra": "--chakra (#00E5FF)",
-    "fox": "--fox (#FF5722)",
-    "jutsu": "--jutsu (#D500F9)",
-    "shadcn_css_vars": [
-      "--background, --foreground, --card, --muted, --border, --ring, --radius"
+  "brand_attributes": {
+    "tone": ["cinematic", "premium", "grindy-long-term", "high-contrast", "alive-with-glow"],
+    "visual_metaphors": [
+      "obsidian panels + runic neon edges",
+      "chakra energy (cyan) for primary actions",
+      "foxfire (orange) for currency/heat/crit moments",
+      "jutsu magenta for mythic/arcane emphasis"
     ],
-    "existing_utilities": [
-      ".glass (blurred surface)",
-      ".panel (cinematic panel gradient)",
-      ".grain (noise overlay)",
-      ".glow-cyan, .glow-text-cyan, .glow-text-orange",
-      ".fade-up (entrance)",
-      ".rarity-pulse / .aura-2/.aura-3/.aura-4 (rarity framing)"
-    ],
-    "note": "Do not introduce a new palette. Use rarity tier colors + element colors already present in the app. Gold/amber accents should come from existing currency styling (if present) or a single tokenized amber accent class already used elsewhere."
+    "do_not_change": [
+      "Existing rarity tier colors + aura utilities (.aura-2/.aura-3/.aura-4, .rarity-pulse, .shine-sweep)",
+      "Existing fonts: Outfit (body/UI), Bebas Neue (display via .font-display)"
+    ]
   },
 
-  "layout_composition": {
-    "overall_structure_mobile_first": {
-      "pattern": "TopBar (existing) + Campaign header strip + Chapter navigator (horizontal) + Map viewport (vertical) + Stage preview (bottom sheet)",
-      "no_horizontal_page_scroll": true,
-      "recommended_container": "Use a full-bleed map canvas inside the existing app shell; constrain content width with px-4 but allow background to bleed edge-to-edge.",
-      "safe_areas": "Respect iOS bottom safe area for the stage preview sheet CTA row (pb-[env(safe-area-inset-bottom)])."
-    },
-
-    "background_and_depth": {
-      "reuse_existing_battle_bg": {
-        "instruction": "Reuse the existing painted bamboo-forest-at-dusk background image used on Battle screen as the Campaign map atmosphere.",
-        "treatment": [
-          "Apply a dark vignette overlay (top+bottom) to keep nodes readable",
-          "Add a subtle scrim behind chapter strip and behind stage preview sheet",
-          "Optional: add .grain overlay at low opacity (already exists)"
-        ],
-        "performance": "Background must be static (no video). If parallax is used, it must be minimal and only on scroll (transform translateY), not continuous animation."
-      },
-      "layering": {
-        "layers": [
-          "Layer 0: background image + vignette",
-          "Layer 1: faint path line + fog/scrim patches",
-          "Layer 2: stage nodes + connectors",
-          "Layer 3: chapter strip + stage preview sheet"
-        ],
-        "rule": "Never let decorative layers reduce node contrast; readability wins."
+  "design_tokens": {
+    "css_custom_properties": {
+      "note": "These extend existing :root tokens in /app/frontend/src/index.css; do not replace existing values. Prefer Tailwind + existing CSS utilities; add only if needed.",
+      "additions": {
+        "--gold": "#FFC857",
+        "--panel-2": "rgba(11, 11, 20, 0.78)",
+        "--stroke-soft": "rgba(255,255,255,0.08)",
+        "--stroke-hard": "rgba(255,255,255,0.14)",
+        "--shadow-deep": "0 18px 60px rgba(0,0,0,0.55)",
+        "--shadow-glow-cyan": "0 0 0 1px rgba(0,229,255,0.18), 0 0 28px rgba(0,229,255,0.22)",
+        "--shadow-glow-orange": "0 0 0 1px rgba(255,87,34,0.18), 0 0 28px rgba(255,87,34,0.22)",
+        "--shadow-glow-magenta": "0 0 0 1px rgba(213,0,249,0.18), 0 0 28px rgba(213,0,249,0.22)",
+        "--radius-card": "14px",
+        "--radius-chip": "9999px"
       }
     },
 
-    "grid_and_spacing": {
-      "mobile_spacing": {
-        "outer_padding": "px-4",
-        "chapter_strip_height": "~92–112px",
-        "node_vertical_rhythm": "min 84px between node centers (touch + readability)",
-        "map_section_padding": "pt-3 pb-28 (reserve space for bottom sheet peek/CTA)"
+    "semantic_color_system": {
+      "background": "#05050A",
+      "surface": "#0B0B14",
+      "surfaceElevated": "linear-gradient(160deg, rgba(20, 22, 38, 0.9), rgba(8, 8, 16, 0.95)) (existing .panel)",
+      "textPrimary": "#FFFFFF",
+      "textSecondary": "rgba(255,255,255,0.72)",
+      "textMuted": "rgba(255,255,255,0.55)",
+      "stroke": "rgba(255,255,255,0.07)",
+      "focusRing": "chakra cyan (#00E5FF)",
+      "state": {
+        "success": "chakra cyan (use for confirmations in this theme)",
+        "warning": "amber/gold (#FFC857)",
+        "danger": "destructive token (hsl(var(--destructive)))"
       },
-      "tablet_desktop": {
-        "max_width": "max-w-[520px] for map column; keep cinematic focus",
-        "center_column": "mx-auto but do NOT center-align text globally"
+      "accents": {
+        "primary": "chakra cyan (#00E5FF)",
+        "secondary": "fox orange (#FF5722)",
+        "mythic": "jutsu magenta (#D500F9)",
+        "gold": "amber (#FFC857)"
+      }
+    },
+
+    "shadows_and_glow": {
+      "rule": "Glow is a frame, not a flood. Keep spread modest so adjacent cards never visually merge (matches existing comment in index.css).",
+      "presets": {
+        "card": "shadow-[0_18px_60px_rgba(0,0,0,0.55)]",
+        "glowCyan": "shadow-[0_0_0_1px_rgba(0,229,255,0.18),0_0_28px_rgba(0,229,255,0.22)]",
+        "glowOrange": "shadow-[0_0_0_1px_rgba(255,87,34,0.18),0_0_28px_rgba(255,87,34,0.22)]",
+        "glowMagenta": "shadow-[0_0_0_1px_rgba(213,0,249,0.18),0_0_28px_rgba(213,0,249,0.22)]"
+      }
+    },
+
+    "radius": {
+      "global": "--radius (0.4rem) for shadcn primitives",
+      "cards": "14px (cinematic panels)",
+      "chips": "9999px",
+      "buttons": "10–12px for primary CTAs (premium/action-first)"
+    },
+
+    "spacing": {
+      "principle": "Use 2–3x more spacing than feels comfortable; mobile-first readability.",
+      "layout": {
+        "pagePadding": "px-4",
+        "sectionGap": "space-y-4 (mobile), space-y-6 (sm+)"
+      },
+      "cards": {
+        "cardPadding": "p-4",
+        "denseRowGap": "gap-2",
+        "gridGap": "gap-3"
       }
     }
   },
 
-  "chapter_navigator_strip": {
-    "purpose": "Fast chapter switching without losing place; communicates chapter state at a glance.",
-    "component_strategy": {
-      "use": [
-        "shadcn ScrollArea (horizontal)",
-        "shadcn Button (ghost/secondary variants)",
-        "shadcn Progress (completion %)"
-      ],
-      "avoid": [
-        "generic dashboard cards",
-        "oversized text",
-        "neon gradients"
+  "typography": {
+    "fonts": {
+      "display": {
+        "family": "Bebas Neue",
+        "usage": "Hero names, banner titles, rarity callouts, big numbers (pity, gear score).",
+        "class": "font-display"
+      },
+      "body": {
+        "family": "Outfit",
+        "usage": "All UI labels, stats, descriptions."
+      }
+    },
+    "scale": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl font-display tracking-wide",
+      "h2": "text-base md:text-lg text-white/80",
+      "sectionTitle": "text-lg font-semibold",
+      "cardTitle": "text-sm font-semibold",
+      "body": "text-sm text-white/80 leading-relaxed",
+      "micro": "text-xs text-white/60"
+    },
+    "numbers": {
+      "rule": "Use tabular numbers for stats/counters where possible.",
+      "tailwind": "tabular-nums"
+    }
+  },
+
+  "layout_and_grid": {
+    "global_rules": [
+      "Never allow page-level horizontal overflow. Any horizontal scroller must be a bounded element with overflow-x-auto and w-full.",
+      "In flex rows, always add min-w-0 to children that contain text to prevent overflow.",
+      "Prefer single-column mobile layout; introduce 2-column only at sm/md for dense inventory screens."
+    ],
+    "page_shell": {
+      "structure": "TopBar (existing) + scrollable content area",
+      "content_container": "max-w-[520px] mx-auto w-full px-4 (only if existing app already uses centered max width; otherwise keep full width but preserve px-4)",
+      "section_pattern": "Title row (left) + small action (right) + panel card"
+    },
+    "bento_patterns": {
+      "hero_modal_header": "Full-width portrait header (AspectRatio) with gradient vignette overlay; stats strip below; then 3-card row for EXP tomes.",
+      "inventory": "Sticky filter row + ScrollArea list; detail drawer/sheet for item actions.",
+      "dungeons_hub": "3 large dungeon cards stacked; each expands into difficulty selector + drop preview."
+    }
+  },
+
+  "components": {
+    "component_path": {
+      "shadcn_primary": "/app/frontend/src/components/ui",
+      "use_these": {
+        "tabs": "tabs.jsx",
+        "dialog": "dialog.jsx",
+        "drawer": "drawer.jsx (mobile-first detail panels)",
+        "sheet": "sheet.jsx (full-height forge panels)",
+        "card": "card.jsx",
+        "button": "button.jsx",
+        "badge": "badge.jsx",
+        "progress": "progress.jsx",
+        "carousel": "carousel.jsx (banner previews)",
+        "scrollArea": "scroll-area.jsx",
+        "select": "select.jsx",
+        "slider": "slider.jsx (bulk enhancement amount)",
+        "tooltip": "tooltip.jsx",
+        "popover": "popover.jsx",
+        "alertDialog": "alert-dialog.jsx (confirm spend)",
+        "table": "table.jsx (rates panel)",
+        "sonner": "sonner.jsx (toasts)"
+      }
+    },
+
+    "button_system": {
+      "variants": {
+        "primary": {
+          "look": "chakra cyan glow, solid fill",
+          "tailwind": "bg-[var(--chakra)] text-[var(--base)] hover:bg-[#00E5FF]/90 focus-visible:ring-2 focus-visible:ring-[var(--chakra)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--base)]",
+          "motion": "hover: translateY(-1px) + subtle glow increase (transform/opacity only)"
+        },
+        "secondary": {
+          "look": "panel button with border + subtle shine sweep",
+          "tailwind": "bg-white/5 border border-white/10 text-white hover:bg-white/8",
+          "note": "Use .shine-sweep on large CTAs only (>= 140px wide)."
+        },
+        "danger": {
+          "look": "destructive token",
+          "tailwind": "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+        },
+        "ghost": {
+          "look": "text + icon, no fill",
+          "tailwind": "bg-transparent hover:bg-white/5"
+        }
+      },
+      "sizes": {
+        "sm": "h-9 px-3 text-sm",
+        "md": "h-11 px-4 text-sm",
+        "lg": "h-12 px-5 text-base"
+      },
+      "interaction_rules": [
+        "No transition:all. Use transition-colors for hover, and separate motion via framer-motion for transforms.",
+        "Always include data-testid on buttons (e.g., summon-x10-button, gear-enhance-confirm-button)."
       ]
     },
-    "composition": {
-      "layout": "Horizontal scroll strip with ‘region chips’ (chapter cards) sized for thumb taps.",
-      "chip_size": "min-w-[240px] h-[84px] rounded-xl",
-      "chip_internal_grid": "Left: chapter number badge + title stack; Right: completion ring/percent + boss icon",
-      "text_hierarchy": {
-        "title": "Chapter {n}: {name} (font-display optional for chapter number only)",
-        "lore": "1-line lore (truncate) in muted foreground",
-        "meta": "Completion % + state label (Cleared / In Progress / Locked)"
+
+    "rarity_badges": {
+      "rule": "Rarity color + aura utilities already exist; apply them consistently across hero cards, gear cards, summon reveals.",
+      "badge_pattern": "<Badge className=\"text-xs px-2 py-0.5 rounded-full border border-white/10 bg-white/5\">SSR</Badge>",
+      "aura_usage": {
+        "SSR_UR_LR": "Use .aura-2/.aura-3/.aura-4 on the card container with CSS var --glow set to tier color.",
+        "MYTHIC": "Use .rarity-pulse + stronger drop-shadow on reveal stage only; avoid infinite pulse in inventory lists."
       }
-    },
-    "states": {
-      "selected": {
-        "treatment": "Slight scale (1.01), brighter border, subtle cyan ring glow (use --ring / chakra), and a top highlight line.",
-        "motion": "Framer Motion layoutId underline or glow bar; 180–240ms"
-      },
-      "cleared": {
-        "treatment": "Gold/amber accent tick + subdued glow; do not confetti",
-        "boss_beaten_indicator": "Small boss skull/oni mask icon with reduced opacity"
-      },
-      "in_progress": {
-        "treatment": "Cyan accent progress bar; show ‘Next: Stage X’ microtext"
-      },
-      "locked": {
-        "treatment": "Desaturate + lock icon; disable interaction; keep readable"
-      }
-    },
-    "data_testids": {
-      "strip": "campaign-chapter-strip",
-      "chapter_chip": "campaign-chapter-chip-{chapterId}",
-      "chapter_progress": "campaign-chapter-progress-{chapterId}"
     }
   },
 
-  "stage_path_map": {
-    "path_shape": {
-      "recommended": "Vertical zigzag spine (alternating left/right nodes) to feel like a journey while still scrolling vertically.",
-      "rule": "No horizontal page scrolling; zigzag must fit within a single column width.",
-      "implementation_hint": "Compute node x-offset by index parity: left = 18%, right = 82% (translateX to center node)."
-    },
-    "connectors": {
-      "style": "Thin path line with subtle glow; use SVG path or absolutely-positioned divs.",
-      "completed": "solid line with low cyan glow",
-      "upcoming": "dashed line with low opacity",
-      "performance": "No animated dashed marching ants continuously; only animate on unlock or chapter switch."
-    },
-    "node_hitbox": {
-      "min_touch": "44x44 (Apple HIG); recommend 56x56 for comfort",
-      "spacing": "Keep at least 16px from screen edges"
-    },
-    "node_types_and_visuals": {
-      "completed": {
-        "shape": "coin-like disc with inner check",
-        "surface": "panel/glass with subtle cyan rim",
-        "accent": "small completion sparkle (single burst on completion only; not looping)"
+  "page_guidelines": {
+    "summon_ceremony": {
+      "layout": {
+        "top": "Banner carousel (shadcn carousel) with 1.2 peek; below it: banner title + featured units row (mini cards) + rates button.",
+        "mid": "Pity counter module (MYTHIC) with soft/hard thresholds + 50/50 status chip.",
+        "bottom": "Sticky CTA bar: x1 and x10 buttons + currency display."
       },
-      "current_unlocked": {
-        "shape": "disc + outer ring",
-        "accent": "pulse ring (slow, subtle) using existing glow utilities; keep amplitude low",
-        "label": "‘NEXT’ microtag above node"
+      "rates_panel": {
+        "component": "Dialog + Table",
+        "content": [
+          "Transparent disclosure: base rates per rarity tier",
+          "Pity explanation: soft pity 100–149, hard pity 150",
+          "50/50 featured guarantee rules",
+          "Tap targets >= 44px"
+        ],
+        "data_testids": {
+          "open": "summon-rates-open-button",
+          "dialog": "summon-rates-dialog",
+          "close": "summon-rates-close-button"
+        }
       },
-      "locked": {
-        "shape": "disc with lock",
-        "treatment": "desaturated, reduced contrast but still visible; no glow",
-        "interaction": "tap shows toast or sheet state ‘Locked — clear previous stage’ (presentation only)"
+      "reveal_animation": {
+        "principles": [
+          "Transform/opacity only (scale, rotateY for flip via framer-motion; avoid heavy filters).",
+          "Tiered flourish: bigger for higher rarity; MYTHIC gets epic burst once, then settles.",
+          "x10 should be paced: quick intro (0.4–0.6s), then per-card flips staggered 60–90ms.",
+          "Skippable: tap anywhere to fast-forward to final state; show a Skip button after 0.6s."
+        ],
+        "stages": {
+          "stage0": "Ceremony intro: dark vignette + subtle cyan rune ring (static image/CSS radial) fades in.",
+          "stage1": "Orb/scroll appears (simple circle/rect) scales from 0.9->1 with glow.",
+          "stage2": "Burst: rarity color flash overlay (opacity only) + sound hook (if exists).",
+          "stage3": "Cards grid: 2x5 on mobile; each card flips to reveal rarity + unit.",
+          "stage4": "Summary: show pulls results with quick actions (lock/favorite, go to roster)."
+        },
+        "implementation_scaffold_js": {
+          "note": "Pseudo-structure for main agent; keep in .js (not .tsx).",
+          "snippet": "// RevealOverlay.js\nimport { motion, AnimatePresence } from 'framer-motion';\n\nexport default function RevealOverlay({ open, results, onClose, onSkip }) {\n  // stage: 'intro' | 'burst' | 'grid' | 'done'\n  // allow tap-to-skip\n  return (\n    <AnimatePresence>\n      {open ? (\n        <motion.div\n          className=\"fixed inset-0 z-50 bg-black/80\"\n          initial={{ opacity: 0 }}\n          animate={{ opacity: 1 }}\n          exit={{ opacity: 0 }}\n          onClick={onSkip}\n          data-testid=\"summon-reveal-overlay\"\n        >\n          {/* stage content */}\n        </motion.div>\n      ) : null}\n    </AnimatePresence>\n  );\n}\n"
+        }
       },
-      "boss": {
-        "shape": "larger node (72–84px) with horned frame silhouette",
-        "accent": "warm orange/amber rim + subtle ember glow (use fox/orange glow-text-orange; avoid gradients)",
-        "label": "BOSS banner ribbon (small)"
+      "micro_interactions": [
+        "Banner carousel swipe: add subtle snap + scale on active banner.",
+        "Rates button hover/press: glow-cyan intensifies; press scale 0.98.",
+        "Pity counter: when incrementing, animate number pop (scale 1.08 -> 1)."
+      ]
+    },
+
+    "hero_detail_modal_extensions": {
+      "container": "Dialog or Drawer depending on existing pattern; keep cinematic portrait header.",
+      "tabs": {
+        "component": "Tabs",
+        "tabs": ["Train", "Evolve", "Gear"],
+        "data_testids": {
+          "tabs": "hero-detail-tabs",
+          "train": "hero-train-tab",
+          "evolve": "hero-evolve-tab",
+          "gear": "hero-gear-tab"
+        }
+      },
+      "train_bulk_exp": {
+        "layout": "Match reference: 3-card row of EXP tomes with +xp and owned count; add bulk slider + quick max button.",
+        "components": ["Card", "Slider", "Button", "Progress"],
+        "interaction": [
+          "Tome card tap increments selected count; long-press opens quick input (optional).",
+          "Show projected level + stat deltas before confirm.",
+          "Confirm spend via AlertDialog."
+        ],
+        "data_testids": {
+          "tome_card": "hero-train-tome-card",
+          "slider": "hero-train-amount-slider",
+          "confirm": "hero-train-confirm-button"
+        }
+      },
+      "evolve_star_breakthrough": {
+        "layout": "Left: current stars; Right: next stars preview; below: required shards + rare mats with counts.",
+        "components": ["Card", "Badge", "Progress", "AlertDialog"],
+        "rules": [
+          "Stars raised ONLY via evolution consuming duplicate shards early and rare evolution materials for high stars.",
+          "Show locked state if insufficient mats; keep CTA disabled with tooltip explaining missing items."
+        ],
+        "data_testids": {
+          "evolve-panel": "hero-evolve-panel",
+          "evolve-button": "hero-evolve-confirm-button"
+        }
+      },
+      "gear_tab": {
+        "layout": "4 equip slots grid (2x2): Weapon/Armor/Accessory/Relic; each slot shows icon, rarity border, gear score.",
+        "components": ["Card", "Sheet", "ScrollArea", "Select"],
+        "interaction": [
+          "Tap slot opens Sheet with gear inventory filtered to that slot.",
+          "Equip action shows toast (sonner).",
+          "Enhance shortcut button on equipped gear card."
+        ],
+        "data_testids": {
+          "slot": "hero-gear-slot",
+          "open-inventory": "hero-gear-open-inventory-button",
+          "equip": "hero-gear-equip-button"
+        }
       }
     },
-    "node_labels": {
-      "rule": "Avoid huge text on map. Use small stage number label near node; full name appears in preview sheet.",
-      "placement": "Stage number in a tiny badge offset (top-left) + optional difficulty icon"
-    },
-    "scroll_behavior": {
-      "chapter_switch": "On chapter change, scroll map container to top with smooth behavior; preserve last scroll per chapter in memory if feasible.",
-      "focus_selected": "When selecting a node, gently scroll it into view (center-ish) before opening preview sheet."
-    },
-    "data_testids": {
-      "map": "campaign-stage-map",
-      "node": "campaign-stage-node-{stageId}",
-      "connector": "campaign-stage-connector-{fromStageId}-{toStageId}"
-    }
-  },
 
-  "stage_preview_panel": {
-    "pattern": "Mobile bottom sheet (preferred) with a ‘peek’ collapsed state; expands on node tap.",
-    "component_strategy": {
-      "use": [
-        "shadcn Drawer (mobile-first) OR shadcn Sheet (bottom)",
-        "shadcn Tabs (Enemies / Rewards / Info)",
-        "shadcn Badge (elements/rarity)",
-        "shadcn Progress (recommended power comparison)",
-        "shadcn Button (primary CTA)"
+    "gear_inventory_and_forge": {
+      "information_architecture": [
+        "Gear Inventory (list/grid + filters)",
+        "Gear Detail (stats, set bonuses, enhance +1..+15)",
+        "Crafting (blueprints + materials)",
+        "Material Fusion (merge low-tier mats into higher tier)"
       ],
-      "note": "Use Drawer for mobile ergonomics; Sheet is acceptable if Drawer already used elsewhere."
+      "inventory_layout": {
+        "top_filters": "Sticky row: Slot Select + Rarity Select + Set Select + Sort",
+        "list": "ScrollArea with compact gear cards; each card shows name, rarity, gear score, 2–3 key stats.",
+        "detail": "Open in Drawer/Sheet; keep actions at bottom (Enhance, Equip, Lock)."
+      },
+      "gear_card_pattern": {
+        "container": "Card with .panel styling + rarity border",
+        "must_show": ["gear score", "rarity", "slot", "set (if any)", "enhance level +X"],
+        "avoid": "Too many stats in list view; keep dense stats in detail view."
+      },
+      "enhancement_ui": {
+        "progress": "Progress component for +1..+15 track; show breakpoints at +5/+10/+15 with subtle ticks.",
+        "bulk": "Hold-to-enhance is optional; otherwise provide Enhance x1 and Enhance to +N (if mats allow).",
+        "confirm": "AlertDialog for large spends."
+      },
+      "crafting_ui": {
+        "blueprints": "Card list of blueprints with preview + required mats; disabled state if missing.",
+        "materials": "Material chips with counts; tap opens fusion sheet.",
+        "data_testids": {
+          "craft-button": "gear-craft-button",
+          "fusion-open": "material-fusion-open-button"
+        }
+      }
     },
-    "hierarchy": {
-      "top_row": "Stage number + stage name (truncate) + state pill (Cleared/Locked/Boss)",
-      "power_row": "Recommended Power vs Squad Power (two numbers) + a small delta indicator",
-      "enemy_row": "Enemy portraits (Avatar) with role + element badges",
-      "rewards_row": "Reward preview (normal + first-clear) as compact icon chips",
-      "cta_row": "Energy cost + Battle button (or Locked button disabled)"
-    },
-    "boss_preview_additions": {
-      "boss_header": "Boss portrait larger + name + power",
-      "mechanic_summary": "1–2 lines max (phase/mechanic) using existing boss-mechanic data",
-      "warning_style": "Use fox/orange accent for danger; keep readable"
-    },
-    "cta_rules": {
-      "battle_enabled": "Only when unlocked and energy validation passes (existing logic).",
-      "locked_state": "Disable CTA; show requirement text.",
-      "micro_interaction": "On Battle press: 0.97 press scale + quick glow flash; then navigate to battle (existing)."
-    },
-    "motion": {
-      "open_close": "220–280ms ease-out; no bounce",
-      "content": "Fade-up for inner sections (stagger 40ms) only on first open"
-    },
-    "data_testids": {
-      "sheet": "campaign-stage-preview-sheet",
-      "title": "campaign-stage-preview-title",
-      "enemy_list": "campaign-stage-preview-enemies",
-      "rewards": "campaign-stage-preview-rewards",
-      "energy": "campaign-stage-preview-energy-cost",
-      "battle_button": "campaign-stage-preview-battle-button"
+
+    "resource_dungeons_hub": {
+      "cards": [
+        {
+          "name": "Gold Vault",
+          "accent": "amber/gold",
+          "icon": "lucide: Coins",
+          "drops": "Gold + occasional rare mats"
+        },
+        {
+          "name": "EXP Temple",
+          "accent": "chakra cyan",
+          "icon": "lucide: Sparkles",
+          "drops": "EXP tomes"
+        },
+        {
+          "name": "Gear Foundry",
+          "accent": "fox orange",
+          "icon": "lucide: Anvil",
+          "drops": "Gear + crafting mats"
+        }
+      ],
+      "interaction": [
+        "Each dungeon card expands (Collapsible) to show difficulty tiers (ToggleGroup) + drop preview row.",
+        "Energy cost displayed as a chip; Start button pinned at bottom of expanded card.",
+        "Difficulty selection animates underline/indicator (opacity/transform only)."
+      ],
+      "data_testids": {
+        "dungeon-card": "dungeon-card",
+        "difficulty-toggle": "dungeon-difficulty-toggle",
+        "start": "dungeon-start-button"
+      }
     }
   },
 
-  "chapter_completion_celebration": {
-    "goal": "Subtle premium acknowledgement; no economy changes.",
-    "treatment": [
-      "In chapter chip: small ‘CLEARED’ gold tag + faint shine sweep (single pass on first view)",
-      "On map: a small crest stamp near final node (static)"
+  "motion_and_microinteractions": {
+    "rules": [
+      "No universal transitions (no transition-all).",
+      "Prefer framer-motion for transforms; Tailwind transition-colors for color changes.",
+      "Entrance animations: fade-up (existing .fade-up) for panels; stagger children 40–80ms.",
+      "Press feedback: scale 0.98 on buttons/cards; release back to 1."
     ],
-    "avoid": [
-      "confetti",
-      "full-screen overlays",
-      "looping fireworks"
-    ]
-  },
-
-  "micro_interactions_and_motion_budget": {
-    "allowed_animations_only": [
-      "stage selection (node press + ring highlight)",
-      "unlock state reveal (one-time connector glow + node brighten)",
-      "boss emphasis (subtle idle glow only)",
-      "chapter transition (map crossfade + scroll-to-top)",
-      "battle launch (button press + quick flash)"
-    ],
-    "framer_motion_patterns": {
-      "layout": "Use layoutId for selected chapter underline and selected node halo.",
-      "reduced_motion": "Respect prefers-reduced-motion: disable pulsing and use static highlight."
+    "recommended_durations": {
+      "tap": "90–140ms",
+      "panel_enter": "220–320ms",
+      "reveal_intro": "400–600ms",
+      "card_flip": "260–340ms"
     },
-    "timings": {
-      "tap_feedback": "90–120ms",
-      "panel_open": "220–280ms",
-      "chapter_switch": "240–320ms crossfade"
+    "skip_behavior": {
+      "summon": "Tap anywhere to skip to final reveal; keep a visible Skip button after 600ms for clarity."
     }
   },
 
-  "accessibility_and_readability": {
-    "touch": [
-      "All nodes and chapter chips must be >=44px touch targets",
-      "Provide visible focus ring for keyboard (ring uses existing --ring)"
+  "accessibility": {
+    "contrast": [
+      "Text on panel must be >= white/80 for body; use white/60 only for metadata.",
+      "Avoid magenta text on dark without glow; prefer magenta as border/glow/accent chip."
     ],
-    "contrast": "Keep text on dark scrims; avoid placing text directly on busy background without a scrim.",
-    "labels": "Provide aria-labels for stage nodes and chapter chips; stage number alone is not sufficient.",
-    "motion": "Provide reduced-motion fallback."
-  },
-
-  "component_path": {
-    "shadcn_primary": {
-      "ScrollArea": "/app/frontend/src/components/ui/scroll-area.jsx",
-      "Button": "/app/frontend/src/components/ui/button.jsx",
-      "Badge": "/app/frontend/src/components/ui/badge.jsx",
-      "Progress": "/app/frontend/src/components/ui/progress.jsx",
-      "Drawer": "/app/frontend/src/components/ui/drawer.jsx",
-      "Sheet": "/app/frontend/src/components/ui/sheet.jsx",
-      "Tabs": "/app/frontend/src/components/ui/tabs.jsx",
-      "Avatar": "/app/frontend/src/components/ui/avatar.jsx",
-      "Separator": "/app/frontend/src/components/ui/separator.jsx",
-      "Tooltip": "/app/frontend/src/components/ui/tooltip.jsx",
-      "Sonner": "/app/frontend/src/components/ui/sonner.jsx"
-    },
-    "notes": [
-      "Project uses .js components; keep new components in .jsx/.js.",
-      "Do not use raw HTML dropdown/calendar/toast; use shadcn components only."
-    ]
-  },
-
-  "implementation_notes_for_main_agent": {
-    "instructions_to_main_agent": [
-      "Keep existing campaign data shape; only add display-only fields: stage.recommended_power and chapter.name/lore.",
-      "Build a MapCanvas component that renders nodes + connectors from the existing stage list grouped by chapter.",
-      "Use a vertical scroll container for the map; chapter strip is a separate horizontal ScrollArea.",
-      "Use Drawer/Sheet for stage preview; do not navigate away until Battle CTA.",
-      "Add data-testid to every interactive element: chapter chips, stage nodes, preview CTA, tabs.",
-      "Avoid universal transitions (no transition-all). Only transition opacity/background-color/border-color/shadow where needed.",
-      "Use existing .panel/.glass/.grain helpers for surfaces; do not invent new gradients."
+    "focus": [
+      "All interactive elements must have visible focus ring (ring chakra cyan).",
+      "Ensure Dialog/Sheet traps focus (shadcn default)."
     ],
-    "suggested_new_components": [
-      "CampaignChapterStrip.jsx",
-      "CampaignStageMap.jsx",
-      "CampaignStageNode.jsx",
-      "CampaignStagePreviewDrawer.jsx"
-    ],
-    "lightweight_svg_strategy": "Prefer a single SVG overlay for connectors per chapter (paths between node centers) to reduce DOM nodes."
+    "touch_targets": ["Minimum 44px height for primary actions", "Spacing between adjacent icon buttons >= 8px"],
+    "reduced_motion": {
+      "rule": "Respect prefers-reduced-motion: shorten or disable reveal flourishes; keep functional transitions.",
+      "implementation": "Use framer-motion useReducedMotion() to reduce scale/rotation and remove stagger."
+    }
   },
 
   "image_urls": {
-    "reuse_existing": [
-      {
-        "category": "campaign-map-background",
-        "description": "Reuse the existing Battle screen painted bamboo forest dusk background already in the repo/assets. Apply vignette + scrim overlays for readability.",
-        "url": "IN-REPO (reuse existing battle background asset)"
+    "note": "Keep existing in-game art pipeline. Use external images only for placeholder dev/testing; replace before production.",
+    "placeholders": {
+      "summon_banner_background": {
+        "category": "Summon Ceremony banner backdrop",
+        "description": "Dark cinematic abstract background with subtle cyan highlights (placeholder only)",
+        "urls": []
+      },
+      "dungeon_card_backgrounds": {
+        "category": "Resource Dungeons cards",
+        "description": "Moody stone/temple/vault textures (placeholder only)",
+        "urls": []
       }
+    }
+  },
+
+  "instructions_to_main_agent": {
+    "implementation_priorities": [
+      "1) Summon Ceremony redesign: carousel + rates dialog + pity module + reveal overlay (skippable).",
+      "2) HeroDetailModal tabs: Train (bulk tomes), Evolve (stars + mats), Gear (4 slots + inventory sheet).",
+      "3) Gear/Forge page: inventory + detail sheet + enhance + craft + fusion.",
+      "4) Resource Dungeons hub: 3 expandable cards with difficulty tiers + drop preview."
     ],
-    "optional_new": [
-      {
-        "category": "chapter-crest-overlays",
-        "description": "Optional small monochrome crest SVGs (inline) for chapter identity; keep file size tiny and single-color.",
-        "url": "INLINE SVG (no external fetch)"
-      }
+    "testing_requirements": [
+      "Add data-testid to every interactive element and key info (pity count, gear score, gold cost, owned mats).",
+      "Use kebab-case and role-based naming (e.g., summon-pity-count-text, gear-score-value)."
+    ],
+    "performance_notes": [
+      "Animate only transform/opacity; avoid animating box-shadow continuously in lists.",
+      "Use rarity pulses only on focused/selected items or during reveal; keep inventory mostly static."
+    ],
+    "no_horizontal_scroll": [
+      "Add min-w-0 to flex children containing text.",
+      "Use overflow-hidden on page wrappers; use overflow-x-auto only on intentional scrollers (banner carousel)."
     ]
   },
 
-  "appendix_general_ui_ux_design_guidelines": "<General UI UX Design Guidelines>  \n    - You must **not** apply universal transition. Eg: `transition: all`. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms\n    - You must **not** center align the app container, ie do not add `.App { text-align: center; }` in the css file. This disrupts the human natural reading flow of text\n   - NEVER: use AI assistant Emoji characters like`🤖🧠💭💡🔮🎯📚🎭🎬🎪🎉🎊🎁🎀🎂🍰🎈🎨🎰💰💵💳🏦💎🪙💸🤑📊📈📉💹🔢🏆🥇 etc for icons. Always use **FontAwesome cdn** or **lucid-react** library already installed in the package.json\n\n **GRADIENT RESTRICTION RULE**\nNEVER use dark/saturated gradient combos (e.g., purple/pink) on any UI element.  Prohibited gradients: blue-500 to purple 600, purple 500 to pink-500, green-500 to blue-500, red to pink etc\nNEVER use dark gradients for logo, testimonial, footer etc\nNEVER let gradients cover more than 20% of the viewport.\nNEVER apply gradients to text-heavy content or reading areas.\nNEVER use gradients on small UI elements (<100px width).\nNEVER stack multiple gradient layers in the same viewport.\n\n**ENFORCEMENT RULE:**\n    • Id gradient area exceeds 20% of viewport OR affects readability, **THEN** use solid colors\n\n**How and where to use:**\n   • Section backgrounds (not content backgrounds)\n   • Hero section header content. Eg: dark to light to dark color\n   • Decorative overlays and accent elements only\n   • Hero section with 2-3 mild color\n   • Gradients creation can be done for any angle say horizontal, vertical or diagonal\n\n- For AI chat, voice application, **do not use purple color. Use color like light green, ocean blue, peach orange etc**\n\n</Font Guidelines>\n\n- Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead. \n   \n- Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.\n\n- Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.\n   \n- Before generating UI, infer the visual style from the problem statement (palette, contrast, mood, motion) and immediately instantiate it by setting global design tokens (primary, secondary/accent, background, foreground, ring, state colors), rather than relying on any library defaults. Don't make the background dark as a default step, always understand problem first and define colors accordingly\n    Eg: - if it implies playful/energetic, choose a colorful scheme\n           - if it implies monochrome/minimal, choose a black–white/neutral scheme\n\n**Component Reuse:**\n\t- Prioritize using pre-existing components from src/components/ui when applicable\n\t- Create new components that match the style and conventions of existing components when needed\n\t- Examine existing components to understand the project's component patterns before creating new ones\n\n**IMPORTANT**: Do not use HTML based component like dropdown, calendar, toast etc. You **MUST** always use `/app/frontend/src/components/ui/ ` only as a primary components as these are modern and stylish component\n\n**Best Practices:**\n\t- Use Shadcn/UI as the primary component library for consistency and accessibility\n\t- Import path: ./components/[component-name]\n\n**Export Conventions:**\n\t- Components MUST use named exports (export const ComponentName = ...)\n\t- Pages MUST use default exports (export default function PageName() {...})\n\n**Toasts:**\n  - Use `sonner` for toasts\"\n  - Sonner component are located in `/app/src/components/ui/sonner.tsx`\n\nUse 2–4 color gradients, subtle textures/noise overlays, or CSS-based noise to avoid flat visuals.\n</General UI UX Design Guidelines>"
+  "gradient_restriction_rule": {
+    "rules": [
+      "NEVER use dark/saturated gradient combos (e.g., purple/pink) on any UI element.",
+      "NEVER let gradients cover more than 20% of the viewport.",
+      "NEVER apply gradients to text-heavy content or reading areas.",
+      "NEVER use gradients on small UI elements (<100px width).",
+      "NEVER stack multiple gradient layers in the same viewport."
+    ],
+    "enforcement": "IF gradient area exceeds 20% of viewport OR affects readability, THEN use solid colors",
+    "allowed_usage": [
+      "Section backgrounds (not content backgrounds)",
+      "Hero section header content (dark to light to dark)",
+      "Decorative overlays and accent elements only"
+    ]
+  },
+
+  "general_ui_ux_design_guidelines": [
+    "- You must **not** apply universal transition. Eg: `transition: all`. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms",
+    "- You must **not** center align the app container, ie do not add `.App { text-align: center; }` in the css file. This disrupts the human natural reading flow of text",
+    "- NEVER: use AI assistant Emoji characters like`🤖🧠💭💡🔮🎯📚🎭🎬🎪🎉🎊🎁🎀🎂🍰🎈🎨🎰💰💵💳🏦💎🪙💸🤑📊📈📉💹🔢🏆🥇 etc for icons. Always use **FontAwesome cdn** or **lucid-react** library already installed in the package.json",
+    "\n **GRADIENT RESTRICTION RULE**\nNEVER use dark/saturated gradient combos (e.g., purple/pink) on any UI element.  Prohibited gradients: blue-500 to purple 600, purple 500 to pink-500, green-500 to blue-500, red to pink etc\nNEVER use dark gradients for logo, testimonial, footer etc\nNEVER let gradients cover more than 20% of the viewport.\nNEVER apply gradients to text-heavy content or reading areas.\nNEVER use gradients on small UI elements (<100px width).\nNEVER stack multiple gradient layers in the same viewport.\n\n**ENFORCEMENT RULE:**\n    • Id gradient area exceeds 20% of viewport OR affects readability, **THEN** use solid colors\n\n**How and where to use:**\n   • Section backgrounds (not content backgrounds)\n   • Hero section header content. Eg: dark to light to dark color\n   • Decorative overlays and accent elements only\n   • Hero section with 2-3 mild color\n   • Gradients creation can be done for any angle say horizontal, vertical or diagonal\n\n- For AI chat, voice application, **do not use purple color. Use color like light green, ocean blue, peach orange etc\n",
+    "\n</Font Guidelines>\n\n- Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.\n   \n- Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.\n\n- Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.\n   \n- Before generating UI, infer the visual style from the problem statement (palette, contrast, mood, motion) and immediately instantiate it by setting global design tokens (primary, secondary/accent, background, foreground, ring, state colors), rather than relying on any library defaults. Don't make the background dark as a default step, always understand problem first and define colors accordingly\n    Eg: - if it implies playful/energetic, choose a colorful scheme\n           - if it implies monochrome/minimal, choose a black–white/neutral scheme\n\n**Component Reuse:**\n\t- Prioritize using pre-existing components from src/components/ui when applicable\n\t- Create new components that match the style and conventions of existing components when needed\n\t- Examine existing components to understand the project's component patterns before creating new ones\n\n**IMPORTANT**: Do not use HTML based component like dropdown, calendar, toast etc. You **MUST** always use `/app/frontend/src/components/ui/ ` only as a primary components as these are modern and stylish component\n\n**Best Practices:**\n\t- Use Shadcn/UI as the primary component library for consistency and accessibility\n\t- Import path: ./components/[component-name]\n\n**Export Conventions:**\n\t- Components MUST use named exports (export const ComponentName = ...)\n\t- Pages MUST use default exports (export default function PageName() {...})\n\n**Toasts:**\n  - Use `sonner` for toasts\"\n  - Sonner component are located in `/app/src/components/ui/sonner.tsx`\n\nUse 2–4 color gradients, subtle textures/noise overlays, or CSS-based noise to avoid flat visuals."
+  ]
 }

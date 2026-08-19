@@ -1,4 +1,4 @@
-# plan.md — Shinobi Clash: Energy + Missions + Async Arena (Logic) + Cinematic RPG UI (Visual) + Phase 2A Foundation + Phase 3B Combat Integration + Phase 3C-A Art Manifest
+# plan.md — Shinobi Clash: Systems Foundation + Cinematic RPG UI + Long-Term Gacha RPG Expansion
 
 ## 1) Objectives
 - Preserve **core backend integrity** and working gameplay loops:
@@ -10,40 +10,46 @@
 - Maintain a **fast-paced, grind-heavy, long-term RPG foundation**:
   - 60–80+ collectible heroes, extensible beyond 200 without UI rewrites
   - Meaningful roles, factions, tags, and kit identity (team building focus)
-  - Long-term hero progression (beyond a simple level cap)
+  - Long-term hero progression that can last for years (leveling, evolution, gear, crafting)
   - Endless-ready campaign stage architecture (chapter 100+, stage 1000+)
   - Boss framework capable of multi-phase strategic encounters
-- Continue transforming the frontend from a CRUD/dashboard feel into a **premium cinematic gacha RPG** (mobile-first, artwork-first) — **only when in visual/UI phases**.
+- Continue transforming the frontend from a CRUD/dashboard feel into a **premium cinematic gacha RPG** (mobile-first, artwork-first).
 
-### Updated design-direction objective (Goddess Era inspiration)
-- Use **Goddess Era** as an **inspiration/quality bar** for **character artwork production** (painterly anime/CG splash art, dynamic elemental posing, rarity-scaled ornate costuming), **without copying** its specific characters or UI.
-- Do not over-style UI chrome (ornate frames, gold filigree, summon ceremony) until real art assets arrive; revisit later.
+### Updated design-direction objective (Goddess Era / Girls X Battle inspiration)
+- Use **Goddess Era / Girls X Battle** as **inspiration/quality bar** for:
+  - Summon ceremony experience (banner previews, rates disclosure, pity counter, x10 grid reveals)
+  - Long-term progression depth (evolution star breakthroughs, gear, crafting)
+  - Premium-feeling glow, rarity-scaled reveal flourishes
+- Do **not** copy specific characters/UI 1:1.
 
 ### Updated UI stability + layout objective
 - Ensure cinematic layouts remain **readable and premium**:
-  - Cards are **fully visible** (art + overlay text), never clipped or crowded.
-  - Rarity glow/aura enhances cards **without bleeding into neighbors**.
-  - Dense hero grids maintain adequate **breathing room** across breakpoints.
+  - Cards fully visible; no clipped/crowded layouts
+  - Glow/aura enhances without bleeding into neighbors
+  - Adequate spacing across breakpoints
 - Eliminate unintended **page-level horizontal scrolling** across the app:
-  - Intentional internal horizontal scrollers (e.g., chapter strip) are allowed, but the viewport must remain contained.
-  - Prefer true root-cause fixes (flex shrink/`min-w-0`) over masking.
+  - Internal horizontal scrollers allowed only when intentionally contained
+  - Prefer root-cause fixes (`min-w-0`, shrink) over masking
 
 ### Updated combat & pacing objectives
-- Make combat **fast-paced by default** (not only tolerable at 3×):
-  - Short baseline delays
-  - **Auto-battle** for grind loops
-  - 1×/2×/3× **speed control**
+- Combat remains **fast-paced by default** (not only tolerable at 3×):
+  - Auto-battle for grind loops
+  - 1×/2×/3× speed control
   - Input safety: prevent multi-tap/double-submit exploits
+- **Progression must affect combat** consistently:
+  - Stars/evolution and gear must be reflected in combatant stats (single source of truth)
 
 ### Updated economy objectives
-- Add a premium currency (**Gems**) with immediate, meaningful sinks:
+- Premium currency (**Gems**) remains valuable:
   - Premium summons
   - Instant energy refill
-- Ensure Gems feel valuable (primary sources are dailies/first-clears/milestones), not a repeat-farm drip.
+- Add deep grind loops that feed progression:
+  - Dedicated resource dungeons (gold, EXP tomes, gear materials)
+  - Gear crafting + material fusion
 
 ### Campaign map world-building objective
-- Campaign should read as **World → Chapter → Stage → Battle**, not a flat list.
-- UI must support chapter-level presentation assets **without future rewrites**:
+- Campaign reads as **World → Chapter → Stage → Battle**, not a flat list.
+- UI supports chapter presentation assets **without rewrites**:
   - `chapter.background_image` (optional)
   - `chapter.accent` (token-driven tinting)
 
@@ -53,7 +59,9 @@
   - Campaign
   - Spire
   - Arena
+  - Trials / Resource Dungeons
   - Future PvE modes
+- Mobile-first, no page-level horizontal overflow.
 
 ---
 
@@ -83,7 +91,7 @@ Tests: ✅
 
 ### Phase 3 — Arena (async PvP) core ✅ COMPLETE (Logic)
 - Async Arena system stable.
-- **Constraint:** Arena will receive **visual redesign only** in Phase H.
+- **Constraint:** Arena will receive **visual redesign only** later.
 
 ---
 
@@ -98,9 +106,7 @@ Tests: ✅
 
 ### 2A.1 — Hero data architecture ✅
 - 8 rarities: **N, R, SR, SSR, UR, GR, LR, MYTHIC**
-- Expanded stats: crit_rate, crit_damage, accuracy, resistance
-- Roles: 8 roles with ROLE_MOD coverage
-- Identity: factions + tags + passives
+- Expanded stats + roles + factions/tags/passives
 
 ### 2A.2 — Catalog expansion ✅
 - Catalog expanded **38 → 69** heroes.
@@ -112,7 +118,7 @@ Tests: ✅
 
 ### 2A.4 — Long-term progression foundation ✅
 - Stars + shards + duplicate conversion.
-- `POST /api/game/hero/star-up`.
+- `POST /api/game/hero/star-up` exists (will be superseded by Evolution in Phase J1).
 
 ### 2A.5 — Endless-ready stage architecture ✅
 - Procedural stage generation.
@@ -137,47 +143,18 @@ Tests: ✅
 ## 3C-A) Hero Art Production Manifest ✅ COMPLETE (Verified)
 - Manifest created at `/app/memory/HERO_ART_MANIFEST.md`.
 - Placeholder heroes identified (31).
-- Goddess Era-inspired art brief captured.
 
 ---
 
 ## 3D) Pace + Input Safety + Auto-Battle ✅ COMPLETE (Verified)
-### 3D.1 — Multi-tap exploit fix ✅
-- `actionLockRef` + synchronous `targeting` clear.
-
-### 3D.2 — Auto-Battle ✅
-- AUTO toggle; AI plays player turns using shared decision logic.
-
-### 3D.3 — Speed control (1×/2×/3×) ✅
-- Speed toggle; timing routed through `ms(base)`.
-
-### 3D.4 — Faster manual baseline ✅
-- Reduced delays to keep 1× responsive.
-
-Verification: ✅ `/app/test_reports/iteration_12.json`
+- Multi-tap exploit fix (`actionLockRef`).
+- Auto-battle + 1×/2×/3× speed control.
 
 ---
 
 ## 3E) Gems Premium Currency + Daily Login ✅ COMPLETE (Verified)
-### 3E.1 — Backend currency + sinks ✅
-- `gems` field on user.
-- Premium summon via `currency="gems"`.
-- Instant energy refill `POST /api/game/energy/refill`.
-
-### 3E.2 — Earn sources ✅
-- Daily missions (some Gem rewards)
-- Campaign first-clear (chapter-scaled)
-- Arena milestone (every 5th win)
-- Spire milestone (every 5th floor advanced)
-- Daily login 7-day cycle `POST /api/game/login/claim`
-
-### 3E.3 — Frontend UI integration ✅
-- Gems displayed in TopBar + Lobby HUD.
-- DailyLoginCard on Lobby.
-- Energy refill CTA uses Gems.
-- Premium summon button.
-
-Verification: ✅ `/app/test_reports/iteration_12.json`
+- Gems currency + sinks (premium summon + instant energy refill).
+- Earn sources (missions, first-clears, spire/arena milestones, daily login).
 
 ---
 
@@ -193,139 +170,193 @@ Verification: ✅ `/app/test_reports/iteration_12.json`
 
 ### Phase C (P0) — Unified, fuller Hero Detail Modal ✅ COMPLETE (Verified)
 - Created `HeroDetailModal.jsx` shared by Roster/Gallery.
-- Roster uses it as showcase + progression hub.
-
-Verification: ✅ `/app/test_reports/iteration_12.json`
-
-### Nav Cleanup (mobile) ✅ COMPLETE
-- 4 primary tabs + More sheet.
 
 ### Phase D (P0) — Home/Lobby Screen Redesign ✅ COMPLETE
 - Full rewrite of `Lobby.jsx`.
 
 ### Phase D.1 (P0) — Hero Card Grid Spacing + Glow Containment ✅ COMPLETE
-- Increased grid gaps.
-- Reduced aura glow spread.
-- Reduced compact-mode card glow.
-
-Verification: ✅ `/app/test_reports/iteration_11.json`
+- Increased grid gaps; reduced aura glow spread.
 
 ---
 
 ### Phase E (P1) — Campaign World Map Redesign ✅ COMPLETE (Verified)
-Goal: replace the flat stage list with a cinematic **World → Chapter → Stage → Battle** map while preserving all campaign logic.
+Goal: replace flat stage list with cinematic **World → Chapter → Stage → Battle** map while preserving all logic.
 
-#### Phase E.1 — Preserve existing campaign logic ✅
-- No changes to:
-  - Stage data (36 stages)
-  - Completion state (`cleared_stages`)
-  - Unlock logic (previous-stage gating)
-  - Energy validation/deduction
-  - Battle start/completion flow
-  - Rewards/first-clear rewards
-  - Boss mechanics
-
-#### Phase E.2 — World map experience ✅
-- Replaced list presentation with:
-  - Chapter navigation strip
-  - Connected stage-node path
-  - Stage preview drawer
-  - Boss stage emphasis
-  - Chapter completion indication
-
-#### Phase E.3 — Chapter navigation ✅
-- Scalable chapter strip (supports future chapters without UI rewrite)
-- Each chapter shows:
-  - chapter number
-  - name + short lore
-  - completion progress
-  - boss indicator
-
-#### Phase E.4 — Stage path + node states ✅
-- Zigzag connected nodes with:
-  - completed / current-next / locked / boss states
-
-#### Phase E.5 — Stage preview ✅
-- Bottom drawer with:
-  - enemy roster (portraits, role, element)
-  - recommended power vs squad power
-  - energy cost (display only; server authoritative)
-  - reward preview (normal + first-clear)
-  - boss mechanics summary when applicable
-
-#### Phase E.6 — Backend (additive only) ✅
-- Reused existing APIs; enriched `GET /api/game/stages` response with:
-  - `recommended_power` per stage (computed from existing `ninja_power`)
-  - `chapters` metadata list `{chapter, name, lore}`
-- No new campaign endpoints added.
-
-#### Phase E.7 — Mobile + performance ✅
-- Touch-friendly nodes.
-- Lightweight: one SVG connector, no heavy animations.
-
-Verification:
-- ✅ `/app/test_reports/iteration_13.json` (backend 50/50, frontend 33/33, regression 100%)
-
----
+- Chapter navigation strip
+- Connected stage-node path
+- Stage preview drawer
+- Backend enrichment: `recommended_power`, `chapters` metadata
 
 ### Phase E.8 (P1) — Campaign Map Visual Refinement Pass ✅ COMPLETE (Verified)
-> Refinement-only; no campaign logic or battle integration changes.
+- Root-cause horizontal overflow fix (`TopBar.jsx` shrink/min-w-0)
+- Background asset architecture (`chapter.background_image`, `chapter.accent`)
 
-#### E.8.1 — Horizontal overflow elimination ✅
-- Removed negative-margin “full-bleed” risks in chapter strip.
-- **Root cause fix:** `TopBar.jsx` desktop nav was a flex child without `min-w-0`, refusing to shrink and forcing the document wider at ~1280px.
-  - Fixed with `min-w-0`, `overflow-x-auto` on desktop nav, and `shrink-0/whitespace-nowrap` on links.
-- Added defensive safety net: `html, body { overflow-x: hidden; }`.
-
-Verification:
-- ✅ `/app/test_reports/iteration_14.json` (refinement pass, 100% across backend/frontend/regression)
-- ✅ `/app/test_reports/iteration_15.json` (confirmed **true** root-cause fix: `scrollWidth === innerWidth` at 1920/1280/1024/768/390/375)
-
-#### E.8.2 — Background asset architecture ✅
-- Backend chapter metadata now includes:
-  - `accent` (token-driven tint)
-  - `background_image` (currently null)
-- Frontend now supports per-chapter backdrops automatically:
-  - If `background_image` is present, it is used.
-  - Otherwise, a restrained, accent-tinted atmospheric fallback is used.
-- No AI-generated artwork used.
-
-#### E.8.3 — World feeling + depth ✅
-- Reduced empty black space via:
-  - per-chapter accent-tinted atmospheric layer
-  - “terrain panel” behind stage path
-  - restrained node glow
-  - subtle ground-shadow depth cue
-  - improved stage label legibility
-
-#### E.8.4 — Chapter navigation polish ✅
-- Active chapter clarity improved (accent border/glow/top bar).
-- Auto-scroll active chapter chip into view.
-- Chapter strip remains an intentional contained horizontal scroller only.
-
-#### E.8.5 — Stage preview polish ✅
-- Visual-only refinements:
-  - enemy roster: flex-wrap → consistent grid
-  - spacing/hierarchy improvements
-  - clearer “First-Time Bonus” label
-  - mobile padding refinements
+### Phase E.9 (P1) — Chapter 1 Real Artwork Integration ✅ COMPLETE (Verified)
+- Optimized asset: `/app/frontend/public/art/chapters/chapter-1-leaf-outskirts.webp`
+- Backend mapping: `CHAPTER_BACKGROUNDS = {1: "/art/chapters/chapter-1-leaf-outskirts.webp"}`
+- Frontend scrim tuned for real art
 
 ---
 
-### Phase E.9 (P1) — Chapter 1 Real Artwork Integration ✅ COMPLETE (Verified)
-- User-supplied bamboo forest sunset art (`art/battle-bg.png` from uploaded pack) chosen as Chapter 1 — Leaf Outskirts background.
-- Optimized asset: `/app/frontend/public/art/chapters/chapter-1-leaf-outskirts.webp` (845 KB PNG → 138 KB WebP, 1376×768).
-- Backend: `CHAPTER_BACKGROUNDS = {1: "/art/chapters/chapter-1-leaf-outskirts.webp"}` in `game_data.py` — swapping art later = replace file or remap entry, ZERO frontend changes.
-- Frontend: `Campaign.jsx` scrim tuned for real art (img opacity-50, lighter top gradient `from-#05050A/35 via /75 to solid`); fallback treatment for art-less chapters unchanged.
-- Verified: bg loads on CH.1 only; CH.2+ unchanged; 0px horizontal overflow at 1920/1280/1024/768/390/375; stage nodes interactive; preview drawer works; battle launch works (`/battle/campaign/s1`); unit tests pass (1/1).
-- NOTE: User will explain purpose of 2 uploaded UI screenshots (Apep/Prometheus hero modals) in next message.
+## Phase J (P1–P2) — Long-Term Progression Expansion (Approved)
+> Major expansion phases approved by user. Systems-first (backend) then cinematic UI.
+> Goal: years-long progression via Evolution + Gear + Summon ceremony + Resource Dungeons + Crafting.
+
+### Global design reference
+- Extended guidelines added in `/app/design_guidelines.md`:
+  - Summon Ceremony: carousel + rates panel + pity module + skippable reveal overlay
+  - HeroDetailModal tabs: Train / Evolve / Gear
+  - Gear/Forge page patterns
+  - Resource Dungeons hub patterns
+  - Motion rules (transform/opacity only) + data-testid standards
+
+---
+
+### Phase J1 (P1) — Backend: Evolution + Gear + Dungeons + Crafting + Summon Multi/Pity ✅ COMPLETE (Verified)
+
+#### J1.1 — Evolution system (stars only via evolution)
+- Replace/augment star-up into an **Evolution** model:
+  - Early stars: shards
+  - High stars (4–6): gated by rare materials (`evo_essence`, `celestial_core`)
+- Keep stars strictly tied to evolution; no star gain from leveling.
+- Add evolution costs helper: `evolution_cost()`.
+
+#### J1.2 — Leveling costs (EXP tomes + gold)
+- Add `EXP_TOME_GOLD_COST` (per tome type) and enforce in `POST /game/hero/use-exp`.
+- Ensure dedicated gold + tome farming loops exist (Resource Dungeons).
+
+#### J1.3 — Gear system (full depth)
+- Data/config in `game_data.py`:
+  - 4 slots: Weapon/Armor/Accessory/Relic
+  - 5 gear rarities
+  - Main stat + substats (flat + %)
+  - Gear score formula
+  - Enhancement +1..+15 (cost tables)
+  - Sets with 2pc/4pc bonuses
+- Add gear generator: `roll_gear()` and core gear structs.
+
+#### J1.4 — Crafting + Fusion
+- Materials + blueprints:
+  - `scrap_iron`, `forge_steel`, `forge_hammer`, plus blueprint items
+- `FUSION_RECIPES` to merge low-tier materials into higher.
+- Crafting config: blueprint + forge materials + ryo → gear.
+
+#### J1.5 — Resource Dungeons (Trials-based)
+- Implement as **trial-mode entries** to reuse existing energy/battle flow:
+  - Gold Vault (Ryo)
+  - EXP Temple (EXP tomes)
+  - Gear Foundry (gear + crafting mats)
+- 5 difficulty tiers each.
+- Register into `TRIALS` / `TRIALS_BY_ID` (and extend trial completion rewards for gear/material drops).
+
+#### J1.6 — Summon system expansion
+- Support:
+  - x1/x10 pulls (`count` 1|10)
+  - banner selection (`banner_id`)
+  - rates disclosure returned via `/game/catalog`
+  - pity state persisted per user
+- MYTHIC pity rules:
+  - Soft pity begins at pull 100, ramps to 149
+  - Hard pity guarantees at 150
+  - Natural MYTHIC resets MYTHIC pity
+  - Featured banner 50/50 with guarantee after a loss
+- Add SR+ guarantee for x10 (does not interfere with MYTHIC pity unless MYTHIC obtained).
+
+#### J1.7 — New endpoints
+- Hero evolution:
+  - Keep legacy route for compatibility, but introduce `POST /api/game/hero/evolve` (or rewire `/hero/star-up` to call evolve internally).
+- Gear:
+  - `/api/game/gear/list`
+  - `/api/game/gear/equip` + `/unequip`
+  - `/api/game/gear/enhance`
+  - `/api/game/gear/craft`
+  - `/api/game/material/fuse`
+- Summon:
+  - Extend `/api/game/summon` to accept `count`, `banner_id`, return multi results + pity state.
+
+#### J1.8 — Profile integration
+- Update `public_user()` to include:
+  - equipped gear per hero
+  - computed stats/power include gear + set bonuses + evolution star multiplier
+- Increase `_star_bonus_mult` to 0.07/star (per expansion spec).
+
+Testing:
+- Backend regression + new endpoint tests.
+
+---
+
+### Phase J2 (P1–P2) — Frontend: Summon Ceremony + Hero Modal Tabs + Forge + Dungeons ✅ COMPLETE (Verified)
+
+#### J2.1 — Summon Ceremony redesign (Goddess Era-like)
+- `Summon.jsx` full redesign:
+  - Banner carousel, featured preview
+  - Rates Dialog + Table
+  - Pity module with visible MYTHIC counter + 50/50 status
+  - x1 / x10 CTAs
+  - RevealOverlay (staggered card flips, tiered glow, MYTHIC burst, tap-to-skip)
+
+#### J2.2 — HeroDetailModal enhancements
+- Add Tabs: Train / Evolve / Gear
+  - Train:
+    - bulk tome spending UI
+    - gold cost shown + confirm spend
+  - Evolve:
+    - star breakthrough panel
+    - required shards + rare materials
+    - stat preview delta
+  - Gear:
+    - 2x2 equip slots
+    - equip Sheet filtered by slot
+    - enhance shortcut
+
+#### J2.3 — Forge / Gear page (new)
+- New `Forge.jsx` routed at `/forge`
+  - Gear inventory list/grid with filters
+  - Gear detail Sheet
+  - Enhance flow (+1..+15)
+  - Crafting (blueprints + mats)
+  - Material fusion UI
+
+#### J2.4 — Resource Dungeons hub (new)
+- New `Dungeons.jsx` routed at `/dungeons`
+  - 3 dungeon cards
+  - difficulty ToggleGroup (5 tiers)
+  - drop preview
+  - Start battle via existing trial flow (`/battle/trial/:id`)
+
+#### J2.5 — Combat stat plumbing
+- Ensure gear/evolution stats affect combat:
+  - `buildCombatant` support stats override or build from `inst.stats`
+  - `Battle.jsx` passes computed `inst.stats` and power so combat matches profile.
+
+#### J2.6 — Nav + routing
+- Add TopBar items (bounded, no overflow):
+  - Dungeons
+  - Forge
+- Update `App.js` routes.
+
+Testing:
+- Frontend testing agent + manual multi-breakpoint verification.
+
+---
+
+### Phase J3 (P1–P2) — Verification + Polish ✅ COMPLETE (testing agent iteration_16: backend 36/37 pass — 1 false positive, frontend all pass, 0 bugs; no horizontal overflow at 390/1920; unit tests pass)
+- Run `testing_agent_v3` (backend + frontend + regression).
+- Verify:
+  - No horizontal overflow returns
+  - Summon x10 flows, rates dialog, pity counter correctness
+  - Gear equip/enhance/craft/fuse works
+  - Evolution costs + star-only evolution constraint holds
+  - Dungeons reward loops function and are grind-friendly
+  - Combat reflects gear/evolution stats accurately
+- Add cinematic glow animations where appropriate (no continuous expensive effects).
+- Capture screenshots at 390px + desktop.
+
+---
 
 ### Phase F (P1) — Spire / Farming Content UI Redesign (Not started)
 - Visual-only changes.
 - Clear repeatable loops and rewards visibility.
-
-### Phase G (P2) — Summon Screen Redesign (Not started)
-- Visual ceremony/presentation only (no summon logic changes).
 
 ### Phase H (P2) — Battle Arena (Visual redesign ONLY) (Not started)
 - Visual-only.
@@ -336,45 +367,41 @@ Verification:
 ---
 
 ## 3) Next Actions
-1. **Art production kickoff:** use `/app/memory/HERO_ART_MANIFEST.md` to brief external artists.
-2. **Campaign art readiness:** begin populating `CHAPTER_BACKGROUNDS` (backend) with real chapter art paths as assets arrive; UI already supports it.
-3. **Phase F — Spire UI redesign** (repeatable farming clarity, reward previews, lightweight).
-4. **Phase G — Summon ceremony redesign** (visual-only; preserve gem/ryo/ticket logic).
-5. **Optional refinements** (small, safe improvements):
-   - Persist last battle speed (remember 1×/2×/3×)
-   - Add a small reward recap feed on Lobby (recent claims)
+1. **Phase J1**: implement backend evolution + gear + dungeons + crafting + summon pity/multi.
+2. **Phase J2**: implement Summon Ceremony redesign + HeroDetailModal tabs + Forge + Dungeons.
+3. **Phase J3**: full testing + polish.
+4. Resume existing roadmap items:
+   - Spire UI redesign
+   - Arena visual redesign
+   - Combat VFX polish
 
 ---
 
 ## 4) Success Criteria
 
 ### Systems
-- Catalog supports 60–80 heroes (now 69) and can scale further.
-- 8 rarity tiers exist with meaningful distribution.
-- Mechanics are data-driven; battle engine remains single-source-of-truth.
-- Boss phase mechanics function in real combat.
-- Full regression suite passes after each feature.
+- Catalog scales beyond 69 heroes.
+- Mechanics remain data-driven; battle engine remains single-source-of-truth.
+- Evolution + gear progression are stable, grind-friendly, and extensible.
 
 ### Economy
-- Gems exist with two real sinks (premium summon + energy refill).
-- Gems come primarily from valuable actions (login/first-clears/milestones/missions), not repeat grinding.
+- Gems remain valuable with meaningful sinks.
+- Dedicated farming dungeons provide consistent progression materials.
+- Crafting + fusion provide long-term material sinks.
+
+### Summon integrity
+- Rates transparent.
+- x1/x10 supported.
+- MYTHIC pity correctly implemented (soft 100–149, hard 150, resets on MYTHIC).
+- Featured 50/50 with guarantee implemented and displayed.
 
 ### Combat feel
-- Multi-tap exploit prevented.
-- Auto-battle functional for grind loops.
-- Speed control (1×/2×/3×) functional.
-- Manual at 1× feels fast and responsive.
-
-### Art Production Readiness
-- Placeholder heroes identified (31).
-- Manifest provides production fields + priorities.
-- Centralized asset replacement works (portrait-only swap).
+- Auto-battle + speed controls remain stable.
+- No multi-tap exploits.
+- Combat stats reflect evolution + gear.
 
 ### Visual (Cinematic UI)
-- Mobile-first, no unintended horizontal page scroll.
-- Intentional internal horizontal scrollers are contained and do not widen the viewport.
-- Artwork-first layouts with scrims/vignettes and controlled glow.
-- Hero card grids have adequate breathing room and glow containment.
-- Hero selection modal is unified and fuller across Roster + Gallery.
-- Campaign uses a cinematic world-map presentation (World→Chapter→Stage→Battle) while reusing existing campaign logic.
-- Campaign map supports future per-chapter real artwork via `chapter.background_image` without UI rewrites.
+- Mobile-first, no unintended horizontal scroll.
+- Summon ceremony feels premium and skippable.
+- Gear/Forge and Dungeons match the cinematic theme without heavy effects.
+- Campaign continues supporting per-chapter artwork via `background_image` with no UI rewrites.

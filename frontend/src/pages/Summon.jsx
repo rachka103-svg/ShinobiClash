@@ -1,129 +1,269 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Coins, Gem, Loader2, Ticket, Star } from "lucide-react";
+import { useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { Sparkles, Coins, Gem, Loader2, Ticket, Star, Info, Anvil, Swords } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { RARITY } from "@/lib/styles";
-import { auraClass, RaritySparkles, RARITY_TIER } from "@/components/RarityFx";
+import { auraClass, RaritySparkles } from "@/components/RarityFx";
+import SummonRevealOverlay from "@/components/SummonRevealOverlay";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+/**
+ * SUMMONING SANCTUM — the full gacha ceremony. Two altars:
+ *  - HERO ALTAR: x1/x10 pulls, transparent rates, MYTHIC pity counter
+ *    (soft 100-149 / hard 150 / featured 50-50), currency selector.
+ *  - ARMORY: gear pulls (Rare+ gear, x10 guarantees Epic+).
+ */
 export default function Summon() {
   const { user, setUser } = useAuth();
-  const { summonCost, banner, gemCosts } = useGame();
+  const { summonCost, banner, gemCosts, summonRates, pityConfig, gearConfig } = useGame();
+  const [altar, setAltar] = useState("hero"); // hero | gear
+  const [currency, setCurrency] = useState("ryo");
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(null);
+  const [reveal, setReveal] = useState(null); // array of results for the overlay
+  const [ratesOpen, setRatesOpen] = useState(false);
 
   const tickets = user?.inventory?.summon_ticket || 0;
+  const gearTickets = user?.inventory?.gear_ticket || 0;
+  const pity = user?.pity || { mythic: 0, featured_guarantee: false, total_pulls: 0 };
+  const hardPity = pityConfig.hard_pity || 150;
+  const softPity = pityConfig.soft_pity_start || 100;
+  const inSoftPity = pity.mythic + 1 >= softPity;
 
-  const summon = async (currency) => {
+  const heroCost = (n) =>
+    currency === "ryo" ? { icon: Coins, amount: summonCost * n, have: user?.ryo || 0, color: "#FFC857" }
+    : currency === "gems" ? { icon: Gem, amount: gemCosts.summon * n, have: user?.gems || 0, color: "#D500F9" }
+    : { icon: Ticket, amount: n, have: tickets, color: "#FFCA28" };
+
+  const gearCost = (n) =>
+    currency === "ticket" ? { icon: Ticket, amount: n, have: gearTickets, color: "#FFCA28" }
+    : { icon: Gem, amount: (gearConfig?.summon_gem_cost || 90) * n, have: user?.gems || 0, color: "#D500F9" };
+
+  const doHeroSummon = async (count) => {
     setBusy(true);
-    setResult(null);
     try {
-      const { data } = await api.post("/game/summon", { currency });
+      const { data } = await api.post("/game/summon", { currency, count });
       setUser(data.profile);
-      setTimeout(() => setResult(data.summoned), 600);
+      setReveal(data.results);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
-    } finally {
-      setTimeout(() => setBusy(false), 600);
-    }
+    } finally { setBusy(false); }
   };
 
-  const rarity = result ? RARITY[result.rarity] : null;
+  const doGearSummon = async (count) => {
+    setBusy(true);
+    try {
+      const { data } = await api.post("/game/gear/summon", { currency: currency === "ticket" ? "ticket" : "gems", count });
+      setUser(data.profile);
+      const meta = gearConfig?.rarity_meta || {};
+      setReveal(data.results.map((g) => ({
+        kind: "gear", rarity: g.rarity, color: meta[g.rarity]?.color, score: g.score,
+        set_name: g.set_name, slot_name: gearConfig?.slot_meta?.[g.slot]?.name || g.slot,
+        icon: gearConfig?.slot_meta?.[g.slot]?.icon,
+      })));
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setBusy(false); }
+  };
+
+  const isHero = altar === "hero";
+  const costX1 = isHero ? heroCost(1) : gearCost(1);
+  const costX10 = isHero ? heroCost(10) : gearCost(10);
+  const currencies = isHero ? ["ryo", "gems", "ticket"] : ["gems", "ticket"];
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 text-center" data-testid="summon-page">
-      <h1 className="font-display text-6xl tracking-wide text-white">SUMMONING ALTAR</h1>
-      <p className="text-slate-400 mb-8">Call forth heroes & shinobi from across the legends. Rarer summons hold mythic power.</p>
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 min-w-0" data-testid="summon-page">
+      <div className="text-center">
+        <h1 className="font-display text-5xl sm:text-6xl tracking-wide text-white">SUMMONING SANCTUM</h1>
+        <p className="text-slate-400 mt-1 mb-6">Call forth heroes — or forge-blessed gear — from across the legends.</p>
+      </div>
 
-      {banner && <FeaturedBanner banner={banner} />}
+      {/* Altar selector */}
+      <div className="grid grid-cols-2 gap-2 mb-5" data-testid="altar-selector">
+        <button
+          onClick={() => { setAltar("hero"); setCurrency("ryo"); }}
+          data-testid="altar-hero-tab"
+          className={`flex items-center justify-center gap-2 py-3 rounded-xl font-display text-xl tracking-wider transition-colors ${isHero ? "bg-jutsu/20 text-jutsu border border-jutsu/50" : "bg-white/[0.03] text-slate-400 border border-white/10 hover:text-white"}`}
+        >
+          <Swords className="w-5 h-5" /> HERO ALTAR
+        </button>
+        <button
+          onClick={() => { setAltar("gear"); setCurrency("gems"); }}
+          data-testid="altar-gear-tab"
+          className={`flex items-center justify-center gap-2 py-3 rounded-xl font-display text-xl tracking-wider transition-colors ${!isHero ? "bg-fox/20 text-fox border border-fox/50" : "bg-white/[0.03] text-slate-400 border border-white/10 hover:text-white"}`}
+        >
+          <Anvil className="w-5 h-5" /> ARMORY
+        </button>
+      </div>
 
-      <div className="relative panel rounded-2xl p-10 min-h-[420px] flex flex-col items-center justify-center overflow-hidden">
+      {isHero && banner && <FeaturedBanner banner={banner} />}
+
+      {/* Pity module (hero altar only) */}
+      {isHero && (
+        <div className="panel rounded-2xl p-4 mb-4" data-testid="summon-pity-module">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-widest text-slate-500">Mythic Pity</p>
+              <p className="font-display text-3xl leading-none mt-0.5" style={{ color: RARITY.MYTHIC.color }} data-testid="summon-pity-count-text">
+                {pity.mythic}<span className="text-slate-500 text-lg"> / {hardPity}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {inSoftPity && (
+                <span className="text-[10px] font-bold tracking-widest px-2 py-1 rounded bg-fox/15 text-fox border border-fox/40" data-testid="soft-pity-active-chip">SOFT PITY ACTIVE</span>
+              )}
+              {pity.featured_guarantee && (
+                <span className="text-[10px] font-bold tracking-widest px-2 py-1 rounded bg-amber-400/15 text-amber-300 border border-amber-400/40" data-testid="featured-guarantee-chip">NEXT MYTHIC = FEATURED</span>
+              )}
+              <button
+                onClick={() => setRatesOpen(true)}
+                data-testid="summon-rates-open-button"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-chakra bg-chakra/10 border border-chakra/30 hover:bg-chakra/20 transition-colors"
+              >
+                <Info className="w-3.5 h-3.5" /> Rates
+              </button>
+            </div>
+          </div>
+          <div className="h-2 rounded bg-black/50 overflow-hidden mt-3 relative">
+            <div className="h-full rounded" style={{ width: `${Math.min(100, (pity.mythic / hardPity) * 100)}%`, background: `linear-gradient(90deg, #D500F9, ${RARITY.MYTHIC.color})` }} />
+            <div className="absolute top-0 bottom-0 w-px bg-fox/70" style={{ left: `${(softPity / hardPity) * 100}%` }} title="Soft pity begins" />
+          </div>
+          <p className="text-[10px] text-slate-500 mt-1.5">Soft pity ramps from pull {softPity} · guaranteed MYTHIC at {hardPity} · a natural MYTHIC resets the counter</p>
+        </div>
+      )}
+
+      {/* Altar visual */}
+      <div className="relative panel rounded-2xl p-8 sm:p-10 min-h-[220px] flex flex-col items-center justify-center overflow-hidden mb-4">
         <div className="absolute inset-0 opacity-30 pointer-events-none"
-          style={{ background: "radial-gradient(circle at 50% 40%, rgba(213,0,249,0.25), transparent 60%)" }} />
+          style={{ background: `radial-gradient(circle at 50% 40%, ${isHero ? "rgba(213,0,249,0.25)" : "rgba(255,87,34,0.22)"}, transparent 60%)` }} />
+        <motion.div key={altar} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="relative z-10 text-center">
+          {isHero ? <Sparkles className="w-16 h-16 text-jutsu/60 mx-auto" /> : <Anvil className="w-16 h-16 text-fox/60 mx-auto" />}
+          <p className="text-slate-400 mt-3 text-sm">
+            {isHero ? "Every x10 guarantees at least one SR or better." : "Armory pulls drop Rare+ gear — x10 guarantees an Epic or better."}
+          </p>
+        </motion.div>
+      </div>
 
-        <AnimatePresence mode="wait">
-          {busy && !result ? (
-            <motion.div key="loading" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="relative z-10">
-              <Sparkles className="w-20 h-20 text-jutsu animate-pulse mx-auto" />
-              <p className="font-display text-3xl text-white mt-4 tracking-widest">SUMMONING…</p>
-            </motion.div>
-          ) : result ? (
-            <motion.div
-              key="result"
-              initial={{ opacity: 0, scale: 0.6, rotateY: 90 }}
-              animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-              transition={{ type: "spring", stiffness: 120 }}
-              className="relative z-10"
-              data-testid="summon-result"
+      {/* Currency selector */}
+      <div className="flex items-center justify-center gap-2 mb-4" data-testid="currency-selector">
+        {currencies.map((c) => {
+          const active = currency === c;
+          const label = c === "ryo" ? "Ryo" : c === "gems" ? "Gems" : "Tickets";
+          const Icon = c === "ryo" ? Coins : c === "gems" ? Gem : Ticket;
+          const have = c === "ryo" ? (user?.ryo || 0) : c === "gems" ? (user?.gems || 0) : (isHero ? tickets : gearTickets);
+          return (
+            <button
+              key={c}
+              onClick={() => setCurrency(c)}
+              data-testid={`currency-${c}-button`}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${active ? "bg-white/10 text-white border border-white/30" : "text-slate-400 border border-white/10 hover:text-white"}`}
             >
-              <div className={`relative w-48 mx-auto rounded-xl overflow-hidden ${auraClass(result.rarity)}`}
-                style={{ "--glow": rarity.color, boxShadow: `0 0 40px ${rarity.color}` }}>
-                <img src={result.portrait} alt={result.name} className="w-full aspect-[3/4] object-cover object-top" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                <RaritySparkles rarity={result.rarity} />
-                {RARITY_TIER[result.rarity] >= 3 && <span className="absolute inset-0 shine-sweep pointer-events-none" />}
-                <span className="absolute top-2 left-2 font-display text-lg px-2 rounded text-[#05050A]" style={{ background: rarity.color }}>{result.rarity}</span>
-              </div>
-              <h2 className="font-display text-4xl tracking-wide text-white mt-4">{result.name}</h2>
-              <p className="text-lg font-semibold" style={{ color: rarity.color }}>{rarity.name} · {result.element} · {result.role}</p>
-            </motion.div>
-          ) : (
-            <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative z-10">
-              <Sparkles className="w-20 h-20 text-jutsu/50 mx-auto" />
-              <p className="text-slate-400 mt-4">Tap the altar to call forth a new ally.</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <Icon className="w-4 h-4" /> {label}
+              <span className="text-xs text-slate-400">{have}</span>
+            </button>
+          );
+        })}
       </div>
 
-      <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-        <button
-          onClick={() => summon("ryo")}
-          disabled={busy || (user?.ryo || 0) < summonCost}
-          data-testid="summon-button"
-          className="inline-flex items-center gap-3 px-8 py-4 rounded-xl font-display text-2xl tracking-wider bg-jutsu text-white hover:bg-fuchsia-500 transition-colors disabled:opacity-50"
-        >
-          {busy ? <Loader2 className="w-6 h-6 animate-spin" /> : <Sparkles className="w-6 h-6" />}
-          SUMMON
-          <span className="flex items-center gap-1 text-xl"><Coins className="w-5 h-5" />{summonCost}</span>
-        </button>
-        <button
-          onClick={() => summon("ticket")}
-          disabled={busy || tickets < 1}
-          data-testid="summon-ticket-button"
-          className="inline-flex items-center gap-3 px-8 py-4 rounded-xl font-display text-2xl tracking-wider bg-amber-400 text-[#05050A] hover:bg-amber-300 transition-colors disabled:opacity-50"
-        >
-          <Ticket className="w-6 h-6" />
-          FREE SUMMON
-          <span className="text-xl">×{tickets}</span>
-        </button>
-        <button
-          onClick={() => summon("gems")}
-          disabled={busy || (user?.gems || 0) < gemCosts.summon}
-          data-testid="summon-gems-button"
-          className="inline-flex items-center gap-3 px-8 py-4 rounded-xl font-display text-2xl tracking-wider border border-jutsu/50 text-jutsu bg-jutsu/10 hover:bg-jutsu/20 transition-colors disabled:opacity-50"
-        >
-          <Gem className="w-6 h-6" />
-          PREMIUM
-          <span className="flex items-center gap-1 text-xl"><Gem className="w-5 h-5" />{gemCosts.summon}</span>
-        </button>
+      {/* Pull CTAs */}
+      <div className="grid grid-cols-2 gap-3">
+        <PullButton
+          label="SUMMON x1"
+          cost={costX1}
+          disabled={busy || costX1.have < costX1.amount}
+          busy={busy}
+          onClick={() => (isHero ? doHeroSummon(1) : doGearSummon(1))}
+          testid="summon-x1-button"
+        />
+        <PullButton
+          label="SUMMON x10"
+          cost={costX10}
+          disabled={busy || costX10.have < costX10.amount}
+          busy={busy}
+          primary
+          onClick={() => (isHero ? doHeroSummon(10) : doGearSummon(10))}
+          testid="summon-x10-button"
+        />
       </div>
-      {(user?.ryo || 0) < summonCost && tickets < 1 && (user?.gems || 0) < gemCosts.summon && <p className="text-xs text-fox mt-2">Not enough Ryo, Gems or tickets — win battles to earn more.</p>}
+      {costX10.have < costX1.amount && (
+        <p className="text-xs text-fox mt-2 text-center" data-testid="summon-insufficient-text">Not enough {currency === "ryo" ? "Ryo" : currency === "gems" ? "Gems" : "tickets"} — win battles and missions to earn more.</p>
+      )}
+
+      {/* Rates dialog */}
+      <Dialog open={ratesOpen} onOpenChange={setRatesOpen}>
+        <DialogContent className="max-w-md bg-[#0B0B14] border border-white/15 rounded-2xl max-h-[85vh] overflow-y-auto" data-testid="summon-rates-dialog">
+          <DialogTitle className="font-display text-2xl tracking-wide text-white">SUMMON RATES</DialogTitle>
+          <DialogDescription className="text-xs text-slate-400">
+            Transparent per-pull probabilities. Rates update automatically as new heroes join the catalog.
+          </DialogDescription>
+          <Table data-testid="summon-rates-table">
+            <TableHeader>
+              <TableRow className="border-white/10">
+                <TableHead className="text-slate-400">Rarity</TableHead>
+                <TableHead className="text-right text-slate-400">Rate</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Object.entries(summonRates).map(([r, pct]) => (
+                <TableRow key={r} className="border-white/5">
+                  <TableCell className="font-bold" style={{ color: (RARITY[r] || RARITY.R).color }}>{(RARITY[r] || {}).name || r} ({r})</TableCell>
+                  <TableCell className="text-right text-white tabular-nums">{pct}%</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <div className="text-xs text-slate-400 space-y-1.5 mt-1">
+            <p><span className="text-white font-semibold">MYTHIC pity:</span> normal rate for pulls 1-{softPity - 1}; the chance climbs every pull from {softPity} and a MYTHIC is guaranteed by pull {hardPity}. Pulling a MYTHIC naturally resets the counter.</p>
+            <p><span className="text-white font-semibold">Featured 50/50:</span> when a featured MYTHIC banner is live, your first MYTHIC has a 50% chance to be the featured hero — lose the 50/50 and your next MYTHIC is guaranteed to be featured.</p>
+            <p><span className="text-white font-semibold">x10 guarantee:</span> every x10 contains at least one SR or better. Duplicates always convert to shards for Evolution.</p>
+          </div>
+          <button
+            onClick={() => setRatesOpen(false)}
+            data-testid="summon-rates-close-button"
+            className="w-full py-2.5 rounded-xl font-semibold text-sm bg-white/5 border border-white/15 text-slate-200 hover:bg-white/10 transition-colors"
+          >
+            Close
+          </button>
+        </DialogContent>
+      </Dialog>
+
+      <SummonRevealOverlay open={!!reveal} results={reveal || []} onClose={() => setReveal(null)} />
     </div>
   );
 }
 
+const PullButton = ({ label, cost, disabled, busy, primary, onClick, testid }) => {
+  const Icon = cost.icon;
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      data-testid={testid}
+      className={`flex flex-col items-center gap-1 py-4 rounded-xl font-display text-xl sm:text-2xl tracking-wider transition-colors disabled:opacity-40 ${
+        primary ? "bg-jutsu text-white hover:bg-fuchsia-500 shine-sweep relative overflow-hidden" : "bg-white/[0.05] text-white border border-white/15 hover:bg-white/10"
+      }`}
+    >
+      <span className="flex items-center gap-2">{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}{label}</span>
+      <span className="flex items-center gap-1 text-sm font-sans font-semibold" style={{ color: primary ? "#fff" : cost.color }}>
+        <Icon className="w-4 h-4" />{cost.amount}
+      </span>
+    </button>
+  );
+};
+
 const FeaturedBanner = ({ banner }) => {
   const r = RARITY[banner.rarity] || RARITY.R;
+  const isMythic = banner.rarity === "MYTHIC";
   const pct = Math.round((banner.rate_up_chance || 0) * 100);
   return (
     <motion.div
       initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
       data-testid="summon-banner"
-      className="relative flex items-center gap-4 mb-6 p-3 sm:p-4 rounded-2xl overflow-hidden text-left panel"
+      className="relative flex items-center gap-4 mb-4 p-3 sm:p-4 rounded-2xl overflow-hidden text-left panel"
       style={{ border: `1.5px solid ${r.color}`, "--glow": r.color }}
     >
       <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: `radial-gradient(circle at 12% 50%, ${r.color}, transparent 55%)` }} />
@@ -131,13 +271,15 @@ const FeaturedBanner = ({ banner }) => {
         <img src={banner.portrait} alt={banner.name} className="w-full h-full object-cover object-top" />
         <RaritySparkles rarity={banner.rarity} />
       </div>
-      <div className="relative flex-1">
+      <div className="relative flex-1 min-w-0">
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-extrabold tracking-widest" style={{ background: r.color, color: "#05050A" }}>
           <Star className="w-3 h-3" /> RATE-UP
         </span>
-        <h3 className="font-display text-2xl sm:text-3xl text-white leading-tight mt-1">{banner.name}</h3>
+        <h3 className="font-display text-2xl sm:text-3xl text-white leading-tight mt-1 truncate">{banner.name}</h3>
         <p className="text-xs sm:text-sm" style={{ color: r.color }}>{r.name} · {banner.element} · {banner.role}</p>
-        <p className="text-xs text-slate-300 mt-1">Featured summon — <span className="font-bold text-white">{pct}%</span> chance per pull!</p>
+        <p className="text-xs text-slate-300 mt-1">
+          {isMythic ? "Featured MYTHIC — 50/50 with guarantee after a loss!" : <>Featured summon — <span className="font-bold text-white">{pct}%</span> chance per pull!</>}
+        </p>
       </div>
     </motion.div>
   );

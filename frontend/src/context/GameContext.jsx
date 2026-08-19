@@ -15,6 +15,14 @@ export function GameProvider({ children }) {
   const [summonCost, setSummonCost] = useState(300);
   const [gemCosts, setGemCosts] = useState({ summon: 150, energy_refill_per_point: 4, energy_refill_min: 15 });
   const [banner, setBanner] = useState(null);
+  // --- Phase J expansion config (all data-driven from the backend) ---
+  const [summonRates, setSummonRates] = useState({});
+  const [pityConfig, setPityConfig] = useState({ soft_pity_start: 100, hard_pity: 150, featured_5050: 0.5, x10_guarantee_rarity: "SR" });
+  const [gearConfig, setGearConfig] = useState(null);
+  const [craftRecipes, setCraftRecipes] = useState({});
+  const [fusionRecipes, setFusionRecipes] = useState({});
+  const [expTomeGoldCost, setExpTomeGoldCost] = useState({});
+  const [dungeons, setDungeons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [catalogError, setCatalogError] = useState(null);
 
@@ -26,6 +34,13 @@ export function GameProvider({ children }) {
     setSummonCost(data.summon_cost || 300);
     setGemCosts(data.gem_costs || { summon: 150, energy_refill_per_point: 4, energy_refill_min: 15 });
     setBanner(data.banner || null);
+    setSummonRates(data.summon_rates || {});
+    if (data.pity_config) setPityConfig(data.pity_config);
+    setGearConfig(data.gear_config || null);
+    setCraftRecipes(data.craft_recipes || {});
+    setFusionRecipes(data.fusion_recipes || {});
+    setExpTomeGoldCost(data.exp_tome_gold_cost || {});
+    setDungeons(data.dungeons || []);
     const map = {};
     data.ninjas.forEach((n) => { map[n.id] = n; });
     setCatalogById(map);
@@ -62,6 +77,7 @@ export function GameProvider({ children }) {
   return (
     <GameContext.Provider value={{
       catalog, catalogById, advantage, stages, chapters, bossMechanics, items, trials, summonCost, gemCosts, banner,
+      summonRates, pityConfig, gearConfig, craftRecipes, fusionRecipes, expTomeGoldCost, dungeons,
       loading, catalogError, retryCatalog: loadInitialData, refreshCatalog,
     }}>
       {children}

@@ -74,10 +74,10 @@ export default function Roster() {
   const ascCost = sel ? ascensionCost(selTpl.rarity, sel.ascension) : null;
   const canAscend = sel && atCap && !fullyAscended && (inv.ascension_crystal || 0) >= ascCost.ascension_crystal && (user.ryo || 0) >= ascCost.ryo;
 
-  const applyExpTome = async (itemId) => {
+  const applyExpTome = async (itemId, qty = 1) => {
     setBusy(true);
     try {
-      const { data } = await api.post("/game/hero/use-exp", { instance_id: selected, item_id: itemId, qty: 1 });
+      const { data } = await api.post("/game/hero/use-exp", { instance_id: selected, item_id: itemId, qty: Math.max(1, qty) });
       setUser(data.profile);
       toast.success(data.levels_gained > 0 ? `Leveled up +${data.levels_gained}!` : "EXP applied");
     } catch (err) {

@@ -30,8 +30,11 @@ export function rollDamage(actor, target, jutsu, advantage) {
   return { dmg, crit, mult };
 }
 
-export function buildCombatant(uid, side, template, level, ascension = 0, instanceId = null) {
-  const s = computeStats(template, level, ascension);
+export function buildCombatant(uid, side, template, level, ascension = 0, instanceId = null, statsOverride = null) {
+  // `statsOverride` lets allies use the server-computed stats (which include
+  // evolution stars + equipped gear + set bonuses) so combat always matches
+  // the profile; enemies fall back to the base formula.
+  const s = statsOverride || computeStats(template, level, ascension);
   return {
     uid,
     instanceId,

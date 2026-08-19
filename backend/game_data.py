@@ -1131,3 +1131,336 @@ def clamp_stats(stats, rarity, role):
             v = base[k]
         out[k] = max(int(base[k] * 0.6), min(int(base[k] * 1.5), v))
     return out
+
+
+# ===========================================================================
+# PHASE J1 — LONG-TERM PROGRESSION EXPANSION
+# Evolution (star breakthrough) · Gear · Crafting/Fusion · Resource Dungeons
+# · Summon pity system. All config data-driven so it scales for years.
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# New materials & items (added to the existing ITEMS registry)
+# ---------------------------------------------------------------------------
+ITEMS.update({
+    "spirit_dust":      {"id": "spirit_dust", "name": "Spirit Dust", "type": "material", "value": 0, "icon": "sparkle", "color": "#80DEEA", "desc": "Faint spiritual residue. Fuse 4 into an Evolution Essence."},
+    "evo_essence":      {"id": "evo_essence", "name": "Evolution Essence", "type": "material", "value": 0, "icon": "flame", "color": "#00E676", "desc": "Condensed life force required to evolve heroes past 3 stars."},
+    "celestial_core":   {"id": "celestial_core", "name": "Celestial Core", "type": "material", "value": 0, "icon": "sun", "color": "#FFC857", "desc": "A fragment of a fallen star. Gates the final evolution stages."},
+    "scrap_iron":       {"id": "scrap_iron", "name": "Scrap Iron", "type": "material", "value": 0, "icon": "wrench", "color": "#9E9E9E", "desc": "Battlefield salvage. Fuse 3 into Forge Steel."},
+    "forge_steel":      {"id": "forge_steel", "name": "Forge Steel", "type": "material", "value": 0, "icon": "anvil", "color": "#29B6F6", "desc": "Refined metal used to craft gear at the Forge."},
+    "forge_hammer":     {"id": "forge_hammer", "name": "Forge Hammer", "type": "material", "value": 0, "icon": "hammer", "color": "#FF5722", "desc": "Consumed when enhancing gear beyond +5."},
+    "gear_ticket":      {"id": "gear_ticket", "name": "Gear Summon Ticket", "type": "ticket", "value": 0, "icon": "ticket", "color": "#D500F9", "desc": "Summons a piece of gear from the Armory, no Gems required."},
+    "blueprint_weapon":    {"id": "blueprint_weapon", "name": "Weapon Blueprint", "type": "blueprint", "value": 0, "icon": "scroll", "color": "#FF5722", "desc": "Craft a weapon at the Forge."},
+    "blueprint_armor":     {"id": "blueprint_armor", "name": "Armor Blueprint", "type": "blueprint", "value": 0, "icon": "scroll", "color": "#29B6F6", "desc": "Craft armor at the Forge."},
+    "blueprint_accessory": {"id": "blueprint_accessory", "name": "Accessory Blueprint", "type": "blueprint", "value": 0, "icon": "scroll", "color": "#00E676", "desc": "Craft an accessory at the Forge."},
+    "blueprint_relic":     {"id": "blueprint_relic", "name": "Relic Blueprint", "type": "blueprint", "value": 0, "icon": "scroll", "color": "#FFC857", "desc": "Craft a relic at the Forge."},
+})
+
+# Battle drops now include crafting/evolution materials (long-term grind loops).
+DROP_TABLE.extend([
+    ("scrap_iron", 2, 26),
+    ("spirit_dust", 1, 14),
+])
+
+# ---------------------------------------------------------------------------
+# Leveling — EXP tomes now also consume Ryo (gold) per use, standard for the
+# genre: gold + tomes are the dual cost of raw levels.
+# ---------------------------------------------------------------------------
+EXP_TOME_GOLD_COST = {"exp_tome_minor": 60, "exp_tome_greater": 260, "exp_tome_ancient": 1150}
+
+# ---------------------------------------------------------------------------
+# Evolution (star breakthrough) — stars are gained ONLY through evolution.
+# Early stars burn duplicate shards; the highest stars are gated behind rare
+# evolution materials so 5-6★ remains a genuine long-term chase.
+# ---------------------------------------------------------------------------
+STAR_BONUS_PER_STAR = 0.07  # +7% HP/ATK/DEF per star beyond the 1st
+
+
+def evolution_cost(rarity: str, current_star: int) -> dict:
+    """Full cost to evolve a hero from `current_star` -> `current_star + 1`.
+    Stars 1-3: shards + ryo. Star 3->4 adds Evolution Essence. Star 4->5 and
+    5->6 add Celestial Cores on top."""
+    ri = RARITY_ORDER[rarity]
+    shards = round((40 + ri * 15) * (1 + 0.6 * (current_star - 1)))
+    ryo = 400 + current_star * 350 + ri * 150
+    items = {}
+    if current_star >= 3:
+        items["evo_essence"] = 2 + (current_star - 3) * 3 + ri
+    if current_star >= 4:
+        items["celestial_core"] = 1 + (current_star - 4) * 2
+    return {"shards": shards, "ryo": ryo, "items": items}
+
+
+# ---------------------------------------------------------------------------
+# GEAR SYSTEM — 4 slots · 5 rarities · main stat + substats · +15 enhance ·
+# 2pc/4pc set bonuses. Gear lives on the user doc as instances.
+# ---------------------------------------------------------------------------
+GEAR_SLOTS = ["weapon", "armor", "accessory", "relic"]
+GEAR_SLOT_META = {
+    "weapon":    {"name": "Weapon", "icon": "sword", "main_stat": "atk"},
+    "armor":     {"name": "Armor", "icon": "shield", "main_stat": "def"},
+    "accessory": {"name": "Accessory", "icon": "gem", "main_stat": "hp"},
+    "relic":     {"name": "Relic", "icon": "sparkles", "main_stat": "spd"},
+}
+GEAR_RARITIES = ["common", "fine", "rare", "epic", "legendary"]
+GEAR_RARITY_META = {
+    "common":    {"name": "Common", "color": "#9E9E9E", "mult": 1.00, "subs": 1, "tier": 1},
+    "fine":      {"name": "Fine", "color": "#00E676", "mult": 1.35, "subs": 2, "tier": 2},
+    "rare":      {"name": "Rare", "color": "#29B6F6", "mult": 1.80, "subs": 2, "tier": 3},
+    "epic":      {"name": "Epic", "color": "#D500F9", "mult": 2.40, "subs": 3, "tier": 4},
+    "legendary": {"name": "Legendary", "color": "#FFC857", "mult": 3.20, "subs": 4, "tier": 5},
+}
+# Base main-stat value at +0 for a COMMON piece (scaled by rarity mult + plus).
+GEAR_MAIN_BASE = {"weapon": ("atk", 20), "armor": ("def", 16), "accessory": ("hp", 130), "relic": ("spd", 8)}
+# Substat roll ranges (value rolled once at drop; % stats apply to hero base).
+GEAR_SUBSTAT_POOL = [
+    ("atk_pct", 3, 8), ("def_pct", 3, 8), ("hp_pct", 3, 8), ("spd_pct", 2, 6),
+    ("atk", 6, 18), ("def", 5, 15), ("hp", 40, 120),
+]
+GEAR_ENHANCE_MAX = 15
+GEAR_MAIN_GROWTH_PER_PLUS = 0.09  # main stat +9% (of base) per enhance level
+
+GEAR_SETS = {
+    "raider":  {"name": "Raider",  "color": "#FF5722", "bonus2": {"atk_pct": 8},  "bonus4": {"atk_pct": 20}},
+    "bulwark": {"name": "Bulwark", "color": "#29B6F6", "bonus2": {"def_pct": 10}, "bonus4": {"def_pct": 18, "hp_pct": 10}},
+    "vital":   {"name": "Vital",   "color": "#00E676", "bonus2": {"hp_pct": 8},   "bonus4": {"hp_pct": 22}},
+    "swift":   {"name": "Swift",   "color": "#00E5FF", "bonus2": {"spd_pct": 5},  "bonus4": {"spd_pct": 12, "atk_pct": 6}},
+    "shadow":  {"name": "Shadow",  "color": "#D500F9", "bonus2": {"atk_pct": 5, "spd_pct": 3}, "bonus4": {"atk_pct": 14, "spd_pct": 8}},
+    "sage":    {"name": "Sage",    "color": "#FFC857", "bonus2": {"hp_pct": 5, "def_pct": 5}, "bonus4": {"atk_pct": 10, "hp_pct": 10, "def_pct": 10}},
+}
+
+
+def gear_main_value(slot: str, rarity: str, plus: int) -> int:
+    stat, base = GEAR_MAIN_BASE[slot]
+    v = base * GEAR_RARITY_META[rarity]["mult"] * (1 + GEAR_MAIN_GROWTH_PER_PLUS * plus)
+    return max(1, round(v))
+
+
+def roll_gear(min_tier: int = 1, max_tier: int = 3, luck: float = 0.0) -> dict:
+    """Generate a new random gear instance. `min_tier`/`max_tier` bound the
+    rarity band (1=common .. 5=legendary); `luck` [0..1] skews toward the top
+    of the band."""
+    import uuid as _uuid
+    band = [r for r in GEAR_RARITIES if min_tier <= GEAR_RARITY_META[r]["tier"] <= max_tier]
+    weights = []
+    for i, r in enumerate(band):
+        w = max(1.0, (len(band) - i) * 10 * (1 - luck) + (i + 1) * 10 * luck)
+        weights.append(w)
+    rarity = _random.choices(band, weights=weights, k=1)[0]
+    slot = _random.choice(GEAR_SLOTS)
+    set_id = _random.choice(list(GEAR_SETS.keys()))
+    n_subs = GEAR_RARITY_META[rarity]["subs"]
+    subs = []
+    pool = GEAR_SUBSTAT_POOL[:]
+    _random.shuffle(pool)
+    for stat, lo, hi in pool[:n_subs]:
+        subs.append({"stat": stat, "value": _random.randint(lo, hi)})
+    return {
+        "gear_id": str(_uuid.uuid4()), "slot": slot, "set_id": set_id, "rarity": rarity,
+        "plus": 0, "subs": subs, "equipped_by": None, "locked": False,
+    }
+
+
+def gear_stats(gear: dict) -> dict:
+    """Resolved stat contribution of one piece: flat + percent buckets."""
+    flat = {"hp": 0, "atk": 0, "def": 0, "spd": 0}
+    pct = {"hp": 0.0, "atk": 0.0, "def": 0.0, "spd": 0.0}
+    stat, _ = GEAR_MAIN_BASE[gear["slot"]]
+    flat[stat] += gear_main_value(gear["slot"], gear["rarity"], gear.get("plus", 0))
+    for s in gear.get("subs", []):
+        if s["stat"].endswith("_pct"):
+            pct[s["stat"][:-4]] += s["value"]
+        else:
+            flat[s["stat"]] += s["value"]
+    return {"flat": flat, "pct": pct}
+
+
+def gear_score(gear: dict) -> int:
+    st = gear_stats(gear)
+    f = st["flat"]
+    p = st["pct"]
+    score = f["hp"] * 0.35 + f["atk"] * 2.2 + f["def"] * 1.7 + f["spd"] * 3.0
+    score += (p["hp"] + p["atk"] + p["def"] + p["spd"]) * 9
+    score *= 1 + 0.05 * gear.get("plus", 0)
+    return round(score)
+
+
+def apply_gear_to_stats(base: dict, gear_list: list) -> dict:
+    """Applies a hero's equipped gear (flat + % + set bonuses) to its base
+    stats dict {hp,atk,def,spd,chakra}. Used by profile serialization; the
+    client combat engine consumes the final serialized stats directly."""
+    flat = {"hp": 0, "atk": 0, "def": 0, "spd": 0}
+    pct = {"hp": 0.0, "atk": 0.0, "def": 0.0, "spd": 0.0}
+    set_counts = {}
+    for g in gear_list:
+        st = gear_stats(g)
+        for k in flat:
+            flat[k] += st["flat"][k]
+            pct[k] += st["pct"][k]
+        set_counts[g["set_id"]] = set_counts.get(g["set_id"], 0) + 1
+    for sid, cnt in set_counts.items():
+        s = GEAR_SETS.get(sid)
+        if not s:
+            continue
+        for bonus_key, need in (("bonus2", 2), ("bonus4", 4)):
+            if cnt >= need:
+                for stat_pct, val in s[bonus_key].items():
+                    pct[stat_pct[:-4]] += val
+    return {
+        "hp": round((base["hp"] + flat["hp"]) * (1 + pct["hp"] / 100)),
+        "atk": round((base["atk"] + flat["atk"]) * (1 + pct["atk"] / 100)),
+        "def": round((base["def"] + flat["def"]) * (1 + pct["def"] / 100)),
+        "spd": round((base["spd"] + flat["spd"]) * (1 + pct["spd"] / 100)),
+        "chakra": base["chakra"],
+    }
+
+
+def gear_enhance_cost(rarity: str, plus: int) -> dict:
+    """Cost to enhance from `plus` -> `plus + 1`. Hammers required past +5."""
+    tier = GEAR_RARITY_META[rarity]["tier"]
+    cost = {"ryo": 120 + plus * 90 + tier * 60}
+    if plus >= 5:
+        cost["forge_hammer"] = 1 + (plus - 5) // 4
+    return cost
+
+
+# ---------------------------------------------------------------------------
+# Crafting & Fusion
+# ---------------------------------------------------------------------------
+CRAFT_RECIPES = {
+    slot: {"blueprint": f"blueprint_{slot}", "forge_steel": 3, "ryo": 1200}
+    for slot in GEAR_SLOTS
+}
+# Crafted gear rarity distribution — crafting always yields Fine or better.
+CRAFT_RARITY_WEIGHTS = {"fine": 46, "rare": 34, "epic": 16, "legendary": 4}
+
+FUSION_RECIPES = {
+    "forge_steel":    {"from": "scrap_iron", "qty": 3},
+    "evo_essence":    {"from": "spirit_dust", "qty": 4},
+    "celestial_core": {"from": "evo_essence", "qty": 4},
+}
+
+
+def craft_gear(slot: str) -> dict:
+    rarity = _random.choices(list(CRAFT_RARITY_WEIGHTS.keys()),
+                             weights=list(CRAFT_RARITY_WEIGHTS.values()), k=1)[0]
+    g = roll_gear(min_tier=GEAR_RARITY_META[rarity]["tier"], max_tier=GEAR_RARITY_META[rarity]["tier"])
+    g["slot"] = slot  # blueprint dictates the slot
+    stat, _ = GEAR_MAIN_BASE[slot]
+    return g
+
+
+# ---------------------------------------------------------------------------
+# RESOURCE DUNGEONS — Gold Vault / EXP Temple / Gear Foundry, 5 tiers each.
+# Implemented as trial-mode entries (registered into TRIALS_BY_ID) so the
+# existing energy gating + battle flow works with ZERO new combat plumbing.
+# ---------------------------------------------------------------------------
+DUNGEONS = [
+    {"id": "gold_vault", "name": "Gold Vault", "icon": "coins", "color": "#FFC857",
+     "desc": "Raid the vault — the deeper you go, the bigger the Ryo haul.", "focus": "ryo"},
+    {"id": "exp_temple", "name": "EXP Temple", "icon": "sparkles", "color": "#00E5FF",
+     "desc": "Ancient halls overflowing with EXP tomes and spirit dust.", "focus": "tomes"},
+    {"id": "gear_foundry", "name": "Gear Foundry", "icon": "anvil", "color": "#FF5722",
+     "desc": "A molten forge that drops gear, steel and blueprints.", "focus": "gear"},
+]
+DUNGEON_TIER_LEVELS = [4, 12, 22, 34, 48]
+_DUNGEON_ENEMY_SETS = {
+    "gold_vault":   ["spark", "zephyr", "raijin"],
+    "exp_temple":   ["frost", "ember", "lumina"],
+    "gear_foundry": ["terra", "boulder", "blaze"],
+}
+
+
+def _dungeon_trial_entries() -> list:
+    out = []
+    for d in DUNGEONS:
+        roster = _DUNGEON_ENEMY_SETS[d["id"]]
+        for tier in range(1, len(DUNGEON_TIER_LEVELS) + 1):
+            lvl = DUNGEON_TIER_LEVELS[tier - 1]
+            count = 2 if tier <= 2 else 3
+            enemies = [{"template_id": roster[i % len(roster)], "level": lvl + i} for i in range(count)]
+            out.append({
+                "id": f"d_{d['id']}_t{tier}", "dungeon_id": d["id"], "tier": tier,
+                "name": f"{d['name']} — Tier {tier}", "icon": d["icon"], "color": d["color"],
+                "enemies": enemies,
+                "rewards": _dungeon_reward_table(d["id"], tier),
+                "gear_drop": {"min_tier": min(tier, 4), "max_tier": min(tier + 1, 5), "luck": 0.15 * tier}
+                if d["id"] == "gear_foundry" else None,
+            })
+    return out
+
+
+def _dungeon_reward_table(dungeon_id: str, tier: int) -> dict:
+    if dungeon_id == "gold_vault":
+        return {"ryo": 380 + round(tier ** 1.5 * 320), "hero_exp": 30 + tier * 15,
+                "items": ({"scrap_iron": tier // 2} if tier >= 2 else {})}
+    if dungeon_id == "exp_temple":
+        tomes = [
+            {"exp_tome_minor": 4},
+            {"exp_tome_minor": 4, "exp_tome_greater": 1},
+            {"exp_tome_greater": 3, "spirit_dust": 1},
+            {"exp_tome_greater": 3, "exp_tome_ancient": 1, "spirit_dust": 2},
+            {"exp_tome_ancient": 2, "exp_tome_greater": 2, "spirit_dust": 3},
+        ][tier - 1]
+        return {"ryo": 90 + tier * 60, "hero_exp": 40 + tier * 20, "items": tomes}
+    # gear_foundry
+    items = {"scrap_iron": 1 + tier}
+    if tier >= 2:
+        items["forge_hammer"] = (tier // 2)
+    if tier >= 4:
+        items["evo_essence"] = tier - 3
+    return {"ryo": 120 + tier * 80, "hero_exp": 35 + tier * 15, "items": items,
+            "blueprint_chance": min(0.55, 0.15 + 0.08 * tier)}
+
+
+DUNGEON_TRIALS = _dungeon_trial_entries()
+TRIALS_BY_ID.update({t["id"]: t for t in DUNGEON_TRIALS})
+
+
+def dungeon_recommended_power(entry: dict) -> int:
+    return sum(ninja_power(e["template_id"], e["level"]) for e in entry["enemies"])
+
+
+# ---------------------------------------------------------------------------
+# SUMMON — transparent rates, x10 pulls, rarity-tiered pity.
+# MYTHIC pity: base rate pulls 1-99 · soft pity ramps 100-149 · hard pity at
+# 150 · a natural MYTHIC resets the counter · featured MYTHIC is 50/50 with a
+# guarantee after a loss. x10 guarantees at least one SR+.
+# ---------------------------------------------------------------------------
+MYTHIC_SOFT_PITY_START = 100
+MYTHIC_HARD_PITY = 150
+MYTHIC_SOFT_PITY_CEIL = 0.35     # ramped MYTHIC chance just before hard pity
+FEATURED_MYTHIC_5050 = 0.5
+X10_GUARANTEE_RARITY = "SR"      # every x10 contains at least one SR or better
+GEAR_SUMMON_GEM_COST = 90
+GEAR_SUMMON_RATES = {"rare": 62, "epic": 30, "legendary": 8}
+
+
+def summon_rates() -> dict:
+    """Advertised per-rarity pull rates (%), derived from weights x catalog
+    composition so they're always truthful as the catalog grows."""
+    counts = {}
+    for t in CATALOG_BY_ID.values():
+        counts[t["rarity"]] = counts.get(t["rarity"], 0) + 1
+    total = sum(SUMMON_WEIGHTS[r] * c for r, c in counts.items())
+    if total <= 0:
+        return {}
+    return {r: round(SUMMON_WEIGHTS[r] * c / total * 100, 3)
+            for r, c in sorted(counts.items(), key=lambda kv: RARITY_ORDER[kv[0]])}
+
+
+def mythic_chance(pull_number_since_last: int) -> float:
+    """Probability this pull is MYTHIC given the pity counter (1-based pull
+    number since the last MYTHIC)."""
+    base = (summon_rates().get("MYTHIC", 0.05)) / 100
+    n = pull_number_since_last
+    if n >= MYTHIC_HARD_PITY:
+        return 1.0
+    if n >= MYTHIC_SOFT_PITY_START:
+        ramp = (n - MYTHIC_SOFT_PITY_START) / (MYTHIC_HARD_PITY - MYTHIC_SOFT_PITY_START)
+        return base + ramp * (MYTHIC_SOFT_PITY_CEIL - base)
+    return base
+
+
+def fresh_pity_state() -> dict:
+    return {"mythic": 0, "featured_guarantee": False, "total_pulls": 0}

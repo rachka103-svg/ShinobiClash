@@ -1,18 +1,18 @@
 [
   {
-    "content": "Generate Hero Art Production Manifest for 31 placeholder heroes",
+    "content": "Phase J1 backend (evolution/gear/craft/fuse/dungeons/summon pity) — COMPLETE",
     "status": "completed"
   },
   {
-    "content": "Verify centralized portrait asset architecture (fix 1 dead-code fallback in NinjaCard.jsx)",
+    "content": "Phase J2 frontend (Summon ceremony/Hero modal tabs/Forge/Dungeons/combat stats) — COMPLETE",
     "status": "completed"
   },
   {
-    "content": "Confirm replacement-safety via admin portrait override endpoints",
+    "content": "Phase J3 testing agent full run — COMPLETE (0 bugs)",
     "status": "completed"
   },
   {
-    "content": "Call testing_agent_v3 to verify Phase 3B combat mechanics (pending confirmation) + Phase 3C-A safety",
-    "status": "in_progress"
+    "content": "Final mobile + desktop verification, plan.md updated — COMPLETE",
+    "status": "completed"
   }
 ]

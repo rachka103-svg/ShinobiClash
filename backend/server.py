@@ -136,6 +136,38 @@ class BattleCompleteIn(BaseModel):
 
 class SummonIn(BaseModel):
     currency: str = "ryo"  # "ryo" | "ticket" | "gems"
+    count: int = 1         # 1 | 10
+
+
+class EvolveIn(BaseModel):
+    instance_id: str
+
+
+class GearEquipIn(BaseModel):
+    gear_id: str
+    instance_id: str
+
+
+class GearUnequipIn(BaseModel):
+    gear_id: str
+
+
+class GearEnhanceIn(BaseModel):
+    gear_id: str
+
+
+class GearCraftIn(BaseModel):
+    slot: str
+
+
+class FuseIn(BaseModel):
+    target_id: str  # item to create (see FUSION_RECIPES)
+    qty: int = 1
+
+
+class GearSummonIn(BaseModel):
+    currency: str = "gems"  # "gems" | "ticket"
+    count: int = 1
 
 
 class UseExpIn(BaseModel):
@@ -388,15 +420,37 @@ def new_ninja_instance(template_id: str, level: int = 1) -> dict:
 
 
 def _star_bonus_mult(stars: int) -> float:
-    """Each star beyond the 1st adds a small, permanent stat bonus — this is
-    what gives duplicate summons (converted to shards, see /game/summon)
-    real long-term value instead of being wasted."""
-    return 1 + max(0, (stars or 1) - 1) * 0.04
+    """Each star beyond the 1st adds a permanent stat bonus (evolution is
+    the ONLY way to gain stars) — this is what gives duplicate shards and
+    rare evolution materials real long-term value."""
+    return 1 + max(0, (stars or 1) - 1) * gd.STAR_BONUS_PER_STAR
+
+
+def _power_from_stats(s: dict) -> int:
+    return round(s["hp"] * 0.4 + s["atk"] * 2.2 + s["def"] * 1.6 + s["spd"] * 1.2 + s.get("chakra", 0) * 1.0)
+
+
+def gear_public(g: dict) -> dict:
+    """Serialize a gear instance with computed display values."""
+    stat, _ = gd.GEAR_MAIN_BASE[g["slot"]]
+    return {
+        **g,
+        "main_stat": stat,
+        "main_value": gd.gear_main_value(g["slot"], g["rarity"], g.get("plus", 0)),
+        "score": gd.gear_score(g),
+        "set_name": gd.GEAR_SETS.get(g["set_id"], {}).get("name"),
+        "enhance_cost": gd.gear_enhance_cost(g["rarity"], g.get("plus", 0)) if g.get("plus", 0) < gd.GEAR_ENHANCE_MAX else None,
+    }
 
 
 def public_user(user: dict) -> dict:
     """Serialize a user document into a JSON-safe game profile."""
     ninjas = user.get("ninjas", [])
+    gear_all = user.get("gear", [])
+    gear_by_hero = {}
+    for g in gear_all:
+        if g.get("equipped_by"):
+            gear_by_hero.setdefault(g["equipped_by"], []).append(g)
     for inst in ninjas:
         inst.setdefault("exp", 0)
         inst.setdefault("ascension", 0)
@@ -407,23 +461,26 @@ def public_user(user: dict) -> dict:
             continue
         rarity = tmpl["rarity"]
         star_mult = _star_bonus_mult(inst["stars"])
-        base_power = gd.ninja_power(inst["template_id"], inst["level"], asc)
         base_stats = gd.compute_stats(inst["template_id"], inst["level"], asc)
-        inst["power"] = round(base_power * star_mult)
-        inst["stats"] = {k: (round(v * star_mult) if k in ("hp", "atk", "def") else v) for k, v in base_stats.items()}
+        star_stats = {k: (round(v * star_mult) if k in ("hp", "atk", "def") else v) for k, v in base_stats.items()}
+        equipped = gear_by_hero.get(inst["instance_id"], [])
+        final_stats = gd.apply_gear_to_stats(star_stats, equipped) if equipped else star_stats
+        inst["stats"] = final_stats
+        inst["power"] = _power_from_stats(final_stats)
+        inst["equipped_gear"] = {g["slot"]: g["gear_id"] for g in equipped}
+        inst["gear_score"] = sum(gd.gear_score(g) for g in equipped)
         inst["exp_to_next"] = gd.hero_exp_to_next(inst["level"])
         inst["level_cap"] = gd.level_cap(rarity, asc)
         inst["ascension_max"] = gd.ASCENSION_MAX[rarity]
         inst["max_level"] = gd.max_level(rarity)
         inst["stars_max"] = gd.STAR_LEVEL_MAX
-        inst["star_up_cost"] = gd.star_up_cost(rarity, inst["stars"]) if inst["stars"] < gd.STAR_LEVEL_MAX else None
+        inst["evolution_cost"] = gd.evolution_cost(rarity, inst["stars"]) if inst["stars"] < gd.STAR_LEVEL_MAX else None
+        inst["star_up_cost"] = inst["evolution_cost"]["shards"] if inst["evolution_cost"] else None
         inst["faction"] = tmpl.get("faction")
         inst["role"] = tmpl.get("role")
         inst["passive"] = tmpl.get("passive")
-    team_power = sum(
-        round(gd.ninja_power(i["template_id"], i["level"], i.get("ascension", 0)) * _star_bonus_mult(i.get("stars", 1)))
-        for i in ninjas if i["instance_id"] in user.get("team", [])
-    )
+    team_ids = set(user.get("team", []))
+    team_power = sum(i.get("power", 0) for i in ninjas if i["instance_id"] in team_ids)
     return {
         "id": str(user["_id"]),
         "email": user["email"],
@@ -437,6 +494,8 @@ def public_user(user: dict) -> dict:
         "ninjas": ninjas,
         "inventory": user.get("inventory", {}),
         "hero_shards": user.get("hero_shards", {}),
+        "gear": [gear_public(g) for g in gear_all],
+        "pity": user.get("pity") or gd.fresh_pity_state(),
         "team": user.get("team", []),
         "cleared_stages": user.get("cleared_stages", []),
         "spire_floor": user.get("spire_floor", 0),
@@ -583,14 +642,42 @@ async def me(user: dict = Depends(get_current_user)):
 @api_router.get("/game/catalog")
 async def catalog():
     return {"ninjas": gd.NINJA_CATALOG, "element_advantage": gd.ELEMENT_ADVANTAGE,
-            "items": gd.ITEMS, "summon_cost": gd.SUMMON_COST, "trials": gd.TRIALS,
+            "items": gd.ITEMS, "summon_cost": gd.SUMMON_COST,
+            "trials": gd.TRIALS + gd.DUNGEON_TRIALS,
             "banner": banner_info(), "factions": gd.FACTIONS, "roles": gd.ROLES,
             "tags": gd.TAGS, "rarities": gd.RARITIES,
             "gem_costs": {
                 "summon": gd.GEM_SUMMON_COST,
                 "energy_refill_per_point": gd.GEM_ENERGY_REFILL_COST_PER_POINT,
                 "energy_refill_min": gd.GEM_ENERGY_REFILL_MIN_COST,
-            }}
+            },
+            # --- Phase J1 expansion config (data-driven; UI renders from this) ---
+            "summon_rates": gd.summon_rates(),
+            "pity_config": {
+                "soft_pity_start": gd.MYTHIC_SOFT_PITY_START,
+                "hard_pity": gd.MYTHIC_HARD_PITY,
+                "featured_5050": gd.FEATURED_MYTHIC_5050,
+                "x10_guarantee_rarity": gd.X10_GUARANTEE_RARITY,
+            },
+            "gear_config": {
+                "slots": gd.GEAR_SLOTS, "slot_meta": gd.GEAR_SLOT_META,
+                "rarities": gd.GEAR_RARITIES, "rarity_meta": gd.GEAR_RARITY_META,
+                "sets": gd.GEAR_SETS, "enhance_max": gd.GEAR_ENHANCE_MAX,
+                "summon_gem_cost": gd.GEAR_SUMMON_GEM_COST, "summon_rates": gd.GEAR_SUMMON_RATES,
+            },
+            "craft_recipes": gd.CRAFT_RECIPES,
+            "fusion_recipes": gd.FUSION_RECIPES,
+            "exp_tome_gold_cost": gd.EXP_TOME_GOLD_COST,
+            "dungeons": [
+                {**d, "tiers": [
+                    {"id": t["id"], "tier": t["tier"], "name": t["name"], "enemies": t["enemies"],
+                     "rewards": {k: v for k, v in t["rewards"].items() if k != "blueprint_chance"},
+                     "blueprint_chance": t["rewards"].get("blueprint_chance"),
+                     "has_gear_drop": bool(t.get("gear_drop")),
+                     "recommended_power": gd.dungeon_recommended_power(t)}
+                    for t in gd.DUNGEON_TRIALS if t["dungeon_id"] == d["id"]
+                ]} for d in gd.DUNGEONS
+            ]}
 
 
 @api_router.get("/game/stages")
@@ -862,6 +949,14 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
     user["inventory"] = inventory
     rewards["items"] = drops
 
+    # gear drops — battles from Chapter 2 onward can drop gear (long-term loop)
+    chapter = stage.get("chapter", 1)
+    rewards["gear"] = None
+    if chapter >= 2 and len(user.get("gear", [])) < GEAR_INVENTORY_CAP and random.random() < 0.14:
+        g = gd.roll_gear(min_tier=1, max_tier=min(1 + chapter // 3, 5), luck=min(0.5, chapter * 0.04))
+        user.setdefault("gear", []).append(g)
+        rewards["gear"] = gear_public(g)
+
     if first_clear:
         cleared.append(body.stage_id)
         fc = stage.get("first_clear", {})
@@ -885,39 +980,78 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
         {"_id": user["_id"]},
         {"$set": {"ryo": user["ryo"], "gems": user.get("gems", 0), "level": user["level"], "exp": user["exp"],
                   "ninjas": ninjas, "inventory": inventory, "cleared_stages": cleared, "wins": user["wins"],
-                  "daily": user["daily"]}},
+                  "daily": user["daily"], "gear": user.get("gear", [])}},
     )
     user["cleared_stages"] = cleared
     return {"profile": public_user(user), "rewards": rewards, "result": "win", "first_clear": first_clear}
 
 
-@api_router.post("/game/summon")
-async def summon(body: SummonIn, user: dict = Depends(get_current_user)):
-    inventory = user.get("inventory", {})
-    use_ticket = body.currency == "ticket"
-    use_gems = body.currency == "gems"
-    if use_ticket:
-        if inventory.get("summon_ticket", 0) < 1:
-            raise HTTPException(status_code=400, detail="No summon tickets available")
-    elif use_gems:
-        if user.get("gems", 0) < gd.GEM_SUMMON_COST:
-            raise HTTPException(status_code=400, detail="Not enough Gems to summon")
-    elif user.get("ryo", 0) < gd.SUMMON_COST:
-        raise HTTPException(status_code=400, detail="Not enough Ryo to summon")
-
-    pool = []
+def _rarity_pool(min_rarity: str = None, exclude_mythic: bool = True) -> list:
+    """Weighted (template_id, weight) list, optionally floored at a rarity."""
+    floor = gd.RARITY_ORDER[min_rarity] if min_rarity else -1
+    out = []
     for tid, t in gd.CATALOG_BY_ID.items():
-        pool.extend([tid] * gd.SUMMON_WEIGHTS[t["rarity"]])
-    featured = FEATURED_BANNER["template_id"]
-    if featured in gd.CATALOG_BY_ID and random.random() < FEATURED_CHANCE:
-        chosen = featured  # rate-up: featured hero pulled
-    else:
-        chosen = random.choice(pool)
-    tmpl = gd.CATALOG_BY_ID[chosen]
+        ri = gd.RARITY_ORDER[t["rarity"]]
+        if exclude_mythic and t["rarity"] == "MYTHIC":
+            continue
+        if ri >= floor:
+            out.append((tid, gd.SUMMON_WEIGHTS[t["rarity"]]))
+    return out
 
-    # Duplicate protection: a copy of a hero already owned is NEVER wasted —
-    # it converts into shards that fuel that hero's star-up progression
-    # instead of cluttering the roster with an unusable extra instance.
+
+def _weighted_choice(pool: list) -> str:
+    tids = [p[0] for p in pool]
+    weights = [p[1] for p in pool]
+    return random.choices(tids, weights=weights, k=1)[0]
+
+
+def _pull_once(user: dict, pity: dict, force_sr_plus: bool = False) -> dict:
+    """Executes ONE gacha pull with the full rarity-tiered pity model:
+    - MYTHIC: base rate pulls 1-99, soft-pity ramp 100-149, hard pity at 150.
+      A natural MYTHIC resets the counter. Featured MYTHIC is 50/50 with a
+      guarantee after a loss (state on `pity.featured_guarantee`).
+    - Lower-rarity rate-up (legacy featured banner for non-MYTHIC heroes)
+      never touches MYTHIC pity.
+    Mutates `pity` and grants the hero/shards on `user`. Returns result dict."""
+    counter = pity.get("mythic", 0) + 1
+    featured = FEATURED_BANNER["template_id"]
+    featured_tmpl = gd.CATALOG_BY_ID.get(featured) if featured else None
+    featured_is_mythic = bool(featured_tmpl and featured_tmpl["rarity"] == "MYTHIC")
+
+    chosen = None
+    pity_note = None
+    if random.random() < gd.mythic_chance(counter):
+        # --- MYTHIC obtained ---
+        mythics = [tid for tid, t in gd.CATALOG_BY_ID.items() if t["rarity"] == "MYTHIC"]
+        if featured_is_mythic:
+            if pity.get("featured_guarantee"):
+                chosen = featured
+                pity["featured_guarantee"] = False
+                pity_note = "featured_guaranteed"
+            elif random.random() < gd.FEATURED_MYTHIC_5050:
+                chosen = featured
+                pity_note = "featured_5050_won"
+            else:
+                others = [m for m in mythics if m != featured] or mythics
+                chosen = random.choice(others)
+                pity["featured_guarantee"] = True
+                pity_note = "featured_5050_lost"
+        else:
+            chosen = random.choice(mythics) if mythics else None
+        pity["mythic"] = 0
+        if counter >= gd.MYTHIC_HARD_PITY:
+            pity_note = pity_note or "hard_pity"
+    if chosen is None:
+        # --- non-MYTHIC path ---
+        pity["mythic"] = counter
+        if featured and not featured_is_mythic and random.random() < FEATURED_CHANCE:
+            chosen = featured
+        else:
+            pool = _rarity_pool(min_rarity=gd.X10_GUARANTEE_RARITY if force_sr_plus else None)
+            chosen = _weighted_choice(pool)
+    pity["total_pulls"] = pity.get("total_pulls", 0) + 1
+
+    tmpl = gd.CATALOG_BY_ID[chosen]
     hero_shards = user.setdefault("hero_shards", {})
     is_duplicate = any(n["template_id"] == chosen for n in user.get("ninjas", []))
     shards_gained = 0
@@ -926,31 +1060,59 @@ async def summon(body: SummonIn, user: dict = Depends(get_current_user)):
         hero_shards[chosen] = hero_shards.get(chosen, 0) + shards_gained
     else:
         user.setdefault("ninjas", []).append(new_ninja_instance(chosen))
+    return {"template_id": chosen, "name": tmpl["name"], "rarity": tmpl["rarity"],
+            "element": tmpl["element"], "role": tmpl["role"], "portrait": tmpl["portrait"],
+            "duplicate": is_duplicate, "shards_gained": shards_gained, "pity_note": pity_note}
+
+
+@api_router.post("/game/summon")
+async def summon(body: SummonIn, user: dict = Depends(get_current_user)):
+    count = 10 if body.count >= 10 else 1
+    inventory = user.get("inventory", {})
+    use_ticket = body.currency == "ticket"
+    use_gems = body.currency == "gems"
+    if use_ticket:
+        if inventory.get("summon_ticket", 0) < count:
+            raise HTTPException(status_code=400, detail=f"Need {count} summon tickets")
+    elif use_gems:
+        if user.get("gems", 0) < gd.GEM_SUMMON_COST * count:
+            raise HTTPException(status_code=400, detail=f"Not enough Gems — need {gd.GEM_SUMMON_COST * count}")
+    elif user.get("ryo", 0) < gd.SUMMON_COST * count:
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {gd.SUMMON_COST * count}")
+
+    pity = user.get("pity") or gd.fresh_pity_state()
+    results = []
+    for i in range(count):
+        # x10 guarantee: if the first 9 pulls were all below SR, the 10th is
+        # forced to SR+ (never interferes with MYTHIC pity — the MYTHIC roll
+        # still happens first inside _pull_once).
+        force = (count == 10 and i == 9 and
+                 not any(gd.RARITY_ORDER[r["rarity"]] >= gd.RARITY_ORDER[gd.X10_GUARANTEE_RARITY] for r in results))
+        results.append(_pull_once(user, pity, force_sr_plus=force))
 
     if use_ticket:
-        inventory["summon_ticket"] -= 1
+        inventory["summon_ticket"] -= count
         user["inventory"] = inventory
     elif use_gems:
-        user["gems"] = user.get("gems", 0) - gd.GEM_SUMMON_COST
+        user["gems"] = user.get("gems", 0) - gd.GEM_SUMMON_COST * count
     else:
-        user["ryo"] -= gd.SUMMON_COST
-    bump_mission(user, "summon")
+        user["ryo"] -= gd.SUMMON_COST * count
+    user["pity"] = pity
+    bump_mission(user, "summon", count)
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"], "inventory": inventory,
-        "daily": user["daily"], "hero_shards": hero_shards,
+        "daily": user["daily"], "hero_shards": user.get("hero_shards", {}), "pity": pity,
     }})
-    return {"profile": public_user(user),
-            "summoned": {"template_id": chosen, "name": tmpl["name"], "rarity": tmpl["rarity"],
-                         "element": tmpl["element"], "role": tmpl["role"], "portrait": tmpl["portrait"],
-                         "duplicate": is_duplicate, "shards_gained": shards_gained}}
+    return {"profile": public_user(user), "results": results, "pity": pity,
+            # legacy single-pull field kept for backward compatibility
+            "summoned": results[0] if count == 1 else None}
 
 
-@api_router.post("/game/hero/star-up")
-async def star_up(body: StarUpIn, user: dict = Depends(get_current_user)):
-    """Spend shards (earned from duplicate summons) to raise a hero's star
-    level, granting a small permanent stat bonus. Part of the long-term
-    merge/duplicate progression system — duplicates always have value."""
-    inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == body.instance_id), None)
+async def _do_evolve(instance_id: str, user: dict) -> dict:
+    """Evolution (star breakthrough) — the ONLY way to raise stars. Early
+    stars burn duplicate shards + ryo; stars 4-6 additionally require rare
+    evolution materials (Evolution Essence / Celestial Cores)."""
+    inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == instance_id), None)
     if not inst:
         raise HTTPException(status_code=404, detail="Hero not found")
     tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
@@ -958,16 +1120,39 @@ async def star_up(body: StarUpIn, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Hero template not found")
     stars = inst.get("stars", 1)
     if stars >= gd.STAR_LEVEL_MAX:
-        raise HTTPException(status_code=400, detail="This hero is already at maximum star level")
-    cost = gd.star_up_cost(tmpl["rarity"], stars)
+        raise HTTPException(status_code=400, detail="This hero is already at maximum evolution")
+    cost = gd.evolution_cost(tmpl["rarity"], stars)
     hero_shards = user.setdefault("hero_shards", {})
-    have = hero_shards.get(inst["template_id"], 0)
-    if have < cost:
-        raise HTTPException(status_code=400, detail=f"Not enough shards ({have}/{cost})")
-    hero_shards[inst["template_id"]] = have - cost
+    inventory = user.get("inventory", {})
+    have_shards = hero_shards.get(inst["template_id"], 0)
+    if have_shards < cost["shards"]:
+        raise HTTPException(status_code=400, detail=f"Not enough shards ({have_shards}/{cost['shards']})")
+    if user.get("ryo", 0) < cost["ryo"]:
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost['ryo']}")
+    for iid, qty in cost["items"].items():
+        if inventory.get(iid, 0) < qty:
+            name = gd.ITEMS.get(iid, {}).get("name", iid)
+            raise HTTPException(status_code=400, detail=f"Not enough {name} ({inventory.get(iid, 0)}/{qty})")
+    hero_shards[inst["template_id"]] = have_shards - cost["shards"]
+    user["ryo"] -= cost["ryo"]
+    for iid, qty in cost["items"].items():
+        inventory[iid] -= qty
     inst["stars"] = stars + 1
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"ninjas": user["ninjas"], "hero_shards": hero_shards}})
+    user["inventory"] = inventory
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"], "inventory": inventory}})
     return {"profile": public_user(user), "instance_id": inst["instance_id"], "stars": inst["stars"]}
+
+
+@api_router.post("/game/hero/evolve")
+async def evolve_hero(body: EvolveIn, user: dict = Depends(get_current_user)):
+    return await _do_evolve(body.instance_id, user)
+
+
+@api_router.post("/game/hero/star-up")
+async def star_up(body: StarUpIn, user: dict = Depends(get_current_user)):
+    """Legacy route — kept for compatibility; now runs the Evolution system."""
+    return await _do_evolve(body.instance_id, user)
 
 
 @api_router.post("/game/hero/use-exp")
@@ -985,13 +1170,18 @@ async def use_exp_item(body: UseExpIn, user: dict = Depends(get_current_user)):
     rarity = gd.CATALOG_BY_ID[inst["template_id"]]["rarity"]
     if inst["level"] >= gd.level_cap(rarity, inst.get("ascension", 0)):
         raise HTTPException(status_code=400, detail="Hero is at its level cap — ascend to raise it")
+    # Training consumes gold alongside tomes (dual cost, standard for genre)
+    gold_cost = gd.EXP_TOME_GOLD_COST.get(body.item_id, 0) * qty
+    if user.get("ryo", 0) < gold_cost:
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — training costs {gold_cost}")
+    user["ryo"] = user.get("ryo", 0) - gold_cost
     inventory[body.item_id] -= qty
     levels = grant_hero_exp(inst, item["value"] * qty)
     user["inventory"] = inventory
     if levels > 0:
         bump_mission(user, "hero_levelup", levels)
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"ninjas": user["ninjas"], "inventory": inventory, "daily": user["daily"]}})
-    return {"profile": public_user(user), "levels_gained": levels}
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"ninjas": user["ninjas"], "inventory": inventory, "daily": user["daily"], "ryo": user["ryo"]}})
+    return {"profile": public_user(user), "levels_gained": levels, "gold_spent": gold_cost}
 
 
 @api_router.post("/game/hero/ascend")
@@ -1017,6 +1207,140 @@ async def ascend_hero(body: AscendIn, user: dict = Depends(get_current_user)):
     user["inventory"] = inventory
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"ninjas": user["ninjas"], "inventory": inventory, "ryo": user["ryo"]}})
     return public_user(user)
+
+
+# ---------------------------------------------------------------------------
+# GEAR — equip/unequip/enhance/craft/fuse/summon (Phase J1)
+# ---------------------------------------------------------------------------
+GEAR_INVENTORY_CAP = 250
+
+
+def _find_gear(user: dict, gear_id: str) -> dict:
+    g = next((g for g in user.get("gear", []) if g["gear_id"] == gear_id), None)
+    if not g:
+        raise HTTPException(status_code=404, detail="Gear not found")
+    return g
+
+
+@api_router.post("/game/gear/equip")
+async def gear_equip(body: GearEquipIn, user: dict = Depends(get_current_user)):
+    g = _find_gear(user, body.gear_id)
+    inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == body.instance_id), None)
+    if not inst:
+        raise HTTPException(status_code=404, detail="Hero not found")
+    # one piece per slot per hero — auto-swap out whatever occupies the slot
+    for other in user.get("gear", []):
+        if other.get("equipped_by") == body.instance_id and other["slot"] == g["slot"] and other["gear_id"] != g["gear_id"]:
+            other["equipped_by"] = None
+    g["equipped_by"] = body.instance_id
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"gear": user["gear"]}})
+    return {"profile": public_user(user), "equipped": g["gear_id"]}
+
+
+@api_router.post("/game/gear/unequip")
+async def gear_unequip(body: GearUnequipIn, user: dict = Depends(get_current_user)):
+    g = _find_gear(user, body.gear_id)
+    g["equipped_by"] = None
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"gear": user["gear"]}})
+    return {"profile": public_user(user)}
+
+
+@api_router.post("/game/gear/enhance")
+async def gear_enhance(body: GearEnhanceIn, user: dict = Depends(get_current_user)):
+    g = _find_gear(user, body.gear_id)
+    plus = g.get("plus", 0)
+    if plus >= gd.GEAR_ENHANCE_MAX:
+        raise HTTPException(status_code=400, detail="Gear is already at +15")
+    cost = gd.gear_enhance_cost(g["rarity"], plus)
+    inventory = user.get("inventory", {})
+    if user.get("ryo", 0) < cost["ryo"]:
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost['ryo']}")
+    hammers = cost.get("forge_hammer", 0)
+    if hammers and inventory.get("forge_hammer", 0) < hammers:
+        raise HTTPException(status_code=400, detail=f"Not enough Forge Hammers ({inventory.get('forge_hammer', 0)}/{hammers})")
+    user["ryo"] -= cost["ryo"]
+    if hammers:
+        inventory["forge_hammer"] -= hammers
+    g["plus"] = plus + 1
+    user["inventory"] = inventory
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"gear": user["gear"], "ryo": user["ryo"], "inventory": inventory}})
+    return {"profile": public_user(user), "gear": gear_public(g)}
+
+
+@api_router.post("/game/gear/craft")
+async def gear_craft(body: GearCraftIn, user: dict = Depends(get_current_user)):
+    recipe = gd.CRAFT_RECIPES.get(body.slot)
+    if not recipe:
+        raise HTTPException(status_code=400, detail="Invalid gear slot")
+    if len(user.get("gear", [])) >= GEAR_INVENTORY_CAP:
+        raise HTTPException(status_code=400, detail="Gear inventory is full — enhance or clear space first")
+    inventory = user.get("inventory", {})
+    if inventory.get(recipe["blueprint"], 0) < 1:
+        raise HTTPException(status_code=400, detail=f"Missing {gd.ITEMS[recipe['blueprint']]['name']}")
+    if inventory.get("forge_steel", 0) < recipe["forge_steel"]:
+        raise HTTPException(status_code=400, detail=f"Not enough Forge Steel ({inventory.get('forge_steel', 0)}/{recipe['forge_steel']})")
+    if user.get("ryo", 0) < recipe["ryo"]:
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {recipe['ryo']}")
+    inventory[recipe["blueprint"]] -= 1
+    inventory["forge_steel"] -= recipe["forge_steel"]
+    user["ryo"] -= recipe["ryo"]
+    g = gd.craft_gear(body.slot)
+    user.setdefault("gear", []).append(g)
+    user["inventory"] = inventory
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"gear": user["gear"], "ryo": user["ryo"], "inventory": inventory}})
+    return {"profile": public_user(user), "crafted": gear_public(g)}
+
+
+@api_router.post("/game/material/fuse")
+async def material_fuse(body: FuseIn, user: dict = Depends(get_current_user)):
+    recipe = gd.FUSION_RECIPES.get(body.target_id)
+    if not recipe:
+        raise HTTPException(status_code=400, detail="Unknown fusion recipe")
+    qty = max(1, min(99, body.qty))
+    need = recipe["qty"] * qty
+    inventory = user.get("inventory", {})
+    have = inventory.get(recipe["from"], 0)
+    if have < need:
+        src = gd.ITEMS.get(recipe["from"], {}).get("name", recipe["from"])
+        raise HTTPException(status_code=400, detail=f"Not enough {src} ({have}/{need})")
+    inventory[recipe["from"]] = have - need
+    inventory[body.target_id] = inventory.get(body.target_id, 0) + qty
+    user["inventory"] = inventory
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"inventory": inventory}})
+    return {"profile": public_user(user), "fused": {body.target_id: qty}}
+
+
+@api_router.post("/game/gear/summon")
+async def gear_summon(body: GearSummonIn, user: dict = Depends(get_current_user)):
+    """Armory summon — pulls gear (Rare+) using Gems or Gear Tickets.
+    x10 guarantees at least one Epic+."""
+    count = 10 if body.count >= 10 else 1
+    if len(user.get("gear", [])) + count > GEAR_INVENTORY_CAP:
+        raise HTTPException(status_code=400, detail="Gear inventory is full")
+    inventory = user.get("inventory", {})
+    if body.currency == "ticket":
+        if inventory.get("gear_ticket", 0) < count:
+            raise HTTPException(status_code=400, detail=f"Need {count} Gear Tickets")
+        inventory["gear_ticket"] -= count
+    else:
+        cost = gd.GEAR_SUMMON_GEM_COST * count
+        if user.get("gems", 0) < cost:
+            raise HTTPException(status_code=400, detail=f"Not enough Gems — need {cost}")
+        user["gems"] = user.get("gems", 0) - cost
+    results = []
+    for i in range(count):
+        force_epic = (count == 10 and i == 9 and
+                      not any(gd.GEAR_RARITY_META[r["rarity"]]["tier"] >= 4 for r in results))
+        rarity = "epic" if force_epic else random.choices(
+            list(gd.GEAR_SUMMON_RATES.keys()), weights=list(gd.GEAR_SUMMON_RATES.values()), k=1)[0]
+        tier = gd.GEAR_RARITY_META[rarity]["tier"]
+        g = gd.roll_gear(min_tier=tier, max_tier=tier)
+        user.setdefault("gear", []).append(g)
+        results.append(gear_public(g))
+    user["inventory"] = inventory
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "gear": user["gear"], "gems": user.get("gems", 0), "inventory": inventory}})
+    return {"profile": public_user(user), "results": results}
 
 
 @api_router.post("/game/spire/complete")
@@ -1066,14 +1390,36 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     inventory = user.get("inventory", {})
     for iid, qty in rw.get("items", {}).items():
         inventory[iid] = inventory.get(iid, 0) + qty
+
+    # --- Resource Dungeon extras (gear drops / blueprint rolls) ---
+    gear_reward = None
+    blueprint_reward = None
+    if trial.get("gear_drop") and len(user.get("gear", [])) < GEAR_INVENTORY_CAP:
+        spec = trial["gear_drop"]
+        g = gd.roll_gear(min_tier=spec["min_tier"], max_tier=spec["max_tier"], luck=min(0.75, spec.get("luck", 0)))
+        user.setdefault("gear", []).append(g)
+        gear_reward = gear_public(g)
+    bp_chance = rw.get("blueprint_chance")
+    if bp_chance and random.random() < bp_chance:
+        bp = f"blueprint_{random.choice(gd.GEAR_SLOTS)}"
+        inventory[bp] = inventory.get(bp, 0) + 1
+        blueprint_reward = bp
+
     user["inventory"] = inventory
     bump_mission(user, "trial_win")
     bump_mission(user, "any_win")
     total_levels = sum(h["levels"] for h in hero_exp)
     if total_levels:
         bump_mission(user, "hero_levelup", total_levels)
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"ryo": user["ryo"], "ninjas": user["ninjas"], "inventory": inventory, "daily": user["daily"]}})
-    return {"profile": public_user(user), "rewards": {"ryo": rw.get("ryo", 0), "items": rw.get("items", {}), "hero_exp": hero_exp}, "result": "win"}
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ryo": user["ryo"], "ninjas": user["ninjas"], "inventory": inventory, "daily": user["daily"],
+        "gear": user.get("gear", [])}})
+    items_out = dict(rw.get("items", {}))
+    if blueprint_reward:
+        items_out[blueprint_reward] = items_out.get(blueprint_reward, 0) + 1
+    return {"profile": public_user(user),
+            "rewards": {"ryo": rw.get("ryo", 0), "items": items_out, "hero_exp": hero_exp, "gear": gear_reward},
+            "result": "win"}
 
 
 @api_router.get("/game/leaderboard")
