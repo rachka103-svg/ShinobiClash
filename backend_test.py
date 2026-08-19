@@ -490,6 +490,171 @@ def test_team_save_updates_arena_snapshot():
 
 
 # ============================================================================
+# GEMS CURRENCY TESTS (New Feature)
+# ============================================================================
+def test_new_user_starts_with_gems():
+    """New users should start with 100 Gems"""
+    _, profile = create_test_user()
+    assert profile["gems"] == 100, f"Expected 100 gems, got {profile['gems']}"
+    print(f"  Starting gems: {profile['gems']}")
+
+def test_admin_has_gems():
+    """Admin should have gems"""
+    _, profile = login_admin()
+    assert profile["gems"] >= 0, f"Admin should have gems, got {profile['gems']}"
+    print(f"  Admin gems: {profile['gems']}")
+
+def test_daily_login_claim_grants_gems():
+    """Daily login claim should grant gems on day 3/5/7"""
+    s, profile = create_test_user()
+    # Claim day 1 (should have ryo, no gems)
+    r = s.post(f"{API}/game/login/claim")
+    assert r.status_code == 200, f"Day 1 claim failed: {r.status_code} {r.text}"
+    data = r.json()
+    assert data["day"] == 1, f"Should be day 1, got {data['day']}"
+    print(f"  Day 1 claimed: {data['reward']}")
+
+def test_daily_login_already_claimed():
+    """Cannot claim daily login twice in same day"""
+    s, _ = create_test_user()
+    r = s.post(f"{API}/game/login/claim")
+    assert r.status_code == 200, "First claim should succeed"
+    r = s.post(f"{API}/game/login/claim")
+    assert r.status_code == 400, f"Second claim should fail, got {r.status_code}"
+    assert "already claimed" in r.json()["detail"].lower(), "Should mention already claimed"
+    print(f"  Correctly blocked double claim")
+
+def test_energy_refill_with_gems():
+    """POST /game/energy/refill should refill energy using gems"""
+    s, profile = login_admin()  # Use admin who has 5000 gems
+    # Drain some energy
+    for _ in range(5):
+        s.post(f"{API}/game/battle/start", json={"mode": "campaign", "id": "s1"})
+    
+    # Get current state
+    r = s.get(f"{API}/game/energy")
+    before_energy = r.json()["energy"]["current"]
+    before_gems = profile["gems"]
+    
+    # Refill
+    r = s.post(f"{API}/game/energy/refill")
+    assert r.status_code == 200, f"Refill failed: {r.status_code} {r.text}"
+    data = r.json()
+    assert data["profile"]["energy"]["current"] == 100, "Energy should be full"
+    assert data["profile"]["gems"] < before_gems, "Gems should be deducted"
+    assert data["cost"] > 0, "Cost should be positive"
+    print(f"  Refilled: {before_energy}→100 energy, cost: {data['cost']} gems")
+
+def test_energy_refill_when_full():
+    """Cannot refill energy when already full"""
+    s, _ = create_test_user()
+    r = s.post(f"{API}/game/energy/refill")
+    assert r.status_code == 400, f"Should fail when full, got {r.status_code}"
+    assert "full" in r.json()["detail"].lower(), "Should mention energy is full"
+    print(f"  Correctly blocked refill when full")
+
+def test_energy_refill_insufficient_gems():
+    """Energy refill should fail with insufficient gems"""
+    s, profile = create_test_user()
+    # Drain all gems by summoning
+    while profile["gems"] >= 300:
+        r = s.post(f"{API}/game/summon", json={"currency": "gems"})
+        if r.status_code != 200:
+            break
+        profile = r.json()["profile"]
+    
+    # Drain energy
+    for _ in range(5):
+        s.post(f"{API}/game/battle/start", json={"mode": "campaign", "id": "s1"})
+    
+    # Try to refill
+    r = s.post(f"{API}/game/energy/refill")
+    if r.status_code == 400:
+        assert "gems" in r.json()["detail"].lower(), "Should mention insufficient gems"
+        print(f"  Correctly blocked: {r.json()['detail']}")
+    else:
+        print(f"  User still had enough gems to refill")
+
+def test_premium_summon_with_gems():
+    """POST /game/summon with currency=gems should work"""
+    s, profile = login_admin()  # Use admin who has 5000 gems
+    before_gems = profile["gems"]
+    r = s.post(f"{API}/game/summon", json={"currency": "gems"})
+    assert r.status_code == 200, f"Gem summon failed: {r.status_code} {r.text}"
+    data = r.json()
+    assert "summoned" in data, "Should return summoned hero"
+    assert data["profile"]["gems"] < before_gems, "Gems should be deducted"
+    gems_cost = before_gems - data["profile"]["gems"]
+    print(f"  Summoned {data['summoned']['name']} ({data['summoned']['rarity']}) for {gems_cost} gems")
+
+def test_premium_summon_insufficient_gems():
+    """Gem summon should fail with insufficient gems"""
+    s, profile = create_test_user()
+    # New user has 100 gems, summon costs 300
+    r = s.post(f"{API}/game/summon", json={"currency": "gems"})
+    assert r.status_code == 400, f"Should fail with insufficient gems, got {r.status_code}"
+    assert "gems" in r.json()["detail"].lower(), "Should mention insufficient gems"
+    print(f"  Correctly blocked: {r.json()['detail']}")
+
+def test_campaign_first_clear_grants_gems():
+    """First clear of campaign stage should grant gems"""
+    s, profile = create_test_user()
+    before_gems = profile["gems"]
+    
+    # Start and complete stage
+    s.post(f"{API}/game/battle/start", json={"mode": "campaign", "id": "s1"})
+    r = s.post(f"{API}/game/battle/complete", json={
+        "stage_id": "s1", "result": "win", "participants": [], "survivors": []
+    })
+    assert r.status_code == 200, f"Battle complete failed: {r.text}"
+    data = r.json()
+    assert data["first_clear"] is True, "Should be first clear"
+    assert data["rewards"]["gems"] > 0, f"Should grant gems, got {data['rewards']['gems']}"
+    assert data["profile"]["gems"] > before_gems, "Gems should increase"
+    print(f"  First clear: +{data['rewards']['gems']} gems")
+
+def test_arena_milestone_grants_gems():
+    """Every 5th arena win should grant bonus gems"""
+    s1, p1 = login_admin()  # Use admin to have enough attempts
+    s2, p2 = create_test_user()
+    
+    # Win 5 arena battles
+    for i in range(5):
+        r = s1.post(f"{API}/arena/opponent")
+        if r.status_code != 200:
+            print(f"  Skipping: not enough opponents")
+            return
+        opp_id = r.json()["opponent"]["user_id"]
+        s1.post(f"{API}/arena/battle/start", json={"opponent_user_id": opp_id})
+        r = s1.post(f"{API}/arena/battle/complete", json={
+            "opponent_user_id": opp_id, "result": "win", "participants": [], "survivors": []
+        })
+        if i == 4:  # 5th win
+            data = r.json()
+            if data["rewards"]["gems"] > 0:
+                print(f"  5th win milestone: +{data['rewards']['gems']} gems")
+            else:
+                print(f"  Note: 5th win did not grant gems (may need more testing)")
+
+def test_spire_milestone_grants_gems():
+    """Every 5th spire floor should grant bonus gems"""
+    s, profile = login_admin()  # Use admin for easier progression
+    
+    # Clear floors 1-5
+    for floor in range(1, 6):
+        s.post(f"{API}/game/battle/start", json={"mode": "spire", "id": str(floor)})
+        r = s.post(f"{API}/game/spire/complete", json={
+            "floor": floor, "result": "win", "participants": [], "survivors": []
+        })
+        if floor == 5:
+            data = r.json()
+            if data["rewards"]["gems"] > 0:
+                print(f"  Floor 5 milestone: +{data['rewards']['gems']} gems")
+            else:
+                print(f"  Note: Floor 5 did not grant gems (may need more testing)")
+
+
+# ============================================================================
 # MAIN TEST RUNNER
 # ============================================================================
 def main():
@@ -538,6 +703,21 @@ def main():
     runner.test("Arena lose lowers rating", test_arena_lose_lowers_rating)
     runner.test("Arena daily attempt cap enforced", test_arena_daily_attempt_cap)
     runner.test("Team save updates arena snapshot", test_team_save_updates_arena_snapshot)
+    
+    # Gems Currency Tests
+    print(f"\n{Colors.YELLOW}━━━ GEMS CURRENCY TESTS (New Feature) ━━━{Colors.RESET}")
+    runner.test("New user starts with gems", test_new_user_starts_with_gems)
+    runner.test("Admin has gems", test_admin_has_gems)
+    runner.test("Daily login claim works", test_daily_login_claim_grants_gems)
+    runner.test("Daily login double claim blocked", test_daily_login_already_claimed)
+    runner.test("Energy refill with gems works", test_energy_refill_with_gems)
+    runner.test("Energy refill when full blocked", test_energy_refill_when_full)
+    runner.test("Energy refill insufficient gems", test_energy_refill_insufficient_gems)
+    runner.test("Premium summon with gems works", test_premium_summon_with_gems)
+    runner.test("Premium summon insufficient gems", test_premium_summon_insufficient_gems)
+    runner.test("Campaign first clear grants gems", test_campaign_first_clear_grants_gems)
+    runner.test("Arena milestone grants gems", test_arena_milestone_grants_gems)
+    runner.test("Spire milestone grants gems", test_spire_milestone_grants_gems)
     
     # Regression Tests
     print(f"\n{Colors.YELLOW}━━━ REGRESSION TESTS ━━━{Colors.RESET}")

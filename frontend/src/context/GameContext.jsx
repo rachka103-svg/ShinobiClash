@@ -12,6 +12,7 @@ export function GameProvider({ children }) {
   const [items, setItems] = useState({});
   const [trials, setTrials] = useState([]);
   const [summonCost, setSummonCost] = useState(300);
+  const [gemCosts, setGemCosts] = useState({ summon: 150, energy_refill_per_point: 4, energy_refill_min: 15 });
   const [banner, setBanner] = useState(null);
   const [loading, setLoading] = useState(true);
   const [catalogError, setCatalogError] = useState(null);
@@ -22,6 +23,7 @@ export function GameProvider({ children }) {
     setItems(data.items || {});
     setTrials(data.trials || []);
     setSummonCost(data.summon_cost || 300);
+    setGemCosts(data.gem_costs || { summon: 150, energy_refill_per_point: 4, energy_refill_min: 15 });
     setBanner(data.banner || null);
     const map = {};
     data.ninjas.forEach((n) => { map[n.id] = n; });
@@ -57,7 +59,7 @@ export function GameProvider({ children }) {
 
   return (
     <GameContext.Provider value={{
-      catalog, catalogById, advantage, stages, bossMechanics, items, trials, summonCost, banner,
+      catalog, catalogById, advantage, stages, bossMechanics, items, trials, summonCost, gemCosts, banner,
       loading, catalogError, retryCatalog: loadInitialData, refreshCatalog,
     }}>
       {children}

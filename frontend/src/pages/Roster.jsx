@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import HeroPortrait from "@/components/HeroPortrait";
-import HeroShowcase from "@/components/HeroShowcase";
+import HeroDetailModal from "@/components/HeroDetailModal";
 import EliteBurst from "@/components/EliteBurst";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import api, { formatApiErrorDetail } from "@/lib/api";
@@ -179,20 +179,16 @@ export default function Roster() {
 
       <EliteBurst color={burst?.color} />
 
-      <HeroShowcase
+      <HeroDetailModal
         open={!!selected}
         onClose={() => setSelected(null)}
-        hero={sel}
         template={selTpl}
-        busy={busy}
-        inv={inv}
-        items={items}
-        atCap={atCap}
-        fullyAscended={fullyAscended}
-        ascCost={ascCost}
-        canAscend={canAscend}
-        onUseExpTome={applyExpTome}
-        onAscend={ascend}
+        instance={sel}
+        owned
+        progression={{
+          busy, inv, items, atCap, fullyAscended, ascCost, canAscend,
+          onUseExpTome: applyExpTome, onAscend: ascend,
+        }}
       />
     </div>
   );

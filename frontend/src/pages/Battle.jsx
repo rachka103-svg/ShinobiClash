@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Zap, Coins, Trophy, Skull, ArrowRight, Flame } from "lucide-react";
+import { Zap, Coins, Gem, Trophy, Skull, ArrowRight, Flame, Bot, Gauge } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import {
@@ -14,6 +14,39 @@ import api from "@/lib/api";
 let _uid = 0;
 const nextUid = () => `c${_uid++}`;
 const cloneArr = (arr) => arr.map((c) => ({ ...c, statuses: (c.statuses || []).map((s) => ({ ...s })) }));
+
+/**
+ * Shared AI decision-making — picks a jutsu + target for a combatant given
+ * the current battlefield. Used identically by the enemy AI and by the
+ * player's Auto-Battle mode, so "auto" plays exactly like a smart opponent
+ * would: heal a wounded ally when possible, otherwise favor AoE when it's
+ * worth it, otherwise focus the lowest-HP enemy with the strongest attack
+ * it can currently afford.
+ */
+function pickAiAction(actor, arr) {
+  const enemies = arr.filter((c) => c.side !== actor.side && c.alive);
+  const allies = arr.filter((c) => c.side === actor.side && c.alive);
+  const affordable = actor.jutsus.filter((j) => j.chakra_cost <= actor.chakra);
+  const healJ = affordable.find((j) => j.type === "heal");
+  const woundedAlly = allies.find((a) => a.hp / a.maxHp < 0.45);
+
+  let jutsu, targetUid = null;
+  if (healJ && woundedAlly) {
+    jutsu = healJ; targetUid = woundedAlly.uid;
+  } else {
+    const offensive = affordable.filter((j) => j.type === "attack" || j.type === "aoe");
+    const aoe = offensive.find((j) => j.type === "aoe");
+    if (aoe && enemies.length >= 2 && Math.random() < 0.6) {
+      jutsu = aoe;
+    } else {
+      const atks = offensive.filter((j) => j.type === "attack");
+      jutsu = atks.sort((a, b) => b.power - a.power)[0] || actor.jutsus[0];
+      targetUid = [...enemies].sort((a, b) => a.hp - b.hp)[0]?.uid;
+    }
+    if (jutsu.type === "aoe") targetUid = null;
+  }
+  return { jutsu, targetUid };
+}
 
 export default function Battle() {
   const { mode = "campaign", id } = useParams();
@@ -57,15 +90,31 @@ export default function Battle() {
   const [resultData, setResultData] = useState(null);
   const [shakeUid, setShakeUid] = useState(null);
   const [events, setEvents] = useState([]); // structured combat event log (Phase 3B) — for future VFX/animation
+  const [auto, setAutoState] = useState(false);
+  const [speed, setSpeedState] = useState(1); // 1x | 2x | 3x
 
   const combRef = useRef([]);
   const orderRef = useRef([]);
   const ptrRef = useRef(0);
   const reportedRef = useRef(false);
+  const actionLockRef = useRef(false); // guards against multi-tap / double-submit dealing double damage
+  const autoRef = useRef(false);
+  const speedRef = useRef(1);
 
   const setCombs = (next) => { combRef.current = next; setCombsState(next); };
   const pushLog = (msg) => setLog((l) => [msg, ...l].slice(0, 30));
   const pushEvents = (evs) => { if (evs?.length) setEvents((e) => [...e, ...evs].slice(-80)); };
+  // Every timing constant in this screen is tuned for a snappy 1x baseline,
+  // then divided further by the chosen speed multiplier (2x/3x) so both
+  // manual and auto-battle play feel fast-paced.
+  const ms = useCallback((base) => Math.max(60, Math.round(base / speedRef.current)), []);
+
+  const setAuto = (v) => { autoRef.current = v; setAutoState(v); };
+  const cycleSpeed = () => {
+    const next = speed >= 3 ? 1 : speed + 1;
+    speedRef.current = next;
+    setSpeedState(next);
+  };
 
   // ---------- init ----------
   useEffect(() => {
@@ -92,9 +141,8 @@ export default function Battle() {
     orderRef.current = buildOrder(all);
     ptrRef.current = 0;
     setPhase("intro");
-    const t = setTimeout(() => beginTurnAt(0, all, buildOrder(all)), 1600);
+    const t = setTimeout(() => beginTurnAt(0, all, buildOrder(all)), ms(900));
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, id, catalogById]);
 
   const aliveSide = (arr, side) => arr.some((c) => c.side === side && c.alive);
@@ -132,10 +180,14 @@ export default function Battle() {
     }
     pushEvents(evs);
 
+    // A fresh turn always clears the previous action lock — this is the
+    // single re-arm point for player input (fixes multi-tap double damage).
+    actionLockRef.current = false;
+
     if (!actor.alive) {
       // Died to the DoT before acting — resolve the round and move on.
       setCombs(work);
-      setTimeout(() => beginTurnAt(p + 1, work, ord), 500);
+      setTimeout(() => beginTurnAt(p + 1, work, ord), ms(300));
       return;
     }
 
@@ -146,14 +198,15 @@ export default function Battle() {
     setTargeting(null);
     if (actor.side === "ally") setPhase("select");
     else setPhase("enemy");
-  }, []);
+  }, [ms]);
 
   const advance = useCallback((arr) => {
-    setTimeout(() => beginTurnAt(ptrRef.current + 1, arr, orderRef.current), 650);
-  }, [beginTurnAt]);
+    setTimeout(() => beginTurnAt(ptrRef.current + 1, arr, orderRef.current), ms(400));
+  }, [beginTurnAt, ms]);
 
   // ---------- apply an action ----------
   const applyAction = useCallback((actor, jutsu, targetUid) => {
+    actionLockRef.current = true;
     setPhase("busy");
     let arr = cloneArr(combRef.current);
     const act = arr.find((c) => c.uid === actor.uid);
@@ -192,7 +245,7 @@ export default function Battle() {
       addFloat(target.uid, `${crit ? "CRIT " : ""}${notes.includes("execute") ? "EXECUTE " : ""}-${dmg}`, color);
       newEvents.push(makeEvent(crit ? "CRITICAL" : "DAMAGE", { actorUid: act.uid, targetUid: target.uid, value: dmg }));
       setShakeUid(target.uid);
-      setTimeout(() => setShakeUid(null), 400);
+      setTimeout(() => setShakeUid(null), ms(300));
 
       if (target.hp === 0) {
         const revived = resolveDeath(target, newEvents);
@@ -245,12 +298,12 @@ export default function Battle() {
     bossEvents.forEach((e) => { newEvents.push(e); if (e.text) pushLog(`${e.text}!`); });
 
     setFloaters((f) => [...f, ...newFloaters]);
-    newFloaters.forEach((nf) => setTimeout(() => setFloaters((f) => f.filter((x) => x.id !== nf.id)), 950));
+    newFloaters.forEach((nf) => setTimeout(() => setFloaters((f) => f.filter((x) => x.id !== nf.id)), ms(750)));
     pushEvents(newEvents);
 
     setCombs(arr);
     advance(arr);
-  }, [advantage, advance, bossMechanics]);
+  }, [advantage, advance, bossMechanics, ms]);
 
   // ---------- enemy AI ----------
   useEffect(() => {
@@ -259,34 +312,26 @@ export default function Battle() {
       const arr = combRef.current;
       const actor = arr.find((c) => c.uid === activeUid);
       if (!actor || !actor.alive) { advance(arr); return; }
-      const enemies = arr.filter((c) => c.side !== actor.side && c.alive);
-      const allies = arr.filter((c) => c.side === actor.side && c.alive);
-
-      const affordable = actor.jutsus.filter((j) => j.chakra_cost <= actor.chakra);
-      const healJ = affordable.find((j) => j.type === "heal");
-      const woundedAlly = allies.find((a) => a.hp / a.maxHp < 0.45);
-
-      let jutsu, targetUid = null;
-      if (healJ && woundedAlly) {
-        jutsu = healJ; targetUid = woundedAlly.uid;
-      } else {
-        const offensive = affordable.filter((j) => j.type === "attack" || j.type === "aoe");
-        const aoe = offensive.find((j) => j.type === "aoe");
-        if (aoe && enemies.length >= 2 && Math.random() < 0.6) {
-          jutsu = aoe;
-        } else {
-          const atks = offensive.filter((j) => j.type === "attack");
-          jutsu = atks.sort((a, b) => b.power - a.power)[0] || actor.jutsus[0];
-          // target lowest hp enemy
-          targetUid = [...enemies].sort((a, b) => a.hp - b.hp)[0]?.uid;
-        }
-        if (jutsu.type === "aoe") targetUid = null;
-      }
+      if (actionLockRef.current) return;
+      const { jutsu, targetUid } = pickAiAction(actor, arr);
       applyAction(actor, jutsu, targetUid);
-    }, 1000);
+    }, ms(550));
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, activeUid]);
+
+  // ---------- auto-battle (player side) ----------
+  useEffect(() => {
+    if (phase !== "select" || !auto) return;
+    const t = setTimeout(() => {
+      if (actionLockRef.current) return;
+      const arr = combRef.current;
+      const actor = arr.find((c) => c.uid === activeUid);
+      if (!actor || !actor.alive) return;
+      const { jutsu, targetUid } = pickAiAction(actor, arr);
+      applyAction(actor, jutsu, targetUid);
+    }, ms(450));
+    return () => clearTimeout(t);
+  }, [phase, activeUid, auto]);
 
   // ---------- report result ----------
   useEffect(() => {
@@ -311,11 +356,11 @@ export default function Battle() {
         })
         .catch(() => setResultData({ result: phase }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
   // ---------- player input ----------
   const onJutsuClick = (jutsu) => {
+    if (actionLockRef.current || phase !== "select" || auto) return;
     const actor = combRef.current.find((c) => c.uid === activeUid);
     if (!actor || jutsu.chakra_cost > actor.chakra) return;
     if (jutsu.type === "aoe") {
@@ -326,11 +371,15 @@ export default function Battle() {
   };
 
   const onTargetClick = (target) => {
-    if (!targeting) return;
+    if (actionLockRef.current || phase !== "select" || auto || !targeting) return;
     const valid = (targeting.type === "heal" || targeting.type === "shield")
       ? target.side === "ally" : target.side === "enemy";
     if (!valid || !target.alive) return;
     const actor = combRef.current.find((c) => c.uid === activeUid);
+    // Clear targeting immediately (synchronously, before the state update
+    // that flips phase -> "busy" lands) so a rapid second tap on the same
+    // enemy can never slip through and deal a second hit.
+    setTargeting(null);
     applyAction(actor, targeting, target.uid);
   };
 
@@ -339,21 +388,40 @@ export default function Battle() {
   const allies = combs.filter((c) => c.side === "ally");
   const enemies = combs.filter((c) => c.side === "enemy");
   const activeActor = combs.find((c) => c.uid === activeUid);
-  const isValidTarget = (c) => targeting && c.alive && ((targeting.type === "heal" || targeting.type === "shield") ? c.side === "ally" : c.side === "enemy");
+  const isValidTarget = (c) => targeting && !auto && phase === "select" && c.alive && ((targeting.type === "heal" || targeting.type === "shield") ? c.side === "ally" : c.side === "enemy");
 
   return (
     <div className="fixed inset-0 overflow-hidden" data-testid="battle-page">
       <img src="/art/battle-bg.png" alt="" className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-[#05050A]/55" />
 
-      {/* top bar: round + log */}
+      {/* top bar: round + speed/auto controls */}
       <div className="absolute top-0 left-0 right-0 z-20 glass border-b border-white/10 px-4 py-2 flex items-center justify-between">
         <button onClick={() => navigate(backTo)} data-testid="battle-exit" className="text-slate-400 hover:text-white text-sm">← Retreat</button>
         <div className="text-center">
-          <div className="font-display text-xl tracking-widest text-white leading-none truncate max-w-[60vw]">{title}</div>
+          <div className="font-display text-xl tracking-widest text-white leading-none truncate max-w-[45vw]">{title}</div>
           <div className="text-[11px] text-chakra">ROUND {round}</div>
         </div>
-        <span className="text-xs text-slate-400 truncate max-w-[28%] text-right">{log[0]}</span>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={cycleSpeed}
+            data-testid="battle-speed-toggle"
+            title="Battle speed"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-display tracking-wide border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
+          >
+            <Gauge className="w-3.5 h-3.5" />{speed}X
+          </button>
+          <button
+            onClick={() => setAuto(!auto)}
+            data-testid="battle-auto-toggle"
+            title="Auto-battle"
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-display tracking-wide border transition-colors ${
+              auto ? "border-chakra text-chakra bg-cyan-500/15" : "border-white/15 text-slate-300 hover:text-white hover:border-white/30"
+            }`}
+          >
+            <Bot className="w-3.5 h-3.5" />AUTO
+          </button>
+        </div>
       </div>
 
       {/* battlefield */}
@@ -380,7 +448,7 @@ export default function Battle() {
       {/* command HUD */}
       <div className="absolute bottom-0 left-0 right-0 z-20 glass border-t border-cyan-500/40 p-4 min-h-[140px]">
         <div className="max-w-3xl mx-auto">
-          {phase === "select" && activeActor && (
+          {phase === "select" && activeActor && !auto && (
             <div data-testid="command-panel">
               <div className="flex items-center gap-2 mb-3">
                 <img src={activeActor.portrait} alt="" className="w-9 h-9 rounded object-cover object-top active-turn" />
@@ -413,6 +481,13 @@ export default function Battle() {
               </div>
             </div>
           )}
+          {phase === "select" && activeActor && auto && (
+            <div className="flex items-center justify-center h-full min-h-[108px]" data-testid="auto-battle-indicator">
+              <span className="font-display text-2xl tracking-widest text-chakra animate-pulse flex items-center gap-2">
+                <Bot className="w-5 h-5" /> AUTO-BATTLING…
+              </span>
+            </div>
+          )}
           {(phase === "enemy" || phase === "busy" || phase === "intro") && (
             <div className="flex items-center justify-center h-full min-h-[108px]">
               <span className="font-display text-2xl tracking-widest text-slate-400 animate-pulse">
@@ -439,6 +514,9 @@ export default function Battle() {
               {resultData?.rewards && phase === "win" && (
                 <div className="mt-4 space-y-1 text-slate-300">
                   <p className="flex items-center justify-center gap-2"><Coins className="w-4 h-4 text-amber-400" /> +{resultData.rewards.ryo} Ryo</p>
+                  {resultData.rewards.gems > 0 && (
+                    <p className="flex items-center justify-center gap-2" data-testid="reward-gems"><Gem className="w-4 h-4 text-jutsu" /> +{resultData.rewards.gems} Gems</p>
+                  )}
                   {resultData.rewards.exp != null && (
                     <p className="flex items-center justify-center gap-2"><Zap className="w-4 h-4 text-chakra" /> +{resultData.rewards.exp} Account EXP</p>
                   )}

@@ -937,15 +937,15 @@ def daily_cycle_utc() -> str:
 
 DAILY_MISSIONS = [
     {"id": "m_clear_3", "name": "Clear 3 Stages", "desc": "Win any 3 Campaign stages.",
-     "event": "campaign_win", "target": 3, "reward": {"ryo": 200, "items": {"exp_tome_minor": 1}}},
+     "event": "campaign_win", "target": 3, "reward": {"ryo": 200, "gems": 0, "items": {"exp_tome_minor": 1}}},
     {"id": "m_win_5", "name": "Win 5 Battles", "desc": "Win 5 battles (Campaign, Spire or Trials).",
-     "event": "any_win", "target": 5, "reward": {"ryo": 250, "items": {}}},
+     "event": "any_win", "target": 5, "reward": {"ryo": 250, "gems": 0, "items": {}}},
     {"id": "m_summon_1", "name": "Summon Once", "desc": "Perform 1 summon at the altar.",
-     "event": "summon", "target": 1, "reward": {"ryo": 0, "items": {"summon_ticket": 1}}},
+     "event": "summon", "target": 1, "reward": {"ryo": 0, "gems": 5, "items": {"summon_ticket": 1}}},
     {"id": "m_levelup_1", "name": "Level Up a Hero", "desc": "Gain at least 1 hero level.",
-     "event": "hero_levelup", "target": 1, "reward": {"ryo": 150, "items": {"exp_tome_minor": 1}}},
+     "event": "hero_levelup", "target": 1, "reward": {"ryo": 150, "gems": 0, "items": {"exp_tome_minor": 1}}},
     {"id": "m_spire_1", "name": "Climb the Spire", "desc": "Win 1 Endless Spire floor.",
-     "event": "spire_win", "target": 1, "reward": {"ryo": 180, "items": {}}},
+     "event": "spire_win", "target": 1, "reward": {"ryo": 180, "gems": 10, "items": {}}},
 ]
 DAILY_MISSIONS_BY_ID = {m["id"]: m for m in DAILY_MISSIONS}
 
@@ -972,6 +972,46 @@ ARENA_WIN_REWARDS = {"ryo": 220, "hero_exp_base": 50}
 
 def fresh_arena_daily_state() -> dict:
     return {"cycle": daily_cycle_utc(), "attempts_used": 0}
+
+
+# ---------------------------------------------------------------------------
+# Gems — scarcer premium currency, separate from Ryo. Spent on premium
+# summons and instant Energy refills. Earned only from meaningful moments
+# (missions above, first-time Campaign clears, Arena/Spire milestones and
+# the daily login streak) — never from ordinary repeat battle wins, so it
+# keeps feeling valuable instead of trickling in like Ryo.
+# ---------------------------------------------------------------------------
+GEM_SUMMON_COST = 150
+GEM_ENERGY_REFILL_COST_PER_POINT = 4
+GEM_ENERGY_REFILL_MIN_COST = 15
+
+ARENA_WIN_MILESTONE_EVERY = 5      # every 5th Arena win
+ARENA_WIN_MILESTONE_GEMS = 20
+
+SPIRE_FLOOR_MILESTONE_EVERY = 5    # every 5th floor actually advanced
+SPIRE_FLOOR_MILESTONE_GEMS_BASE = 15
+
+
+def first_clear_gems(chapter: int) -> int:
+    """Small, chapter-scaled Gem bonus for a Campaign stage's first clear."""
+    return min(60, 8 + max(1, chapter) * 3)
+
+
+# 7-day repeating daily-login reward cycle. Consecutive calendar days (UTC)
+# advance the cycle; missing a day resets it back to day 1.
+LOGIN_REWARDS = {
+    1: {"ryo": 200, "gems": 0, "items": {}},
+    2: {"ryo": 150, "gems": 0, "items": {"exp_tome_minor": 1}},
+    3: {"ryo": 100, "gems": 15, "items": {}},
+    4: {"ryo": 250, "gems": 0, "items": {"exp_tome_minor": 1}},
+    5: {"ryo": 150, "gems": 20, "items": {}},
+    6: {"ryo": 200, "gems": 0, "items": {"exp_tome_greater": 1}},
+    7: {"ryo": 300, "gems": 50, "items": {"summon_ticket": 1}},
+}
+
+
+def fresh_login_state() -> dict:
+    return {"day": 0, "last_claim_date": None}
 
 
 # ---------------------------------------------------------------------------

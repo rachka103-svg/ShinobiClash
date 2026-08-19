@@ -94,11 +94,13 @@ async def get_current_user(request: Request) -> dict:
         changed_e = ensure_energy_state(user)
         changed_d = ensure_daily_state(user)
         changed_a = ensure_arena_state(user)
-        if changed_e or changed_d or changed_a:
+        changed_l = ensure_login_state(user)
+        if changed_e or changed_d or changed_a or changed_l:
             await db.users.update_one({"_id": user["_id"]}, {"$set": {
                 "energy": user["energy"], "daily": user["daily"],
                 "arena_rating": user["arena_rating"], "arena_wins": user["arena_wins"],
                 "arena_losses": user["arena_losses"], "arena_daily": user["arena_daily"],
+                "login": user["login"],
             }})
         return user
     except jwt.ExpiredSignatureError:
@@ -133,7 +135,7 @@ class BattleCompleteIn(BaseModel):
 
 
 class SummonIn(BaseModel):
-    currency: str = "ryo"  # "ryo" | "ticket"
+    currency: str = "ryo"  # "ryo" | "ticket" | "gems"
 
 
 class UseExpIn(BaseModel):
@@ -280,6 +282,16 @@ def missions_public(daily: dict) -> list:
     return out
 
 
+def ensure_login_state(user: dict) -> bool:
+    """Seeds the daily-login-streak tracker for existing users who don't
+    have one yet. Does not itself grant/roll anything — /game/login/claim
+    handles that explicitly so it's a deliberate player action."""
+    if "login" not in user:
+        user["login"] = gd.fresh_login_state()
+        return True
+    return False
+
+
 def ensure_arena_state(user: dict) -> bool:
     """Seeds Arena rating/win-loss fields and resets the daily attempt
     counter on UTC rollover. Returns True if anything changed."""
@@ -309,6 +321,22 @@ def arena_public(user: dict) -> dict:
         "losses": user.get("arena_losses", 0),
         "attempts_used": ad.get("attempts_used", 0),
         "attempts_max": gd.ARENA_ATTEMPTS_MAX,
+    }
+
+
+def login_public(user: dict) -> dict:
+    """Daily-login-streak status for the HUD: which day of the 7-day cycle
+    the player is on, whether today's reward is still unclaimed, and a
+    preview of tomorrow's reward so the UI can tease it."""
+    login = user.get("login") or gd.fresh_login_state()
+    today = gd.daily_cycle_utc()
+    claimed_today = login.get("last_claim_date") == today
+    next_day = (login.get("day", 0) % 7) + 1
+    return {
+        "day": login.get("day", 0),
+        "claimed_today": claimed_today,
+        "next_day": next_day,
+        "next_reward": gd.LOGIN_REWARDS[next_day],
     }
 
 
@@ -405,6 +433,7 @@ def public_user(user: dict) -> dict:
         "exp": user.get("exp", 0),
         "exp_to_next": gd.exp_to_next(user.get("level", 1)),
         "ryo": user.get("ryo", 0),
+        "gems": user.get("gems", 0),
         "ninjas": ninjas,
         "inventory": user.get("inventory", {}),
         "hero_shards": user.get("hero_shards", {}),
@@ -419,6 +448,7 @@ def public_user(user: dict) -> dict:
         "energy": user.get("energy") or gd.compute_energy(None),
         "missions": missions_public(user.get("daily") or gd.fresh_daily_state()),
         "arena": arena_public(user),
+        "login": login_public(user),
     }
 
 
@@ -482,6 +512,7 @@ async def register(body: RegisterIn, response: Response):
         "level": 1,
         "exp": 0,
         "ryo": 500,
+        "gems": 100,
         "inventory": {"exp_tome_minor": 5, "exp_tome_greater": 1, "summon_ticket": 1},
         "ninjas": starters,
         "team": [s["instance_id"] for s in starters],
@@ -490,6 +521,7 @@ async def register(body: RegisterIn, response: Response):
         "losses": 0,
         "energy": gd.compute_energy(None),
         "daily": gd.fresh_daily_state(),
+        "login": gd.fresh_login_state(),
         "arena_rating": gd.ARENA_RATING_DEFAULT,
         "arena_wins": 0,
         "arena_losses": 0,
@@ -553,7 +585,12 @@ async def catalog():
     return {"ninjas": gd.NINJA_CATALOG, "element_advantage": gd.ELEMENT_ADVANTAGE,
             "items": gd.ITEMS, "summon_cost": gd.SUMMON_COST, "trials": gd.TRIALS,
             "banner": banner_info(), "factions": gd.FACTIONS, "roles": gd.ROLES,
-            "tags": gd.TAGS, "rarities": gd.RARITIES}
+            "tags": gd.TAGS, "rarities": gd.RARITIES,
+            "gem_costs": {
+                "summon": gd.GEM_SUMMON_COST,
+                "energy_refill_per_point": gd.GEM_ENERGY_REFILL_COST_PER_POINT,
+                "energy_refill_min": gd.GEM_ENERGY_REFILL_MIN_COST,
+            }}
 
 
 @api_router.get("/game/stages")
@@ -585,6 +622,53 @@ async def set_team(body: TeamIn, user: dict = Depends(get_current_user)):
 @api_router.get("/game/energy")
 async def get_energy(user: dict = Depends(get_current_user)):
     return {"energy": user["energy"]}
+
+
+@api_router.post("/game/energy/refill")
+async def refill_energy(user: dict = Depends(get_current_user)):
+    """Instantly tops Energy up to max, spending Gems. Cost scales with how
+    much is actually missing, with a small minimum so a near-full refill
+    isn't free."""
+    current_state = gd.compute_energy(user.get("energy"))
+    missing = current_state["max"] - current_state["current"]
+    if missing <= 0:
+        raise HTTPException(status_code=400, detail="Energy is already full")
+    cost = max(gd.GEM_ENERGY_REFILL_MIN_COST, missing * gd.GEM_ENERGY_REFILL_COST_PER_POINT)
+    if user.get("gems", 0) < cost:
+        raise HTTPException(status_code=400, detail=f"Not enough Gems — need {cost}, have {user.get('gems', 0)}")
+    user["gems"] = user.get("gems", 0) - cost
+    new_energy = {**current_state, "current": current_state["max"], "last_regen_at": datetime.now(timezone.utc).isoformat(), "next_tick_in": 0, "full_in": 0}
+    user["energy"] = new_energy
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"energy": new_energy, "gems": user["gems"]}})
+    return {"profile": public_user(user), "cost": cost}
+
+
+@api_router.post("/game/login/claim")
+async def claim_login_reward(user: dict = Depends(get_current_user)):
+    """Claims today's daily-login reward and advances the 7-day streak.
+    Missing a calendar day (UTC) resets the streak back to day 1."""
+    login = user.get("login") or gd.fresh_login_state()
+    today = gd.daily_cycle_utc()
+    if login.get("last_claim_date") == today:
+        raise HTTPException(status_code=400, detail="Already claimed today's reward")
+    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+    new_day = (login.get("day", 0) % 7) + 1 if login.get("last_claim_date") == yesterday else 1
+    reward = gd.LOGIN_REWARDS[new_day]
+
+    user["ryo"] = user.get("ryo", 0) + reward.get("ryo", 0)
+    user["gems"] = user.get("gems", 0) + reward.get("gems", 0)
+    inventory = user.get("inventory", {})
+    for iid, qty in reward.get("items", {}).items():
+        inventory[iid] = inventory.get(iid, 0) + qty
+    user["inventory"] = inventory
+    login["day"] = new_day
+    login["last_claim_date"] = today
+    user["login"] = login
+
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ryo": user["ryo"], "gems": user["gems"], "inventory": inventory, "login": login,
+    }})
+    return {"profile": public_user(user), "reward": reward, "day": new_day}
 
 
 @api_router.post("/game/battle/start")
@@ -634,6 +718,7 @@ async def claim_mission(mission_id: str, user: dict = Depends(get_current_user))
 
     reward = tmpl["reward"]
     user["ryo"] = user.get("ryo", 0) + reward.get("ryo", 0)
+    user["gems"] = user.get("gems", 0) + reward.get("gems", 0)
     inventory = user.get("inventory", {})
     for iid, qty in reward.get("items", {}).items():
         inventory[iid] = inventory.get(iid, 0) + qty
@@ -642,7 +727,7 @@ async def claim_mission(mission_id: str, user: dict = Depends(get_current_user))
     user["daily"]["missions"][mission_id] = prog
 
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
-        "ryo": user["ryo"], "inventory": inventory, "daily": user["daily"]}})
+        "ryo": user["ryo"], "gems": user["gems"], "inventory": inventory, "daily": user["daily"]}})
     return {"profile": public_user(user), "reward": reward}
 
 
@@ -701,15 +786,19 @@ async def arena_battle_complete(body: ArenaBattleCompleteIn, user: dict = Depend
         user["arena_rating"] = user.get("arena_rating", gd.ARENA_RATING_DEFAULT) + gd.ARENA_RATING_WIN
         user["arena_wins"] = user.get("arena_wins", 0) + 1
         user["ryo"] = user.get("ryo", 0) + gd.ARENA_WIN_REWARDS["ryo"]
+        gems_gained = 0
+        if user["arena_wins"] % gd.ARENA_WIN_MILESTONE_EVERY == 0:
+            gems_gained = gd.ARENA_WIN_MILESTONE_GEMS
+            user["gems"] = user.get("gems", 0) + gems_gained
         hero_exp = distribute_hero_exp(
             user, body.participants or list(user.get("team", [])), body.survivors, gd.ARENA_WIN_REWARDS["hero_exp_base"]
         )
         await db.users.update_one({"_id": user["_id"]}, {"$set": {
             "arena_rating": user["arena_rating"], "arena_wins": user["arena_wins"],
-            "ryo": user["ryo"], "ninjas": user["ninjas"],
+            "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"],
         }})
         return {"profile": public_user(user), "result": "win",
-                "rewards": {"ryo": gd.ARENA_WIN_REWARDS["ryo"], "hero_exp": hero_exp}}
+                "rewards": {"ryo": gd.ARENA_WIN_REWARDS["ryo"], "gems": gems_gained, "hero_exp": hero_exp}}
     else:
         user["arena_rating"] = max(0, user.get("arena_rating", gd.ARENA_RATING_DEFAULT) - gd.ARENA_RATING_LOSS)
         user["arena_losses"] = user.get("arena_losses", 0) + 1
@@ -732,7 +821,7 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
     cleared = user.get("cleared_stages", [])
     first_clear = body.stage_id not in cleared
     base_exp = stage["rewards"]["exp"]
-    rewards = {"ryo": stage["rewards"]["ryo"], "exp": base_exp, "ninja": None, "hero_exp": [], "items": {}}
+    rewards = {"ryo": stage["rewards"]["ryo"], "gems": 0, "exp": base_exp, "ninja": None, "hero_exp": [], "items": {}}
 
     user["ryo"] = user.get("ryo", 0) + rewards["ryo"]
     await grant_player_exp(user, base_exp)
@@ -765,6 +854,9 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
         fc = stage.get("first_clear", {})
         user["ryo"] += fc.get("ryo", 0)
         rewards["ryo"] += fc.get("ryo", 0)
+        gems_gained = gd.first_clear_gems(stage.get("chapter", 1))
+        user["gems"] = user.get("gems", 0) + gems_gained
+        rewards["gems"] = gems_gained
         drop = fc.get("ninja")
         if drop and not any(i["template_id"] == drop for i in ninjas):
             ninjas.append(new_ninja_instance(drop))
@@ -778,7 +870,7 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
 
     await db.users.update_one(
         {"_id": user["_id"]},
-        {"$set": {"ryo": user["ryo"], "level": user["level"], "exp": user["exp"],
+        {"$set": {"ryo": user["ryo"], "gems": user.get("gems", 0), "level": user["level"], "exp": user["exp"],
                   "ninjas": ninjas, "inventory": inventory, "cleared_stages": cleared, "wins": user["wins"],
                   "daily": user["daily"]}},
     )
@@ -790,9 +882,13 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
 async def summon(body: SummonIn, user: dict = Depends(get_current_user)):
     inventory = user.get("inventory", {})
     use_ticket = body.currency == "ticket"
+    use_gems = body.currency == "gems"
     if use_ticket:
         if inventory.get("summon_ticket", 0) < 1:
             raise HTTPException(status_code=400, detail="No summon tickets available")
+    elif use_gems:
+        if user.get("gems", 0) < gd.GEM_SUMMON_COST:
+            raise HTTPException(status_code=400, detail="Not enough Gems to summon")
     elif user.get("ryo", 0) < gd.SUMMON_COST:
         raise HTTPException(status_code=400, detail="Not enough Ryo to summon")
 
@@ -821,11 +917,13 @@ async def summon(body: SummonIn, user: dict = Depends(get_current_user)):
     if use_ticket:
         inventory["summon_ticket"] -= 1
         user["inventory"] = inventory
+    elif use_gems:
+        user["gems"] = user.get("gems", 0) - gd.GEM_SUMMON_COST
     else:
         user["ryo"] -= gd.SUMMON_COST
     bump_mission(user, "summon")
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
-        "ryo": user["ryo"], "ninjas": user["ninjas"], "inventory": inventory,
+        "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"], "inventory": inventory,
         "daily": user["daily"], "hero_shards": hero_shards,
     }})
     return {"profile": public_user(user),
@@ -919,6 +1017,10 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     advancing = floor == current + 1
     r = gd.spire_rewards(floor, advancing)
     user["ryo"] = user.get("ryo", 0) + r["ryo"]
+    gems_gained = 0
+    if advancing and floor % gd.SPIRE_FLOOR_MILESTONE_EVERY == 0:
+        gems_gained = gd.SPIRE_FLOOR_MILESTONE_GEMS_BASE + floor
+        user["gems"] = user.get("gems", 0) + gems_gained
     hero_exp = distribute_hero_exp(user, body.participants or list(user.get("team", [])), body.survivors, r["hero_exp_base"])
     inventory = user.get("inventory", {})
     for iid, qty in r["items"].items():
@@ -932,9 +1034,9 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     if total_levels:
         bump_mission(user, "hero_levelup", total_levels)
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
-        "ryo": user["ryo"], "ninjas": user["ninjas"], "inventory": inventory,
+        "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"], "inventory": inventory,
         "spire_floor": user.get("spire_floor", current), "daily": user["daily"]}})
-    rewards = {"ryo": r["ryo"], "items": r["items"], "hero_exp": hero_exp, "boss": r["boss"], "advancing": advancing}
+    rewards = {"ryo": r["ryo"], "gems": gems_gained, "items": r["items"], "hero_exp": hero_exp, "boss": r["boss"], "advancing": advancing}
     return {"profile": public_user(user), "rewards": rewards, "result": "win", "floor": floor, "advancing": advancing}
 
 
@@ -1414,7 +1516,7 @@ async def startup():
         await db.users.insert_one({
             "email": admin_email, "password_hash": hash_password(admin_password), "name": "Sensei",
             "role": "admin", "created_at": datetime.now(timezone.utc).isoformat(),
-            "level": 1, "exp": 0, "ryo": 50000,
+            "level": 1, "exp": 0, "ryo": 50000, "gems": 5000,
             "inventory": {"exp_tome_minor": 20, "exp_tome_greater": 5, "exp_tome_ancient": 1, "ascension_crystal": 30, "summon_ticket": 5},
             "ninjas": starters, "team": [s["instance_id"] for s in starters],
             "cleared_stages": [], "wins": 0, "losses": 0,

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Swords, Users, Scroll, Trophy, Sparkles, LogOut, Coins, Home, Castle, LayoutGrid, Wand2, Crosshair, MoreHorizontal } from "lucide-react";
+import { Swords, Users, Scroll, Trophy, Sparkles, LogOut, Coins, Gem, Home, Castle, LayoutGrid, Wand2, Crosshair, MoreHorizontal } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import EnergyWidget from "@/components/EnergyWidget";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
@@ -72,6 +72,10 @@ export const TopBar = () => {
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-500/10 border border-amber-500/30" data-testid="ryo-counter">
             <Coins className="w-4 h-4 text-amber-400" />
             <span className="font-display text-lg text-amber-300 tracking-wide">{user?.ryo ?? 0}</span>
+          </div>
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded bg-fuchsia-500/10 border border-fuchsia-500/30" data-testid="gems-counter">
+            <Gem className="w-4 h-4 text-jutsu" />
+            <span className="font-display text-lg text-jutsu tracking-wide">{user?.gems ?? 0}</span>
           </div>
           <div className="hidden sm:flex flex-col items-end leading-none">
             <span className="text-sm font-semibold text-white" data-testid="player-name">{user?.name}</span>

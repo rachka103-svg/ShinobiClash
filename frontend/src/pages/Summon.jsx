@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Coins, Loader2, Ticket, Star } from "lucide-react";
+import { Sparkles, Coins, Gem, Loader2, Ticket, Star } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
@@ -10,7 +10,7 @@ import { auraClass, RaritySparkles, RARITY_TIER } from "@/components/RarityFx";
 
 export default function Summon() {
   const { user, setUser } = useAuth();
-  const { summonCost, banner } = useGame();
+  const { summonCost, banner, gemCosts } = useGame();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -99,8 +99,18 @@ export default function Summon() {
           FREE SUMMON
           <span className="text-xl">×{tickets}</span>
         </button>
+        <button
+          onClick={() => summon("gems")}
+          disabled={busy || (user?.gems || 0) < gemCosts.summon}
+          data-testid="summon-gems-button"
+          className="inline-flex items-center gap-3 px-8 py-4 rounded-xl font-display text-2xl tracking-wider border border-jutsu/50 text-jutsu bg-jutsu/10 hover:bg-jutsu/20 transition-colors disabled:opacity-50"
+        >
+          <Gem className="w-6 h-6" />
+          PREMIUM
+          <span className="flex items-center gap-1 text-xl"><Gem className="w-5 h-5" />{gemCosts.summon}</span>
+        </button>
       </div>
-      {(user?.ryo || 0) < summonCost && tickets < 1 && <p className="text-xs text-fox mt-2">Not enough Ryo or tickets — win battles to earn more.</p>}
+      {(user?.ryo || 0) < summonCost && tickets < 1 && (user?.gems || 0) < gemCosts.summon && <p className="text-xs text-fox mt-2">Not enough Ryo, Gems or tickets — win battles to earn more.</p>}
     </div>
   );
 }

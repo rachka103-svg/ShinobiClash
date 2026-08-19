@@ -6,7 +6,7 @@
   - Energy gating + regen
   - Daily missions (server-authoritative, resets daily)
   - Async Arena logic
-  - Existing battle engine + formulas (Battle.jsx + lib/battle.js)
+  - Battle engine + formulas (`Battle.jsx` + `lib/battle.js`)
 - Maintain a **fast-paced, grind-heavy, long-term RPG foundation**:
   - 60–80+ collectible heroes, extensible beyond 200 without UI rewrites
   - Meaningful roles, factions, tags, and kit identity (team building focus)
@@ -25,11 +25,22 @@
   - Rarity glow/aura effects enhance cards **without bleeding into neighbors**.
   - Dense hero grids maintain adequate **breathing room** across mobile/tablet/desktop.
 
+### Updated combat & pacing objectives (new)
+- Make combat **fast-paced by default** (not only tolerable at 3×):
+  - Short baseline delays
+  - **Auto-battle** for grind loops
+  - 1×/2×/3× **speed control**
+  - Input safety: prevent multi-tap/double-submit exploits
+
+### Updated economy objectives (new)
+- Add a premium currency (**Gems**) with immediate, meaningful sinks:
+  - Premium summons
+  - Instant energy refill
+- Ensure Gems feel valuable (primary sources are dailies/first-clears/milestones), not a repeat-farm drip.
+
 ### Hard constraints (must continue to obey)
-- Do **not** redesign Summon UI unless/until its phase and the user explicitly authorizes.
-  - Current status: Summon UI redesign is paused.
 - Avoid monolithic, hero-specific hardcoding in UI or battle logic.
-- Battle.jsx / lib/battle.js remains the **single authoritative combat engine** for:
+- `Battle.jsx` / `lib/battle.js` remains the **single authoritative combat engine** for:
   - Campaign
   - Spire
   - Arena
@@ -84,7 +95,6 @@ Tests: ✅ implemented
 
 ## 2A) Hero/Progression Foundation Rebuild (Systems-First) ✅ COMPLETE (Steps 1–3 + partial 5–6)
 > This phase explicitly prioritized **game foundation** over UI polish.
-> Summon UI redesign and summon animations are explicitly paused.
 
 ### What is complete in Phase 2A
 
@@ -110,16 +120,13 @@ Files:
 - Added **31 new heroes** spanning all rarities and roles with real names/lore.
 - Introduced placeholder art system for new heroes:
   - Heroes without final art are flagged with `is_placeholder_art: true` and use `portrait: /heroes/_placeholder.png`.
-  - Placeholder is clearly marked; no fake “final” art claims.
 
 #### 2A.3 — Ability/Passive identity architecture ✅ COMPLETE (data-driven)
 - Added `MECHANIC_LIBRARY` (24 named mechanics) and a generic passive per role via `ROLE_GENERIC_PASSIVE`.
 - Implemented a “complexity curve”:
   - ~**35%** of heroes have a **signature** passive (24/69) via `SIGNATURE_MECHANIC_MAP`.
   - The remainder use simpler role-based passives.
-- UR+ heroes now have a **4th ultimate ability**:
-  - Added via `_hero_jutsus` for generated heroes.
-  - Backfilled for the original 12 heroes.
+- UR+ heroes now have a **4th ultimate ability**.
 
 #### 2A.4 — Long-term progression foundation ✅ COMPLETE (stars + shards + duplicates have value)
 - Hero instances now include:
@@ -127,208 +134,160 @@ Files:
 - User doc now includes:
   - `hero_shards` dictionary keyed by hero template id
 - Duplicate summon behavior:
-  - If hero already owned → **convert to shards** (no duplicate hero instance added)
-  - `SHARD_YIELD_PER_DUPLICATE` controls shard yield by rarity
+  - If hero already owned → **convert to shards**
 - New endpoint:
-  - `POST /api/game/hero/star-up` consumes shards and increments `stars`
-- `public_user()` now exposes:
-  - `stars_max`, `star_up_cost`, `hero_shards` and applies a small power/stat multiplier per star
+  - `POST /api/game/hero/star-up`
 
 #### 2A.5 — Endless-ready stage architecture ✅ COMPLETE (architecture + proof)
-- Added procedural stage generation:
-  - `generate_campaign_stages(start_chapter, end_chapter, stages_per_chapter)`
-  - Proven by generating Chapters 5–8 → total stages **12 → 36**
+- Added procedural stage generation.
 - Added reusable boss framework (data layer):
-  - `BOSS_MECHANICS` with phases, enrage, shields, elemental shifts, adds
-  - Two POC bosses: `sealed_titan`, `abyssal_warden`
-  - Boss stages flag `is_boss: true` + `boss_mechanic` id
+  - `BOSS_MECHANICS` phases, enrage, shields, elemental shifts, adds
 
 #### 2A.6 — Frontend “glue” only (no redesign) ✅ COMPLETE
-- Updated visual rarity token map to include 8 tiers:
-  - `frontend/src/lib/theme.js` rarity map expanded
-- Updated existing screens so new tiers render correctly:
-  - `Roster.jsx`, `Gallery.jsx` rarity filters/sorting updated
-  - `Admin.jsx` rarity + role lists updated
-  - `NinjaCard.jsx`, `RarityBadge.jsx`, `RarityFx.jsx` tier logic updated to be data-driven
+- Updated rarity token maps and screen compatibility for 8 tiers.
 
 #### 2A.7 — Testing ✅ COMPLETE
-- Existing regression suite: **34/34 pass** (`backend_test.py`)
-- New Phase 2A validation suite: **19/19 pass** (`phase2a_test.py`)
-- Total: **53/53 pass**, no regressions to:
-  - auth, battle loop, leveling, ascension, energy, missions, arena
+- Regression suites pass.
 
 ---
 
 ## 3B) Combat Ability & Boss Mechanics Integration ✅ COMPLETE (Verified)
-> Objective: integrate Phase 2A mechanics + boss framework into the **existing** Battle.jsx/lib/battle.js combat engine.
-> Scope control: implement **6 representative mechanics only** + boss shield/enrage/elemental shift.
+> Objective: integrate Phase 2A mechanics + boss framework into the **existing** combat engine.
 
-### 3B.1 — Audit of existing combat engine ✅ COMPLETE
-- Existing battle engine is client-side:
-  - `frontend/src/pages/Battle.jsx` (turn loop, UI)
-  - `frontend/src/lib/battle.js` (formulas, turn order helpers)
-- Confirmed single-engine reuse across Campaign/Spire/Arena.
+- Added reusable combat resolvers (`resolveDamage`, `resolveOnHitEffects`, `resolveDeath`).
+- Added status effect framework (`tickStatuses`).
+- Wired 6 representative mechanics.
+- Implemented boss runtime shield/enrage/element shift.
+- Added structured combat event architecture (`makeEvent`).
 
-### 3B.2 — Central ability resolution layer ✅ COMPLETE
-- Added reusable combat resolvers (data-driven by `passive.effect_type`):
-  - `resolveDamage()` (damage computation w/ conditional modifiers)
-  - `resolveOnHitEffects()` (marks + DoT attachment + detonation burst)
-  - `resolveDeath()` (revival gate)
-- Only 6 effect_types are actively wired; all other mechanics remain data-only.
-
-### 3B.3 — Status effect framework ✅ COMPLETE
-- Added extensible status representation on each combatant:
-  - `statuses: [{id, effectType, source, stacks, duration, magnitude}]`
-- Implemented turn lifecycle integration:
-  - `tickStatuses()` triggers DoT at start of target’s own turn
-  - Expiration handled via duration decrement/removal
-
-### 3B.4 — Six representative mechanics wired to real combat ✅ COMPLETE
-- Execute bonus (damage conditional): `execute_low_hp` (Shade)
-- DoT: `escalating_dot` (Apep)
-- Mark stack + detonation: `stacking_mark_detonate` (Sekhmet)
-- Shield: `team_shield` (Brahma)
-- Revival: `revive_once` (Osiris)
-- Berserker scaling: `hp_scaling_power` (Ares)
-
-### 3B.5 — Boss mechanics runtime ✅ COMPLETE
-- Exposed boss framework to frontend:
-  - `/api/game/stages` now returns `{ stages, boss_mechanics }`
-  - `GameContext` now stores `bossMechanics`
-- Implemented boss runtime:
-  - Shield phase (real shield value; AoE hit tracking break condition)
-  - Enrage phase (persistent stat boosts)
-  - Elemental shift (boss element changes mid-fight)
-
-### 3B.6 — Combat events architecture ✅ COMPLETE
-- Every meaningful combat action produces structured events via `makeEvent()`:
-  - ATTACK, SKILL, DAMAGE, CRITICAL, HEAL
-  - SHIELD_APPLIED, SHIELD_BROKEN
-  - DEBUFF_APPLIED, DOT_TRIGGERED
-  - REVIVAL, DEATH
-  - BOSS_PHASE_CHANGE
-  - VICTORY/DEFEAT
-
-### 3B.7 — Minimal battle UI additions ✅ COMPLETE
-- Fighter chips for:
-  - Active statuses (MARK / CURSE)
-  - Boss-phase badges (WARDED, RAGE)
-- No full battle UI redesign; no elaborate VFX.
-
-### 3B.8 — Testing ✅ COMPLETE (Verified by testing_agent_v3)
-- Backend:
-  - `backend_test.py` **34/34 pass**
-  - `phase2a_test.py` **19/19 pass**
-  - `phase3b_test.py` **3/3 pass**
-- Frontend:
-  - Campaign battle end-to-end automation ✅
-  - Spire battle automation ✅
-  - Arena: backend verified; UI availability may depend on attempts remaining (non-blocking)
-- JS unit tests:
-  - `frontend/src/lib/battle.abilities.test.mjs` **10/10 pass**
+Testing: ✅ Verified.
 
 ---
 
 ## 3C-A) Hero Art Production Manifest ✅ COMPLETE (Verified)
-> Objective: prepare for professional hero artwork production and safe asset replacement.
-> **No artwork generated automatically. No gameplay changes.**
+- Manifest created at `/app/memory/HERO_ART_MANIFEST.md`.
+- Placeholder heroes identified (31).
+- Goddess Era-inspired art brief captured (inspiration only, no cloning).
 
-### 3C-A.1 — Identify placeholder heroes ✅ COMPLETE
-- Catalog scan found **31** heroes flagged `is_placeholder_art: true`.
+---
 
-### 3C-A.2 — Produce authoritative art manifest ✅ COMPLETE
-- Manifest created at:
-  - `/app/memory/HERO_ART_MANIFEST.md`
-- Includes for each placeholder hero:
-  - ID, name, rarity, element, role, faction, tags
-  - lore + personality + signature mechanic
-  - visual concept
-  - current asset path + required replacement path
-  - recommended dimensions/aspect ratio
-- Added global art-direction brief:
-  - "Goddess Era"-inspired painterly anime/CG gacha aesthetic (inspiration only, not copying)
+## 3D) Pace + Input Safety + Auto-Battle ✅ COMPLETE (Verified)
+> Objective: make battles grind-friendly and fast-paced, fix multi-tap exploit.
 
-### 3C-A.3 — Asset architecture / replacement safety ✅ COMPLETE
-- Confirmed centralized `portrait` field is the single source of truth for hero art.
-- Confirmed admin portrait override endpoints mutate only the `portrait` field.
-- Removed one dead-code portrait fallback in `frontend/src/components/NinjaCard.jsx` to ensure no hidden pathing.
-- Verified by testing_agent_v3:
-  - Roster/Gallery render without broken images
-  - Placeholder heroes correctly show `/heroes/_placeholder.png`
+### 3D.1 — Multi-tap multi-damage exploit fix ✅ COMPLETE
+- Fixed bug where rapid tapping after selecting a skill could apply damage multiple times.
+- Implementation:
+  - `actionLockRef` guard (re-armed only at start of new turn)
+  - synchronous clearing of `targeting` on target selection
 
-### 3C-A.4 — Design-direction decision (logged) ✅ COMPLETE
-- **Character-art brief only** for now.
-- **UI chrome restyle deferred** until real art arrives.
-- Goddess Era is inspiration/quality bar only.
+### 3D.2 — Auto-Battle ✅ COMPLETE
+- Added AUTO toggle:
+  - AI plays **player turns** using the same decision function as enemy AI
+
+### 3D.3 — Battle speed control (1×/2×/3×) ✅ COMPLETE
+- Added speed toggle and routed all battle timing through `ms(base)` which divides delays by speed.
+
+### 3D.4 — Faster manual baseline ✅ COMPLETE
+- Tightened baseline delays so manual at 1× feels responsive.
+
+Files:
+- `frontend/src/pages/Battle.jsx`
+
+Verification:
+- Verified by `testing_agent_v3`: `/app/test_reports/iteration_12.json`
+
+---
+
+## 3E) Gems Premium Currency + Daily Login ✅ COMPLETE (Verified)
+> Objective: add a valuable premium currency with real sinks and controlled earn sources.
+
+### 3E.1 — Backend currency + sinks ✅ COMPLETE
+- Added `gems` field on user.
+- Premium summon:
+  - `POST /api/game/summon` supports `currency="gems"` and deducts `GEM_SUMMON_COST`.
+- Instant energy refill:
+  - `POST /api/game/energy/refill` tops energy to max using Gems.
+
+### 3E.2 — Earn sources ✅ COMPLETE
+- Daily missions: some missions now grant small Gems.
+- Campaign first-clear: grants chapter-scaled Gems.
+- Arena milestone: every 5th win grants Gems.
+- Spire milestone: every 5th floor advanced grants Gems.
+- Daily Login:
+  - new 7-day cycle `POST /api/game/login/claim`
+
+### 3E.3 — Frontend UI integration ✅ COMPLETE
+- Gems displayed in:
+  - `TopBar.jsx`
+  - `Lobby.jsx` HUD
+- Lobby added:
+  - `DailyLoginCard.jsx` with CLAIM action
+  - Energy widget refill CTA using Gems
+- Summon added:
+  - Premium summon Gems button
+
+Files:
+- Backend: `backend/server.py`, `backend/game_data.py`
+- Frontend: `frontend/src/components/DailyLoginCard.jsx`, `frontend/src/components/EnergyWidget.jsx`, `frontend/src/pages/Lobby.jsx`, `frontend/src/components/TopBar.jsx`, `frontend/src/pages/Summon.jsx`, `frontend/src/context/GameContext.jsx`
+
+Verification:
+- Verified by `testing_agent_v3`: `/app/test_reports/iteration_12.json`
 
 ---
 
 ## 2B) Cinematic RPG UI Redesign Roadmap (Visual-Only)
-> **Critical rule:** Do NOT touch battle/arena/summon logic. Visual presentation only.
-> Build strictly in order, inspect on **mobile viewport after each phase**, then pause for user validation.
+> **Critical rule:** visual-only where stated.
 
 ### Phase A (P0) — Global Visual System ✅ COMPLETE
-- Added global design tokens in `src/lib/theme.js` (rarity/element colors, glows, scrims, typography, surfaces).
-- Maintained backward compatibility via `src/lib/styles.js` re-exports.
+- Added global design tokens in `src/lib/theme.js`.
 
 ### Phase B (P0) — Hero Portrait + Roster Redesign ✅ COMPLETE
-- Created `HeroPortrait.jsx` for portrait-first cards with scrims/vignettes/rarity glow.
-- Rebuilt `Roster.jsx` into cinematic hero collection screen.
+- Created `HeroPortrait.jsx`.
+- Rebuilt `Roster.jsx` cinematic grid.
 
-### Phase C (covered) — Cinematic Character Detail ✅ COMPLETE
-- Added `HeroShowcase.jsx` to replace old dialog with full-screen cinematic showcase.
-- Added `EliteBurst.jsx` for UR/LR dramatic reveal when tapping elite heroes.
+### Phase C (P0) — Unified, fuller Hero Detail Modal ✅ COMPLETE (Verified)
+**User request:** Roster detail view should match Gallery-style selection display, but fuller.
 
-### Nav Cleanup (mobile) ✅ COMPLETE
-- Updated `TopBar.jsx` to remove sideways scrolling: 4 primary tabs + **More** sheet drawer.
+- Created shared component: `HeroDetailModal.jsx` (larger, portrait-first, gallery-style).
+- Gallery uses it in read-only mode (shows How to Obtain).
+- Roster uses it as a **showcase + progression hub**:
+  - EXP tome training
+  - Ascend
+- Deleted obsolete `HeroShowcase.jsx`.
 
-### Phase D (P0) — Home/Lobby Screen Redesign ✅ COMPLETE (Verified)
-**What changed (visual-only):** `src/pages/Lobby.jsx` full rewrite.
-- Full-bleed cinematic **Squad Leader** banner (48vh mobile / 56vh desktop)
-- Unboxed HUD strip (Energy / Ryo / Power)
-- Continue Mission CTA redesign
-- Cinematic quick-access tiles
-
-### Phase D.1 (P0) — Hero Card Grid Spacing + Glow Containment ✅ COMPLETE (Verified)
-**Issue:** "cards are too close; user should see entire card".
-
-Root causes:
-1. `index.css` rarity aura keyframes (`auraPulse2/3/4`) pulsed box-shadow with very large spreads (up to ~72px), bleeding into neighboring grid cells.
-2. `HeroPortrait.jsx` compact-mode grid cards used the same glow intensity as featured/detail modes.
-3. Dense grids in `Roster.jsx`, `Gallery.jsx`, and `TeamBuilder.jsx` used `gap-3` (12px), too tight for cinematic cards + glow.
-
-Fixes applied (scope limited to this bug only):
-- **Glow containment**
-  - `frontend/src/index.css`: reduced auraPulse2/3/4 box-shadow spread values (roughly halved) to prevent bleed.
-  - `frontend/src/components/HeroPortrait.jsx`: added compact-mode glow scaling (0.55×) so dense grids remain crisp; featured/detail retains full drama.
-- **Layout spacing**
-  - `frontend/src/pages/Roster.jsx`: increased grid spacing to `gap-x-4 gap-y-6` scaling up to `lg:gap-x-6 lg:gap-y-8`, and ensured `overflow-visible` wrapper.
-  - `frontend/src/pages/Gallery.jsx`: increased grid spacing similarly and added `xl:grid-cols-6`.
-  - `frontend/src/pages/TeamBuilder.jsx`: increased grid spacing similarly and added `xl:grid-cols-6`.
+Files:
+- `frontend/src/components/HeroDetailModal.jsx`
+- `frontend/src/pages/Roster.jsx`
+- `frontend/src/pages/Gallery.jsx`
 
 Verification:
-- Verified by `testing_agent_v3` report: `/app/test_reports/iteration_11.json`
-  - Roster/Gallery/Team Builder spacing and full card visibility ✅
-  - Elite rarity aura contained (no neighbor bleed) ✅
-  - Interactions unaffected (Roster showcase modal / Gallery detail dialog / Team selection toggle) ✅
-  - Responsive breakpoints validated (mobile/tablet/desktop) ✅
+- Verified by `testing_agent_v3`: `/app/test_reports/iteration_12.json`
 
-Notes:
-- Per user instruction, **only** this spacing bug was addressed.
-- Code review items (hook deps, empty catch blocks, complexity) remain deferred.
+### Nav Cleanup (mobile) ✅ COMPLETE
+- 4 primary tabs + More sheet.
+
+### Phase D (P0) — Home/Lobby Screen Redesign ✅ COMPLETE (Verified)
+- Full rewrite of `Lobby.jsx` cinematic home.
+
+### Phase D.1 (P0) — Hero Card Grid Spacing + Glow Containment ✅ COMPLETE (Verified)
+- Increased grid gaps in Roster/Gallery/TeamBuilder.
+- Reduced aura keyframe glow spread.
+- Reduced compact-mode card glow.
+
+Verification:
+- `/app/test_reports/iteration_11.json`
 
 ---
 
 ### Phase E (P1) — Campaign Screen Redesign ⏭️ NEXT (Not started)
 Goal: Replace list-card feel with stage progression + cinematic previews.
 - Visual redesign only: keep stage data, gating, and `startBattle()` behavior unchanged.
-- After implementation: screenshot inspection on mobile and pause for user validation.
 
 ### Phase F (P1) — Spire / Farming Content Redesign (Not started)
 - Visual-only changes.
 
-### Phase G (P2) — Summon Screen Redesign (Not started — **PAUSED BY USER**)
-- Summon UI redesign/animations explicitly paused.
+### Phase G (P2) — Summon Screen Redesign (Not started)
+- **UI redesign/ceremony can proceed later**, but do not change summon logic.
 
 ### Phase H (P2) — Battle Arena (Visual redesign ONLY) (Not started)
 - Visual-only.
@@ -340,17 +299,15 @@ Goal: Replace list-card feel with stage progression + cinematic previews.
 
 ## 3) Next Actions
 1. **Art production kickoff:** use `/app/memory/HERO_ART_MANIFEST.md` to brief external artists.
-   - Produce Priority A batch first.
-   - Deliver PNG portraits at 3:4 aspect, recommended 1024×1365+.
-   - Drop final files into `frontend/public/heroes/{hero_id}.png` or use admin portrait overrides.
-2. **User validation checkpoint:** confirm the art-direction brief is correct (Goddess Era-inspired, not copying).
-3. Once real art assets begin landing, decide the next workstream:
-   - (A) Resume UI Roadmap with **Phase E** (Campaign visual redesign) while keeping Summon UI paused
-   - (B) Or wait for more art to arrive before further UI work so layouts can be tuned to real portraits
+2. **Campaign visual redesign (Phase E)** once user approves direction.
+3. **Refinement backlog (optional):**
+   - Add a small Gems earn/claim feed in UI (recent rewards recap)
+   - Add speed memory (persist player’s last chosen 1×/2×/3×)
 
 ---
 
 ## 4) Success Criteria
+
 ### Systems
 - Catalog supports 60–80 heroes (now 69) and can scale further.
 - 8 rarity tiers exist with meaningful distribution and support.
@@ -359,6 +316,16 @@ Goal: Replace list-card feel with stage progression + cinematic previews.
 - Boss phase mechanics (shield/enrage/element shift) function in real combat.
 - Full regression suite passes.
 
+### Economy
+- Gems exist with two real sinks (premium summon + energy refill).
+- Gems come primarily from valuable actions (login/first-clears/milestones/missions), not repeat grinding.
+
+### Combat feel
+- Multi-tap exploit prevented.
+- Auto-battle functional for grind loops.
+- Speed control (1×/2×/3×) functional.
+- Manual at 1× feels fast and responsive.
+
 ### Art Production Readiness (Phase 3C-A)
 - Placeholder heroes identified (31).
 - Manifest provides complete production fields + priorities.
@@ -366,8 +333,8 @@ Goal: Replace list-card feel with stage progression + cinematic previews.
 - Goddess Era-inspired art brief captured (inspiration only, no cloning).
 
 ### Visual (Cinematic UI)
-- No regressions to backend/game logic.
 - Mobile-first, no horizontal scroll.
 - Artwork-first layouts with scrims/vignettes and controlled glow.
-- **Hero card grids have adequate breathing room and glow containment** (no crowding, no neighbor bleed).
+- Hero card grids have adequate breathing room and glow containment.
+- Hero selection modal is unified and “fuller” across Roster and Gallery.
 - Avoid generic dashboard cards; use HUD-like strips and cinematic tiles.

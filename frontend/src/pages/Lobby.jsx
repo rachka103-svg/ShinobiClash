@@ -1,15 +1,18 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Scroll, Users, Swords, Sparkles, Trophy, Coins, Zap, Castle, LayoutGrid, Crosshair, Play, PartyPopper } from "lucide-react";
+import { toast } from "sonner";
+import { Scroll, Users, Swords, Sparkles, Trophy, Coins, Zap, Gem, Castle, LayoutGrid, Crosshair, Play, PartyPopper } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import { RARITY, ELEMENT, glow, scrimBottom, vignetteInset } from "@/lib/theme";
 import EnergyWidget from "@/components/EnergyWidget";
 import MissionsPanel from "@/components/MissionsPanel";
+import DailyLoginCard from "@/components/DailyLoginCard";
+import api, { formatApiErrorDetail } from "@/lib/api";
 
 export default function Lobby() {
   const { user, setUser, refreshProfile } = useAuth();
-  const { catalogById, stages } = useGame();
+  const { catalogById, stages, gemCosts } = useGame();
 
   const teamInstances = (user?.team || [])
     .map((tid) => user.ninjas.find((n) => n.instance_id === tid))
@@ -30,6 +33,29 @@ export default function Lobby() {
     { to: "/gallery", label: "Gallery", desc: "View all heroes", icon: LayoutGrid, color: "#00E676", testid: "tile-gallery" },
     { to: "/summon", label: "Summon", desc: "Recruit new shinobi", icon: Sparkles, color: "#FFCA28", testid: "tile-summon" },
   ];
+
+  const handleGemRefill = async () => {
+    try {
+      const { data } = await api.post("/game/energy/refill");
+      setUser(data.profile);
+      toast.success(`Energy refilled for ${data.cost} Gems!`);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    }
+  };
+
+  const handleClaimLogin = async () => {
+    try {
+      const { data } = await api.post("/game/login/claim");
+      setUser(data.profile);
+      const parts = [];
+      if (data.reward.ryo) parts.push(`+${data.reward.ryo} Ryo`);
+      if (data.reward.gems) parts.push(`+${data.reward.gems} Gems`);
+      toast.success(`Day ${data.day} reward claimed! ${parts.join(" · ")}`);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    }
+  };
 
   return (
     <div data-testid="lobby-page">
@@ -95,6 +121,8 @@ export default function Lobby() {
           <HudStat icon={Zap} label="Energy" value={`${user?.energy?.current ?? 0}/${user?.energy?.max ?? 0}`} color="#00E676" testid="stat-energy" />
           <div className="w-px h-9 bg-white/10 shrink-0" />
           <HudStat icon={Coins} label="Ryo" value={user?.ryo ?? 0} color="#FFCA28" testid="stat-ryo" />
+          <div className="w-px h-9 bg-white/10 shrink-0" />
+          <HudStat icon={Gem} label="Gems" value={user?.gems ?? 0} color="#D500F9" testid="stat-gems" />
           <div className="w-px h-9 bg-white/10 shrink-0" />
           <HudStat icon={Trophy} label="Power" value={user?.team_power ?? 0} color="#FF5722" testid="stat-power" />
         </div>
@@ -171,10 +199,18 @@ export default function Lobby() {
           })}
         </div>
 
-        {/* ================= Energy + Daily Missions ================= */}
+        {/* ================= Energy + Daily Login + Missions ================= */}
         <div className="grid lg:grid-cols-12 gap-4 sm:gap-6">
-          <div className="lg:col-span-4">
-            <EnergyWidget energy={user?.energy} onRefresh={refreshProfile} />
+          <div className="lg:col-span-4 space-y-4">
+            <EnergyWidget
+              energy={user?.energy}
+              onRefresh={refreshProfile}
+              gems={user?.gems}
+              gemCostPerPoint={gemCosts.energy_refill_per_point}
+              gemCostMin={gemCosts.energy_refill_min}
+              onGemRefill={handleGemRefill}
+            />
+            <DailyLoginCard login={user?.login} onClaim={handleClaimLogin} />
           </div>
           <div className="lg:col-span-8">
             <MissionsPanel missions={user?.missions} onClaimed={setUser} />
