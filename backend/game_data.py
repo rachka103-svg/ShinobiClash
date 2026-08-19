@@ -727,6 +727,46 @@ STAGES_BY_ID = {s["id"]: s for s in STAGES}
 
 
 # ---------------------------------------------------------------------------
+# Chapter presentation metadata — purely descriptive (name + one-line lore)
+# for the World Map. Adds zero new gameplay data; chapters 1-4 get hand
+# -written lore matching their curated stage names, chapters 5+ (procedural)
+# derive a short line from their assigned region so the map never shows a
+# blank/missing chapter card as new content slices are appended.
+# ---------------------------------------------------------------------------
+CHAPTER_LORE = {
+    1: {"name": "Leaf Outskirts", "lore": "Bandits prowl the borderlands — your journey as a shinobi begins here."},
+    2: {"name": "Misty Woods & Rocky Pass", "lore": "A rogue medic and stone sentinels guard the deep woods and mountain trail."},
+    3: {"name": "Howling Cliffs", "lore": "Storms rage over the cliffs where a rebel Herald commands the winds."},
+    4: {"name": "Forsaken Shrine", "lore": "Shadows gather at the old shrine — light and dark collide."},
+}
+
+# Real, art-directed backdrops land here per chapter number once produced
+# (e.g. 1: "/art/campaign/ch1_leaf_outskirts.png"). Left empty for now — the
+# frontend falls back to a tasteful CSS atmosphere (existing accent token +
+# the shared battle backdrop) rather than any generated placeholder art, and
+# picks up real art automatically the moment a path is added here, with no
+# UI changes required.
+CHAPTER_BACKGROUNDS = {}
+
+# Cycles through colors already in the existing design-token system (no new
+# palette) so each chapter's temporary atmosphere still feels distinct.
+_CHAPTER_ACCENTS = ["#FF5722", "#00E5FF", "#D500F9", "#FFCA28", "#00E676"]
+
+
+def chapter_meta(chapter: int) -> dict:
+    if chapter in CHAPTER_LORE:
+        meta = CHAPTER_LORE[chapter]
+    else:
+        region = _CHAPTER_REGIONS[(chapter - 1) % len(_CHAPTER_REGIONS)]
+        meta = {"name": region, "lore": f"An uncharted stretch of the shadow realm — few shinobi return from the {region} unscathed."}
+    return {
+        **meta,
+        "accent": _CHAPTER_ACCENTS[(chapter - 1) % len(_CHAPTER_ACCENTS)],
+        "background_image": CHAPTER_BACKGROUNDS.get(chapter),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Combat / progression helpers
 # ---------------------------------------------------------------------------
 import random as _random

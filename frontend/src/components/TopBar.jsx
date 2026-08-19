@@ -38,14 +38,14 @@ export const TopBar = () => {
   return (
     <header className="sticky top-0 z-40 glass border-b border-white/10" data-testid="top-bar">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-        <Link to="/" className="flex items-center gap-2 group" data-testid="logo-link">
+        <Link to="/" className="flex items-center gap-2 group shrink-0" data-testid="logo-link">
           <Swords className="w-6 h-6 text-chakra glow-text-cyan" />
           <span className="font-display text-2xl tracking-wider text-white group-hover:text-chakra transition-colors">
             SHINOBI<span className="text-fox">CLASH</span>
           </span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden md:flex items-center gap-0.5 min-w-0 overflow-x-auto" data-testid="desktop-nav">
           {nav.map((n) => {
             const active = loc.pathname === n.to;
             const Icon = n.icon;
@@ -54,7 +54,7 @@ export const TopBar = () => {
                 key={n.to}
                 to={n.to}
                 data-testid={n.testid}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 lg:px-3 py-2 rounded text-sm font-medium transition-all whitespace-nowrap shrink-0 ${
                   active ? "text-chakra bg-cyan-500/10" : "text-slate-400 hover:text-white hover:bg-white/5"
                 }`}
               >
@@ -65,7 +65,7 @@ export const TopBar = () => {
           })}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <div className="hidden sm:block">
             <EnergyWidget energy={user?.energy} onRefresh={refreshProfile} compact />
           </div>

@@ -37,12 +37,18 @@
     border-color: hsl(var(--border));
 }
 
-body {
+html, body {
     margin: 0;
     background-color: #05050A;
     color: #fff;
     font-family: 'Outfit', sans-serif;
     -webkit-font-smoothing: antialiased;
+    /* Defensive safety net: no single element (e.g. a full-bleed carousel
+       using negative margins) should ever be able to widen the document
+       and create a page-level horizontal scrollbar. Any intentional
+       horizontal scroll region still works fine — it just scrolls within
+       its own bounds via overflow-x-auto on that element. */
+    overflow-x: hidden;
 }
 
 .font-display {

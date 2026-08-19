@@ -598,7 +598,20 @@ async def stages():
     # boss_mechanics ships the reusable phase framework (shield/enrage/
     # elemental-shift definitions) referenced by `boss_mechanic` on boss
     # stages, so the client combat engine can resolve them during battle.
-    return {"stages": gd.STAGES, "boss_mechanics": gd.BOSS_MECHANICS}
+    #
+    # The World Map (Campaign UI) needs two purely presentational, additive
+    # fields that don't exist on the raw stage dicts: a computed
+    # `recommended_power` (sum of enemy combat power, so the client can show
+    # "your squad vs. this fight" without re-deriving formulas) and a short
+    # `chapters` list of {chapter, name, lore} for the chapter navigator.
+    # Neither touches STAGES itself — no stage/chapter data is invented.
+    enriched_stages = [
+        {**s, "recommended_power": sum(gd.ninja_power(e["template_id"], e["level"]) for e in s["enemies"])}
+        for s in gd.STAGES
+    ]
+    chapter_nums = sorted(set(s["chapter"] for s in gd.STAGES))
+    chapters = [{"chapter": c, **gd.chapter_meta(c)} for c in chapter_nums]
+    return {"stages": enriched_stages, "boss_mechanics": gd.BOSS_MECHANICS, "chapters": chapters}
 
 
 @api_router.get("/game/profile")
