@@ -28,9 +28,12 @@ export default function HeroPortrait({
   const element = ELEMENT[hero.element] || {};
   const elite = rarity.tier >= 3; // UR / LR shine
 
+  // Dense collection grids get a tighter glow so a card's aura never bleeds
+  // into its neighbor's cell — full drama is reserved for single-hero modes.
+  const glowScale = mode === "compact" ? 0.55 : 1;
   const frameGlow = selected
-    ? glow(rarity.color, 3)
-    : glow(rarity.color, rarity.tier >= 3 ? 2 : rarity.tier >= 2 ? 1.4 : 1);
+    ? glow(rarity.color, 3 * glowScale)
+    : glow(rarity.color, (rarity.tier >= 3 ? 2 : rarity.tier >= 2 ? 1.4 : 1) * glowScale);
 
   const aspect = mode === "detail" ? "aspect-[3/4] sm:aspect-[16/10]" : mode === "featured" ? "aspect-[4/5]" : "aspect-[3/4]";
   const nameSize = mode === "detail" ? "text-4xl sm:text-6xl" : mode === "featured" ? "text-2xl" : "text-sm";

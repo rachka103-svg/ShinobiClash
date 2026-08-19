@@ -163,9 +163,9 @@ export default function Roster() {
           No heroes match these filters yet.
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-6 sm:gap-x-5 sm:gap-y-7 lg:gap-x-6 lg:gap-y-8">
           {filtered.map((n, i) => (
-            <motion.div key={n.instance_id} className="w-full" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.02, 0.3) }}>
+            <motion.div key={n.instance_id} className="w-full overflow-visible" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.02, 0.3) }}>
               <HeroPortrait
                 hero={n}
                 mode="compact"

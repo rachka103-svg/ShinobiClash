@@ -156,17 +156,19 @@ body {
 }
 
 /* ---------- Rarity aura tiers (SSR / UR / LR) ---------- */
+/* Note: spread kept intentionally modest so adjacent grid cards never visually
+   merge — cinematic glow should frame a card, not bleed into its neighbors. */
 @keyframes auraPulse2 {
-    0%, 100% { box-shadow: 0 0 10px var(--glow), 0 0 22px var(--glow), inset 0 0 10px var(--glow); }
-    50%      { box-shadow: 0 0 16px var(--glow), 0 0 34px var(--glow), inset 0 0 16px var(--glow); }
+    0%, 100% { box-shadow: 0 0 6px var(--glow), 0 0 14px var(--glow), inset 0 0 8px var(--glow); }
+    50%      { box-shadow: 0 0 10px var(--glow), 0 0 20px var(--glow), inset 0 0 12px var(--glow); }
 }
 @keyframes auraPulse3 {
-    0%, 100% { box-shadow: 0 0 14px var(--glow), 0 0 30px var(--glow), inset 0 0 14px var(--glow); }
-    50%      { box-shadow: 0 0 24px var(--glow), 0 0 52px var(--glow), inset 0 0 22px var(--glow); }
+    0%, 100% { box-shadow: 0 0 8px var(--glow), 0 0 18px var(--glow), inset 0 0 10px var(--glow); }
+    50%      { box-shadow: 0 0 14px var(--glow), 0 0 28px var(--glow), inset 0 0 16px var(--glow); }
 }
 @keyframes auraPulse4 {
-    0%, 100% { box-shadow: 0 0 18px var(--glow), 0 0 42px var(--glow), inset 0 0 18px var(--glow); }
-    50%      { box-shadow: 0 0 32px var(--glow), 0 0 72px var(--glow), inset 0 0 30px var(--glow); }
+    0%, 100% { box-shadow: 0 0 10px var(--glow), 0 0 22px var(--glow), inset 0 0 12px var(--glow); }
+    50%      { box-shadow: 0 0 18px var(--glow), 0 0 36px var(--glow), inset 0 0 20px var(--glow); }
 }
 .aura-2 { animation: auraPulse2 2.6s ease-in-out infinite; }
 .aura-3 { animation: auraPulse3 2.2s ease-in-out infinite; }

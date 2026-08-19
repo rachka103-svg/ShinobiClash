@@ -64,7 +64,7 @@ export default function Gallery() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-6 sm:gap-x-5 sm:gap-y-7 lg:gap-x-6 lg:gap-y-8">
         {list.map((c) => {
           const owned = ownedSet.has(c.id);
           return (

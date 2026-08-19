@@ -19,6 +19,12 @@
 - Use **Goddess Era** as an **inspiration/quality bar** for **character artwork production** (painterly anime/CG splash art, dynamic elemental posing, rarity-scaled ornate costuming), **without copying** its specific characters or UI.
 - **Do not restyle UI chrome yet** (frames, gold ornamentation, summon ceremony) until real art assets arrive; revisit UI styling in a later phase once final character art is in-hand.
 
+### Updated UI stability objective (new)
+- Ensure cinematic hero-card presentation remains **readable and premium**:
+  - Cards are **fully visible** (art + overlay text), never clipped or crowded.
+  - Rarity glow/aura effects enhance cards **without bleeding into neighbors**.
+  - Dense hero grids maintain adequate **breathing room** across mobile/tablet/desktop.
+
 ### Hard constraints (must continue to obey)
 - Do **not** redesign Summon UI unless/until its phase and the user explicitly authorizes.
   - Current status: Summon UI redesign is paused.
@@ -283,6 +289,34 @@ Files:
 - Continue Mission CTA redesign
 - Cinematic quick-access tiles
 
+### Phase D.1 (P0) — Hero Card Grid Spacing + Glow Containment ✅ COMPLETE (Verified)
+**Issue:** "cards are too close; user should see entire card".
+
+Root causes:
+1. `index.css` rarity aura keyframes (`auraPulse2/3/4`) pulsed box-shadow with very large spreads (up to ~72px), bleeding into neighboring grid cells.
+2. `HeroPortrait.jsx` compact-mode grid cards used the same glow intensity as featured/detail modes.
+3. Dense grids in `Roster.jsx`, `Gallery.jsx`, and `TeamBuilder.jsx` used `gap-3` (12px), too tight for cinematic cards + glow.
+
+Fixes applied (scope limited to this bug only):
+- **Glow containment**
+  - `frontend/src/index.css`: reduced auraPulse2/3/4 box-shadow spread values (roughly halved) to prevent bleed.
+  - `frontend/src/components/HeroPortrait.jsx`: added compact-mode glow scaling (0.55×) so dense grids remain crisp; featured/detail retains full drama.
+- **Layout spacing**
+  - `frontend/src/pages/Roster.jsx`: increased grid spacing to `gap-x-4 gap-y-6` scaling up to `lg:gap-x-6 lg:gap-y-8`, and ensured `overflow-visible` wrapper.
+  - `frontend/src/pages/Gallery.jsx`: increased grid spacing similarly and added `xl:grid-cols-6`.
+  - `frontend/src/pages/TeamBuilder.jsx`: increased grid spacing similarly and added `xl:grid-cols-6`.
+
+Verification:
+- Verified by `testing_agent_v3` report: `/app/test_reports/iteration_11.json`
+  - Roster/Gallery/Team Builder spacing and full card visibility ✅
+  - Elite rarity aura contained (no neighbor bleed) ✅
+  - Interactions unaffected (Roster showcase modal / Gallery detail dialog / Team selection toggle) ✅
+  - Responsive breakpoints validated (mobile/tablet/desktop) ✅
+
+Notes:
+- Per user instruction, **only** this spacing bug was addressed.
+- Code review items (hook deps, empty catch blocks, complexity) remain deferred.
+
 ---
 
 ### Phase E (P1) — Campaign Screen Redesign ⏭️ NEXT (Not started)
@@ -335,4 +369,5 @@ Goal: Replace list-card feel with stage progression + cinematic previews.
 - No regressions to backend/game logic.
 - Mobile-first, no horizontal scroll.
 - Artwork-first layouts with scrims/vignettes and controlled glow.
+- **Hero card grids have adequate breathing room and glow containment** (no crowding, no neighbor bleed).
 - Avoid generic dashboard cards; use HUD-like strips and cinematic tiles.
