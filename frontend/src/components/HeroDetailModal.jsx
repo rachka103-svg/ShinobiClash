@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Heart, Sword, Shield, Wind, Star, ChevronsUp, Gem, Coins, Sparkles, Check,
-  Scroll, Zap, Loader2, ArrowRight, Anvil, Plus,
+  Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -46,6 +46,7 @@ export default function HeroDetailModal({
   const [qty, setQty] = useState(1);
   const [gearSlot, setGearSlot] = useState(null);
   const [busyLocal, setBusyLocal] = useState(false);
+  const [immersive, setImmersive] = useState(false);
 
   if (!template) return null;
   const rarity = RARITY[template.rarity] || RARITY.R;
@@ -107,8 +108,10 @@ export default function HeroDetailModal({
 
   const busy = busyLocal || progression?.busy;
 
+  const closeAll = () => { setImmersive(false); onClose(); };
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => !o && closeAll()}>
       <DialogContent
         data-testid="hero-detail-modal"
         className="max-w-xl sm:max-w-2xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] overflow-y-auto bg-[#0B0B14] border-0 rounded-2xl"
@@ -117,6 +120,51 @@ export default function HeroDetailModal({
         <DialogTitle className="sr-only">{template.name}</DialogTitle>
         <DialogDescription className="sr-only">Details for {template.name}</DialogDescription>
 
+        {immersive ? (
+          /* ---------- Immersive: art-only, info hidden ---------- */
+          <div className="relative bg-black flex items-center justify-center min-h-[70vh]" data-testid="hero-immersive-view">
+            <img
+              src={template.portrait}
+              alt={template.name}
+              className="w-full max-h-[92vh] object-contain select-none"
+              draggable={false}
+            />
+            {/* element wash + bottom scrim for legibility */}
+            <div className="absolute inset-x-0 top-0 h-32 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${element.color}55, transparent)` }} />
+            <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
+
+            {/* rarity badge */}
+            <div className="absolute top-4 right-16 sm:right-20 z-10"><RarityBadge rarity={template.rarity} size="lg" /></div>
+
+            {/* exit immersive */}
+            <button
+              onClick={() => setImmersive(false)}
+              data-testid="hero-immersive-exit"
+              className="absolute top-4 left-4 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/55 backdrop-blur border border-white/15 text-slate-200 text-xs font-semibold hover:bg-black/75 transition-colors"
+            >
+              <Minimize2 className="w-3.5 h-3.5" /> Show Info
+            </button>
+
+            {/* minimal caption */}
+            <div className="absolute inset-x-0 bottom-0 z-10 p-5 sm:p-7">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-bold px-2.5 py-1 rounded-md" style={{ background: `${element.color}22`, color: element.color, border: `1px solid ${element.color}66` }}>{template.element}</span>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-white/10 text-slate-200">{template.role}</span>
+                {instance && (
+                  <span className="ml-auto font-display text-lg text-amber-300 flex items-center gap-1"><Zap className="w-4 h-4" />{instance.power} PWR</span>
+                )}
+              </div>
+              <h2 className="font-display text-4xl sm:text-6xl tracking-wide text-white leading-none">{template.name}</h2>
+              {template.title && <p className="text-sm sm:text-base text-chakra italic mt-1.5">{template.title}</p>}
+              {instance && (
+                <div className="mt-3">
+                  <EvoStars count={instance.stars || 1} max={instance.stars_max || 6} size="w-5 h-5" />
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+        <>
         {/* ---------- Portrait ---------- */}
         <div className="relative h-[300px] sm:h-[400px] shrink-0">
           <img src={template.portrait} alt={template.name} className="w-full h-full object-cover object-top" />
@@ -133,6 +181,14 @@ export default function HeroDetailModal({
               <EvoStars count={instance.stars || 1} max={instance.stars_max || 6} size="w-5 h-5" testid="hero-evolution-stars" />
             </div>
           )}
+          {/* View full art — hides info panels */}
+          <button
+            onClick={() => setImmersive(true)}
+            data-testid="hero-fullscreen-toggle"
+            className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/50 backdrop-blur border border-white/15 text-slate-200 text-xs font-semibold hover:bg-black/70 transition-colors"
+          >
+            <Maximize2 className="w-3.5 h-3.5" /> View Art
+          </button>
         </div>
 
         {/* ---------- Profile content ---------- */}
@@ -439,6 +495,8 @@ export default function HeroDetailModal({
             ))}
           </div>
         </div>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );
