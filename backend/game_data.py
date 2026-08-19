@@ -746,7 +746,12 @@ CHAPTER_LORE = {
 # the shared battle backdrop) rather than any generated placeholder art, and
 # picks up real art automatically the moment a path is added here, with no
 # UI changes required.
-CHAPTER_BACKGROUNDS = {}
+# Real chapter environment art, served from the frontend's public folder.
+# To swap a chapter's artwork later, just replace the file at the mapped
+# path (or point the entry at a new file) — no frontend changes required.
+CHAPTER_BACKGROUNDS = {
+    1: "/art/chapters/chapter-1-leaf-outskirts.webp",
+}
 
 # Cycles through colors already in the existing design-token system (no new
 # palette) so each chapter's temporary atmosphere still feels distinct.

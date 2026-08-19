@@ -76,7 +76,7 @@ export default function Campaign() {
           with zero UI changes required. */}
       <div className="fixed inset-0 -z-10 pointer-events-none transition-[background] duration-500">
         {chapterBg ? (
-          <img src={chapterBg} alt="" className="w-full h-full object-cover opacity-30" />
+          <img src={chapterBg} alt="" className="w-full h-full object-cover opacity-50" />
         ) : (
           <img src="/art/battle-bg.png" alt="" className="w-full h-full object-cover opacity-[0.12]" />
         )}
@@ -84,7 +84,17 @@ export default function Campaign() {
           className="absolute inset-0"
           style={{ background: `radial-gradient(ellipse 80% 50% at 50% 0%, ${accent}1A, transparent 65%)` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#05050A]/60 via-[#05050A]/95 to-[#05050A]" />
+        {/* Real chapter art gets a lighter scrim up top so the environment
+            reads as atmosphere; the bottom stays near-solid so the stage
+            path/nodes remain the primary layer. Fallback keeps the heavier
+            original scrim since its image renders at very low opacity. */}
+        <div
+          className={`absolute inset-0 bg-gradient-to-b ${
+            chapterBg
+              ? "from-[#05050A]/35 via-[#05050A]/75 to-[#05050A]"
+              : "from-[#05050A]/60 via-[#05050A]/95 to-[#05050A]"
+          }`}
+        />
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">

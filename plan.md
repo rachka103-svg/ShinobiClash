@@ -312,6 +312,14 @@ Verification:
 
 ---
 
+### Phase E.9 (P1) — Chapter 1 Real Artwork Integration ✅ COMPLETE (Verified)
+- User-supplied bamboo forest sunset art (`art/battle-bg.png` from uploaded pack) chosen as Chapter 1 — Leaf Outskirts background.
+- Optimized asset: `/app/frontend/public/art/chapters/chapter-1-leaf-outskirts.webp` (845 KB PNG → 138 KB WebP, 1376×768).
+- Backend: `CHAPTER_BACKGROUNDS = {1: "/art/chapters/chapter-1-leaf-outskirts.webp"}` in `game_data.py` — swapping art later = replace file or remap entry, ZERO frontend changes.
+- Frontend: `Campaign.jsx` scrim tuned for real art (img opacity-50, lighter top gradient `from-#05050A/35 via /75 to solid`); fallback treatment for art-less chapters unchanged.
+- Verified: bg loads on CH.1 only; CH.2+ unchanged; 0px horizontal overflow at 1920/1280/1024/768/390/375; stage nodes interactive; preview drawer works; battle launch works (`/battle/campaign/s1`); unit tests pass (1/1).
+- NOTE: User will explain purpose of 2 uploaded UI screenshots (Apep/Prometheus hero modals) in next message.
+
 ### Phase F (P1) — Spire / Farming Content UI Redesign (Not started)
 - Visual-only changes.
 - Clear repeatable loops and rewards visibility.
