@@ -67,6 +67,10 @@ html, body {
 ::-webkit-scrollbar-thumb { background: #1f2640; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #00E5FF66; }
 
+/* Hidden scrollbar for intentional horizontal scrollers (carousels/strips) */
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; height: 0; width: 0; }
+
 /* ---------- Reusable game surfaces ---------- */
 .glass {
     background: rgba(11, 11, 20, 0.65);

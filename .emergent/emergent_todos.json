@@ -1,18 +1,30 @@
 [
   {
-    "content": "Phase J1 backend (evolution/gear/craft/fuse/dungeons/summon pity) — COMPLETE",
+    "content": "Redesign Summon.jsx hero banner section (cinematic featured hero, themed title, tags, countdown)",
     "status": "completed"
   },
   {
-    "content": "Phase J2 frontend (Summon ceremony/Hero modal tabs/Forge/Dungeons/combat stats) — COMPLETE",
+    "content": "Build featured heroes row + View All Featured dialog",
     "status": "completed"
   },
   {
-    "content": "Phase J3 testing agent full run — COMPLETE (0 bugs)",
+    "content": "Rebuild MYTHIC pity module (detailed) preserving existing pity logic/data",
     "status": "completed"
   },
   {
-    "content": "Final mobile + desktop verification, plan.md updated — COMPLETE",
+    "content": "Build 3-CTA pull deck with gems/ryo toggle + ticket pull, keep gear armory reachable",
+    "status": "completed"
+  },
+  {
+    "content": "Add Available Heroes carousel with element filters",
+    "status": "completed"
+  },
+  {
+    "content": "Add Rates & Rules + Summon History cards + Recent Summons strip (localStorage history)",
+    "status": "completed"
+  },
+  {
+    "content": "Verify compile (esbuild) + screenshot both hero & gear modes",
     "status": "completed"
   }
 ]
