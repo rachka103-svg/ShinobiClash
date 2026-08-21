@@ -56,6 +56,48 @@ html, body {
     letter-spacing: 0.03em;
 }
 
+/* ==========================================================================
+   GLOBAL DESKTOP SCALE SYSTEM
+   --------------------------------------------------------------------------
+   The app is authored mobile-first. On desktop it must feel like a full PC
+   RPG — not a narrow tablet layout centered in empty space. We solve this
+   GLOBALLY (every page benefits automatically) with two levers:
+
+   1) Root font-size steps up on desktop. Because virtually all Tailwind
+      typography / spacing / padding / gap / icon / height utilities are
+      rem-based, this scales the entire interface crisply (NOT transform:
+      scale, so nothing blurs) and proportionally. Mobile/tablet keep the
+      base 16px so they are untouched.
+
+   2) The shared page-container width tokens (max-w-3xl…7xl — used ONLY on
+      page roots + the navbar, never inside cards/modals) widen to consume
+      ~90vw of desktop width up to tasteful caps, so content fills the screen
+      instead of sitting in a ~1100px column. Cards laid out with w-full in
+      responsive grids therefore grow LARGER (not more-per-row).
+
+   Breakpoints: mobile < 768, tablet 768–1279, desktop >= 1280.
+   ========================================================================== */
+
+/* ---- Desktop (>= 1280px) ---- */
+@media (min-width: 1280px) {
+    html { font-size: 17px; }
+
+    :where(main, header) .max-w-3xl { max-width: min(90vw, 1120px); }
+    :where(main) .max-w-4xl        { max-width: min(90vw, 1240px); }
+    :where(main) .max-w-5xl        { max-width: min(90vw, 1500px); }
+    :where(main) .max-w-6xl        { max-width: min(90vw, 1600px); }
+    :where(main, header) .max-w-7xl { max-width: min(90vw, 1600px); }
+}
+
+/* ---- Large desktop (>= 1680px) ---- */
+@media (min-width: 1680px) {
+    html { font-size: 18px; }
+
+    :where(main) .max-w-5xl         { max-width: min(90vw, 1600px); }
+    :where(main) .max-w-6xl,
+    :where(main, header) .max-w-7xl { max-width: min(90vw, 1760px); }
+}
+
 ::selection {
     background: rgba(0, 229, 255, 0.3);
     color: #fff;

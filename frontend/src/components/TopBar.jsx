@@ -47,7 +47,7 @@ export const TopBar = () => {
           </span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-0.5 min-w-0 overflow-x-auto" data-testid="desktop-nav">
+        <nav className="hidden md:flex items-center gap-0.5 lg:gap-1 min-w-0 overflow-x-auto" data-testid="desktop-nav">
           {nav.map((n) => {
             const active = loc.pathname === n.to;
             const Icon = n.icon;
@@ -56,32 +56,32 @@ export const TopBar = () => {
                 key={n.to}
                 to={n.to}
                 data-testid={n.testid}
-                className={`flex items-center gap-1.5 px-2.5 lg:px-3 py-2 rounded text-sm font-medium transition-all whitespace-nowrap shrink-0 ${
+                className={`flex items-center gap-1.5 px-2.5 lg:px-3 xl:px-3.5 py-2 lg:py-2.5 rounded text-sm font-medium transition-all whitespace-nowrap shrink-0 ${
                   active ? "text-chakra bg-cyan-500/10" : "text-slate-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
                 {n.label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 lg:gap-2.5 shrink-0">
           <div className="hidden sm:block">
             <EnergyWidget energy={user?.energy} onRefresh={refreshProfile} compact />
           </div>
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-500/10 border border-amber-500/30" data-testid="ryo-counter">
-            <Coins className="w-4 h-4 text-amber-400" />
-            <span className="font-display text-lg text-amber-300 tracking-wide">{user?.ryo ?? 0}</span>
+          <div className="hidden sm:flex items-center gap-1.5 px-3 lg:px-3.5 py-1.5 lg:py-2 rounded bg-amber-500/10 border border-amber-500/30" data-testid="ryo-counter">
+            <Coins className="w-4 h-4 lg:w-5 lg:h-5 text-amber-400" />
+            <span className="font-display text-lg lg:text-xl text-amber-300 tracking-wide">{user?.ryo ?? 0}</span>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded bg-fuchsia-500/10 border border-fuchsia-500/30" data-testid="gems-counter">
-            <Gem className="w-4 h-4 text-jutsu" />
-            <span className="font-display text-lg text-jutsu tracking-wide">{user?.gems ?? 0}</span>
+          <div className="hidden sm:flex items-center gap-1.5 px-3 lg:px-3.5 py-1.5 lg:py-2 rounded bg-fuchsia-500/10 border border-fuchsia-500/30" data-testid="gems-counter">
+            <Gem className="w-4 h-4 lg:w-5 lg:h-5 text-jutsu" />
+            <span className="font-display text-lg lg:text-xl text-jutsu tracking-wide">{user?.gems ?? 0}</span>
           </div>
           <div className="hidden sm:flex flex-col items-end leading-none">
-            <span className="text-sm font-semibold text-white" data-testid="player-name">{user?.name}</span>
-            <span className="text-xs text-chakra">Lv. {user?.level}</span>
+            <span className="text-sm lg:text-[15px] font-semibold text-white" data-testid="player-name">{user?.name}</span>
+            <span className="text-xs lg:text-sm text-chakra">Lv. {user?.level}</span>
           </div>
           <button onClick={handleLogout} data-testid="logout-button" className="p-2 rounded text-slate-400 hover:text-fox hover:bg-fox/10 transition-colors">
             <LogOut className="w-5 h-5" />
