@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { RARITY, ELEMENT } from "@/lib/styles";
-import { auraClass, RaritySparkles } from "@/components/RarityFx";
+import { rarityFrame, GOLD } from "@/lib/theme";
+import { auraClass, RaritySparkles, DecoCorners } from "@/components/RarityFx";
 
 export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid }) => {
   // ninja: a catalog template OR an owned instance merged with template fields
@@ -9,10 +10,12 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
   const tier = rarity.tier ?? 0;
   const elite = tier >= 3; // SSR and above get an animated aura
   const aura = auraClass(ninja.rarity);
+  const fr = rarityFrame(ninja.rarity);
+  const edge = fr.useGold ? GOLD.stroke : rarity.color;
   const frameStyle = selected
-    ? { border: `2px solid ${rarity.color}` }
+    ? { border: `2px solid ${edge}` }
     : elite
-      ? { border: `2px solid ${rarity.color}`, "--glow": `${rarity.color}${tier >= 4 ? "cc" : tier >= 3 ? "aa" : "88"}` }
+      ? { border: `2px solid ${edge}`, "--glow": fr.useGold ? GOLD.base : `${rarity.color}${tier >= 4 ? "cc" : tier >= 3 ? "aa" : "88"}` }
       : { border: `1.5px solid ${rarity.color}`, boxShadow: `0 0 ${5 + tier * 4}px ${rarity.color}55, inset 0 0 14px ${rarity.color}1f` };
   return (
     <motion.button
@@ -37,6 +40,7 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
         {!disabled && <RaritySparkles rarity={ninja.rarity} />}
         {tier >= 4 && !disabled && <span className="absolute inset-0 shine-sweep pointer-events-none" />}
+        {fr.cornerLevel >= 2 && !disabled && <DecoCorners rarity={ninja.rarity} size={16} />}
         <span
           className="absolute top-1.5 left-1.5 font-display text-sm px-1.5 leading-tight rounded shadow"
           style={{ background: rarity.color, color: "#05050A", boxShadow: `0 0 10px ${rarity.color}aa` }}

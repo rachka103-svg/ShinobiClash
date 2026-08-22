@@ -107,3 +107,55 @@ export const vignetteInset =
   "radial-gradient(120% 100% at 50% 0%, transparent 55%, rgba(0,0,0,0.35) 100%)";
 
 export const rarityTier = (rarityKey) => RARITY[rarityKey]?.tier ?? 0;
+
+// ---------------------------------------------------------------------------
+// PRESTIGE / DECO tokens — "Neon Shadow — Deco Prestige" theme.
+// Gold is the PRESTIGE accent (rarity/rewards/premium); cyan stays the primary
+// interactive accent. Used for gold hairlines, corner filigree and crests.
+// ---------------------------------------------------------------------------
+export const GOLD = {
+  base: "#FFCA28",
+  bright: "#FFC857",
+  dim: "rgba(255,202,40,0.22)",
+  hairline: "rgba(255,202,40,0.38)",
+  stroke: "rgba(255,202,40,0.55)",
+};
+
+export const STROKE = {
+  soft: "rgba(255,255,255,0.08)",
+  base: "rgba(255,255,255,0.12)",
+  hard: "rgba(255,255,255,0.18)",
+};
+
+// Which rarities receive the gold prestige treatment on their frame.
+export const GOLD_RARITIES = ["UR", "LR", "MYTHIC"];
+
+/**
+ * rarityFrame(key) — resolves the ornate, rarity-scaled frame treatment.
+ * Ornamentation (corner level) and glow strength grow with rarity; the top
+ * prestige tiers (UR / LR / MYTHIC) switch to a gold structure.
+ *
+ * returns:
+ *  - tier            numeric rarity tier
+ *  - rarityColor     the raw rarity color
+ *  - useGold         whether this tier uses the gold prestige structure
+ *  - cornerLevel     0 none · 1 SR · 2 SSR · 3 UR/GR · 4 LR/MYTHIC
+ *  - strokeColor     outer frame border color
+ *  - strokeWidth     outer frame border width (px)
+ *  - cornerColor     color for the deco corner ornaments
+ */
+export const rarityFrame = (key) => {
+  const r = RARITY[key] || RARITY.R;
+  const t = r.tier;
+  const useGold = GOLD_RARITIES.includes(key);
+  const cornerLevel = t >= 6 ? 4 : t >= 4 ? 3 : t >= 3 ? 2 : t >= 2 ? 1 : 0;
+  return {
+    tier: t,
+    rarityColor: r.color,
+    useGold,
+    cornerLevel,
+    strokeColor: useGold ? GOLD.stroke : `${r.color}66`,
+    strokeWidth: t >= 6 ? 2 : 1,
+    cornerColor: useGold ? GOLD.base : r.color,
+  };
+};

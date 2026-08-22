@@ -1,98 +1,249 @@
 {
   "project": {
     "name": "Shinobi Clash",
-    "scope": "Extend existing dark cinematic mobile-first gacha RPG UI for Bulk Train/Evolve, Gear/Forge, Summon Ceremony redesign, Resource Dungeons hub, Crafting + Material Fusion.",
+    "theme_codename": "Neon Shadow — Deco Prestige",
+    "scope": "ELEVATE (not redesign) the existing dark cinematic gacha RPG UI into a premium theme. Extend existing tokens in /app/frontend/src/lib/theme.js and :root in /app/frontend/src/index.css so changes propagate globally. Showcase focus: Summon + Roster.",
     "non_negotiables": [
-      "Keep existing design tokens/palette/utilities (base #05050A, panel #0B0B14, chakra cyan #00E5FF, fox orange #FF5722, jutsu magenta #D500F9, amber for gold/rare).",
-      "Mobile-first. NO page-level horizontal scrolling ever (use min-w-0 on flex children; avoid negative margins that widen layout).",
-      "Performance: animate transform/opacity only; no continuous background animation.",
+      "Backward-compatible: extend tokens/utilities; do not rip out existing palette or classnames.",
+      "Single mode only: DARK.",
+      "Keep chakra cyan (#00E5FF) as PRIMARY interactive accent.",
+      "Introduce METALLIC GOLD as PRESTIGE accent (rarity/rewards/premium).",
+      "Ornate rarity-scaled card frames are the signature: ornamentation + glow intensity increases with rarity; UR/LR/MYTHIC get gold treatment.",
+      "Art-first: UI must not clutter character art; use scrims/vignettes for legibility.",
+      "No page-level horizontal scroll. Any horizontal scroller must be bounded (overflow-x-auto) and use scrollbar-none.",
+      "All interactive and key informational elements MUST include data-testid (kebab-case, role-based).",
       "Use shadcn/ui components from /app/frontend/src/components/ui (JS files).",
-      "Use framer-motion + lucide-react only (no new heavy libs).",
-      "All interactive + key informational elements MUST include data-testid (kebab-case, role-based).",
-      "Summon reveal must be skippable (tap-to-skip / skip button) and not annoying on x10."
+      "No transition:all. Animate transform/opacity for motion; use transition-colors for hover/focus color changes only.",
+      "Gradients restricted: never exceed 20% viewport; never on text-heavy reading areas; never on small UI elements (<100px)."
     ]
   },
 
   "brand_attributes": {
-    "tone": ["cinematic", "premium", "grindy-long-term", "high-contrast", "alive-with-glow"],
+    "tone": ["cinematic", "premium", "high-contrast", "collectible-prestige", "deco-ornate-but-controlled"],
     "visual_metaphors": [
-      "obsidian panels + runic neon edges",
-      "chakra energy (cyan) for primary actions",
-      "foxfire (orange) for currency/heat/crit moments",
-      "jutsu magenta for mythic/arcane emphasis"
+      "obsidian lacquer canvas",
+      "cyan chakra circuitry for interaction",
+      "Deco gold pinstripes + corner filigree for prestige",
+      "rarity as jewelry: frames feel like crafted artifacts"
     ],
-    "do_not_change": [
-      "Existing rarity tier colors + aura utilities (.aura-2/.aura-3/.aura-4, .rarity-pulse, .shine-sweep)",
-      "Existing fonts: Outfit (body/UI), Bebas Neue (display via .font-display)"
-    ]
+    "reference_learnings_to_bake_in": {
+      "goddess_era": "Art dominates; UI stays uncluttered; text sits on blurred scrims.",
+      "girls_x_battle": "Clean, high-contrast, legible; punchy rarity feedback in summon.",
+      "afk_arena_epic_seven": "Ornamentation scales with rarity; gold for prestige; rarity ladder + stars; dark blurred scrims behind text over art."
+    }
   },
 
   "design_tokens": {
+    "component_path": {
+      "shadcn_primary": "/app/frontend/src/components/ui",
+      "use_these": {
+        "button": "button.jsx",
+        "card": "card.jsx",
+        "badge": "badge.jsx",
+        "tabs": "tabs.jsx",
+        "dialog": "dialog.jsx",
+        "drawer": "drawer.jsx",
+        "sheet": "sheet.jsx",
+        "carousel": "carousel.jsx",
+        "scroll_area": "scroll-area.jsx",
+        "table": "table.jsx",
+        "tooltip": "tooltip.jsx",
+        "popover": "popover.jsx",
+        "alert_dialog": "alert-dialog.jsx",
+        "progress": "progress.jsx",
+        "select": "select.jsx",
+        "toggle_group": "toggle-group.jsx",
+        "sonner": "sonner.jsx"
+      }
+    },
+
     "css_custom_properties": {
-      "note": "These extend existing :root tokens in /app/frontend/src/index.css; do not replace existing values. Prefer Tailwind + existing CSS utilities; add only if needed.",
+      "where": "/app/frontend/src/index.css :root (extend; do not remove existing vars)",
       "additions": {
-        "--gold": "#FFC857",
-        "--panel-2": "rgba(11, 11, 20, 0.78)",
+        "--canvas": "#05050A",
+        "--canvas-2": "#0B0B14",
+        "--canvas-3": "#12121F",
+
+        "--gold": "#FFCA28",
+        "--gold-2": "#FFC857",
+        "--gold-dim": "rgba(255,202,40,0.22)",
+        "--gold-hairline": "rgba(255,202,40,0.35)",
+
         "--stroke-soft": "rgba(255,255,255,0.08)",
-        "--stroke-hard": "rgba(255,255,255,0.14)",
+        "--stroke": "rgba(255,255,255,0.12)",
+        "--stroke-hard": "rgba(255,255,255,0.18)",
+
+        "--glass-fill": "rgba(11, 11, 20, 0.62)",
+        "--glass-fill-strong": "rgba(6, 6, 12, 0.78)",
+        "--glass-border": "rgba(255,255,255,0.10)",
+        "--glass-border-strong": "rgba(255,255,255,0.14)",
+
         "--shadow-deep": "0 18px 60px rgba(0,0,0,0.55)",
-        "--shadow-glow-cyan": "0 0 0 1px rgba(0,229,255,0.18), 0 0 28px rgba(0,229,255,0.22)",
-        "--shadow-glow-orange": "0 0 0 1px rgba(255,87,34,0.18), 0 0 28px rgba(255,87,34,0.22)",
-        "--shadow-glow-magenta": "0 0 0 1px rgba(213,0,249,0.18), 0 0 28px rgba(213,0,249,0.22)",
+        "--shadow-lift": "0 24px 80px rgba(0,0,0,0.62)",
+
+        "--ring-cyan": "rgba(0,229,255,0.55)",
+        "--ring-gold": "rgba(255,202,40,0.45)",
+
         "--radius-card": "14px",
-        "--radius-chip": "9999px"
+        "--radius-panel": "16px",
+        "--radius-cta": "12px",
+
+        "--deco-notch": "10px",
+        "--deco-corner": "18px"
       }
     },
 
     "semantic_color_system": {
-      "background": "#05050A",
-      "surface": "#0B0B14",
-      "surfaceElevated": "linear-gradient(160deg, rgba(20, 22, 38, 0.9), rgba(8, 8, 16, 0.95)) (existing .panel)",
-      "textPrimary": "#FFFFFF",
-      "textSecondary": "rgba(255,255,255,0.72)",
-      "textMuted": "rgba(255,255,255,0.55)",
-      "stroke": "rgba(255,255,255,0.07)",
-      "focusRing": "chakra cyan (#00E5FF)",
-      "state": {
-        "success": "chakra cyan (use for confirmations in this theme)",
-        "warning": "amber/gold (#FFC857)",
-        "danger": "destructive token (hsl(var(--destructive)))"
+      "background_layers": {
+        "bg_void": "BG.void (#05050A)",
+        "bg_deep": "BG.deep (#0B0B14)",
+        "bg_night": "BG.night (#12121F)",
+        "rule": "Use bg_void for app canvas; bg_deep for most panels; bg_night only for small raised strips (HUD rows)."
       },
-      "accents": {
-        "primary": "chakra cyan (#00E5FF)",
-        "secondary": "fox orange (#FF5722)",
-        "mythic": "jutsu magenta (#D500F9)",
-        "gold": "amber (#FFC857)"
+      "text": {
+        "primary": "TEXT.primary (#FFFFFF)",
+        "secondary": "TEXT.secondary (rgba(226,232,240,0.78))",
+        "tertiary": "TEXT.tertiary (rgba(148,163,184,0.72))",
+        "muted": "TEXT.muted (rgba(100,116,139,0.55))"
+      },
+      "interactive_accents": {
+        "primary": "ACCENT.chakra (#00E5FF)",
+        "cta_energy": "ACCENT.fox (#FF5722) — use sparingly for stamina/energy spend or urgent CTA",
+        "mystic": "ACCENT.jutsu (#D500F9) — use as mystical highlight, not default",
+        "prestige": "ACCENT.gold (#FFCA28) — rewards, UR+ frames, premium currency"
+      },
+      "states": {
+        "success": "Use chakra cyan (fits theme)",
+        "warning": "Gold/amber",
+        "danger": "hsl(var(--destructive))",
+        "info": "chakra cyan"
       }
     },
 
-    "shadows_and_glow": {
-      "rule": "Glow is a frame, not a flood. Keep spread modest so adjacent cards never visually merge (matches existing comment in index.css).",
-      "presets": {
-        "card": "shadow-[0_18px_60px_rgba(0,0,0,0.55)]",
-        "glowCyan": "shadow-[0_0_0_1px_rgba(0,229,255,0.18),0_0_28px_rgba(0,229,255,0.22)]",
-        "glowOrange": "shadow-[0_0_0_1px_rgba(255,87,34,0.18),0_0_28px_rgba(255,87,34,0.22)]",
-        "glowMagenta": "shadow-[0_0_0_1px_rgba(213,0,249,0.18),0_0_28px_rgba(213,0,249,0.22)]"
+    "rarity_system": {
+      "keep_or_tweak": {
+        "decision": "KEEP existing rarity colors for backward compatibility; add a 'classic ladder mapping' for UI hints (stars, labels) without changing token colors.",
+        "classic_ladder_reference": {
+          "common": "N/R (gray)",
+          "rare": "SR (blue)",
+          "epic": "SSR (purple)",
+          "legendary": "UR (gold)",
+          "ascendant": "GR/LR (hot pink/red-pink)",
+          "mythic": "MYTHIC (mint)"
+        }
+      },
+      "rarity_frame_system_spec": {
+        "goal": "A single frame component style that scales ornamentation + glow with rarity. Must look premium but not bleed into adjacent cards.",
+        "implementation_note": "Implement as CSS utility classes (e.g., .frame, .frame--SSR) + CSS vars (--rarity, --glow) set inline or via class. Use existing .aura-2/.aura-3/.aura-4 and .rarity-pulse where appropriate.",
+        "base_frame_recipe": {
+          "container": "relative overflow-hidden rounded-[var(--radius-card)]",
+          "inner_surface": "bg-[rgba(11,11,20,0.65)] backdrop-blur-[18px] border border-white/10",
+          "double_stroke": "Use pseudo-elements: outer 1px stroke + inner inset 1px stroke with 6–10px gap.",
+          "deco_corners": "Use 4 corner ornaments via pseudo-elements or an SVG mask; keep geometry stepped (Art-Deco), not floral.",
+          "scrim_for_text_over_art": "Use theme.scrimBottom() or a bottom gradient overlay on portrait areas."
+        },
+        "tiers": {
+          "N": {
+            "rarity_color": "RARITY.N.color (#7C7C86)",
+            "border": "1px solid rgba(255,255,255,0.08)",
+            "inner_inset": "none",
+            "corner_ornament": "none",
+            "glow": "none (or extremely subtle 0 0 10px rgba(124,124,134,0.10))",
+            "shine": "off",
+            "notes": "Keep N visually quiet so higher tiers feel special."
+          },
+          "R": {
+            "rarity_color": "RARITY.R.color (#9E9E9E)",
+            "border": "1px solid rgba(255,255,255,0.10)",
+            "inner_inset": "inset 0 0 0 1px rgba(255,255,255,0.06)",
+            "corner_ornament": "micro notches only (2px stepped corners)",
+            "glow": "0 0 14px rgba(158,158,158,0.12)",
+            "shine": "off"
+          },
+          "SR": {
+            "rarity_color": "RARITY.SR.color (#29B6F6)",
+            "border": "1px solid rgba(41,182,246,0.35)",
+            "inner_inset": "inset 0 0 0 1px rgba(255,255,255,0.08)",
+            "corner_ornament": "level-1: small deco corner brackets (thin L-shapes)",
+            "glow": "0 0 0 1px rgba(41,182,246,0.18), 0 0 18px rgba(41,182,246,0.18)",
+            "shine": "optional on hover only (no infinite)"
+          },
+          "SSR": {
+            "rarity_color": "RARITY.SSR.color (#AB47BC)",
+            "border": "1px solid rgba(171,71,188,0.40)",
+            "inner_inset": "inset 0 0 0 1px rgba(255,255,255,0.10)",
+            "corner_ornament": "level-2: deco brackets + tiny diamond studs at corners",
+            "glow": "Use existing .aura-2 with --glow set to rarity color",
+            "shine": "allow .shine-sweep on large featured cards only",
+            "notes": "SSR is where 'premium' begins; keep ornamentation noticeable but still clean."
+          },
+          "UR": {
+            "rarity_color": "RARITY.UR.color (#FFCA28)",
+            "border": "1px solid var(--gold-hairline)",
+            "inner_inset": "inset 0 0 0 1px rgba(255,255,255,0.12)",
+            "corner_ornament": "level-3: gold deco corners (stepped fanburst) + thin pinstripe top/bottom",
+            "glow": "Use .aura-3 with --glow = rgba(255,202,40,0.85)",
+            "shine": "single sweep on reveal; hover sweep allowed on roster featured",
+            "gold_usage": "YES (prestige accent)"
+          },
+          "GR": {
+            "rarity_color": "RARITY.GR.color (#FF4081)",
+            "border": "1px solid rgba(255,64,129,0.42)",
+            "inner_inset": "inset 0 0 0 1px rgba(255,255,255,0.12)",
+            "corner_ornament": "level-3: deco corners + small side chevrons",
+            "glow": "Use .aura-3 with --glow = rgba(255,64,129,0.85)",
+            "shine": "reveal-only"
+          },
+          "LR": {
+            "rarity_color": "RARITY.LR.color (#FF2D78)",
+            "border": "2px solid rgba(255,202,40,0.55) + inner 1px rarity tint",
+            "inner_inset": "inset 0 0 0 1px rgba(255,45,120,0.35)",
+            "corner_ornament": "level-4: gold filigree corners + diamond studs + top crest plate",
+            "glow": "Use .aura-4 with --glow = rgba(255,202,40,0.95) (gold-forward) plus subtle rarity tint",
+            "shine": "reveal-only + featured roster cards",
+            "gold_usage": "YES (prestige accent)"
+          },
+          "MYTHIC": {
+            "rarity_color": "RARITY.MYTHIC.color (#64FFDA)",
+            "border": "2px solid rgba(255,202,40,0.55) + inner 1px mint tint",
+            "inner_inset": "inset 0 0 0 1px rgba(100,255,218,0.35)",
+            "corner_ornament": "level-5: gold deco frame + mint 'aether' inlays (thin inner glow line)",
+            "glow": "Reveal: .rarity-pulse with --glow = rgba(100,255,218,0.95). Inventory: static glow only.",
+            "shine": "single sweep on reveal only",
+            "gold_usage": "YES (prestige accent)",
+            "notes": "MYTHIC should feel like 'artifact-grade'—gold structure with alien mint energy."
+          }
+        },
+        "frame_css_scaffold": {
+          "note": "Main agent can implement in index.css as additive utilities. Keep selectors simple.",
+          "snippet": "/* Rarity Frame System (additive) */\n.frame { position: relative; border-radius: var(--radius-card); overflow: hidden; }\n.frame::before { content: \"\"; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; border: 1px solid var(--frame-stroke, rgba(255,255,255,0.10)); }\n.frame::after { content: \"\"; position: absolute; inset: 8px; border-radius: calc(var(--radius-card) - 8px); pointer-events: none; border: 1px solid var(--frame-inset, rgba(255,255,255,0.06)); opacity: var(--frame-inset-opacity, 1); }\n.frame[data-rarity=\"UR\"], .frame[data-rarity=\"LR\"], .frame[data-rarity=\"MYTHIC\"] { --frame-stroke: var(--gold-hairline); }\n/* Corner ornaments: implement via background SVG mask or 4 absolutely-positioned spans */\n"
+        }
       }
     },
 
-    "radius": {
-      "global": "--radius (0.4rem) for shadcn primitives",
-      "cards": "14px (cinematic panels)",
-      "chips": "9999px",
-      "buttons": "10–12px for primary CTAs (premium/action-first)"
+    "glass_panel_recipe": {
+      "goal": "Refined glass panels that feel like HUD glass, not generic glassmorphism.",
+      "use_existing": [".glass", ".panel"],
+      "recommended_recipe": {
+        "class_combo": "glass panel rounded-[var(--radius-panel)] shadow-[var(--shadow-deep)]",
+        "border": "1px solid rgba(255,255,255,0.10) + optional inner inset line",
+        "blur": "backdrop-filter: blur(18px) (already in .glass)",
+        "edge_light": "Add a subtle top edge highlight: linear-gradient(to bottom, rgba(255,255,255,0.10), transparent 40%) as overlay",
+        "legibility": "If text sits over art, add scrimBottom() overlay; never rely on blur alone."
+      }
     },
 
-    "spacing": {
-      "principle": "Use 2–3x more spacing than feels comfortable; mobile-first readability.",
-      "layout": {
-        "pagePadding": "px-4",
-        "sectionGap": "space-y-4 (mobile), space-y-6 (sm+)"
-      },
-      "cards": {
-        "cardPadding": "p-4",
-        "denseRowGap": "gap-2",
-        "gridGap": "gap-3"
+    "art_deco_gold_hairline_recipe": {
+      "goal": "Deco prestige without turning the whole UI gold.",
+      "rules": [
+        "Gold is for UR+ frames, premium rewards, featured banner highlights, and 'claim' moments.",
+        "Do NOT use gold as default button fill everywhere; keep cyan as primary interaction.",
+        "Use gold as hairlines, corner ornaments, and small crests (<= 24px tall) in headers."
+      ],
+      "tailwind_utilities": {
+        "hairline": "border border-[rgba(255,202,40,0.35)]",
+        "pinstripe": "bg-[linear-gradient(90deg,transparent,rgba(255,202,40,0.35),transparent)]",
+        "crest_plate": "bg-[rgba(255,202,40,0.10)] border border-[rgba(255,202,40,0.35)]"
       }
     }
   },
@@ -101,7 +252,7 @@
     "fonts": {
       "display": {
         "family": "Bebas Neue",
-        "usage": "Hero names, banner titles, rarity callouts, big numbers (pity, gear score).",
+        "usage": "Screen titles, summon callouts, rarity labels, big numbers.",
         "class": "font-display"
       },
       "body": {
@@ -112,78 +263,68 @@
     "scale": {
       "h1": "text-4xl sm:text-5xl lg:text-6xl font-display tracking-wide",
       "h2": "text-base md:text-lg text-white/80",
-      "sectionTitle": "text-lg font-semibold",
-      "cardTitle": "text-sm font-semibold",
+      "section_title": "text-lg font-semibold",
+      "card_title": "text-sm font-semibold",
       "body": "text-sm text-white/80 leading-relaxed",
-      "micro": "text-xs text-white/60"
+      "micro": "text-xs text-white/60",
+      "label": "text-[11px] uppercase tracking-[0.18em] text-white/60"
     },
     "numbers": {
-      "rule": "Use tabular numbers for stats/counters where possible.",
+      "rule": "Use tabular numbers for counters (pity, currency, stats).",
       "tailwind": "tabular-nums"
     }
   },
 
   "layout_and_grid": {
     "global_rules": [
-      "Never allow page-level horizontal overflow. Any horizontal scroller must be a bounded element with overflow-x-auto and w-full.",
-      "In flex rows, always add min-w-0 to children that contain text to prevent overflow.",
-      "Prefer single-column mobile layout; introduce 2-column only at sm/md for dense inventory screens."
+      "Mobile-first; keep existing page layouts. This spec is a RESKIN: apply new surfaces/frames/tokens to existing structure.",
+      "No page-level horizontal overflow: add min-w-0 to flex children with text; avoid negative margins.",
+      "Roster grids: keep gaps generous (gap-3 mobile, gap-4 md+) so glows don’t merge.",
+      "Use scrims/vignettes behind text over art (theme.scrimBottom + theme.vignetteInset)."
     ],
-    "page_shell": {
-      "structure": "TopBar (existing) + scrollable content area",
-      "content_container": "max-w-[520px] mx-auto w-full px-4 (only if existing app already uses centered max width; otherwise keep full width but preserve px-4)",
-      "section_pattern": "Title row (left) + small action (right) + panel card"
+    "summon_page_showcase": {
+      "do_not_redesign_layout": true,
+      "skin_targets": [
+        "Banner carousel: add deco gold hairline on featured banner only; keep cyan for active indicator.",
+        "Rates dialog: glass panel + gold hairline header divider.",
+        "Pity module: framed panel with subtle cyan ring; MYTHIC threshold gets gold crest.",
+        "Sticky CTA bar: cyan primary button + optional gold 'Premium' secondary when applicable."
+      ]
     },
-    "bento_patterns": {
-      "hero_modal_header": "Full-width portrait header (AspectRatio) with gradient vignette overlay; stats strip below; then 3-card row for EXP tomes.",
-      "inventory": "Sticky filter row + ScrollArea list; detail drawer/sheet for item actions.",
-      "dungeons_hub": "3 large dungeon cards stacked; each expands into difficulty selector + drop preview."
+    "roster_page_showcase": {
+      "do_not_redesign_layout": true,
+      "skin_targets": [
+        "Hero cards: apply rarity frame system; keep art dominant; add bottom scrim for name/level.",
+        "Filters/sorts: glass strip with cyan focus ring; avoid heavy glow.",
+        "Selected hero: elevate with stronger shadow + controlled aura (SSR+ only)."
+      ]
     }
   },
 
   "components": {
-    "component_path": {
-      "shadcn_primary": "/app/frontend/src/components/ui",
-      "use_these": {
-        "tabs": "tabs.jsx",
-        "dialog": "dialog.jsx",
-        "drawer": "drawer.jsx (mobile-first detail panels)",
-        "sheet": "sheet.jsx (full-height forge panels)",
-        "card": "card.jsx",
-        "button": "button.jsx",
-        "badge": "badge.jsx",
-        "progress": "progress.jsx",
-        "carousel": "carousel.jsx (banner previews)",
-        "scrollArea": "scroll-area.jsx",
-        "select": "select.jsx",
-        "slider": "slider.jsx (bulk enhancement amount)",
-        "tooltip": "tooltip.jsx",
-        "popover": "popover.jsx",
-        "alertDialog": "alert-dialog.jsx (confirm spend)",
-        "table": "table.jsx (rates panel)",
-        "sonner": "sonner.jsx (toasts)"
-      }
-    },
-
     "button_system": {
       "variants": {
-        "primary": {
-          "look": "chakra cyan glow, solid fill",
-          "tailwind": "bg-[var(--chakra)] text-[var(--base)] hover:bg-[#00E5FF]/90 focus-visible:ring-2 focus-visible:ring-[var(--chakra)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--base)]",
-          "motion": "hover: translateY(-1px) + subtle glow increase (transform/opacity only)"
+        "primary_cyan": {
+          "usage": "Default primary actions: Summon, Confirm, Equip, Save.",
+          "tailwind": "bg-[var(--chakra)] text-[var(--base)] hover:bg-[color:rgba(0,229,255,0.92)] focus-visible:ring-2 focus-visible:ring-[var(--chakra)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--base)]",
+          "shape": "rounded-[var(--radius-cta)]",
+          "motion": "Use framer-motion whileTap={{ scale: 0.98 }}; hover can lift -1px (transform only)."
         },
-        "secondary": {
-          "look": "panel button with border + subtle shine sweep",
-          "tailwind": "bg-white/5 border border-white/10 text-white hover:bg-white/8",
-          "note": "Use .shine-sweep on large CTAs only (>= 140px wide)."
+        "secondary_glass": {
+          "usage": "Secondary actions: Rates, Details, Manage.",
+          "tailwind": "bg-white/5 border border-white/10 text-white hover:bg-white/8 focus-visible:ring-2 focus-visible:ring-[var(--chakra)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--base)]",
+          "note": "Optional .shine-sweep ONLY on wide buttons (>=140px)."
+        },
+        "prestige_gold": {
+          "usage": "Premium/reward actions only: Claim, Ascend, UR+ special summon (if exists).",
+          "tailwind": "bg-[rgba(255,202,40,0.14)] border border-[rgba(255,202,40,0.35)] text-[rgba(255,202,40,0.95)] hover:bg-[rgba(255,202,40,0.18)] focus-visible:ring-2 focus-visible:ring-[rgba(255,202,40,0.45)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--base)]",
+          "rule": "Gold buttons should be rarer than cyan buttons."
         },
         "danger": {
-          "look": "destructive token",
           "tailwind": "bg-destructive text-destructive-foreground hover:bg-destructive/90"
         },
         "ghost": {
-          "look": "text + icon, no fill",
-          "tailwind": "bg-transparent hover:bg-white/5"
+          "tailwind": "bg-transparent hover:bg-white/5 text-white"
         }
       },
       "sizes": {
@@ -191,234 +332,120 @@
         "md": "h-11 px-4 text-sm",
         "lg": "h-12 px-5 text-base"
       },
-      "interaction_rules": [
-        "No transition:all. Use transition-colors for hover, and separate motion via framer-motion for transforms.",
-        "Always include data-testid on buttons (e.g., summon-x10-button, gear-enhance-confirm-button)."
+      "data_testid_examples": [
+        "summon-x1-button",
+        "summon-x10-button",
+        "summon-skip-button",
+        "roster-filter-open-button",
+        "hero-card-button",
+        "hero-detail-close-button"
       ]
     },
 
-    "rarity_badges": {
-      "rule": "Rarity color + aura utilities already exist; apply them consistently across hero cards, gear cards, summon reveals.",
-      "badge_pattern": "<Badge className=\"text-xs px-2 py-0.5 rounded-full border border-white/10 bg-white/5\">SSR</Badge>",
-      "aura_usage": {
-        "SSR_UR_LR": "Use .aura-2/.aura-3/.aura-4 on the card container with CSS var --glow set to tier color.",
-        "MYTHIC": "Use .rarity-pulse + stronger drop-shadow on reveal stage only; avoid infinite pulse in inventory lists."
+    "rarity_badges_and_stars": {
+      "badge": {
+        "component": "Badge",
+        "pattern": "<Badge data-testid=\"hero-rarity-badge\" className=\"text-[11px] px-2 py-0.5 rounded-full border border-white/10 bg-white/5\">SSR</Badge>",
+        "rule": "Badge fill stays neutral; rarity is communicated via frame + small accent dot/line."
+      },
+      "stars": {
+        "rule": "Stars are the universal gacha language. Keep them small and consistent; gold stars for high tiers, neutral for low tiers.",
+        "implementation": "Use lucide-react Star icon; fill via currentColor; set color based on rarity tier.",
+        "data_testid": "hero-stars-row"
+      }
+    },
+
+    "scrims_and_vignettes": {
+      "use": "Any text over portrait art.",
+      "recipes": {
+        "bottom_scrim": "style={{ background: scrimBottom(\"0.92\") }}",
+        "inset_vignette": "style={{ backgroundImage: vignetteInset }}"
       }
     }
   },
 
-  "page_guidelines": {
-    "summon_ceremony": {
-      "layout": {
-        "top": "Banner carousel (shadcn carousel) with 1.2 peek; below it: banner title + featured units row (mini cards) + rates button.",
-        "mid": "Pity counter module (MYTHIC) with soft/hard thresholds + 50/50 status chip.",
-        "bottom": "Sticky CTA bar: x1 and x10 buttons + currency display."
-      },
-      "rates_panel": {
-        "component": "Dialog + Table",
-        "content": [
-          "Transparent disclosure: base rates per rarity tier",
-          "Pity explanation: soft pity 100–149, hard pity 150",
-          "50/50 featured guarantee rules",
-          "Tap targets >= 44px"
-        ],
-        "data_testids": {
-          "open": "summon-rates-open-button",
-          "dialog": "summon-rates-dialog",
-          "close": "summon-rates-close-button"
-        }
-      },
-      "reveal_animation": {
-        "principles": [
-          "Transform/opacity only (scale, rotateY for flip via framer-motion; avoid heavy filters).",
-          "Tiered flourish: bigger for higher rarity; MYTHIC gets epic burst once, then settles.",
-          "x10 should be paced: quick intro (0.4–0.6s), then per-card flips staggered 60–90ms.",
-          "Skippable: tap anywhere to fast-forward to final state; show a Skip button after 0.6s."
-        ],
-        "stages": {
-          "stage0": "Ceremony intro: dark vignette + subtle cyan rune ring (static image/CSS radial) fades in.",
-          "stage1": "Orb/scroll appears (simple circle/rect) scales from 0.9->1 with glow.",
-          "stage2": "Burst: rarity color flash overlay (opacity only) + sound hook (if exists).",
-          "stage3": "Cards grid: 2x5 on mobile; each card flips to reveal rarity + unit.",
-          "stage4": "Summary: show pulls results with quick actions (lock/favorite, go to roster)."
-        },
-        "implementation_scaffold_js": {
-          "note": "Pseudo-structure for main agent; keep in .js (not .tsx).",
-          "snippet": "// RevealOverlay.js\nimport { motion, AnimatePresence } from 'framer-motion';\n\nexport default function RevealOverlay({ open, results, onClose, onSkip }) {\n  // stage: 'intro' | 'burst' | 'grid' | 'done'\n  // allow tap-to-skip\n  return (\n    <AnimatePresence>\n      {open ? (\n        <motion.div\n          className=\"fixed inset-0 z-50 bg-black/80\"\n          initial={{ opacity: 0 }}\n          animate={{ opacity: 1 }}\n          exit={{ opacity: 0 }}\n          onClick={onSkip}\n          data-testid=\"summon-reveal-overlay\"\n        >\n          {/* stage content */}\n        </motion.div>\n      ) : null}\n    </AnimatePresence>\n  );\n}\n"
-        }
-      },
-      "micro_interactions": [
-        "Banner carousel swipe: add subtle snap + scale on active banner.",
-        "Rates button hover/press: glow-cyan intensifies; press scale 0.98.",
-        "Pity counter: when incrementing, animate number pop (scale 1.08 -> 1)."
-      ]
+  "summon_reveal_spec": {
+    "rarity_flash_colors": {
+      "N": "rgba(124,124,134,0.55)",
+      "R": "rgba(158,158,158,0.55)",
+      "SR": "rgba(41,182,246,0.55)",
+      "SSR": "rgba(171,71,188,0.55)",
+      "UR": "rgba(255,202,40,0.55)",
+      "GR": "rgba(255,64,129,0.55)",
+      "LR": "rgba(255,45,120,0.55)",
+      "MYTHIC": "rgba(100,255,218,0.55)"
     },
-
-    "hero_detail_modal_extensions": {
-      "container": "Dialog or Drawer depending on existing pattern; keep cinematic portrait header.",
-      "tabs": {
-        "component": "Tabs",
-        "tabs": ["Train", "Evolve", "Gear"],
-        "data_testids": {
-          "tabs": "hero-detail-tabs",
-          "train": "hero-train-tab",
-          "evolve": "hero-evolve-tab",
-          "gear": "hero-gear-tab"
-        }
+    "staging": {
+      "principles": [
+        "Punchy but skippable.",
+        "Tiered flourish: higher rarity gets stronger burst + longer settle.",
+        "Avoid heavy filters; use opacity/transform + a single overlay flash.",
+        "x10 pacing: quick intro (0.4–0.6s), then stagger flips 60–90ms."
+      ],
+      "recommended_stages": {
+        "intro": "Dark vignette + subtle cyan rune ring (static CSS radial).",
+        "tell": "Container/orb appears; subtle color steer based on highest rarity in batch (very faint).",
+        "burst": "Single flash overlay tinted to rarity; add 2–3 sparkles (existing .sparkle) for SSR+.",
+        "reveal": "Cards flip into grid; each card uses rarity frame system.",
+        "summary": "Results grid with quick actions (favorite/lock) and CTA to Roster."
       },
-      "train_bulk_exp": {
-        "layout": "Match reference: 3-card row of EXP tomes with +xp and owned count; add bulk slider + quick max button.",
-        "components": ["Card", "Slider", "Button", "Progress"],
-        "interaction": [
-          "Tome card tap increments selected count; long-press opens quick input (optional).",
-          "Show projected level + stat deltas before confirm.",
-          "Confirm spend via AlertDialog."
-        ],
+      "skip": {
+        "rule": "Tap anywhere to skip to final reveal; show explicit Skip button after 600ms.",
         "data_testids": {
-          "tome_card": "hero-train-tome-card",
-          "slider": "hero-train-amount-slider",
-          "confirm": "hero-train-confirm-button"
-        }
-      },
-      "evolve_star_breakthrough": {
-        "layout": "Left: current stars; Right: next stars preview; below: required shards + rare mats with counts.",
-        "components": ["Card", "Badge", "Progress", "AlertDialog"],
-        "rules": [
-          "Stars raised ONLY via evolution consuming duplicate shards early and rare evolution materials for high stars.",
-          "Show locked state if insufficient mats; keep CTA disabled with tooltip explaining missing items."
-        ],
-        "data_testids": {
-          "evolve-panel": "hero-evolve-panel",
-          "evolve-button": "hero-evolve-confirm-button"
-        }
-      },
-      "gear_tab": {
-        "layout": "4 equip slots grid (2x2): Weapon/Armor/Accessory/Relic; each slot shows icon, rarity border, gear score.",
-        "components": ["Card", "Sheet", "ScrollArea", "Select"],
-        "interaction": [
-          "Tap slot opens Sheet with gear inventory filtered to that slot.",
-          "Equip action shows toast (sonner).",
-          "Enhance shortcut button on equipped gear card."
-        ],
-        "data_testids": {
-          "slot": "hero-gear-slot",
-          "open-inventory": "hero-gear-open-inventory-button",
-          "equip": "hero-gear-equip-button"
+          "overlay": "summon-reveal-overlay",
+          "skip_button": "summon-skip-button",
+          "close_button": "summon-reveal-close-button"
         }
       }
     },
-
-    "gear_inventory_and_forge": {
-      "information_architecture": [
-        "Gear Inventory (list/grid + filters)",
-        "Gear Detail (stats, set bonuses, enhance +1..+15)",
-        "Crafting (blueprints + materials)",
-        "Material Fusion (merge low-tier mats into higher tier)"
-      ],
-      "inventory_layout": {
-        "top_filters": "Sticky row: Slot Select + Rarity Select + Set Select + Sort",
-        "list": "ScrollArea with compact gear cards; each card shows name, rarity, gear score, 2–3 key stats.",
-        "detail": "Open in Drawer/Sheet; keep actions at bottom (Enhance, Equip, Lock)."
-      },
-      "gear_card_pattern": {
-        "container": "Card with .panel styling + rarity border",
-        "must_show": ["gear score", "rarity", "slot", "set (if any)", "enhance level +X"],
-        "avoid": "Too many stats in list view; keep dense stats in detail view."
-      },
-      "enhancement_ui": {
-        "progress": "Progress component for +1..+15 track; show breakpoints at +5/+10/+15 with subtle ticks.",
-        "bulk": "Hold-to-enhance is optional; otherwise provide Enhance x1 and Enhance to +N (if mats allow).",
-        "confirm": "AlertDialog for large spends."
-      },
-      "crafting_ui": {
-        "blueprints": "Card list of blueprints with preview + required mats; disabled state if missing.",
-        "materials": "Material chips with counts; tap opens fusion sheet.",
-        "data_testids": {
-          "craft-button": "gear-craft-button",
-          "fusion-open": "material-fusion-open-button"
-        }
-      }
-    },
-
-    "resource_dungeons_hub": {
-      "cards": [
-        {
-          "name": "Gold Vault",
-          "accent": "amber/gold",
-          "icon": "lucide: Coins",
-          "drops": "Gold + occasional rare mats"
-        },
-        {
-          "name": "EXP Temple",
-          "accent": "chakra cyan",
-          "icon": "lucide: Sparkles",
-          "drops": "EXP tomes"
-        },
-        {
-          "name": "Gear Foundry",
-          "accent": "fox orange",
-          "icon": "lucide: Anvil",
-          "drops": "Gear + crafting mats"
-        }
-      ],
-      "interaction": [
-        "Each dungeon card expands (Collapsible) to show difficulty tiers (ToggleGroup) + drop preview row.",
-        "Energy cost displayed as a chip; Start button pinned at bottom of expanded card.",
-        "Difficulty selection animates underline/indicator (opacity/transform only)."
-      ],
-      "data_testids": {
-        "dungeon-card": "dungeon-card",
-        "difficulty-toggle": "dungeon-difficulty-toggle",
-        "start": "dungeon-start-button"
-      }
+    "js_scaffold": {
+      "note": "Keep in .js (not .tsx).",
+      "snippet": "// RevealOverlay.js\nimport { motion, AnimatePresence, useReducedMotion } from 'framer-motion';\nimport { Button } from '../components/ui/button';\n\nexport default function RevealOverlay({ open, results, onClose, onSkip, highestRarityKey }) {\n  const reduce = useReducedMotion();\n  const flash = {\n    initial: { opacity: 0 },\n    animate: { opacity: 1 },\n    exit: { opacity: 0 },\n    transition: { duration: reduce ? 0.12 : 0.22 }\n  };\n\n  return (\n    <AnimatePresence>\n      {open ? (\n        <motion.div\n          className=\"fixed inset-0 z-50 bg-black/80\"\n          initial={{ opacity: 0 }}\n          animate={{ opacity: 1 }}\n          exit={{ opacity: 0 }}\n          onClick={onSkip}\n          data-testid=\"summon-reveal-overlay\"\n        >\n          <motion.div\n            className=\"absolute inset-0\"\n            style={{ background: 'radial-gradient(60% 40% at 50% 40%, rgba(0,229,255,0.10), transparent 70%)' }}\n            {...flash}\n          />\n\n          <div className=\"absolute top-4 right-4\">\n            <Button\n              variant=\"secondary\"\n              onClick={(e) => { e.stopPropagation(); onSkip?.(); }}\n              data-testid=\"summon-skip-button\"\n            >\n              Skip\n            </Button>\n          </div>\n\n          {/* results grid here */}\n        </motion.div>\n      ) : null}\n    </AnimatePresence>\n  );\n}\n"
     }
   },
 
   "motion_and_microinteractions": {
     "rules": [
-      "No universal transitions (no transition-all).",
-      "Prefer framer-motion for transforms; Tailwind transition-colors for color changes.",
-      "Entrance animations: fade-up (existing .fade-up) for panels; stagger children 40–80ms.",
-      "Press feedback: scale 0.98 on buttons/cards; release back to 1."
+      "No universal transitions.",
+      "Use framer-motion for transforms; Tailwind transition-colors for hover/focus.",
+      "Use existing .fade-up for panel entrances; stagger children 40–80ms.",
+      "Press feedback: scale 0.98 on buttons/cards; release to 1."
     ],
-    "recommended_durations": {
+    "durations": {
       "tap": "90–140ms",
       "panel_enter": "220–320ms",
       "reveal_intro": "400–600ms",
       "card_flip": "260–340ms"
     },
-    "skip_behavior": {
-      "summon": "Tap anywhere to skip to final reveal; keep a visible Skip button after 600ms for clarity."
-    }
+    "hover_rules_desktop": [
+      "Cards: lift -2px + slightly stronger shadow; do not increase glow spread too much.",
+      "Buttons: color shift + subtle glow; avoid big neon blooms."
+    ]
   },
 
   "accessibility": {
     "contrast": [
-      "Text on panel must be >= white/80 for body; use white/60 only for metadata.",
-      "Avoid magenta text on dark without glow; prefer magenta as border/glow/accent chip."
+      "Body text on panels should be white/80 or higher.",
+      "Use white/60 only for metadata.",
+      "Never place gold text on bright gold fills; gold is usually border/ornament, not body text."
     ],
     "focus": [
-      "All interactive elements must have visible focus ring (ring chakra cyan).",
-      "Ensure Dialog/Sheet traps focus (shadcn default)."
+      "All interactive elements must have visible focus ring (chakra cyan).",
+      "Dialogs/Sheets must trap focus (shadcn default)."
     ],
-    "touch_targets": ["Minimum 44px height for primary actions", "Spacing between adjacent icon buttons >= 8px"],
+    "touch_targets": ["Min 44px height for primary actions", ">= 8px spacing between adjacent icon buttons"],
     "reduced_motion": {
-      "rule": "Respect prefers-reduced-motion: shorten or disable reveal flourishes; keep functional transitions.",
+      "rule": "Respect prefers-reduced-motion: shorten/disable flourish; keep functional transitions.",
       "implementation": "Use framer-motion useReducedMotion() to reduce scale/rotation and remove stagger."
     }
   },
 
   "image_urls": {
-    "note": "Keep existing in-game art pipeline. Use external images only for placeholder dev/testing; replace before production.",
+    "note": "This is an existing game; prefer in-game art. External URLs are placeholders only.",
     "placeholders": {
-      "summon_banner_background": {
-        "category": "Summon Ceremony banner backdrop",
-        "description": "Dark cinematic abstract background with subtle cyan highlights (placeholder only)",
-        "urls": []
-      },
-      "dungeon_card_backgrounds": {
-        "category": "Resource Dungeons cards",
-        "description": "Moody stone/temple/vault textures (placeholder only)",
+      "deco_corner_svg": {
+        "category": "Frame ornaments",
+        "description": "Implement ornaments as inline SVG or CSS mask; avoid external dependencies for core UI.",
         "urls": []
       }
     }
@@ -426,46 +453,25 @@
 
   "instructions_to_main_agent": {
     "implementation_priorities": [
-      "1) Summon Ceremony redesign: carousel + rates dialog + pity module + reveal overlay (skippable).",
-      "2) HeroDetailModal tabs: Train (bulk tomes), Evolve (stars + mats), Gear (4 slots + inventory sheet).",
-      "3) Gear/Forge page: inventory + detail sheet + enhance + craft + fusion.",
-      "4) Resource Dungeons hub: 3 expandable cards with difficulty tiers + drop preview."
+      "1) Extend :root tokens in /app/frontend/src/index.css with gold hairlines + glass borders (additive).",
+      "2) Implement Rarity Frame System utilities (frame base + per-rarity vars) in index.css (additive).",
+      "3) Apply frame system to Roster hero cards and Summon result cards (no layout changes).",
+      "4) Summon reveal: add rarity flash overlay + skippable staging; use rarity flash colors above.",
+      "5) Ensure all interactive/key info elements have data-testid."
     ],
-    "testing_requirements": [
-      "Add data-testid to every interactive element and key info (pity count, gear score, gold cost, owned mats).",
-      "Use kebab-case and role-based naming (e.g., summon-pity-count-text, gear-score-value)."
+    "data_testid_rules": [
+      "Use kebab-case and role-based naming.",
+      "Examples: summon-pity-count-text, roster-hero-count-text, hero-card-open-button, summon-rates-open-button."
     ],
     "performance_notes": [
-      "Animate only transform/opacity; avoid animating box-shadow continuously in lists.",
-      "Use rarity pulses only on focused/selected items or during reveal; keep inventory mostly static."
-    ],
-    "no_horizontal_scroll": [
-      "Add min-w-0 to flex children containing text.",
-      "Use overflow-hidden on page wrappers; use overflow-x-auto only on intentional scrollers (banner carousel)."
-    ]
-  },
-
-  "gradient_restriction_rule": {
-    "rules": [
-      "NEVER use dark/saturated gradient combos (e.g., purple/pink) on any UI element.",
-      "NEVER let gradients cover more than 20% of the viewport.",
-      "NEVER apply gradients to text-heavy content or reading areas.",
-      "NEVER use gradients on small UI elements (<100px width).",
-      "NEVER stack multiple gradient layers in the same viewport."
-    ],
-    "enforcement": "IF gradient area exceeds 20% of viewport OR affects readability, THEN use solid colors",
-    "allowed_usage": [
-      "Section backgrounds (not content backgrounds)",
-      "Hero section header content (dark to light to dark)",
-      "Decorative overlays and accent elements only"
+      "Avoid continuous box-shadow animation in large grids; reserve pulses for reveal/selected states.",
+      "Backdrop blur is expensive: use .glass selectively; prefer .panel for most surfaces."
     ]
   },
 
   "general_ui_ux_design_guidelines": [
     "- You must **not** apply universal transition. Eg: `transition: all`. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms",
     "- You must **not** center align the app container, ie do not add `.App { text-align: center; }` in the css file. This disrupts the human natural reading flow of text",
-    "- NEVER: use AI assistant Emoji characters like`🤖🧠💭💡🔮🎯📚🎭🎬🎪🎉🎊🎁🎀🎂🍰🎈🎨🎰💰💵💳🏦💎🪙💸🤑📊📈📉💹🔢🏆🥇 etc for icons. Always use **FontAwesome cdn** or **lucid-react** library already installed in the package.json",
-    "\n **GRADIENT RESTRICTION RULE**\nNEVER use dark/saturated gradient combos (e.g., purple/pink) on any UI element.  Prohibited gradients: blue-500 to purple 600, purple 500 to pink-500, green-500 to blue-500, red to pink etc\nNEVER use dark gradients for logo, testimonial, footer etc\nNEVER let gradients cover more than 20% of the viewport.\nNEVER apply gradients to text-heavy content or reading areas.\nNEVER use gradients on small UI elements (<100px width).\nNEVER stack multiple gradient layers in the same viewport.\n\n**ENFORCEMENT RULE:**\n    • Id gradient area exceeds 20% of viewport OR affects readability, **THEN** use solid colors\n\n**How and where to use:**\n   • Section backgrounds (not content backgrounds)\n   • Hero section header content. Eg: dark to light to dark color\n   • Decorative overlays and accent elements only\n   • Hero section with 2-3 mild color\n   • Gradients creation can be done for any angle say horizontal, vertical or diagonal\n\n- For AI chat, voice application, **do not use purple color. Use color like light green, ocean blue, peach orange etc\n",
-    "\n</Font Guidelines>\n\n- Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.\n   \n- Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.\n\n- Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.\n   \n- Before generating UI, infer the visual style from the problem statement (palette, contrast, mood, motion) and immediately instantiate it by setting global design tokens (primary, secondary/accent, background, foreground, ring, state colors), rather than relying on any library defaults. Don't make the background dark as a default step, always understand problem first and define colors accordingly\n    Eg: - if it implies playful/energetic, choose a colorful scheme\n           - if it implies monochrome/minimal, choose a black–white/neutral scheme\n\n**Component Reuse:**\n\t- Prioritize using pre-existing components from src/components/ui when applicable\n\t- Create new components that match the style and conventions of existing components when needed\n\t- Examine existing components to understand the project's component patterns before creating new ones\n\n**IMPORTANT**: Do not use HTML based component like dropdown, calendar, toast etc. You **MUST** always use `/app/frontend/src/components/ui/ ` only as a primary components as these are modern and stylish component\n\n**Best Practices:**\n\t- Use Shadcn/UI as the primary component library for consistency and accessibility\n\t- Import path: ./components/[component-name]\n\n**Export Conventions:**\n\t- Components MUST use named exports (export const ComponentName = ...)\n\t- Pages MUST use default exports (export default function PageName() {...})\n\n**Toasts:**\n  - Use `sonner` for toasts\"\n  - Sonner component are located in `/app/src/components/ui/sonner.tsx`\n\nUse 2–4 color gradients, subtle textures/noise overlays, or CSS-based noise to avoid flat visuals."
+    "- NEVER: use AI assistant Emoji characters like`🤖🧠💭💡🔮🎯📚🎭🎬🎪🎉🎊🎁🎀🎂🍰🎈🎨🎰💰💵💳🏦💎🪙💸🤑📊📈📉💹🔢🏆🥇 etc for icons. Always use **FontAwesome cdn** or **lucid-react** library already installed in the package.json\n\n **GRADIENT RESTRICTION RULE**\nNEVER use dark/saturated gradient combos (e.g., purple/pink) on any UI element.  Prohibited gradients: blue-500 to purple 600, purple 500 to pink-500, green-500 to blue-500, red to pink etc\nNEVER use dark gradients for logo, testimonial, footer etc\nNEVER let gradients cover more than 20% of the viewport.\nNEVER apply gradients to text-heavy content or reading areas.\nNEVER use gradients on small UI elements (<100px width).\nNEVER stack multiple gradient layers in the same viewport.\n\n**ENFORCEMENT RULE:**\n    • Id gradient area exceeds 20% of viewport OR affects readability, **THEN** use solid colors\n\n**How and where to use:**\n   • Section backgrounds (not content backgrounds)\n   • Hero section header content. Eg: dark to light to dark color\n   • Decorative overlays and accent elements only\n   • Hero section with 2-3 mild color\n   • Gradients creation can be done for any angle say horizontal, vertical or diagonal\n\n- For AI chat, voice application, **do not use purple color. Use color like light green, ocean blue, peach orange etc**\n\n</Font Guidelines>\n\n- Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.\n   \n- Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.\n\n- Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.\n   \n- Before generating UI, infer the visual style from the problem statement (palette, contrast, mood, motion) and immediately instantiate it by setting global design tokens (primary, secondary/accent, background, foreground, ring, state colors), rather than relying on any library defaults. Don't make the background dark as a default step, always understand problem first and define colors accordingly\n    Eg: - if it implies playful/energetic, choose a colorful scheme\n           - if it implies monochrome/minimal, choose a black–white/neutral scheme\n\n**Component Reuse:**\n\t- Prioritize using pre-existing components from src/components/ui when applicable\n\t- Create new components that match the style and conventions of existing components when needed\n\t- Examine existing components to understand the project's component patterns before creating new ones\n\n**IMPORTANT**: Do not use HTML based component like dropdown, calendar, toast etc. You **MUST** always use `/app/frontend/src/components/ui/ ` only as a primary components as these are modern and stylish component\n\n**Best Practices:**\n\t- Use Shadcn/UI as the primary component library for consistency and accessibility\n\t- Import path: ./components/[component-name]\n\n**Export Conventions:**\n\t- Components MUST use named exports (export const ComponentName = ...)\n\t- Pages MUST use default exports (export default function PageName() {...})\n\n**Toasts:**\n  - Use `sonner` for toasts\"\n  - Sonner component are located in `/app/src/components/ui/sonner.tsx`\n\nUse 2–4 color gradients, subtle textures/noise overlays, or CSS-based noise to avoid flat visuals."
   ]
 }

@@ -1,30 +1,34 @@
 [
   {
-    "content": "Redesign Summon.jsx hero banner section (cinematic featured hero, themed title, tags, countdown)",
+    "content": "Extend theme.js with gold/stroke/deco tokens + rarityFrame() helper",
     "status": "completed"
   },
   {
-    "content": "Build featured heroes row + View All Featured dialog",
+    "content": "Add global CSS: :root token additions, rarity-frame double-stroke, deco corner ornaments, gold hairline/crest, panel edge-light",
     "status": "completed"
   },
   {
-    "content": "Rebuild MYTHIC pity module (detailed) preserving existing pity logic/data",
+    "content": "Add DecoCorners reusable component to RarityFx.jsx",
     "status": "completed"
   },
   {
-    "content": "Build 3-CTA pull deck with gems/ryo toggle + ticket pull, keep gear armory reachable",
+    "content": "Enhance HeroPortrait with rarity-scaled gold frames + deco corners (global to all grids)",
     "status": "completed"
   },
   {
-    "content": "Add Available Heroes carousel with element filters",
+    "content": "Polish Summon showcase: gold banner hairline, deco corners on featured/available cards, gold MYTHIC pity crest",
     "status": "completed"
   },
   {
-    "content": "Add Rates & Rules + Summon History cards + Recent Summons strip (localStorage history)",
+    "content": "Enhance Summon reveal with rarity-tinted flash + framed result cards",
     "status": "completed"
   },
   {
-    "content": "Verify compile (esbuild) + screenshot both hero & gear modes",
+    "content": "Extend NinjaCard (Gallery/Team) with the frame system for a global premium feel",
+    "status": "completed"
+  },
+  {
+    "content": "Compile check + screenshot Roster/Summon/Gallery to verify premium theme",
     "status": "completed"
   }
 ]

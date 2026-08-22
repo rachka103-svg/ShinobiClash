@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Image } from "lucide-react";
-import { RARITY, ELEMENT, glow, scrimBottom, vignetteInset } from "@/lib/theme";
+import { RARITY, ELEMENT, glow, scrimBottom, vignetteInset, rarityFrame, GOLD } from "@/lib/theme";
+import { DecoCorners } from "@/components/RarityFx";
 
 /**
  * HeroPortrait — the primary reusable hero-artwork component.
@@ -27,6 +28,9 @@ export default function HeroPortrait({
   const rarity = RARITY[hero.rarity] || RARITY.R;
   const element = ELEMENT[hero.element] || {};
   const elite = rarity.tier >= 3; // UR / LR shine
+  const frame = rarityFrame(hero.rarity);
+  const ornate = frame.cornerLevel >= 2; // SSR+ get deco corners
+  const cornerSize = mode === "compact" ? 12 : mode === "featured" ? 18 : 22;
 
   // Dense collection grids get a tighter glow so a card's aura never bleeds
   // into its neighbor's cell — full drama is reserved for single-hero modes.
@@ -49,8 +53,13 @@ export default function HeroPortrait({
       whileHover={onClick && !disabled ? { y: -3 } : {}}
       whileTap={onClick && !disabled ? { scale: 0.97 } : {}}
       data-testid={testid}
-      className={`relative w-full overflow-hidden text-left rounded-xl group ${aspect} ${disabled ? "opacity-40 grayscale" : ""} ${className}`}
-      style={{ boxShadow: frameGlow, border: `1px solid ${rarity.color}55` }}
+      data-rarity={hero.rarity}
+      className={`relative w-full overflow-hidden text-left rounded-xl group ${aspect} ${ornate ? "frame-inset" : ""} ${disabled ? "opacity-40 grayscale" : ""} ${className}`}
+      style={{
+        boxShadow: frameGlow,
+        border: `${frame.strokeWidth}px solid ${frame.strokeColor}`,
+        "--frame-inset": frame.useGold ? GOLD.hairline : "rgba(255,255,255,0.10)",
+      }}
     >
       {hero.portrait ? (
         <img
@@ -70,6 +79,9 @@ export default function HeroPortrait({
 
       {/* elite shine sweep for UR/LR */}
       {elite && !disabled && <span className="absolute inset-0 shine-sweep pointer-events-none" />}
+
+      {/* rarity-scaled Art-Deco corner ornaments (SSR+); gold for UR/LR/MYTHIC */}
+      {ornate && !disabled && <DecoCorners rarity={hero.rarity} size={cornerSize} />}
 
       {/* top-left: element, minimal glyph — no boxed pill */}
       <div className="absolute top-2 left-2.5 flex items-center gap-1 z-10">

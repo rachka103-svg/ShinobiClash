@@ -10,7 +10,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { RARITY, ELEMENT } from "@/lib/styles";
-import { auraClass, RaritySparkles } from "@/components/RarityFx";
+import { rarityFrame, GOLD } from "@/lib/theme";
+import { auraClass, RaritySparkles, DecoCorners } from "@/components/RarityFx";
 import SummonRevealOverlay from "@/components/SummonRevealOverlay";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -249,6 +250,11 @@ export default function Summon() {
                 <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0B0B14] to-transparent" />
               </div>
 
+              {/* prestige gold pinstripe along the top edge of the banner */}
+              <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />
+              {/* deco corner ornaments framing the whole banner */}
+              <DecoCorners level={rarityFrame(featuredHero.rarity).useGold ? 4 : 3} color={rarityFrame(featuredHero.rarity).useGold ? GOLD.base : featRarity.color} size={26} />
+
               {/* Copy */}
               <div className="relative z-10 p-5 sm:p-8 max-w-[92%] sm:max-w-[58%]">
                 <div className="flex items-center gap-3 flex-wrap mb-3">
@@ -294,10 +300,11 @@ export default function Summon() {
           <div className="flex items-center gap-3 overflow-x-auto pb-1 mb-2 scrollbar-none" data-testid="featured-row">
             {featuredSet.map((h, i) => {
               const r = RARITY[h.rarity] || RARITY.R;
+              const fr = rarityFrame(h.rarity);
               const isRateUp = i === 0;
               return (
                 <div key={h.id} className="shrink-0 w-[88px] sm:w-[104px]">
-                  <div className={`relative rounded-xl overflow-hidden ${auraClass(h.rarity)}`} style={{ border: `1.5px solid ${r.color}`, "--glow": r.color }}>
+                  <div className={`relative rounded-xl overflow-hidden ${auraClass(h.rarity)}`} style={{ border: `${fr.strokeWidth}px solid ${fr.strokeColor}`, "--glow": fr.useGold ? GOLD.base : r.color }}>
                     {isRateUp && (
                       <span className="absolute top-1 left-1 z-10 text-[9px] font-extrabold px-1.5 py-0.5 rounded" style={{ background: r.color, color: "#05050A" }}>RATE-UP</span>
                     )}
@@ -305,6 +312,7 @@ export default function Summon() {
                       <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" loading="lazy" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                     </div>
+                    {fr.cornerLevel >= 2 && <DecoCorners rarity={h.rarity} size={11} />}
                     <div className="absolute bottom-1 inset-x-1">
                       <p className="text-[11px] font-display tracking-wide text-white truncate">{h.name}</p>
                       <Stars rarity={h.rarity} />
@@ -349,8 +357,8 @@ export default function Summon() {
 
               <div className="text-center shrink-0">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Guaranteed At</p>
-                <div className="w-12 h-12 mx-auto rounded-xl flex items-center justify-center" style={{ background: `${RARITY.MYTHIC.color}12`, border: `1px solid ${RARITY.MYTHIC.color}44` }}>
-                  <span className="font-display text-lg" style={{ color: RARITY.MYTHIC.color }}>{hardPity}</span>
+                <div className="gold-crest w-12 h-12 mx-auto rounded-xl flex items-center justify-center">
+                  <span className="font-display text-lg" style={{ color: GOLD.base }}>{hardPity}</span>
                 </div>
               </div>
             </div>
@@ -440,16 +448,18 @@ export default function Summon() {
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none" data-testid="available-heroes">
               {availableHeroes.map((h) => {
                 const r = RARITY[h.rarity] || RARITY.R;
+                const fr = rarityFrame(h.rarity);
                 const owned = (user?.ninjas || []).some((n) => n.template_id === h.id);
                 return (
                   <div key={h.id} className="shrink-0 w-[128px] sm:w-[144px]" data-testid={`available-hero-${h.id}`}>
-                    <div className={`relative rounded-xl overflow-hidden ${auraClass(h.rarity)}`} style={{ border: `1.5px solid ${r.color}`, "--glow": r.color }}>
+                    <div className={`relative rounded-xl overflow-hidden ${auraClass(h.rarity)}`} style={{ border: `${fr.strokeWidth}px solid ${fr.strokeColor}`, "--glow": fr.useGold ? GOLD.base : r.color }}>
                       <span className="absolute top-1.5 right-1.5 z-10 text-[10px] font-display px-1.5 rounded" style={{ background: r.color, color: "#05050A" }}>{r.label}</span>
                       {owned && <span className="absolute top-1.5 left-1.5 z-10 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white"><ShieldCheck className="w-3 h-3" /></span>}
                       <div className="aspect-[3/4] bg-black/40">
                         <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" loading="lazy" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/85 to-transparent" />
                       </div>
+                      {fr.cornerLevel >= 2 && <DecoCorners rarity={h.rarity} size={14} />}
                       <div className="absolute bottom-1.5 inset-x-2">
                         <p className="text-xs font-display tracking-wide text-white truncate">{h.name}</p>
                         <Stars rarity={h.rarity} />
@@ -539,12 +549,14 @@ export default function Summon() {
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 mt-1">
             {featuredAll.map((h) => {
               const r = RARITY[h.rarity] || RARITY.R;
+              const fr = rarityFrame(h.rarity);
               return (
-                <div key={h.id} className={`relative rounded-lg overflow-hidden ${auraClass(h.rarity)}`} style={{ border: `1.5px solid ${r.color}`, "--glow": r.color }}>
+                <div key={h.id} className={`relative rounded-lg overflow-hidden ${auraClass(h.rarity)}`} style={{ border: `${fr.strokeWidth}px solid ${fr.strokeColor}`, "--glow": fr.useGold ? GOLD.base : r.color }}>
                   <div className="aspect-[3/4] bg-black/40">
                     <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" loading="lazy" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 to-transparent" />
                   </div>
+                  {fr.cornerLevel >= 2 && <DecoCorners rarity={h.rarity} size={12} />}
                   <div className="absolute bottom-1 inset-x-1.5">
                     <p className="text-[11px] font-display text-white truncate">{h.name}</p>
                     <Stars rarity={h.rarity} className="w-2.5 h-2.5" />

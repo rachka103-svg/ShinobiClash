@@ -31,6 +31,24 @@
     --input: 240 20% 16%;
     --ring: 187 100% 50%;
     --radius: 0.4rem;
+
+    /* ---- Neon Shadow — Deco Prestige tokens (additive) ---- */
+    --gold: #FFCA28;
+    --gold-2: #FFC857;
+    --gold-dim: rgba(255, 202, 40, 0.22);
+    --gold-hairline: rgba(255, 202, 40, 0.38);
+    --gold-stroke: rgba(255, 202, 40, 0.55);
+
+    --stroke-soft: rgba(255, 255, 255, 0.08);
+    --stroke: rgba(255, 255, 255, 0.12);
+    --stroke-hard: rgba(255, 255, 255, 0.18);
+
+    --glass-border: rgba(255, 255, 255, 0.10);
+    --shadow-deep: 0 18px 60px rgba(0, 0, 0, 0.55);
+    --shadow-lift: 0 24px 80px rgba(0, 0, 0, 0.62);
+
+    --radius-card: 14px;
+    --radius-panel: 16px;
 }
 
 * {
@@ -124,6 +142,77 @@ html, body {
     background: linear-gradient(160deg, rgba(20, 22, 38, 0.9), rgba(8, 8, 16, 0.95));
     border: 1px solid rgba(255, 255, 255, 0.07);
 }
+
+/* ==========================================================================
+   NEON SHADOW — DECO PRESTIGE surfaces & rarity-scaled frame ornaments
+   Additive, theme-wide. Applied via reusable components (HeroPortrait,
+   DecoCorners) so every collection grid / card benefits automatically.
+   ========================================================================== */
+
+/* Refined glass HUD panel with a subtle top edge-light (not flat glass). */
+.glass-panel {
+    position: relative;
+    background: rgba(11, 11, 20, 0.62);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-deep);
+}
+.glass-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.08), transparent 42%);
+}
+
+/* Gold prestige helpers — used sparingly for rewards / UR+ / featured. */
+.gold-hairline { border: 1px solid var(--gold-hairline); }
+.gold-pinstripe {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-hairline) 20%, var(--gold-2) 50%, var(--gold-hairline) 80%, transparent);
+}
+.gold-crest {
+    background: var(--gold-dim);
+    border: 1px solid var(--gold-hairline);
+    box-shadow: 0 0 18px rgba(255, 202, 40, 0.18), inset 0 0 12px rgba(255, 202, 40, 0.10);
+}
+
+/* Art-Deco corner ornaments. Level + color driven by the rarity frame.
+   L-shaped stepped brackets (deco, not floral); higher tiers add diamond
+   studs. Kept tight so glows never merge across grid cells. */
+.deco-corners {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 12;
+}
+.deco-corners > i {
+    position: absolute;
+    width: var(--corner-size, 14px);
+    height: var(--corner-size, 14px);
+    border: 0 solid var(--corner-color, #fff);
+    filter: drop-shadow(0 0 4px var(--corner-color, #fff));
+    opacity: 0.92;
+}
+.deco-corners > i:nth-child(1) { top: 5px; left: 5px; border-top-width: 2px; border-left-width: 2px; border-top-left-radius: 4px; }
+.deco-corners > i:nth-child(2) { top: 5px; right: 5px; border-top-width: 2px; border-right-width: 2px; border-top-right-radius: 4px; }
+.deco-corners > i:nth-child(3) { bottom: 5px; left: 5px; border-bottom-width: 2px; border-left-width: 2px; border-bottom-left-radius: 4px; }
+.deco-corners > i:nth-child(4) { bottom: 5px; right: 5px; border-bottom-width: 2px; border-right-width: 2px; border-bottom-right-radius: 4px; }
+.deco-corners > b {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    background: var(--corner-color, #fff);
+    transform: rotate(45deg);
+    box-shadow: 0 0 6px var(--corner-color, #fff);
+}
+.deco-corners > b:nth-of-type(1) { top: 3px; left: calc(50% - 2.5px); }
+.deco-corners > b:nth-of-type(2) { bottom: 3px; left: calc(50% - 2.5px); }
+.deco-corners > b:nth-of-type(3) { left: 3px; top: calc(50% - 2.5px); }
+.deco-corners > b:nth-of-type(4) { right: 3px; top: calc(50% - 2.5px); }
 
 .grain::before {
     content: "";

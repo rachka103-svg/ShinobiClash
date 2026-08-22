@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles, Star } from "lucide-react";
 import { RARITY } from "@/lib/styles";
-import { auraClass, RaritySparkles, RARITY_TIER } from "@/components/RarityFx";
+import { rarityFrame, GOLD } from "@/lib/theme";
+import { auraClass, RaritySparkles, RARITY_TIER, DecoCorners } from "@/components/RarityFx";
 import { ItemIcon } from "@/components/ItemIcon";
 
 const GEAR_TIER = { common: 1, fine: 2, rare: 3, epic: 4, legendary: 5 };
@@ -107,6 +108,9 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
                 const isGear = r.kind === "gear";
                 const color = isGear ? (r.color || "#29B6F6") : (RARITY[r.rarity] || RARITY.R).color;
                 const tier = isGear ? (GEAR_TIER[r.rarity] || 1) + 1 : (RARITY_TIER[r.rarity] ?? 0);
+                const fr = isGear ? null : rarityFrame(r.rarity);
+                const strokeW = fr ? fr.strokeWidth : 1.5;
+                const strokeCol = shown ? (fr?.useGold ? GOLD.stroke : color) : "rgba(255,255,255,0.08)";
                 return (
                   <motion.div
                     key={i}
@@ -114,9 +118,11 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
                     animate={shown ? { rotateY: 0, opacity: 1 } : { rotateY: 90, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 160, damping: 18 }}
                     className={`relative rounded-xl overflow-hidden bg-[#0B0B14] ${shown && tier >= 4 ? auraClass(isGear ? "UR" : r.rarity) : ""}`}
-                    style={{ border: `1.5px solid ${shown ? color : "rgba(255,255,255,0.08)"}`, "--glow": color, boxShadow: shown && tier >= 5 ? `0 0 26px ${color}66` : undefined }}
+                    style={{ border: `${strokeW}px solid ${strokeCol}`, "--glow": fr?.useGold ? GOLD.base : color, boxShadow: shown && tier >= 5 ? `0 0 26px ${color}66` : undefined }}
                     data-testid={`summon-result-card-${i}`}
                   >
+                    {shown && !isGear && fr.cornerLevel >= 2 && <DecoCorners rarity={r.rarity} size={14} />}
+                    {shown && isGear && tier >= 5 && <DecoCorners level={3} color={GOLD.base} size={14} />}
                     {isGear ? (
                       <div className="aspect-[3/4] flex flex-col items-center justify-center gap-2 p-2">
                         <ItemIcon icon={r.icon || "anvil"} className="w-9 h-9" style={{ color }} />
