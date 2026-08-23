@@ -18,7 +18,7 @@ from typing import List, Optional
 
 import bcrypt
 import jwt
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, Body
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
@@ -1700,7 +1700,7 @@ async def admin_set_banner(body: BannerIn, _: dict = Depends(get_admin_user)):
     if not t:
         raise HTTPException(status_code=404, detail="Hero not found")
     if gd.RARITY_ORDER[t["rarity"]] < gd.RARITY_ORDER["SSR"]:
-        raise HTTPException(status_code=400, detail="Only SSR, UR or LR heroes can be featured")
+        raise HTTPException(status_code=400, detail="Only SSR, UR or GR heroes can be featured")
     FEATURED_BANNER["template_id"] = body.template_id
     await db.game_config.update_one({"_id": "banner"}, {"$set": {"template_id": body.template_id}}, upsert=True)
     return {"banner": banner_info()}
@@ -1711,6 +1711,135 @@ async def admin_clear_banner(_: dict = Depends(get_admin_user)):
     FEATURED_BANNER["template_id"] = None
     await db.game_config.update_one({"_id": "banner"}, {"$set": {"template_id": None}}, upsert=True)
     return {"banner": None}
+
+
+# ---------------------------------------------------------------------------
+# ADMIN — Economy / global game knobs. These mutate live game_data attributes
+# so every read-site picks them up instantly, and persist to Mongo so they
+# survive restarts (re-applied in load_economy on startup).
+# ---------------------------------------------------------------------------
+ECON_FIELDS = {
+    "summon_cost": ("SUMMON_COST", int),
+    "gem_summon_cost": ("GEM_SUMMON_COST", int),
+    "gem_energy_refill_per_point": ("GEM_ENERGY_REFILL_COST_PER_POINT", int),
+    "gem_energy_refill_min": ("GEM_ENERGY_REFILL_MIN_COST", int),
+    "gear_summon_gem_cost": ("GEAR_SUMMON_GEM_COST", int),
+    "pity_soft_start": ("MYTHIC_SOFT_PITY_START", int),
+    "pity_hard": ("MYTHIC_HARD_PITY", int),
+    "featured_5050": ("FEATURED_MYTHIC_5050", float),
+}
+
+
+def _econ_snapshot():
+    snap = {k: getattr(gd, attr) for k, (attr, _) in ECON_FIELDS.items()}
+    snap["featured_rate_mult"] = FEATURED_RATE_MULT
+    return snap
+
+
+async def load_economy():
+    global FEATURED_RATE_MULT
+    doc = await db.game_config.find_one({"_id": "economy"}) or {}
+    for k, (attr, cast) in ECON_FIELDS.items():
+        if k in doc:
+            try: setattr(gd, attr, cast(doc[k]))
+            except Exception: pass
+    if "featured_rate_mult" in doc:
+        try: FEATURED_RATE_MULT = float(doc["featured_rate_mult"])
+        except Exception: pass
+
+
+@api_router.get("/admin/economy")
+async def admin_get_economy(_: dict = Depends(get_admin_user)):
+    return {"economy": _econ_snapshot(), "summon_rates": gd.summon_rates("gems"), "summon_rates_ryo": gd.summon_rates("ryo")}
+
+
+@api_router.post("/admin/economy")
+async def admin_set_economy(body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    global FEATURED_RATE_MULT
+    updates = {}
+    for k, (attr, cast) in ECON_FIELDS.items():
+        if k in body and body[k] is not None:
+            try:
+                val = cast(body[k])
+                setattr(gd, attr, val)
+                updates[k] = val
+            except Exception:
+                raise HTTPException(status_code=400, detail=f"Invalid value for {k}")
+    if "featured_rate_mult" in body and body["featured_rate_mult"] is not None:
+        FEATURED_RATE_MULT = float(body["featured_rate_mult"]); updates["featured_rate_mult"] = FEATURED_RATE_MULT
+    if updates:
+        await db.game_config.update_one({"_id": "economy"}, {"$set": updates}, upsert=True)
+    return {"economy": _econ_snapshot(), "summon_rates": gd.summon_rates("gems")}
+
+
+# ---------------------------------------------------------------------------
+# ADMIN — Player management. Search users and grant/set any currency, level,
+# energy, tickets or upgrade materials. "add" increments, "set" overwrites.
+# ---------------------------------------------------------------------------
+GRANT_FIELDS = ["ryo", "gems"]
+GRANT_INV = ["summon_ticket", "gear_ticket", "ascension_crystal", "evo_stone", "gold_dust"]
+
+
+@api_router.get("/admin/players")
+async def admin_list_players(q: str = "", _: dict = Depends(get_admin_user)):
+    query = {}
+    if q:
+        query = {"$or": [{"name": {"$regex": q, "$options": "i"}}, {"email": {"$regex": q, "$options": "i"}}]}
+    rows = await db.users.find(query).limit(50).to_list(50)
+    out = []
+    for u in rows:
+        uid = u.get("id") or str(u.get("_id"))
+        out.append({
+            "id": uid, "name": u.get("name"), "email": u.get("email"), "role": u.get("role", "player"),
+            "level": u.get("level", 1), "ryo": u.get("ryo", 0), "gems": u.get("gems", 0),
+            "energy": (u.get("energy") or {}).get("current", 0),
+            "heroes": len(u.get("ninjas", [])),
+            "inventory": {k: (u.get("inventory") or {}).get(k, 0) for k in GRANT_INV},
+        })
+    return {"players": out, "count": len(out)}
+
+
+@api_router.post("/admin/player/grant")
+async def admin_grant_player(body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    uid = body.get("user_id")
+    mode = body.get("mode", "add")  # "add" | "set"
+    u = await db.users.find_one({"id": uid})
+    if not u:
+        try:
+            from bson import ObjectId
+            u = await db.users.find_one({"_id": ObjectId(uid)})
+        except Exception:
+            u = None
+    if not u:
+        raise HTTPException(status_code=404, detail="Player not found")
+    key = {"id": u["id"]} if u.get("id") else {"_id": u["_id"]}
+    setd = {}
+    for f in GRANT_FIELDS:
+        if body.get(f) not in (None, ""):
+            cur = u.get(f, 0)
+            setd[f] = int(body[f]) if mode == "set" else cur + int(body[f])
+            setd[f] = max(0, setd[f])
+    if body.get("level") not in (None, ""):
+        setd["level"] = max(1, int(body["level"])) if mode == "set" else max(1, u.get("level", 1) + int(body["level"]))
+    inv = dict(u.get("inventory") or {})
+    for f in GRANT_INV:
+        if body.get(f) not in (None, ""):
+            inv[f] = int(body[f]) if mode == "set" else inv.get(f, 0) + int(body[f])
+            inv[f] = max(0, inv[f])
+    if any(body.get(f) not in (None, "") for f in GRANT_INV):
+        setd["inventory"] = inv
+    if body.get("energy") not in (None, ""):
+        en = dict(u.get("energy") or {"current": 0, "max": 120})
+        en["current"] = int(body["energy"]) if mode == "set" else en.get("current", 0) + int(body["energy"])
+        en["current"] = max(0, en["current"])
+        setd["energy"] = en
+    if setd:
+        await db.users.update_one(key, {"$set": setd})
+    fresh = await db.users.find_one(key)
+    return {"ok": True, "player": {"id": uid, "name": fresh.get("name"), "level": fresh.get("level"),
+            "ryo": fresh.get("ryo"), "gems": fresh.get("gems"),
+            "energy": (fresh.get("energy") or {}).get("current", 0),
+            "inventory": {k: (fresh.get("inventory") or {}).get(k, 0) for k in GRANT_INV}}}
 
 
 # ---------------------------------------------------------------------------
@@ -1872,6 +2001,7 @@ async def startup():
     await db.users.create_index("email", unique=True)
     await load_catalog_config()
     await load_banner()
+    await load_economy()
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@shinobi.com").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
     existing = await db.users.find_one({"email": admin_email})

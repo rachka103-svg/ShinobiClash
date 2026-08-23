@@ -59,7 +59,7 @@ export default function Admin() {
       </div>
 
       <div className="flex items-center gap-2 mb-6">
-        {[["generate", "AI Generator"], ["art", "Art Studio"], ["manage", `Manage Heroes (${catalog.length})`]].map(([id, lbl]) => (
+        {[["generate", "AI Generator"], ["art", "Art Studio"], ["manage", `Manage Heroes (${catalog.length})`], ["players", "Players"], ["economy", "Economy"]].map(([id, lbl]) => (
           <button key={id} data-testid={`admin-tab-${id}`} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${tab === id ? "bg-chakra text-[#05050A]" : "text-slate-300 bg-white/5 hover:bg-white/10"}`}>
             {lbl}
@@ -69,6 +69,8 @@ export default function Admin() {
 
       {tab === "generate" ? <Generator onSaved={refreshCatalog} />
         : tab === "art" ? <ArtStudio catalog={catalog} onApplied={refreshCatalog} />
+        : tab === "players" ? <Players />
+        : tab === "economy" ? <Economy />
         : <Manage catalog={catalog} banner={banner} onChanged={refreshCatalog} />}
     </div>
   );
@@ -671,5 +673,197 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
         {!hero.is_custom && <p className="text-[11px] text-slate-500 text-center">Original hero — you can replace its portrait. Stats are fixed for game balance.</p>}
       </div>
     </motion.div>
+  );
+}
+
+
+// ==========================================================================
+// PLAYERS — search accounts and grant/set currencies, level, energy, mats.
+// ==========================================================================
+const GRANT_MONEY = [["ryo", "Ryo", "#FFCA28"], ["gems", "Gems", "#D500F9"], ["energy", "Energy", "#00E676"], ["level", "Level", "#00E5FF"]];
+const GRANT_MATS = [["summon_ticket", "Summon Tix"], ["gear_ticket", "Gear Tix"], ["ascension_crystal", "Crystals"], ["evo_stone", "Evo Stones"], ["gold_dust", "Gold Dust"]];
+
+function Players() {
+  const [q, setQ] = useState("");
+  const [rows, setRows] = useState([]);
+  const [sel, setSel] = useState(null);
+  const [mode, setMode] = useState("add");
+  const [form, setForm] = useState({});
+  const [busy, setBusy] = useState(false);
+
+  const search = async () => {
+    setBusy(true);
+    try { const { data } = await api.get(`/admin/players?q=${encodeURIComponent(q)}`); setRows(data.players); }
+    catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message); }
+    finally { setBusy(false); }
+  };
+  useMemo(() => { search(); /* initial */ }, []); // eslint-disable-line
+
+  const grant = async () => {
+    if (!sel) return;
+    const payload = { user_id: sel.id, mode };
+    Object.entries(form).forEach(([k, v]) => { if (v !== "" && v != null) payload[k] = Number(v); });
+    setBusy(true);
+    try {
+      const { data } = await api.post("/admin/player/grant", payload);
+      toast.success(`Updated ${data.player.name}`);
+      setForm({});
+      setRows((rs) => rs.map((r) => r.id === sel.id ? { ...r, ...data.player } : r));
+      setSel((s) => ({ ...s, ...data.player }));
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-5" data-testid="admin-players">
+      {/* list */}
+      <div className="glass-panel p-4">
+        <div className="flex gap-2 mb-3">
+          <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()}
+            placeholder="Search name or email…" data-testid="players-search"
+            className="flex-1 bg-black/40 border border-white/12 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-chakra" />
+          <button onClick={search} disabled={busy} data-testid="players-search-btn" className="px-4 rounded-lg bg-chakra text-[#05050A] font-bold text-sm">Search</button>
+        </div>
+        <div className="space-y-1.5 max-h-[60vh] overflow-y-auto scrollbar-none">
+          {rows.map((p) => (
+            <button key={p.id} onClick={() => setSel(p)} data-testid={`player-row-${p.id}`}
+              className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${sel?.id === p.id ? "bg-chakra/15 border-chakra/50" : "bg-white/[0.03] border-white/10 hover:bg-white/[0.06]"}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-white truncate">{p.name} {p.role === "admin" && <span className="text-[10px] text-fox">ADMIN</span>}</span>
+                <span className="text-xs text-slate-400">Lv.{p.level}</span>
+              </div>
+              <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-0.5">
+                <span className="text-amber-300">{p.ryo?.toLocaleString()} ryo</span>
+                <span className="text-jutsu">{p.gems} gems</span>
+                <span>{p.heroes} heroes</span>
+              </div>
+            </button>
+          ))}
+          {rows.length === 0 && <p className="text-sm text-slate-500 text-center py-6">No players found.</p>}
+        </div>
+      </div>
+
+      {/* grant panel */}
+      <div className="glass-panel p-4">
+        {!sel ? (
+          <p className="text-slate-500 text-sm text-center py-16">Select a player to edit their account.</p>
+        ) : (
+          <>
+            <h3 className="font-display text-2xl text-white mb-1">{sel.name}</h3>
+            <p className="text-xs text-slate-500 mb-4">{sel.email}</p>
+            <div className="flex gap-2 mb-4">
+              {["add", "set"].map((m) => (
+                <button key={m} onClick={() => setMode(m)} data-testid={`grant-mode-${m}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold ${mode === m ? "bg-chakra text-[#05050A]" : "bg-white/5 text-slate-300"}`}>
+                  {m === "add" ? "ADD (+/-)" : "SET (=)"}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {GRANT_MONEY.map(([k, lbl, c]) => (
+                <label key={k} className="block">
+                  <span className="text-[10px] uppercase tracking-widest" style={{ color: c }}>{lbl}</span>
+                  <input type="number" value={form[k] ?? ""} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+                    data-testid={`grant-${k}`} placeholder={mode === "add" ? "+/-" : "="}
+                    className="w-full bg-black/40 border border-white/12 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-chakra" />
+                </label>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              {GRANT_MATS.map(([k, lbl]) => (
+                <label key={k} className="block">
+                  <span className="text-[10px] uppercase tracking-widest text-slate-400">{lbl}</span>
+                  <input type="number" value={form[k] ?? ""} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+                    data-testid={`grant-${k}`} placeholder={mode === "add" ? "+/-" : "="}
+                    className="w-full bg-black/40 border border-white/12 rounded-lg px-2 py-1.5 text-sm text-white outline-none focus:border-chakra" />
+                </label>
+              ))}
+            </div>
+            <button onClick={grant} disabled={busy} data-testid="grant-apply"
+              className="w-full mt-5 py-3 rounded-xl bg-fox text-white font-display text-lg tracking-wide disabled:opacity-50">
+              {busy ? "APPLYING…" : `APPLY ${mode.toUpperCase()}`}
+            </button>
+            <div className="mt-4 text-xs text-slate-400 grid grid-cols-2 gap-1">
+              <span className="text-amber-300">Ryo: {sel.ryo?.toLocaleString()}</span>
+              <span className="text-jutsu">Gems: {sel.gems}</span>
+              <span>Energy: {sel.energy}</span>
+              <span>Level: {sel.level}</span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================================================
+// ECONOMY — live global knobs (costs, pity, rate-up). Applies instantly.
+// ==========================================================================
+const ECON_FIELDS = [
+  ["summon_cost", "Ryo Summon Cost"], ["gem_summon_cost", "Gem Summon Cost"],
+  ["gear_summon_gem_cost", "Gear Summon (Gems)"], ["gem_energy_refill_per_point", "Energy Refill / pt (Gems)"],
+  ["gem_energy_refill_min", "Energy Refill Min (Gems)"], ["pity_soft_start", "GR Soft Pity Start"],
+  ["pity_hard", "GR Hard Pity"], ["featured_5050", "Featured 50/50 (0-1)"], ["featured_rate_mult", "Rate-Up Multiplier"],
+];
+
+function Economy() {
+  const [econ, setEcon] = useState(null);
+  const [rates, setRates] = useState({});
+  const [form, setForm] = useState({});
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    try { const { data } = await api.get("/admin/economy"); setEcon(data.economy); setRates(data.summon_rates || {}); setForm(data.economy); }
+    catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message); }
+  };
+  useMemo(() => { load(); }, []); // eslint-disable-line
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const payload = {}; Object.entries(form).forEach(([k, v]) => payload[k] = Number(v));
+      const { data } = await api.post("/admin/economy", payload);
+      setEcon(data.economy); setRates(data.summon_rates || rates); setForm(data.economy);
+      toast.success("Economy updated live!");
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message); }
+    finally { setBusy(false); }
+  };
+
+  if (!econ) return <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 text-chakra animate-spin" /></div>;
+
+  return (
+    <div className="grid lg:grid-cols-3 gap-5" data-testid="admin-economy">
+      <div className="glass-panel p-4 lg:col-span-2">
+        <h3 className="font-display text-2xl text-white mb-1">GLOBAL ECONOMY</h3>
+        <p className="text-xs text-slate-500 mb-4">Changes apply instantly to every player and persist across restarts.</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {ECON_FIELDS.map(([k, lbl]) => (
+            <label key={k} className="block">
+              <span className="text-[10px] uppercase tracking-widest text-slate-400">{lbl}</span>
+              <input type="number" step={k === "featured_5050" || k === "featured_rate_mult" ? "0.1" : "1"}
+                value={form[k] ?? ""} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
+                data-testid={`econ-${k}`}
+                className="w-full bg-black/40 border border-white/12 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-chakra" />
+            </label>
+          ))}
+        </div>
+        <button onClick={save} disabled={busy} data-testid="econ-save"
+          className="w-full mt-5 py-3 rounded-xl bg-chakra text-[#05050A] font-display text-lg tracking-wide disabled:opacity-50">
+          {busy ? "SAVING…" : "SAVE ECONOMY"}
+        </button>
+      </div>
+      <div className="glass-panel p-4">
+        <h4 className="font-display text-lg text-white mb-2">Live Gem Rates</h4>
+        <div className="space-y-1.5">
+          {Object.entries(rates).map(([r, pct]) => (
+            <div key={r} className="flex items-center justify-between text-sm">
+              <span className="font-bold" style={{ color: (RARITY[r] || RARITY.R).color }}>{r}</span>
+              <span className="text-white tabular-nums">{pct}%</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] text-slate-500 mt-3">Rates derive from the catalog composition; pity/costs above tune the live economy.</p>
+      </div>
+    </div>
   );
 }
