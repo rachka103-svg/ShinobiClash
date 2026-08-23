@@ -42,16 +42,14 @@ export const ACCENT = {
   gold: "#FFCA28",   // premium / reward / ascension
 };
 
-// ---- Rarity — strong, distinct, unmistakable at a glance ---------------
+// ---- Rarity — 5 canonical tiers, strong & unmistakable at a glance ------
+// R < SR < SSR < UR < GR, with GR as the pinnacle (and the pity target).
 export const RARITY = {
-  N: { label: "N", color: "#7C7C86", name: "Novice", tier: 0 },
-  R: { label: "R", color: "#9E9E9E", name: "Common", tier: 1 },
-  SR: { label: "SR", color: "#29B6F6", name: "Rare", tier: 2 },
-  SSR: { label: "SSR", color: "#AB47BC", name: "Epic", tier: 3 },
-  UR: { label: "UR", color: "#FFCA28", name: "Legendary", tier: 4 },
-  GR: { label: "GR", color: "#FF4081", name: "Ascendant", tier: 5 },
-  LR: { label: "LR", color: "#FF2D78", name: "Radiant", tier: 6 },
-  MYTHIC: { label: "MYTHIC", color: "#64FFDA", name: "Mythic", tier: 7 },
+  R: { label: "R", color: "#9E9E9E", name: "Common", tier: 0 },
+  SR: { label: "SR", color: "#29B6F6", name: "Rare", tier: 1 },
+  SSR: { label: "SSR", color: "#AB47BC", name: "Epic", tier: 2 },
+  UR: { label: "UR", color: "#FFCA28", name: "Legendary", tier: 3 },
+  GR: { label: "GR", color: "#64FFDA", name: "Ascendant", tier: 4 },
 };
 
 // ---- Elements — communicate identity through color, not labels alone ---
@@ -128,7 +126,7 @@ export const STROKE = {
 };
 
 // Which rarities receive the gold prestige treatment on their frame.
-export const GOLD_RARITIES = ["UR", "LR", "MYTHIC"];
+export const GOLD_RARITIES = ["UR", "GR"];
 
 /**
  * rarityFrame(key) — resolves the ornate, rarity-scaled frame treatment.
@@ -148,14 +146,14 @@ export const rarityFrame = (key) => {
   const r = RARITY[key] || RARITY.R;
   const t = r.tier;
   const useGold = GOLD_RARITIES.includes(key);
-  const cornerLevel = t >= 6 ? 4 : t >= 4 ? 3 : t >= 3 ? 2 : t >= 2 ? 1 : 0;
+  const cornerLevel = t >= 4 ? 4 : t >= 3 ? 3 : t >= 2 ? 2 : t >= 1 ? 1 : 0;
   return {
     tier: t,
     rarityColor: r.color,
     useGold,
     cornerLevel,
     strokeColor: useGold ? GOLD.stroke : `${r.color}66`,
-    strokeWidth: t >= 6 ? 2 : 1,
+    strokeWidth: t >= 4 ? 2 : 1,
     cornerColor: useGold ? GOLD.base : r.color,
   };
 };

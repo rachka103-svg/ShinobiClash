@@ -17,7 +17,8 @@ export function GameProvider({ children }) {
   const [banner, setBanner] = useState(null);
   // --- Phase J expansion config (all data-driven from the backend) ---
   const [summonRates, setSummonRates] = useState({});
-  const [pityConfig, setPityConfig] = useState({ soft_pity_start: 100, hard_pity: 150, featured_5050: 0.5, x10_guarantee_rarity: "SR" });
+  const [summonRatesRyo, setSummonRatesRyo] = useState({});
+  const [pityConfig, setPityConfig] = useState({ soft_pity_start: 60, hard_pity: 90, featured_5050: 0.5, x10_guarantee_rarity: "SR", pity_rarity: "GR", pity_currencies: ["gems", "ticket"] });
   const [gearConfig, setGearConfig] = useState(null);
   const [craftRecipes, setCraftRecipes] = useState({});
   const [fusionRecipes, setFusionRecipes] = useState({});
@@ -35,6 +36,7 @@ export function GameProvider({ children }) {
     setGemCosts(data.gem_costs || { summon: 150, energy_refill_per_point: 4, energy_refill_min: 15 });
     setBanner(data.banner || null);
     setSummonRates(data.summon_rates || {});
+    setSummonRatesRyo(data.summon_rates_ryo || {});
     if (data.pity_config) setPityConfig(data.pity_config);
     setGearConfig(data.gear_config || null);
     setCraftRecipes(data.craft_recipes || {});
@@ -77,7 +79,7 @@ export function GameProvider({ children }) {
   return (
     <GameContext.Provider value={{
       catalog, catalogById, advantage, stages, chapters, bossMechanics, items, trials, summonCost, gemCosts, banner,
-      summonRates, pityConfig, gearConfig, craftRecipes, fusionRecipes, expTomeGoldCost, dungeons,
+      summonRates, summonRatesRyo, pityConfig, gearConfig, craftRecipes, fusionRecipes, expTomeGoldCost, dungeons,
       loading, catalogError, retryCatalog: loadInitialData, refreshCatalog,
     }}>
       {children}

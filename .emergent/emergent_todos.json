@@ -1,18 +1,26 @@
 [
   {
-    "content": "Premium Leaderboard refresh (gold #1 crest + deco corners, medal glows, glass rows)",
+    "content": "Backend: collapse rarities to 5 tiers (R/SR/SSR/UR/GR), GR pity, per-currency rates (gold=low+no pity), multiplicative rate-up",
     "status": "completed"
   },
   {
-    "content": "Refine shared HeroDetailModal (rarity gold frame + portrait deco corners/pinstripe, glass stats)",
+    "content": "Frontend tokens: RARITY 5-tier, GR pinnacle, frame gold tiers, aura/sparkle thresholds",
     "status": "completed"
   },
   {
-    "content": "Global .panel upgrade (edge-light + depth) — refines Dungeons/Battle/etc app-wide",
+    "content": "Summon page: GR pity labels/data, gem+gold rates dialog, GameContext ryo rates",
     "status": "completed"
   },
   {
-    "content": "Verify Leaderboard, HeroDetailModal, Dungeons, Team, Arena + compile/log sanity",
+    "content": "Fix MYTHIC/LR refs in reveal overlay, Gallery, Roster, Admin, battle.js",
+    "status": "completed"
+  },
+  {
+    "content": "Redesign Lobby (home) to fit in viewport without scrolling",
+    "status": "completed"
+  },
+  {
+    "content": "Verify: backend summon tests + frontend screenshots (Lobby no-scroll, Summon GR pity, Gallery)",
     "status": "completed"
   }
 ]

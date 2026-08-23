@@ -98,10 +98,10 @@ export function spireEnemies(floor, catalog) {
   else if (floor <= 6) bands = ["R", "SR"];
   else if (floor <= 10) bands = ["SR", "SSR"];
   else if (floor <= 15) bands = ["SSR", "UR"];
-  else bands = ["UR", "LR"];
+  else bands = ["UR", "GR"];
 
   if (boss) {
-    const bossPool = catalog.filter((c) => ["SSR", "UR", "LR"].includes(c.rarity));
+    const bossPool = catalog.filter((c) => ["SSR", "UR", "GR"].includes(c.rarity));
     const b = bossPool[Math.floor(rng() * bossPool.length)] || catalog[0];
     return [{ template_id: b.id, level: Math.round(lvl * 1.5) }];
   }

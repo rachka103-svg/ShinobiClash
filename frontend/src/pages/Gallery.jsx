@@ -6,8 +6,8 @@ import { NinjaCard } from "@/components/NinjaCard";
 import HeroDetailModal from "@/components/HeroDetailModal";
 import { RARITY, ELEMENT } from "@/lib/styles";
 
-const RARITY_FILTERS = ["All", "MYTHIC", "LR", "GR", "UR", "SSR", "SR", "R", "N"];
-const RARITY_ORDER = { MYTHIC: 7, LR: 6, GR: 5, UR: 4, SSR: 3, SR: 2, R: 1, N: 0 };
+const RARITY_FILTERS = ["All", "GR", "UR", "SSR", "SR", "R"];
+const RARITY_ORDER = { GR: 4, UR: 3, SSR: 2, SR: 1, R: 0 };
 
 export default function Gallery() {
   const { user } = useAuth();

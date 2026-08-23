@@ -8,7 +8,7 @@ import { RARITY, ELEMENT } from "@/lib/styles";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
-const RARITIES = ["N", "R", "SR", "SSR", "UR", "GR", "LR", "MYTHIC"];
+const RARITIES = ["R", "SR", "SSR", "UR", "GR"];
 const ROLES = ["Attacker", "Tank", "Support", "Assassin", "Mage", "Healer", "Control", "Bruiser"];
 const ART_STYLES = ["anime", "painterly", "cel-shaded", "semi-realistic", "dark fantasy", "chibi"];
 const SURPRISE_POSES = [

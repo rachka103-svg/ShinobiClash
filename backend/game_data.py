@@ -554,17 +554,32 @@ for _n in NINJA_CATALOG:
 
 CATALOG_BY_ID = {n["id"]: n for n in NINJA_CATALOG}
 
+# ---------------------------------------------------------------------------
+# 5-TIER RARITY SYSTEM. The catalog was authored across 8 legacy tiers; we
+# collapse them into exactly 5 canonical tiers (R < SR < SSR < UR < GR) with
+# GR as the pinnacle (and the pity target). Legacy N drops to R; the old top
+# tiers (LR / MYTHIC) fold up into GR. Base stats keep their authored values
+# so no existing hero is nerfed.
+# ---------------------------------------------------------------------------
+RARITY_REMAP = {"N": "R", "R": "R", "SR": "SR", "SSR": "SSR", "UR": "UR", "GR": "GR", "LR": "GR", "MYTHIC": "GR"}
+for _n in NINJA_CATALOG:
+    _n["rarity"] = RARITY_REMAP.get(_n["rarity"], _n["rarity"])
+CATALOG_BY_ID = {n["id"]: n for n in NINJA_CATALOG}
+
 STARTER_NINJAS = ["blaze", "ripple", "zephyr"]
 
 # Weighted summon pool (per rarity). Lower rarity = higher chance.
-SUMMON_WEIGHTS = {"N": 3000, "R": 1000, "SR": 320, "SSR": 95, "UR": 20, "GR": 6, "LR": 3, "MYTHIC": 1}
+# GEM banner (premium) — the standard, pity-backed rates.
+SUMMON_WEIGHTS = {"R": 1000, "SR": 320, "SSR": 95, "UR": 20, "GR": 6}
+# GOLD/RYO banner (budget) — SUPER low chance at rare heroes and NO pity.
+# Heavily floored to R/SR; UR/GR are vanishingly rare here.
+GOLD_SUMMON_WEIGHTS = {"R": 4000, "SR": 520, "SSR": 60, "UR": 4, "GR": 1}
 SUMMON_COST = 300
 
 # Shards gained when pulling a hero already owned (duplicate protection —
 # duplicates are NEVER wasted). Lower rarity yields more shards since it's
-# pulled far more often; shards feed the star-up system (see ascension_cost
-# analog `star_up_cost` below).
-SHARD_YIELD_PER_DUPLICATE = {"N": 50, "R": 40, "SR": 30, "SSR": 20, "UR": 12, "GR": 8, "LR": 5, "MYTHIC": 3}
+# pulled far more often; shards feed the star-up system.
+SHARD_YIELD_PER_DUPLICATE = {"R": 40, "SR": 30, "SSR": 20, "UR": 12, "GR": 8}
 STAR_LEVEL_MAX = 6
 
 
@@ -1065,7 +1080,7 @@ def fresh_login_state() -> dict:
 # on top at runtime so they become fully playable (summon, battle, gallery).
 # ---------------------------------------------------------------------------
 ELEMENTS = list(ELEMENT_ADVANTAGE.keys())
-RARITIES = ["N", "R", "SR", "SSR", "UR", "GR", "LR", "MYTHIC"]
+RARITIES = ["R", "SR", "SSR", "UR", "GR"]
 
 STATIC_CATALOG = [dict(n) for n in NINJA_CATALOG]
 _CUSTOM_HEROES = []
@@ -1427,32 +1442,35 @@ def dungeon_recommended_power(entry: dict) -> int:
 # 150 · a natural MYTHIC resets the counter · featured MYTHIC is 50/50 with a
 # guarantee after a loss. x10 guarantees at least one SR+.
 # ---------------------------------------------------------------------------
-MYTHIC_SOFT_PITY_START = 100
-MYTHIC_HARD_PITY = 150
-MYTHIC_SOFT_PITY_CEIL = 0.35     # ramped MYTHIC chance just before hard pity
+MYTHIC_SOFT_PITY_START = 60
+MYTHIC_HARD_PITY = 90
+MYTHIC_SOFT_PITY_CEIL = 0.35     # ramped GR chance just before hard pity
 FEATURED_MYTHIC_5050 = 0.5
+TOP_RARITY = "GR"                # pinnacle tier + pity target
 X10_GUARANTEE_RARITY = "SR"      # every x10 contains at least one SR or better
 GEAR_SUMMON_GEM_COST = 90
 GEAR_SUMMON_RATES = {"rare": 62, "epic": 30, "legendary": 8}
 
 
-def summon_rates() -> dict:
+def summon_rates(currency: str = "gems") -> dict:
     """Advertised per-rarity pull rates (%), derived from weights x catalog
-    composition so they're always truthful as the catalog grows."""
+    composition so they're always truthful. Gold/Ryo banner uses its own
+    (much lower top-tier) weight table."""
+    weights = GOLD_SUMMON_WEIGHTS if currency == "ryo" else SUMMON_WEIGHTS
     counts = {}
     for t in CATALOG_BY_ID.values():
         counts[t["rarity"]] = counts.get(t["rarity"], 0) + 1
-    total = sum(SUMMON_WEIGHTS[r] * c for r, c in counts.items())
+    total = sum(weights[r] * c for r, c in counts.items())
     if total <= 0:
         return {}
-    return {r: round(SUMMON_WEIGHTS[r] * c / total * 100, 3)
+    return {r: round(weights[r] * c / total * 100, 3)
             for r, c in sorted(counts.items(), key=lambda kv: RARITY_ORDER[kv[0]])}
 
 
-def mythic_chance(pull_number_since_last: int) -> float:
-    """Probability this pull is MYTHIC given the pity counter (1-based pull
-    number since the last MYTHIC)."""
-    base = (summon_rates().get("MYTHIC", 0.05)) / 100
+def gr_chance(pull_number_since_last: int) -> float:
+    """Probability this GEM pull is GR (top tier) given the pity counter
+    (1-based pull number since the last GR)."""
+    base = (summon_rates("gems").get(TOP_RARITY, 0.05)) / 100
     n = pull_number_since_last
     if n >= MYTHIC_HARD_PITY:
         return 1.0
@@ -1462,5 +1480,9 @@ def mythic_chance(pull_number_since_last: int) -> float:
     return base
 
 
+# Backward-compatible alias
+mythic_chance = gr_chance
+
+
 def fresh_pity_state() -> dict:
-    return {"mythic": 0, "featured_guarantee": False, "total_pulls": 0}
+    return {"gr": 0, "featured_guarantee": False, "total_pulls": 0}

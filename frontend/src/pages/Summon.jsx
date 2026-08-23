@@ -39,8 +39,8 @@ const TAG_LABEL = {
 };
 
 const ELEMENT_ICON = { Fire: Flame, Water: Droplet, Wind: WindIcon, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: Sun };
-const STAR_COUNT = { N: 1, R: 2, SR: 3, SSR: 4, UR: 5, GR: 5, LR: 5, MYTHIC: 5 };
-const RARITY_ORDER = { N: 0, R: 1, SR: 2, SSR: 3, UR: 4, GR: 5, LR: 6, MYTHIC: 7 };
+const STAR_COUNT = { R: 2, SR: 3, SSR: 4, UR: 5, GR: 5 };
+const RARITY_ORDER = { R: 0, SR: 1, SSR: 2, UR: 3, GR: 4 };
 
 // Next weekly reset (Mon 00:00 UTC) — a genuine live countdown, not fake data.
 const nextWeeklyReset = () => {
@@ -93,7 +93,7 @@ const Stars = ({ rarity, className = "w-3 h-3" }) => {
  */
 export default function Summon() {
   const { user, setUser } = useAuth();
-  const { catalog, catalogById, summonCost, banner, gemCosts, summonRates, pityConfig, gearConfig } = useGame();
+  const { catalog, catalogById, summonCost, banner, gemCosts, summonRates, summonRatesRyo, pityConfig, gearConfig } = useGame();
   const [mode, setMode] = useState("hero"); // hero | gear
   const [payMode, setPayMode] = useState("gems"); // gems | ryo  (hero altar)
   const [busy, setBusy] = useState(false);
@@ -124,11 +124,14 @@ export default function Summon() {
   const inv = user?.inventory || {};
   const tickets = inv.summon_ticket || 0;
   const gearTickets = inv.gear_ticket || 0;
-  const pity = user?.pity || { mythic: 0, featured_guarantee: false, total_pulls: 0 };
-  const hardPity = pityConfig.hard_pity || 150;
-  const softPity = pityConfig.soft_pity_start || 100;
-  const inSoftPity = pity.mythic + 1 >= softPity;
-  const pullsToPity = Math.max(0, hardPity - pity.mythic);
+  const pity = user?.pity || { gr: 0, featured_guarantee: false, total_pulls: 0 };
+  const hardPity = pityConfig.hard_pity || 90;
+  const softPity = pityConfig.soft_pity_start || 60;
+  const pityRarity = pityConfig.pity_rarity || "GR";
+  const pityColor = (RARITY[pityRarity] || RARITY.GR).color;
+  const pityCount = pity.gr ?? pity.mythic ?? 0;
+  const inSoftPity = pityCount + 1 >= softPity;
+  const pullsToPity = Math.max(0, hardPity - pityCount);
 
   // ----- Featured hero (falls back to the highest-rarity catalog hero) -----
   const featuredHero = useMemo(() => {
@@ -216,13 +219,13 @@ export default function Summon() {
         <ResourcePill icon={Anvil} color="#7C4DFF" label="Armory Tickets" value={gearTickets} testid="resource-gear-tickets" />
         <div className="shrink-0 ml-auto flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10">
           <div className="text-right">
-            <p className="text-[10px] uppercase tracking-widest text-slate-500 leading-none">Mythic Pity</p>
-            <p className="font-display text-lg leading-tight" style={{ color: RARITY.MYTHIC.color }} data-testid="resource-pity">
-              {pity.mythic}<span className="text-slate-500 text-sm"> / {hardPity}</span>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500 leading-none">GR Pity</p>
+            <p className="font-display text-lg leading-tight" style={{ color: pityColor }} data-testid="resource-pity">
+              {pityCount}<span className="text-slate-500 text-sm"> / {hardPity}</span>
             </p>
           </div>
           <div className="w-16 h-1.5 rounded-full bg-black/50 overflow-hidden">
-            <div className="h-full rounded-full" style={{ width: `${Math.min(100, (pity.mythic / hardPity) * 100)}%`, background: `linear-gradient(90deg,#D500F9,${RARITY.MYTHIC.color})` }} />
+            <div className="h-full rounded-full" style={{ width: `${Math.min(100, (pityCount / hardPity) * 100)}%`, background: `linear-gradient(90deg,#D500F9,${pityColor})` }} />
           </div>
         </div>
       </div>
@@ -326,32 +329,33 @@ export default function Summon() {
             View All Featured <ChevronRight className="w-3.5 h-3.5" />
           </button>
 
-          {/* ===================== MYTHIC pity module ===================== */}
+          {/* ===================== GR pity module ===================== */}
           <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-4 sm:p-5 mb-5" data-testid="summon-pity-module">
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${RARITY.MYTHIC.color}18`, border: `1px solid ${RARITY.MYTHIC.color}55` }}>
-                  <Sparkles className="w-6 h-6" style={{ color: RARITY.MYTHIC.color }} />
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${pityColor}18`, border: `1px solid ${pityColor}55` }}>
+                  <Sparkles className="w-6 h-6" style={{ color: pityColor }} />
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-slate-500">Mythic Pity</p>
-                  <p className="font-display text-3xl leading-none" style={{ color: RARITY.MYTHIC.color }} data-testid="summon-pity-count-text">
-                    {pity.mythic}<span className="text-slate-500 text-lg"> / {hardPity}</span>
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500">GR Pity</p>
+                  <p className="font-display text-3xl leading-none" style={{ color: pityColor }} data-testid="summon-pity-count-text">
+                    {pityCount}<span className="text-slate-500 text-lg"> / {hardPity}</span>
                   </p>
                 </div>
               </div>
 
               <div className="flex-1 min-w-[180px]">
                 <p className="text-sm text-slate-300">
-                  Summon <span className="font-bold text-white" data-testid="pulls-to-pity">{pullsToPity}</span> more time(s) to guarantee a <span className="font-bold" style={{ color: RARITY.MYTHIC.color }}>MYTHIC</span> hero.
+                  Summon <span className="font-bold text-white" data-testid="pulls-to-pity">{pullsToPity}</span> more time(s) with Gems to guarantee a <span className="font-bold" style={{ color: pityColor }}>GR</span> hero.
                 </p>
                 <div className="h-2 rounded-full bg-black/50 overflow-hidden mt-2 relative">
-                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, (pity.mythic / hardPity) * 100)}%`, background: `linear-gradient(90deg,#D500F9,${RARITY.MYTHIC.color})` }} />
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, (pityCount / hardPity) * 100)}%`, background: `linear-gradient(90deg,#D500F9,${pityColor})` }} />
                   <div className="absolute top-0 bottom-0 w-px bg-fox/80" style={{ left: `${(softPity / hardPity) * 100}%` }} title="Soft pity begins" />
                 </div>
                 <div className="flex items-center gap-2 mt-2">
                   {inSoftPity && <span className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded bg-fox/15 text-fox border border-fox/40" data-testid="soft-pity-active-chip">SOFT PITY ACTIVE</span>}
-                  {pity.featured_guarantee && <span className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded bg-amber-400/15 text-amber-300 border border-amber-400/40" data-testid="featured-guarantee-chip">NEXT MYTHIC = FEATURED</span>}
+                  {pity.featured_guarantee && <span className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded bg-amber-400/15 text-amber-300 border border-amber-400/40" data-testid="featured-guarantee-chip">NEXT GR = FEATURED</span>}
+                  <span className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">GEM BANNER ONLY</span>
                 </div>
               </div>
 
@@ -519,23 +523,25 @@ export default function Summon() {
       <Dialog open={ratesOpen} onOpenChange={setRatesOpen}>
         <DialogContent className="max-w-md bg-[#0B0B14] border border-white/15 rounded-2xl max-h-[85vh] overflow-y-auto" data-testid="summon-rates-dialog">
           <DialogTitle className="font-display text-2xl tracking-wide text-white">SUMMON RATES</DialogTitle>
-          <DialogDescription className="text-xs text-slate-400">Transparent per-pull probabilities. Rates update automatically as new heroes join the catalog.</DialogDescription>
+          <DialogDescription className="text-xs text-slate-400">Transparent per-pull probabilities for the <span className="text-jutsu font-semibold">Gem banner</span>. Rates update automatically as new heroes join the catalog.</DialogDescription>
           <Table data-testid="summon-rates-table">
             <TableHeader>
-              <TableRow className="border-white/10"><TableHead className="text-slate-400">Rarity</TableHead><TableHead className="text-right text-slate-400">Rate</TableHead></TableRow>
+              <TableRow className="border-white/10"><TableHead className="text-slate-400">Rarity</TableHead><TableHead className="text-right text-slate-400">Gem</TableHead><TableHead className="text-right text-slate-400">Gold</TableHead></TableRow>
             </TableHeader>
             <TableBody>
               {Object.entries(summonRates).map(([r, pct]) => (
                 <TableRow key={r} className="border-white/5">
                   <TableCell className="font-bold" style={{ color: (RARITY[r] || RARITY.R).color }}>{(RARITY[r] || {}).name || r} ({r})</TableCell>
                   <TableCell className="text-right text-white tabular-nums">{pct}%</TableCell>
+                  <TableCell className="text-right text-slate-400 tabular-nums">{(summonRatesRyo && summonRatesRyo[r] != null) ? `${summonRatesRyo[r]}%` : "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
           <div className="text-xs text-slate-400 space-y-1.5 mt-1">
-            <p><span className="text-white font-semibold">MYTHIC pity:</span> normal rate for pulls 1-{softPity - 1}; the chance climbs every pull from {softPity} and a MYTHIC is guaranteed by pull {hardPity}. Pulling a MYTHIC naturally resets the counter.</p>
-            <p><span className="text-white font-semibold">Featured 50/50:</span> when a featured MYTHIC banner is live, your first MYTHIC has a 50% chance to be the featured hero — lose the 50/50 and your next MYTHIC is guaranteed to be featured.</p>
+            <p><span className="text-white font-semibold">GR pity (Gem banner only):</span> normal rate for pulls 1-{softPity - 1}; the chance climbs every pull from {softPity} and a GR is guaranteed by pull {hardPity}. Pulling a GR naturally resets the counter.</p>
+            <p><span className="text-white font-semibold">Gold banner:</span> pay with Ryo for far lower rare rates and <span className="text-white">no pity system</span> — a budget option for volume pulls.</p>
+            <p><span className="text-white font-semibold">Featured 50/50:</span> when a featured GR banner is live, your first GR has a 50% chance to be the featured hero — lose it and your next GR is guaranteed to be featured. Rate-up boosts the featured hero's own odds (relative), it is not a flat chance.</p>
             <p><span className="text-white font-semibold">×10 guarantee:</span> every ×10 contains at least one SR or better. Duplicates always convert to shards for Evolution.</p>
           </div>
           <button onClick={() => setRatesOpen(false)} data-testid="summon-rates-close-button" className="w-full py-2.5 rounded-xl font-semibold text-sm bg-white/5 border border-white/15 text-slate-200 hover:bg-white/10 transition-colors">Close</button>

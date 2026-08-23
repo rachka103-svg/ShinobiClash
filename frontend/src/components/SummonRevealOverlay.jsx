@@ -32,7 +32,7 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
   const [revealed, setRevealed] = useState(0);
   const [stage, setStage] = useState("burst"); // burst | grid | done
   const best = useMemo(() => bestColor(results), [results]);
-  const hasMythic = results.some((r) => r.kind !== "gear" && r.rarity === "MYTHIC");
+  const hasMythic = results.some((r) => r.kind !== "gear" && r.rarity === "GR");
 
   useEffect(() => {
     if (!open) return;
@@ -91,10 +91,10 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               className="font-display text-3xl sm:text-4xl tracking-[0.3em] mb-4 rarity-pulse"
-              style={{ color: RARITY.MYTHIC.color, "--glow": RARITY.MYTHIC.color }}
+              style={{ color: RARITY.GR.color, "--glow": RARITY.GR.color }}
               data-testid="summon-mythic-callout"
             >
-              MYTHIC DESCENDS
+              ASCENDANT ARRIVES
             </motion.p>
           )}
 

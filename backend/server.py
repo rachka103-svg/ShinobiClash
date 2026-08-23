@@ -652,12 +652,15 @@ async def catalog():
                 "energy_refill_min": gd.GEM_ENERGY_REFILL_MIN_COST,
             },
             # --- Phase J1 expansion config (data-driven; UI renders from this) ---
-            "summon_rates": gd.summon_rates(),
+            "summon_rates": gd.summon_rates("gems"),
+            "summon_rates_ryo": gd.summon_rates("ryo"),
             "pity_config": {
                 "soft_pity_start": gd.MYTHIC_SOFT_PITY_START,
                 "hard_pity": gd.MYTHIC_HARD_PITY,
                 "featured_5050": gd.FEATURED_MYTHIC_5050,
                 "x10_guarantee_rarity": gd.X10_GUARANTEE_RARITY,
+                "pity_rarity": gd.TOP_RARITY,
+                "pity_currencies": ["gems", "ticket"],
             },
             "gear_config": {
                 "slots": gd.GEAR_SLOTS, "slot_meta": gd.GEAR_SLOT_META,
@@ -986,16 +989,25 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
     return {"profile": public_user(user), "rewards": rewards, "result": "win", "first_clear": first_clear}
 
 
-def _rarity_pool(min_rarity: str = None, exclude_mythic: bool = True) -> list:
-    """Weighted (template_id, weight) list, optionally floored at a rarity."""
+def _rarity_pool(min_rarity: str = None, exclude_top: bool = True,
+                 currency: str = "gems", featured_id: str = None) -> list:
+    """Weighted (template_id, weight) list, optionally floored at a rarity.
+    Uses the per-currency weight table (Gold/Ryo banner has far lower rare
+    rates). The featured rate-up is applied MULTIPLICATIVELY on the hero's own
+    weight (so a rare hero stays rare — it is only relatively boosted), never
+    as a flat chance."""
+    weights = gd.GOLD_SUMMON_WEIGHTS if currency == "ryo" else gd.SUMMON_WEIGHTS
     floor = gd.RARITY_ORDER[min_rarity] if min_rarity else -1
     out = []
     for tid, t in gd.CATALOG_BY_ID.items():
         ri = gd.RARITY_ORDER[t["rarity"]]
-        if exclude_mythic and t["rarity"] == "MYTHIC":
+        if exclude_top and t["rarity"] == gd.TOP_RARITY:
             continue
         if ri >= floor:
-            out.append((tid, gd.SUMMON_WEIGHTS[t["rarity"]]))
+            w = weights[t["rarity"]]
+            if featured_id and tid == featured_id:
+                w = w * FEATURED_RATE_MULT
+            out.append((tid, w))
     return out
 
 
@@ -1005,50 +1017,45 @@ def _weighted_choice(pool: list) -> str:
     return random.choices(tids, weights=weights, k=1)[0]
 
 
-def _pull_once(user: dict, pity: dict, force_sr_plus: bool = False) -> dict:
-    """Executes ONE gacha pull with the full rarity-tiered pity model:
-    - MYTHIC: base rate pulls 1-99, soft-pity ramp 100-149, hard pity at 150.
-      A natural MYTHIC resets the counter. Featured MYTHIC is 50/50 with a
-      guarantee after a loss (state on `pity.featured_guarantee`).
-    - Lower-rarity rate-up (legacy featured banner for non-MYTHIC heroes)
-      never touches MYTHIC pity.
-    Mutates `pity` and grants the hero/shards on `user`. Returns result dict."""
-    counter = pity.get("mythic", 0) + 1
+def _pull_once(user: dict, pity: dict, currency: str = "gems", force_sr_plus: bool = False) -> dict:
+    """Executes ONE gacha pull.
+    - GEM / TICKET banner: GR (top tier) pity — base rate, soft-pity ramp, hard
+      pity guarantee. A natural GR resets the counter. Featured GR is 50/50
+      with a guarantee after a loss (state on `pity.featured_guarantee`).
+    - GOLD / RYO banner: NO pity and much lower rare rates (via GOLD weights).
+    Rate-up is applied multiplicatively inside `_rarity_pool` (never a flat
+    chance). Mutates `pity`/`user`; returns the result dict."""
+    apply_pity = currency in ("gems", "ticket")
+    top = gd.TOP_RARITY
     featured = FEATURED_BANNER["template_id"]
     featured_tmpl = gd.CATALOG_BY_ID.get(featured) if featured else None
-    featured_is_mythic = bool(featured_tmpl and featured_tmpl["rarity"] == "MYTHIC")
+    featured_is_top = bool(featured_tmpl and featured_tmpl["rarity"] == top)
 
     chosen = None
     pity_note = None
-    if random.random() < gd.mythic_chance(counter):
-        # --- MYTHIC obtained ---
-        mythics = [tid for tid, t in gd.CATALOG_BY_ID.items() if t["rarity"] == "MYTHIC"]
-        if featured_is_mythic:
-            if pity.get("featured_guarantee"):
-                chosen = featured
-                pity["featured_guarantee"] = False
-                pity_note = "featured_guaranteed"
-            elif random.random() < gd.FEATURED_MYTHIC_5050:
-                chosen = featured
-                pity_note = "featured_5050_won"
+    if apply_pity:
+        counter = pity.get("gr", pity.get("mythic", 0)) + 1
+        if random.random() < gd.gr_chance(counter):
+            tops = [tid for tid, t in gd.CATALOG_BY_ID.items() if t["rarity"] == top]
+            if featured_is_top:
+                if pity.get("featured_guarantee"):
+                    chosen = featured; pity["featured_guarantee"] = False; pity_note = "featured_guaranteed"
+                elif random.random() < gd.FEATURED_MYTHIC_5050:
+                    chosen = featured; pity_note = "featured_5050_won"
+                else:
+                    others = [m for m in tops if m != featured] or tops
+                    chosen = random.choice(others); pity["featured_guarantee"] = True; pity_note = "featured_5050_lost"
             else:
-                others = [m for m in mythics if m != featured] or mythics
-                chosen = random.choice(others)
-                pity["featured_guarantee"] = True
-                pity_note = "featured_5050_lost"
+                chosen = random.choice(tops) if tops else None
+            pity["gr"] = 0
+            if counter >= gd.MYTHIC_HARD_PITY:
+                pity_note = pity_note or "hard_pity"
         else:
-            chosen = random.choice(mythics) if mythics else None
-        pity["mythic"] = 0
-        if counter >= gd.MYTHIC_HARD_PITY:
-            pity_note = pity_note or "hard_pity"
+            pity["gr"] = counter
     if chosen is None:
-        # --- non-MYTHIC path ---
-        pity["mythic"] = counter
-        if featured and not featured_is_mythic and random.random() < FEATURED_CHANCE:
-            chosen = featured
-        else:
-            pool = _rarity_pool(min_rarity=gd.X10_GUARANTEE_RARITY if force_sr_plus else None)
-            chosen = _weighted_choice(pool)
+        pool = _rarity_pool(min_rarity=gd.X10_GUARANTEE_RARITY if force_sr_plus else None,
+                            currency=currency, featured_id=featured)
+        chosen = _weighted_choice(pool)
     pity["total_pulls"] = pity.get("total_pulls", 0) + 1
 
     tmpl = gd.CATALOG_BY_ID[chosen]
@@ -1081,14 +1088,12 @@ async def summon(body: SummonIn, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {gd.SUMMON_COST * count}")
 
     pity = user.get("pity") or gd.fresh_pity_state()
+    currency = "ticket" if use_ticket else ("gems" if use_gems else "ryo")
     results = []
     for i in range(count):
-        # x10 guarantee: if the first 9 pulls were all below SR, the 10th is
-        # forced to SR+ (never interferes with MYTHIC pity — the MYTHIC roll
-        # still happens first inside _pull_once).
         force = (count == 10 and i == 9 and
                  not any(gd.RARITY_ORDER[r["rarity"]] >= gd.RARITY_ORDER[gd.X10_GUARANTEE_RARITY] for r in results))
-        results.append(_pull_once(user, pity, force_sr_plus=force))
+        results.append(_pull_once(user, pity, currency=currency, force_sr_plus=force))
 
     if use_ticket:
         inventory["summon_ticket"] -= count
@@ -1473,7 +1478,7 @@ async def persist_catalog_config():
 
 # Featured "rate-up" summon banner. When active, the featured hero has a flat boosted pull chance.
 FEATURED_BANNER = {"template_id": None}
-FEATURED_CHANCE = 0.35  # chance a single summon yields the featured hero while a banner is active
+FEATURED_RATE_MULT = 2.0  # rate-up: featured hero's own weight is multiplied (relative boost, not a flat chance)
 
 
 async def load_banner():
@@ -1490,7 +1495,7 @@ def banner_info():
     return {
         "template_id": t["id"], "name": t["name"], "title": t.get("title", ""),
         "rarity": t["rarity"], "element": t["element"], "role": t["role"],
-        "portrait": t["portrait"], "rate_up_chance": FEATURED_CHANCE,
+        "portrait": t["portrait"], "rate_up_chance": FEATURED_RATE_MULT,
     }
 
 
