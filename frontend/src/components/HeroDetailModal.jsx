@@ -7,6 +7,8 @@ import {
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RARITY, ELEMENT } from "@/lib/styles";
+import { rarityFrame, GOLD } from "@/lib/theme";
+import { DecoCorners } from "@/components/RarityFx";
 import { RarityBadge } from "@/components/RarityBadge";
 import { ItemIcon } from "@/components/ItemIcon";
 import { useAuth } from "@/context/AuthContext";
@@ -50,6 +52,7 @@ export default function HeroDetailModal({
 
   if (!template) return null;
   const rarity = RARITY[template.rarity] || RARITY.R;
+  const frame = rarityFrame(template.rarity);
   const element = ELEMENT[template.element] || {};
   const stats = instance?.stats || template.base_stats;
   const expPct = instance && instance.exp_to_next ? Math.min(100, (instance.exp / instance.exp_to_next) * 100) : 0;
@@ -115,7 +118,7 @@ export default function HeroDetailModal({
       <DialogContent
         data-testid="hero-detail-modal"
         className="max-w-xl sm:max-w-2xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] overflow-y-auto bg-[#0B0B14] border-0 rounded-2xl"
-        style={{ border: `1px solid ${rarity.color}66`, boxShadow: `0 0 60px ${rarity.color}40` }}
+        style={{ border: `${frame.strokeWidth}px solid ${frame.useGold ? GOLD.stroke : rarity.color + "66"}`, boxShadow: `0 0 60px ${(frame.useGold ? GOLD.base : rarity.color)}40` }}
       >
         <DialogTitle className="sr-only">{template.name}</DialogTitle>
         <DialogDescription className="sr-only">Details for {template.name}</DialogDescription>
@@ -170,6 +173,8 @@ export default function HeroDetailModal({
           <img src={template.portrait} alt={template.name} className="w-full h-full object-cover object-top" />
           <div className="absolute inset-x-0 top-0 h-28 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${element.color}40, transparent)` }} />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B14] via-transparent to-transparent pointer-events-none" />
+          {frame.useGold && <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />}
+          {frame.cornerLevel >= 2 && <DecoCorners rarity={template.rarity} size={22} />}
           <div className="absolute top-4 right-16 sm:right-20 z-10"><RarityBadge rarity={template.rarity} size="lg" /></div>
           {owned && (
             <span className="absolute top-4 left-4 z-10 flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/90 text-white text-xs font-bold" data-testid="detail-owned-badge">
@@ -205,8 +210,8 @@ export default function HeroDetailModal({
           {template.lore && <p className="text-sm text-slate-400 italic mt-3">&ldquo;{template.lore}&rdquo;</p>}
 
           {/* Stats */}
-          <div className="rounded-2xl bg-white/[0.03] border border-white/10 mt-5 p-3 sm:p-4">
-            <div className="flex items-stretch divide-x divide-white/10">
+          <div className="glass-panel mt-5 p-3 sm:p-4">
+            <div className="flex items-stretch divide-x divide-white/10 relative z-10">
               <Stat icon={Heart} label="HP" value={stats.hp} color="#FF1744" />
               <Stat icon={Sword} label="ATK" value={stats.atk} color="#FF5722" />
               <Stat icon={Shield} label="DEF" value={stats.def} color="#29B6F6" />

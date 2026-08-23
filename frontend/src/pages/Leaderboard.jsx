@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Crown, Zap, Loader2, Crosshair } from "lucide-react";
+import { Trophy, Crown, Zap, Loader2, Crosshair, Medal } from "lucide-react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { GOLD } from "@/lib/theme";
+import { DecoCorners } from "@/components/RarityFx";
 
 export default function Leaderboard() {
   const { user } = useAuth();
@@ -14,20 +16,28 @@ export default function Leaderboard() {
   }, []);
 
   const rows = data ? (tab === "power" ? data.leaderboard : data.arena_leaderboard) : null;
+  const MEDALS = ["#FFCA28", "#C7D2DA", "#CD8A54"]; // gold · silver · bronze
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8" data-testid="leaderboard-page">
-      <div className="flex items-center gap-3 mb-6">
-        <Trophy className="w-8 h-8 text-amber-400" />
-        <h1 className="font-display text-5xl tracking-wide text-white">RANKINGS</h1>
+      {/* header */}
+      <div className="mb-1 flex items-center gap-3">
+        <div className="gold-crest w-11 h-11 rounded-xl flex items-center justify-center shrink-0">
+          <Trophy className="w-6 h-6" style={{ color: GOLD.base }} />
+        </div>
+        <div>
+          <h1 className="font-display text-5xl tracking-wide text-white leading-none">RANKINGS</h1>
+          <p className="text-slate-400 text-sm mt-1">The realm's mightiest sensei, ranked.</p>
+        </div>
       </div>
+      <div className="gold-pinstripe max-w-[220px] my-5 opacity-70" />
 
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setTab("power")}
           data-testid="leaderboard-tab-power"
           className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-display text-sm tracking-wide transition-colors ${
-            tab === "power" ? "bg-chakra text-[#05050A]" : "bg-white/5 text-slate-400 hover:text-white"
+            tab === "power" ? "bg-chakra text-[#05050A]" : "bg-white/5 border border-white/10 text-slate-400 hover:text-white"
           }`}
         >
           <Zap className="w-4 h-4" /> POWER
@@ -36,7 +46,7 @@ export default function Leaderboard() {
           onClick={() => setTab("arena")}
           data-testid="leaderboard-tab-arena"
           className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-display text-sm tracking-wide transition-colors ${
-            tab === "arena" ? "bg-fox text-white" : "bg-white/5 text-slate-400 hover:text-white"
+            tab === "arena" ? "bg-fox text-white" : "bg-white/5 border border-white/10 text-slate-400 hover:text-white"
           }`}
         >
           <Crosshair className="w-4 h-4" /> ARENA
@@ -46,25 +56,36 @@ export default function Leaderboard() {
       {!rows ? (
         <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 text-chakra animate-spin" /></div>
       ) : rows.length === 0 ? (
-        <div className="panel rounded-xl p-8 text-center text-slate-400">No rankings yet — be the first!</div>
+        <div className="glass-panel p-8 text-center text-slate-400">No rankings yet — be the first!</div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {rows.map((r, i) => {
             const isMe = r.name === user?.name;
-            const medal = ["#FFCA28", "#B0BEC5", "#A1745C"][i];
+            const medal = MEDALS[i];
+            const top = i < 3;
             return (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
                 data-testid={`rank-row-${i}`}
-                className={`panel rounded-lg p-4 flex items-center gap-4 ${isMe ? "ring-1 ring-chakra" : ""}`}
-                style={{ borderLeft: medal ? `3px solid ${medal}` : "3px solid transparent" }}
+                className={`glass-panel relative overflow-hidden p-4 flex items-center gap-4 ${isMe ? "ring-1 ring-chakra" : ""}`}
+                style={{
+                  borderLeft: medal ? `3px solid ${medal}` : undefined,
+                  boxShadow: top ? `var(--shadow-deep), inset 0 0 40px ${medal}18` : "var(--shadow-deep)",
+                }}
               >
-                <div className="w-8 text-center">
-                  {i < 3 ? <Crown className="w-6 h-6 mx-auto" style={{ color: medal }} /> : <span className="font-display text-xl text-slate-500">{i + 1}</span>}
+                {i === 0 && <DecoCorners level={4} color={GOLD.base} size={18} />}
+                <div className="w-9 text-center shrink-0">
+                  {top ? (
+                    i === 0
+                      ? <Crown className="w-7 h-7 mx-auto" style={{ color: medal, filter: `drop-shadow(0 0 8px ${medal})` }} />
+                      : <Medal className="w-6 h-6 mx-auto" style={{ color: medal, filter: `drop-shadow(0 0 6px ${medal})` }} />
+                  ) : (
+                    <span className="font-display text-xl text-slate-500">{i + 1}</span>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-display text-2xl tracking-wide text-white truncate">{r.name} {isMe && <span className="text-xs text-chakra">(You)</span>}</p>
+                  <p className="font-display text-2xl tracking-wide text-white truncate">{r.name} {isMe && <span className="text-xs text-chakra align-middle">(You)</span>}</p>
                   {tab === "power" ? (
                     <p className="text-xs text-slate-400">Rank Lv. {r.level} · {r.wins} wins · {r.cleared} stages</p>
                   ) : (
@@ -72,14 +93,14 @@ export default function Leaderboard() {
                   )}
                 </div>
                 {tab === "power" ? (
-                  <div className="flex items-center gap-1.5 text-fox">
+                  <div className="flex items-center gap-1.5 text-fox shrink-0">
                     <Zap className="w-4 h-4" />
-                    <span className="font-display text-2xl">{r.team_power}</span>
+                    <span className="font-display text-2xl tabular-nums">{r.team_power}</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1.5 text-rose-400">
+                  <div className="flex items-center gap-1.5 text-rose-400 shrink-0">
                     <Crosshair className="w-4 h-4" />
-                    <span className="font-display text-2xl">{r.arena_rating}</span>
+                    <span className="font-display text-2xl tabular-nums">{r.arena_rating}</span>
                   </div>
                 )}
               </motion.div>

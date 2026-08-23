@@ -1,34 +1,18 @@
 [
   {
-    "content": "Extend theme.js with gold/stroke/deco tokens + rarityFrame() helper",
+    "content": "Premium Leaderboard refresh (gold #1 crest + deco corners, medal glows, glass rows)",
     "status": "completed"
   },
   {
-    "content": "Add global CSS: :root token additions, rarity-frame double-stroke, deco corner ornaments, gold hairline/crest, panel edge-light",
+    "content": "Refine shared HeroDetailModal (rarity gold frame + portrait deco corners/pinstripe, glass stats)",
     "status": "completed"
   },
   {
-    "content": "Add DecoCorners reusable component to RarityFx.jsx",
+    "content": "Global .panel upgrade (edge-light + depth) — refines Dungeons/Battle/etc app-wide",
     "status": "completed"
   },
   {
-    "content": "Enhance HeroPortrait with rarity-scaled gold frames + deco corners (global to all grids)",
-    "status": "completed"
-  },
-  {
-    "content": "Polish Summon showcase: gold banner hairline, deco corners on featured/available cards, gold MYTHIC pity crest",
-    "status": "completed"
-  },
-  {
-    "content": "Enhance Summon reveal with rarity-tinted flash + framed result cards",
-    "status": "completed"
-  },
-  {
-    "content": "Extend NinjaCard (Gallery/Team) with the frame system for a global premium feel",
-    "status": "completed"
-  },
-  {
-    "content": "Compile check + screenshot Roster/Summon/Gallery to verify premium theme",
+    "content": "Verify Leaderboard, HeroDetailModal, Dungeons, Team, Arena + compile/log sanity",
     "status": "completed"
   }
 ]
