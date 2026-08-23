@@ -38,7 +38,7 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
     if (!open) return;
     setRevealed(0);
     setStage("burst");
-    const t1 = setTimeout(() => setStage("grid"), 620);
+    const t1 = setTimeout(() => setStage("grid"), 420);
     return () => clearTimeout(t1);
   }, [open, results]);
 
@@ -77,11 +77,11 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
               <motion.div
                 key="flash"
                 initial={{ opacity: 0, scale: 0.6 }}
-                animate={{ opacity: [0, 0.85, 0], scale: [0.6, 1.35, 1.8] }}
+                animate={{ opacity: [0, 1, 0], scale: [0.6, 1.5, 2.0] }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.62, times: [0, 0.45, 1] }}
+                transition={{ duration: 0.42, times: [0, 0.4, 1] }}
                 className="fixed inset-0 pointer-events-none"
-                style={{ background: `radial-gradient(circle at 50% 45%, ${best.color}66, transparent 55%)` }}
+                style={{ background: `radial-gradient(circle at 50% 45%, #ffffffcc 0%, ${best.color}88 30%, transparent 60%)` }}
               />
             )}
           </AnimatePresence>
@@ -121,6 +121,14 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
                     style={{ border: `${strokeW}px solid ${strokeCol}`, "--glow": fr?.useGold ? GOLD.base : color, boxShadow: shown && tier >= 5 ? `0 0 26px ${color}66` : undefined }}
                     data-testid={`summon-result-card-${i}`}
                   >
+                    {shown && tier >= 2 && (
+                      <>
+                        <motion.span aria-hidden initial={{ opacity: 0.95, scale: 0.2 }} animate={{ opacity: 0, scale: 2.6 }} transition={{ duration: 0.5, ease: "easeOut" }}
+                          className="absolute inset-0 z-30 pointer-events-none rounded-xl" style={{ background: `radial-gradient(circle, #ffffff 0%, ${color} 40%, transparent 66%)` }} />
+                        <motion.span aria-hidden initial={{ opacity: 0.85, scale: 0.45 }} animate={{ opacity: 0, scale: 1.9 }} transition={{ duration: 0.6, ease: "easeOut" }}
+                          className="absolute inset-0 z-30 pointer-events-none rounded-xl" style={{ border: `2px solid ${color}`, boxShadow: `0 0 28px 8px ${color}` }} />
+                      </>
+                    )}
                     {shown && !isGear && fr.cornerLevel >= 2 && <DecoCorners rarity={r.rarity} size={14} />}
                     {shown && isGear && tier >= 5 && <DecoCorners level={3} color={GOLD.base} size={14} />}
                     {isGear ? (

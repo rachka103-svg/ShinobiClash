@@ -579,7 +579,7 @@ SUMMON_COST = 300
 # Shards gained when pulling a hero already owned (duplicate protection —
 # duplicates are NEVER wasted). Lower rarity yields more shards since it's
 # pulled far more often; shards feed the star-up system.
-SHARD_YIELD_PER_DUPLICATE = {"R": 40, "SR": 30, "SSR": 20, "UR": 12, "GR": 8}
+SHARD_YIELD_PER_DUPLICATE = {"R": 100, "SR": 100, "SSR": 100, "UR": 100, "GR": 100}
 STAR_LEVEL_MAX = 6
 
 

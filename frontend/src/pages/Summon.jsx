@@ -241,7 +241,7 @@ export default function Summon() {
           {/* ===================== Cinematic banner ===================== */}
           {featuredHero && (
             <div
-              className="relative rounded-3xl overflow-hidden mb-4 min-h-[360px] sm:min-h-[440px]"
+              className="relative rounded-3xl overflow-hidden mb-4 min-h-[280px] sm:min-h-[340px]"
               style={{ border: `1px solid ${featRarity.color}55`, boxShadow: `0 0 60px ${featRarity.color}22` }}
               data-testid="summon-banner"
             >
