@@ -62,7 +62,7 @@ export default function Lobby() {
   return (
     <div
       data-testid="lobby-page"
-      className="max-w-7xl mx-auto px-3 sm:px-6 py-3 lg:h-[calc(100vh-4.6rem)] lg:overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4"
+      className="max-w-7xl mx-auto px-3 sm:px-6 py-3 lg:h-full lg:overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4"
     >
       {/* ================= LEFT — cinematic squad leader ================= */}
       <motion.div

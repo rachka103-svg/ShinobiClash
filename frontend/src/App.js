@@ -4,7 +4,8 @@ import { Toaster } from "sonner";
 import { Swords, WifiOff, RotateCw } from "lucide-react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { GameProvider, useGame } from "@/context/GameContext";
-import { TopBar } from "@/components/TopBar";
+import GameHud from "@/components/GameHud";
+import BottomNav from "@/components/BottomNav";
 import Login from "@/pages/Login";
 import Lobby from "@/pages/Lobby";
 import Campaign from "@/pages/Campaign";
@@ -60,11 +61,24 @@ const CatalogErrorBanner = () => {
 };
 
 function Shell({ children, bare }) {
+  if (bare) {
+    return (
+      <div className="App grain min-h-screen relative">
+        <main className="relative z-10">{children}</main>
+      </div>
+    );
+  }
   return (
-    <div className="App grain min-h-screen relative">
-      {!bare && <CatalogErrorBanner />}
-      {!bare && <TopBar />}
-      <main className="relative z-10">{children}</main>
+    <div className="App grain min-h-screen relative overflow-hidden">
+      <CatalogErrorBanner />
+      <GameHud />
+      <main
+        className="fixed inset-x-0 top-0 bottom-0 z-10 overflow-y-auto pt-[calc(3.25rem+env(safe-area-inset-top))] pb-[calc(5.5rem+env(safe-area-inset-bottom))]"
+        data-testid="app-main"
+      >
+        {children}
+      </main>
+      <BottomNav />
     </div>
   );
 }
