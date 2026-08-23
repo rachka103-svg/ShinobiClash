@@ -3,18 +3,23 @@ import { toast } from "sonner";
 import {
   Save, Loader2, Zap, Lock, Plus, Users, Swords, Shield, Sparkles, Info,
   ChevronDown, SlidersHorizontal, Star, Flame, Droplet, Wind as WindIcon,
-  Mountain, Moon, Sun,
+  Mountain, Moon, Sun, Check, X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import { RARITY, ELEMENT, rarityFrame, GOLD } from "@/lib/theme";
 import { DecoCorners } from "@/components/RarityFx";
+import HeroDetailModal from "@/components/HeroDetailModal";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
 const EL_ICON = { Fire: Flame, Water: Droplet, Wind: WindIcon, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: Sun };
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
 const RARITY_KEYS = ["GR", "UR", "SSR", "SR", "R"];
 const RARITY_RANK = { R: 0, SR: 1, SSR: 2, UR: 3, GR: 4 };
+const ascensionCost = (rarity, asc) => ({
+  ascension_crystal: 5 + asc * 5 + RARITY_RANK[rarity] * 3,
+  ryo: 500 + asc * 400 + RARITY_RANK[rarity] * 300,
+});
 
 const StarRow = ({ n = 1, max = 6 }) => (
   <div className="flex gap-0.5">
@@ -26,9 +31,11 @@ const StarRow = ({ n = 1, max = 6 }) => (
 
 export default function TeamBuilder() {
   const { user, setUser } = useAuth();
-  const { catalogById } = useGame();
+  const { catalogById, items } = useGame();
   const [team, setTeam] = useState(user?.team || []);
   const [busy, setBusy] = useState(false);
+  const [pBusy, setPBusy] = useState(false);
+  const [detailId, setDetailId] = useState(null);
   const [elFilter, setElFilter] = useState("ALL");
   const [rarFilter, setRarFilter] = useState("ALL");
   const [rarOpen, setRarOpen] = useState(false);
@@ -91,6 +98,36 @@ export default function TeamBuilder() {
     } finally { setBusy(false); }
   };
 
+  // ---- Hero detail + progression (merged from Roster) ----
+  const inv = user?.inventory || {};
+  const sel = detailId ? (user?.ninjas || []).find((n) => n.instance_id === detailId) : null;
+  const selTpl = sel ? catalogById[sel.template_id] : null;
+  const atCap = sel && sel.level >= sel.level_cap;
+  const fullyAscended = sel && sel.ascension >= sel.ascension_max;
+  const ascCost = sel ? ascensionCost(selTpl.rarity, sel.ascension) : null;
+  const canAscend = sel && atCap && !fullyAscended && (inv.ascension_crystal || 0) >= ascCost.ascension_crystal && (user.ryo || 0) >= ascCost.ryo;
+
+  const applyExpTome = async (itemId, qty = 1) => {
+    setPBusy(true);
+    try {
+      const { data } = await api.post("/game/hero/use-exp", { instance_id: detailId, item_id: itemId, qty: Math.max(1, qty) });
+      setUser(data.profile);
+      toast.success(data.levels_gained > 0 ? `Leveled up +${data.levels_gained}!` : "EXP applied");
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setPBusy(false); }
+  };
+  const ascend = async () => {
+    setPBusy(true);
+    try {
+      const { data } = await api.post("/game/hero/ascend", { instance_id: detailId });
+      setUser(data);
+      toast.success("Ascended! Level cap raised.");
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setPBusy(false); }
+  };
+
   const slots = Array.from({ length: cap });
 
   return (
@@ -98,9 +135,9 @@ export default function TeamBuilder() {
       {/* ===================== Header ===================== */}
       <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
         <div>
-          <h1 className="font-display text-5xl sm:text-6xl tracking-wide text-white leading-none">SQUAD</h1>
+          <h1 className="font-display text-5xl sm:text-6xl tracking-wide text-white leading-none">HEROES</h1>
           <p className="text-slate-400 mt-1.5" data-testid="team-counter">
-            Select up to {cap} shinobi for battle. <span className="text-chakra font-semibold">({team.length}/{cap})</span>
+            Tap a hero to view details · tap <span className="text-chakra">+</span> to add to your squad. <span className="text-chakra font-semibold">({team.length}/{cap})</span>
           </p>
           {nextSlotLevel && (
             <p className="flex items-center gap-1.5 text-xs text-amber-400/90 mt-1" data-testid="next-slot-hint">
@@ -140,7 +177,7 @@ export default function TeamBuilder() {
               </button>
             );
           }
-          return <SquadSlotCard key={hero.instance_id} hero={hero} index={i} onRemove={() => toggle(hero.instance_id)} />;
+          return <SquadSlotCard key={hero.instance_id} hero={hero} index={i} onView={() => setDetailId(hero.instance_id)} onRemove={() => toggle(hero.instance_id)} />;
         })}
 
         {/* Locked next slot */}
@@ -211,7 +248,8 @@ export default function TeamBuilder() {
 
       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3" data-testid="shinobi-collection">
         {visible.map((n) => (
-          <CollectionCard key={n.instance_id} hero={n} slot={team.indexOf(n.instance_id)} onClick={() => toggle(n.instance_id)} />
+          <CollectionCard key={n.instance_id} hero={n} slot={team.indexOf(n.instance_id)} squadFull={team.length >= cap}
+            onView={() => setDetailId(n.instance_id)} onToggle={() => toggle(n.instance_id)} />
         ))}
       </div>
       {visible.length === 0 && <p className="text-center text-slate-500 py-10">No shinobi match these filters.</p>}
@@ -224,29 +262,45 @@ export default function TeamBuilder() {
           </button>
         </div>
       )}
+
+      <HeroDetailModal
+        open={!!detailId}
+        onClose={() => setDetailId(null)}
+        template={selTpl}
+        instance={sel}
+        owned
+        progression={{ busy: pBusy, inv, items, atCap, fullyAscended, ascCost, canAscend, onUseExpTome: applyExpTome, onAscend: ascend }}
+        squad={sel ? {
+          inSquad: team.includes(sel.instance_id),
+          canAdd: team.length < cap,
+          onToggle: () => toggle(sel.instance_id),
+        } : null}
+      />
     </div>
   );
 }
 
 // --------------------------------------------------------------------------
-const SquadSlotCard = ({ hero, index, onRemove }) => {
+const SquadSlotCard = ({ hero, index, onView, onRemove }) => {
   const r = RARITY[hero.rarity] || RARITY.R;
   const fr = rarityFrame(hero.rarity);
   const el = ELEMENT[hero.element] || {};
   const EIcon = EL_ICON[hero.element] || Sparkles;
   return (
-    <button onClick={onRemove} data-testid={`squad-slot-${index}`}
-      className="relative aspect-[3/4.2] rounded-2xl overflow-hidden text-left group"
-      style={{ border: `${fr.strokeWidth}px solid ${fr.useGold ? GOLD.stroke : r.color}`, boxShadow: `0 0 34px ${(fr.useGold ? GOLD.base : r.color)}33` }}>
+    <div data-testid={`squad-slot-${index}`}
+      className="relative aspect-[3/4.2] rounded-2xl overflow-hidden text-left group cursor-pointer"
+      style={{ border: `${fr.strokeWidth}px solid ${fr.useGold ? GOLD.stroke : r.color}`, boxShadow: `0 0 34px ${(fr.useGold ? GOLD.base : r.color)}33` }}
+      onClick={onView}>
       <img src={hero.portrait} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" />
       <div className="absolute inset-0" style={{ background: `linear-gradient(to top, #05050Af2 6%, #05050A66 42%, transparent 70%)` }} />
       {fr.cornerLevel >= 2 && <DecoCorners rarity={hero.rarity} size={18} />}
 
       <span className="absolute top-2 left-2 z-10 w-7 h-7 rounded-md bg-black/55 border border-white/15 flex items-center justify-center font-display text-sm" style={{ color: r.color }}>{r.label}</span>
       <span className="absolute top-11 left-2 z-10 w-6 h-6 rounded-md bg-black/50 flex items-center justify-center"><EIcon className="w-3.5 h-3.5" style={{ color: el.color }} /></span>
-      <span className="absolute top-2 right-2 z-10 w-6 h-6 flex items-center justify-center" title="In squad">
-        <Sparkles className="w-4 h-4" style={{ color: fr.useGold ? GOLD.base : r.color, filter: `drop-shadow(0 0 5px ${r.color})` }} />
-      </span>
+      <button onClick={(e) => { e.stopPropagation(); onRemove(); }} data-testid={`squad-remove-${index}`}
+        className="absolute top-2 right-2 z-20 w-7 h-7 rounded-md bg-black/55 border border-white/15 flex items-center justify-center text-slate-300 hover:bg-fox/80 hover:text-white transition-colors" title="Remove from squad">
+        <X className="w-4 h-4" />
+      </button>
 
       <div className="absolute inset-x-0 bottom-0 z-10 p-2.5 sm:p-3">
         <div className="flex items-end justify-between gap-2">
@@ -267,21 +321,21 @@ const SquadSlotCard = ({ hero, index, onRemove }) => {
           ))}
         </div>
       </div>
-      <div className="absolute inset-0 bg-fox/0 group-hover:bg-fox/10 transition-colors pointer-events-none" />
-    </button>
+    </div>
   );
 };
 
-const CollectionCard = ({ hero, slot, onClick }) => {
+const CollectionCard = ({ hero, slot, squadFull, onView, onToggle }) => {
   const r = RARITY[hero.rarity] || RARITY.R;
   const fr = rarityFrame(hero.rarity);
   const el = ELEMENT[hero.element] || {};
   const EIcon = EL_ICON[hero.element] || Sparkles;
   const selected = slot !== -1;
   return (
-    <button onClick={onClick} data-testid={`team-card-${hero.template_id}`}
-      className="relative aspect-[3/4] rounded-xl overflow-hidden text-left group transition-transform active:scale-95"
-      style={{ border: `${selected ? 2 : fr.strokeWidth}px solid ${selected ? "#00E5FF" : (fr.useGold ? GOLD.stroke : r.color + "aa")}`, boxShadow: selected ? "0 0 22px #00E5FF66" : `0 0 12px ${r.color}22` }}>
+    <div data-testid={`team-card-${hero.template_id}`}
+      className="relative aspect-[3/4] rounded-xl overflow-hidden text-left group transition-transform active:scale-95 cursor-pointer"
+      style={{ border: `${selected ? 2 : fr.strokeWidth}px solid ${selected ? "#00E5FF" : (fr.useGold ? GOLD.stroke : r.color + "aa")}`, boxShadow: selected ? "0 0 22px #00E5FF66" : `0 0 12px ${r.color}22` }}
+      onClick={onView}>
       <img src={hero.portrait} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" loading="lazy" />
       <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #05050Af5 8%, #05050A55 45%, transparent 72%)" }} />
       {fr.cornerLevel >= 2 && <DecoCorners rarity={hero.rarity} size={12} />}
@@ -292,7 +346,16 @@ const CollectionCard = ({ hero, slot, onClick }) => {
         <span className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 w-6 h-6 rounded-full bg-chakra text-[#05050A] flex items-center justify-center font-display text-sm" style={{ boxShadow: "0 0 10px #00E5FF" }}>{slot + 1}</span>
       )}
 
-      <div className="absolute inset-x-0 bottom-0 z-10 p-2">
+      {/* quick add / remove */}
+      <button onClick={(e) => { e.stopPropagation(); onToggle(); }} disabled={!selected && squadFull}
+        data-testid={`team-toggle-${hero.template_id}`}
+        className="absolute bottom-1.5 right-1.5 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all disabled:opacity-30"
+        title={selected ? "Remove from squad" : "Add to squad"}
+        style={selected ? { background: "#00E5FF", color: "#05050A" } : { background: "rgba(0,0,0,0.6)", border: "1px solid rgba(0,229,255,0.5)", color: "#00E5FF" }}>
+        {selected ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+      </button>
+
+      <div className="absolute inset-x-0 bottom-0 z-10 p-2 pr-9">
         <div className="flex items-center justify-between gap-1">
           <h4 className="font-display text-xs sm:text-sm tracking-wide text-white truncate">{hero.name}</h4>
           <span className="text-[10px] text-slate-300 shrink-0">Lv.{hero.level}</span>
@@ -300,7 +363,7 @@ const CollectionCard = ({ hero, slot, onClick }) => {
         <StarRow n={hero.stars || 1} max={hero.stars_max || 6} />
         <p className="flex items-center gap-1 text-fox font-display text-sm mt-0.5"><Zap className="w-3 h-3" />{(hero.power || 0).toLocaleString()}</p>
       </div>
-    </button>
+    </div>
   );
 };
 

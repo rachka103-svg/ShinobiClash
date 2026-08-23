@@ -20,7 +20,6 @@ const MORE = [
   { to: "/spire", label: "Spire", icon: Castle, color: "#D500F9", testid: "nav-spire" },
   { to: "/arena", label: "Arena", icon: Crosshair, color: "#FF1744", testid: "nav-arena" },
   { to: "/gallery", label: "Gallery", icon: LayoutGrid, color: "#00E676", testid: "nav-gallery" },
-  { to: "/team", label: "Team", icon: Swords, color: "#00E5FF", testid: "nav-team" },
   { to: "/forge", label: "Forge", icon: Anvil, color: "#FF5722", testid: "nav-forge" },
   { to: "/leaderboard", label: "Ranks", icon: Trophy, color: "#FFCA28", testid: "nav-leaderboard" },
 ];

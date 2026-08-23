@@ -40,7 +40,7 @@ const EvoStars = ({ count, max, size = "w-4 h-4", testid }) => (
  * Gear tabs) from the Roster when `progression` is provided.
  */
 export default function HeroDetailModal({
-  open, onClose, template, instance = null, owned = false, obtain = null, progression = null,
+  open, onClose, template, instance = null, owned = false, obtain = null, progression = null, squad = null,
 }) {
   const { user, setUser } = useAuth();
   const { gearConfig, items, expTomeGoldCost } = useGame();
@@ -208,6 +208,21 @@ export default function HeroDetailModal({
           <h2 className="font-display text-4xl sm:text-6xl tracking-wide text-white leading-none">{template.name}</h2>
           {template.title && <p className="text-sm sm:text-base text-chakra italic mt-1.5">{template.title}</p>}
           {template.lore && <p className="text-sm text-slate-400 italic mt-3">&ldquo;{template.lore}&rdquo;</p>}
+
+          {/* Add to / remove from squad (unified Heroes & Squad hub) */}
+          {squad && instance && (
+            <button
+              onClick={squad.onToggle}
+              disabled={!squad.inSquad && !squad.canAdd}
+              data-testid="modal-squad-toggle"
+              className="w-full mt-4 flex items-center justify-center gap-2 py-3 rounded-xl font-display text-lg tracking-wide transition-colors disabled:opacity-40"
+              style={squad.inSquad
+                ? { background: "rgba(0,229,255,0.14)", border: "1px solid rgba(0,229,255,0.5)", color: "#00E5FF" }
+                : { background: "#00E5FF", color: "#05050A" }}
+            >
+              {squad.inSquad ? <><Check className="w-5 h-5" /> IN SQUAD · TAP TO REMOVE</> : <><Plus className="w-5 h-5" /> {squad.canAdd ? "ADD TO SQUAD" : "SQUAD FULL"}</>}
+            </button>
+          )}
 
           {/* Stats */}
           <div className="glass-panel mt-5 p-3 sm:p-4">

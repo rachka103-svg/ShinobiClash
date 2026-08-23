@@ -9,7 +9,6 @@ import BottomNav from "@/components/BottomNav";
 import Login from "@/pages/Login";
 import Lobby from "@/pages/Lobby";
 import Campaign from "@/pages/Campaign";
-import Roster from "@/pages/Roster";
 import TeamBuilder from "@/pages/TeamBuilder";
 import Summon from "@/pages/Summon";
 import Leaderboard from "@/pages/Leaderboard";
@@ -118,7 +117,7 @@ function AppRoutes() {
       <Route path="/spire" element={<Protected><Spire /></Protected>} />
       <Route path="/arena" element={<Protected><Arena /></Protected>} />
       <Route path="/gallery" element={<Protected><Gallery /></Protected>} />
-      <Route path="/roster" element={<Protected><Roster /></Protected>} />
+      <Route path="/roster" element={<Protected><TeamBuilder /></Protected>} />
       <Route path="/team" element={<Protected><TeamBuilder /></Protected>} />
       <Route path="/summon" element={<Protected><Summon /></Protected>} />
       <Route path="/forge" element={<Protected><Forge /></Protected>} />
