@@ -1383,7 +1383,9 @@ def craft_gear(slot: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# RESOURCE DUNGEONS — Gold Vault / EXP Temple / Gear Foundry, 5 tiers each.
+# RESOURCE DUNGEONS — Gold Vault / EXP Temple, 5 tiers each. Gear is no
+# longer farmable here — Tsukuyomi (the Infinite Nightmare) is now the sole
+# source of gear drops, keeping farming focused on one dedicated system.
 # Implemented as trial-mode entries (registered into TRIALS_BY_ID) so the
 # existing energy gating + battle flow works with ZERO new combat plumbing.
 # ---------------------------------------------------------------------------
@@ -1392,14 +1394,11 @@ DUNGEONS = [
      "desc": "Raid the vault — the deeper you go, the bigger the Ryo haul.", "focus": "ryo"},
     {"id": "exp_temple", "name": "EXP Temple", "icon": "sparkles", "color": "#00E5FF",
      "desc": "Ancient halls overflowing with EXP tomes and spirit dust.", "focus": "tomes"},
-    {"id": "gear_foundry", "name": "Gear Foundry", "icon": "anvil", "color": "#FF5722",
-     "desc": "A molten forge that drops gear, steel and blueprints.", "focus": "gear"},
 ]
 DUNGEON_TIER_LEVELS = [4, 12, 22, 34, 48]
 _DUNGEON_ENEMY_SETS = {
     "gold_vault":   ["spark", "zephyr", "raijin"],
     "exp_temple":   ["frost", "ember", "lumina"],
-    "gear_foundry": ["terra", "boulder", "blaze"],
 }
 
 
@@ -1416,8 +1415,7 @@ def _dungeon_trial_entries() -> list:
                 "name": f"{d['name']} — Tier {tier}", "icon": d["icon"], "color": d["color"],
                 "enemies": enemies,
                 "rewards": _dungeon_reward_table(d["id"], tier),
-                "gear_drop": {"min_tier": min(tier, 4), "max_tier": min(tier + 1, 5), "luck": 0.15 * tier}
-                if d["id"] == "gear_foundry" else None,
+                "gear_drop": None,
             })
     return out
 
@@ -1426,23 +1424,15 @@ def _dungeon_reward_table(dungeon_id: str, tier: int) -> dict:
     if dungeon_id == "gold_vault":
         return {"ryo": 380 + round(tier ** 1.5 * 320), "hero_exp": 30 + tier * 15,
                 "items": ({"scrap_iron": tier // 2} if tier >= 2 else {})}
-    if dungeon_id == "exp_temple":
-        tomes = [
-            {"exp_tome_minor": 4},
-            {"exp_tome_minor": 4, "exp_tome_greater": 1},
-            {"exp_tome_greater": 3, "spirit_dust": 1},
-            {"exp_tome_greater": 3, "exp_tome_ancient": 1, "spirit_dust": 2},
-            {"exp_tome_ancient": 2, "exp_tome_greater": 2, "spirit_dust": 3},
-        ][tier - 1]
-        return {"ryo": 90 + tier * 60, "hero_exp": 40 + tier * 20, "items": tomes}
-    # gear_foundry
-    items = {"scrap_iron": 1 + tier}
-    if tier >= 2:
-        items["forge_hammer"] = (tier // 2)
-    if tier >= 4:
-        items["evo_essence"] = tier - 3
-    return {"ryo": 120 + tier * 80, "hero_exp": 35 + tier * 15, "items": items,
-            "blueprint_chance": min(0.55, 0.15 + 0.08 * tier)}
+    # exp_temple
+    tomes = [
+        {"exp_tome_minor": 4},
+        {"exp_tome_minor": 4, "exp_tome_greater": 1},
+        {"exp_tome_greater": 3, "spirit_dust": 1},
+        {"exp_tome_greater": 3, "exp_tome_ancient": 1, "spirit_dust": 2},
+        {"exp_tome_ancient": 2, "exp_tome_greater": 2, "spirit_dust": 3},
+    ][tier - 1]
+    return {"ryo": 90 + tier * 60, "hero_exp": 40 + tier * 20, "items": tomes}
 
 
 DUNGEON_TRIALS = _dungeon_trial_entries()
@@ -1672,6 +1662,12 @@ SHOP_ITEMS = [
     {"id": "shop_forge_hammer", "name": "Forge Hammer ×3", "desc": "Enhance gear beyond +5.", "icon": "hammer", "color": "#FF5722", "currency": "ryo", "price": 1800, "grant": {"items": {"forge_hammer": 3}}},
     {"id": "shop_forge_steel", "name": "Forge Steel ×5", "desc": "Craft gear from blueprints.", "icon": "anvil", "color": "#B0BEC5", "currency": "ryo", "price": 1200, "grant": {"items": {"forge_steel": 5}}},
     {"id": "shop_scrap_iron", "name": "Scrap Iron ×10", "desc": "Basic fusion material.", "icon": "box", "color": "#90A4AE", "currency": "ryo", "price": 700, "grant": {"items": {"scrap_iron": 10}}},
+    # --- Blueprints (crafting) — previously a Gear Foundry drop; now sold
+    # directly since gear itself is exclusively farmed via Tsukuyomi.
+    {"id": "shop_blueprint_weapon", "name": "Weapon Blueprint", "desc": "Craft a random Weapon in the Forge.", "icon": "sword", "color": "#FF7043", "currency": "gems", "price": 160, "grant": {"items": {"blueprint_weapon": 1}}},
+    {"id": "shop_blueprint_armor", "name": "Armor Blueprint", "desc": "Craft random Armor in the Forge.", "icon": "shield", "color": "#42A5F5", "currency": "gems", "price": 160, "grant": {"items": {"blueprint_armor": 1}}},
+    {"id": "shop_blueprint_accessory", "name": "Accessory Blueprint", "desc": "Craft a random Accessory in the Forge.", "icon": "gem", "color": "#26C6DA", "currency": "gems", "price": 160, "grant": {"items": {"blueprint_accessory": 1}}},
+    {"id": "shop_blueprint_relic", "name": "Relic Blueprint", "desc": "Craft a random Relic in the Forge.", "icon": "sparkles", "color": "#AB47BC", "currency": "gems", "price": 200, "grant": {"items": {"blueprint_relic": 1}}},
 ]
 SHOP_BY_ID = {s["id"]: s for s in SHOP_ITEMS}
 

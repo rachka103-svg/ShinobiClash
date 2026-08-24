@@ -284,8 +284,6 @@ export default function TeamBuilder() {
 const SquadSlotCard = ({ hero, index, onView, onRemove }) => {
   const r = RARITY[hero.rarity] || RARITY.R;
   const fr = rarityFrame(hero.rarity);
-  const el = ELEMENT[hero.element] || {};
-  const EIcon = EL_ICON[hero.element] || Sparkles;
   return (
     <div data-testid={`squad-slot-${index}`}
       className="relative aspect-[3/4.2] rounded-2xl overflow-hidden text-left group cursor-pointer"
@@ -308,15 +306,6 @@ const SquadSlotCard = ({ hero, index, onView, onRemove }) => {
             <p className="flex items-center gap-1 text-fox font-display text-base mt-0.5"><Zap className="w-3.5 h-3.5" />{(hero.power || 0).toLocaleString()}</p>
           </div>
           <span className="font-display text-lg text-white shrink-0">Lv.{hero.level}</span>
-        </div>
-        {/* ability tiles */}
-        <div className="flex gap-1.5 mt-2">
-          {[0, 1, 2].map((k) => (
-            <div key={k} className="w-8 h-8 rounded-md overflow-hidden relative shrink-0" style={{ border: `1px solid ${el.color || "#555"}66` }}>
-              <img src={hero.portrait} alt="" className="w-full h-full object-cover" style={{ objectPosition: `${20 + k * 30}% 20%` }} />
-              <div className="absolute inset-0 bg-black/25" />
-            </div>
-          ))}
         </div>
       </div>
     </div>

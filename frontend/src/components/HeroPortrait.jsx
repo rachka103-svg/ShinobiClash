@@ -98,7 +98,7 @@ export default function HeroPortrait({
 
       {/* top-right: level — plain glowing text, no box */}
       {hero.level != null && (
-        <div className="absolute top-2 right-2.5 z-10 font-display text-ink leading-none" style={{ textShadow: "0 0 10px rgba(0,0,0,0.9)" }}>
+        <div className="absolute top-2 right-2.5 z-10 font-display text-white leading-none" style={{ textShadow: "0 0 10px rgba(0,0,0,0.9)" }}>
           <span className={mode === "compact" ? "text-sm" : "text-lg"}>Lv.{hero.level}</span>
         </div>
       )}
@@ -106,7 +106,7 @@ export default function HeroPortrait({
       {/* bottom scrim + name/rarity — overlaid directly on the artwork */}
       <div className="absolute inset-x-0 bottom-0 z-10" style={{ background: scrimBottom(mode === "compact" ? "0.85" : "0.92") }}>
         <div className={padBottom}>
-          <p className={`font-display tracking-wide text-ink leading-none truncate ${nameSize}`} style={{ textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>
+          <p className={`font-display tracking-wide text-white leading-none truncate ${nameSize}`} style={{ textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>
             {hero.name}
           </p>
           <div className="flex items-center gap-1.5 mt-0.5">

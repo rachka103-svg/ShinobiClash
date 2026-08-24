@@ -69,28 +69,42 @@ class TestRunner:
         cookies = {"access_token": self.token} if self.token else {}
         return requests.put(f"{BASE_URL}{endpoint}", json=data, cookies=cookies, timeout=10)
 
-    def test_tsukuyomi_energy_cost(self):
-        """Test: GET /api/game/tsukuyomi returns energy_cost 0"""
-        self.log("\n=== Testing Tsukuyomi Energy Cost ===")
+    def test_dungeons_only_two(self):
+        """Test: GET /api/game/catalog returns only 2 dungeons (Gold Vault, EXP Temple)"""
+        self.log("\n=== Testing Dungeons (Only 2 Remain) ===")
         try:
-            resp = self.get("/game/tsukuyomi")
+            resp = self.get("/game/catalog")
             if resp.status_code == 200:
                 data = resp.json()
-                energy_cost = data.get("energy_cost", -1)
-                self.test("Tsukuyomi energy_cost is 0", energy_cost == 0, 
-                         f"Expected 0, got {energy_cost}")
+                dungeons = data.get("dungeons", [])
+                dungeon_ids = [d["id"] for d in dungeons]
+                
+                # Should have exactly 2 dungeons
+                self.test("Catalog has exactly 2 dungeons", len(dungeons) == 2,
+                         f"Expected 2, got {len(dungeons)}: {dungeon_ids}")
+                
+                # Should be gold_vault and exp_temple
+                expected_ids = ["gold_vault", "exp_temple"]
+                has_correct_dungeons = set(dungeon_ids) == set(expected_ids)
+                self.test("Dungeons are gold_vault and exp_temple", has_correct_dungeons,
+                         f"Expected {expected_ids}, got {dungeon_ids}")
+                
+                # Should NOT have gear_foundry
+                has_gear_foundry = "gear_foundry" in dungeon_ids
+                self.test("Gear Foundry is removed", not has_gear_foundry,
+                         "gear_foundry still present" if has_gear_foundry else "")
+                
                 return data
             else:
-                self.test("Tsukuyomi energy_cost is 0", False, 
-                         f"API returned {resp.status_code}")
+                self.test("Catalog API accessible", False, f"Status {resp.status_code}")
                 return None
         except Exception as e:
-            self.test("Tsukuyomi energy_cost is 0", False, str(e))
+            self.test("Catalog API accessible", False, str(e))
             return None
 
-    def test_shop_no_gear_ticket(self):
-        """Test: GET /api/game/shop does NOT include shop_gear_ticket"""
-        self.log("\n=== Testing Shop Items (No Gear Ticket) ===")
+    def test_shop_blueprints(self):
+        """Test: GET /api/game/shop includes 4 Blueprint items"""
+        self.log("\n=== Testing Shop Blueprint Items ===")
         try:
             resp = self.get("/game/shop")
             if resp.status_code == 200:
@@ -98,20 +112,24 @@ class TestRunner:
                 items = data.get("items", [])
                 item_ids = [item["id"] for item in items]
                 
-                has_gear_ticket = "shop_gear_ticket" in item_ids
-                self.test("Shop does NOT have shop_gear_ticket", not has_gear_ticket,
-                         f"Found gear ticket in shop" if has_gear_ticket else "")
+                # Check for 4 blueprint items
+                blueprint_ids = [
+                    "shop_blueprint_weapon",
+                    "shop_blueprint_armor", 
+                    "shop_blueprint_accessory",
+                    "shop_blueprint_relic"
+                ]
+                
+                found_blueprints = [bid for bid in blueprint_ids if bid in item_ids]
+                all_found = len(found_blueprints) == 4
+                
+                self.test("Shop has all 4 Blueprint items", all_found,
+                         f"Found {len(found_blueprints)}/4 blueprints: {found_blueprints}")
                 
                 # Check for deals array
                 deals = data.get("deals", [])
                 self.test("Shop has 'deals' array", isinstance(deals, list),
                          f"deals is {type(deals)}")
-                
-                if deals:
-                    deal = deals[0]
-                    has_discount = deal.get("deal_price", 0) < deal.get("orig_price", 0)
-                    self.test("Deal has discounted price", has_discount,
-                             f"deal_price={deal.get('deal_price')}, orig_price={deal.get('orig_price')}")
                 
                 return data
             else:
@@ -289,8 +307,8 @@ class TestRunner:
             return False
         
         # Run tests
-        self.test_tsukuyomi_energy_cost()
-        self.test_shop_no_gear_ticket()
+        self.test_dungeons_only_two()
+        self.test_shop_blueprints()
         self.test_shop_bulk_buy(profile)
         self.test_battle_start_no_energy()
         self.test_team_cap_enforcement(profile)

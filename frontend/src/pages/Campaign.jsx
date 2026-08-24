@@ -134,7 +134,7 @@ export default function Campaign() {
               {/* name + region + enemies */}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-display text-lg tracking-wide text-ink truncate">{stage.name}</p>
+                  <p className={`font-display text-lg tracking-wide truncate ${isBoss ? "text-white" : "text-ink"}`}>{stage.name}</p>
                   {isBoss && <span className="text-[9px] font-bold tracking-widest text-fox px-1.5 py-0.5 rounded bg-fox/15 border border-fox/30">BOSS</span>}
                 </div>
                 <div className="flex items-center gap-2 mt-1">

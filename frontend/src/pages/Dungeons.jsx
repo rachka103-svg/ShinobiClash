@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Zap, Swords, Loader2, ScrollText, Shirt } from "lucide-react";
+import { Zap, Swords, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import { startBattle, ENERGY_COST } from "@/lib/energy";
 import { ItemIcon } from "@/components/ItemIcon";
 
 /**
- * RESOURCE DUNGEONS — the dedicated farming hub. Gold Vault (Ryo),
- * EXP Temple (tomes) and Gear Foundry (gear + crafting materials), each
- * with 5 difficulty tiers. Battles run through the exact same engine as
- * Trials (mode=trial) — zero new combat plumbing.
+ * RESOURCE DUNGEONS — the dedicated farming hub. Gold Vault (Ryo) and
+ * EXP Temple (tomes), each with 5 difficulty tiers. Gear is intentionally
+ * NOT farmable here — Tsukuyomi is the sole source of gear drops. Battles
+ * run through the exact same engine as Trials (mode=trial) — zero new
+ * combat plumbing.
  */
 export default function Dungeons() {
   const { user, setUser } = useAuth();
@@ -36,7 +37,7 @@ export default function Dungeons() {
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 min-w-0" data-testid="dungeons-page">
       <div className="mb-6">
         <h1 className="font-display text-5xl sm:text-6xl tracking-wide text-ink leading-none">RESOURCE DUNGEONS</h1>
-        <p className="text-slate-500 mt-1">Dedicated farming runs — gold, tomes, gear and crafting materials. Repeat forever.</p>
+        <p className="text-slate-500 mt-1">Dedicated farming runs — gold, EXP tomes and crafting materials. Repeat forever.</p>
       </div>
 
       <div className="space-y-4">
@@ -106,7 +107,6 @@ export default function Dungeons() {
                     {Object.entries(tier.rewards.items || {}).map(([iid, q]) => (
                       <DropChip key={iid} label={`${q}× ${items[iid]?.name || iid}`} color={items[iid]?.color} icon={items[iid]?.icon} />
                     ))}
-                    {tier.has_gear_drop && <DropChip label="Gear (guaranteed)" color={d.color} icon="anvil" />}
                     {tier.blueprint_chance && <DropChip label={`Blueprint ${Math.round(tier.blueprint_chance * 100)}%`} color="#D500F9" icon="scroll" />}
                   </div>
                 </div>

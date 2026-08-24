@@ -116,7 +116,7 @@ export default function Forge() {
           {filtered.length === 0 ? (
             <div className="text-center py-16 text-slate-500" data-testid="forge-empty">
               <Anvil className="w-8 h-8 mx-auto mb-2 text-slate-700" />
-              No gear yet — clear Campaign stages, farm the Gear Foundry or pull from the Armory.
+              No gear yet — clear Campaign stages or hunt the Nightmare bosses in Tsukuyomi.
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5" data-testid="forge-gear-grid">
@@ -151,7 +151,7 @@ export default function Forge() {
 
         {/* ============ CRAFT ============ */}
         <TabsContent value="craft">
-          <p className="text-xs text-slate-500 mb-3">Blueprints drop in the Gear Foundry. Crafting always yields <span className="text-emerald-400 font-bold">Fine or better</span> — with a chance at Legendary.</p>
+          <p className="text-xs text-slate-500 mb-3">Blueprints are sold in the Item Shop. Crafting always yields <span className="text-emerald-400 font-bold">Fine or better</span> — with a chance at Legendary.</p>
           <div className="space-y-2.5" data-testid="forge-craft-list">
             {Object.entries(craftRecipes).map(([slot, recipe]) => {
               const bpOwned = inv[recipe.blueprint] || 0;

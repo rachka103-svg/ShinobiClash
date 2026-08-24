@@ -117,12 +117,12 @@ export default function Battle() {
   // manual and auto-battle play feel fast-paced.
   const ms = useCallback((base) => Math.max(60, Math.round(base / speedRef.current)), []);
 
-  const setAuto = (v) => { autoRef.current = v; setAutoState(v); try { localStorage.setItem("sc_battle_auto", v ? "1" : "0"); } catch {} };
+  const setAuto = (v) => { autoRef.current = v; setAutoState(v); try { localStorage.setItem("sc_battle_auto", v ? "1" : "0"); } catch { /* storage unavailable */ } };
   const cycleSpeed = () => {
     const next = speed >= 3 ? 1 : speed + 1;
     speedRef.current = next;
     setSpeedState(next);
-    try { localStorage.setItem("sc_battle_speed", String(next)); } catch {}
+    try { localStorage.setItem("sc_battle_speed", String(next)); } catch { /* storage unavailable */ }
   };
 
   // ---------- init ----------
@@ -523,32 +523,35 @@ export default function Battle() {
             data-testid="battle-result"
           >
             <motion.div initial={{ scale: 0.7, y: 30 }} animate={{ scale: 1, y: 0 }} className="panel rounded-2xl p-8 text-center max-w-sm w-full">
-              {phase === "win" ? <Trophy className="w-16 h-16 text-amber-400 mx-auto" /> : <Skull className="w-16 h-16 text-fox mx-auto" />}
-              <h2 className="font-display text-6xl tracking-wide mt-3" style={{ color: phase === "win" ? "#FFCA28" : "#FF5722" }}>
+              <div className="relative w-20 h-20 mx-auto mb-1 flex items-center justify-center rounded-full"
+                style={{ background: phase === "win" ? "radial-gradient(circle, rgba(255,202,40,0.22), transparent 70%)" : "radial-gradient(circle, rgba(255,87,34,0.18), transparent 70%)" }}>
+                {phase === "win" ? <Trophy className="w-14 h-14 text-amber-500" /> : <Skull className="w-14 h-14 text-fox" />}
+              </div>
+              <h2 className="font-display text-6xl tracking-wide mt-2" style={{ color: phase === "win" ? "#E0A106" : "#FF5722" }}>
                 {phase === "win" ? "VICTORY" : "DEFEAT"}
               </h2>
               {resultData?.rewards && phase === "win" && (
-                <div className="mt-4 space-y-1 text-slate-300">
-                  <p className="flex items-center justify-center gap-2"><Coins className="w-4 h-4 text-amber-400" /> +{resultData.rewards.ryo} Ryo</p>
+                <div className="mt-4 space-y-1.5 text-ink" data-testid="battle-rewards">
+                  <p className="flex items-center justify-center gap-2 font-semibold"><Coins className="w-4 h-4 text-amber-500" /> +{resultData.rewards.ryo} Ryo</p>
                   {resultData.rewards.gems > 0 && (
-                    <p className="flex items-center justify-center gap-2" data-testid="reward-gems"><Gem className="w-4 h-4 text-jutsu" /> +{resultData.rewards.gems} Gems</p>
+                    <p className="flex items-center justify-center gap-2 font-semibold" data-testid="reward-gems"><Gem className="w-4 h-4 text-jutsu" /> +{resultData.rewards.gems} Gems</p>
                   )}
                   {resultData.rewards.exp != null && (
-                    <p className="flex items-center justify-center gap-2"><Zap className="w-4 h-4 text-chakra" /> +{resultData.rewards.exp} Account EXP</p>
+                    <p className="flex items-center justify-center gap-2 font-semibold"><Zap className="w-4 h-4 text-chakra" /> +{resultData.rewards.exp} Account EXP</p>
                   )}
                   {resultData.rewards.hero_exp?.length > 0 && (
-                    <div className="text-xs text-slate-400 pt-1" data-testid="reward-hero-exp">
+                    <div className="text-xs text-slate-600 pt-1" data-testid="reward-hero-exp">
                       {resultData.rewards.hero_exp.map((h) => (
                         <span key={h.instance_id} className="inline-block mx-1">
-                          {h.name.split(" ")[0]} +{h.exp}xp{h.levels > 0 && <span className="text-emerald-400"> (+{h.levels}Lv)</span>}
+                          {h.name.split(" ")[0]} +{h.exp}xp{h.levels > 0 && <span className="text-emerald-600 font-semibold"> (+{h.levels}Lv)</span>}
                         </span>
                       ))}
                     </div>
                   )}
                   {resultData.rewards.items && Object.keys(resultData.rewards.items).length > 0 && (
-                    <div className="flex flex-wrap items-center justify-center gap-2 pt-2" data-testid="reward-items">
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2" data-testid="reward-items">
                       {Object.entries(resultData.rewards.items).map(([iid, qty]) => (
-                        <span key={iid} className="text-xs px-2 py-1 rounded bg-white/10 text-white">
+                        <span key={iid} className="text-xs font-semibold px-2 py-1 rounded-md bg-black/[0.05] border border-black/10 text-ink">
                           {items[iid]?.name || iid} ×{qty}
                         </span>
                       ))}
@@ -558,7 +561,7 @@ export default function Battle() {
                     <p className="text-jutsu font-semibold mt-2" data-testid="reward-ninja">★ New ally recruited: {resultData.rewards.ninja.name}!</p>
                   )}
                   {resultData.rewards.gear && (
-                    <p className="font-semibold mt-2 flex items-center justify-center gap-2" data-testid="reward-gear" style={{ color: resultData.rewards.gear.color || "#FFCA28" }}>
+                    <p className="font-semibold mt-2 flex items-center justify-center gap-2" data-testid="reward-gear" style={{ color: resultData.rewards.gear.color || "#E0A106" }}>
                       ★ Rare Drop: {resultData.rewards.gear.set_name} {resultData.rewards.gear.slot} ({resultData.rewards.gear.rarity})
                     </p>
                   )}
@@ -567,11 +570,11 @@ export default function Battle() {
                   )}
                   {resultData.rewards.first_clear_bonus && (
                     <div className="mt-2 rounded-xl bg-amber-400/10 border border-amber-400/40 px-3 py-2" data-testid="reward-first-clear">
-                      <p className="text-[11px] uppercase tracking-widest text-amber-300 font-bold">First-Clear Bonus</p>
-                      <p className="text-sm text-white flex items-center justify-center gap-2 mt-0.5">
+                      <p className="text-[11px] uppercase tracking-widest text-amber-700 font-bold">First-Clear Bonus</p>
+                      <p className="text-sm text-ink font-semibold flex items-center justify-center gap-2 mt-0.5 flex-wrap">
                         {resultData.rewards.first_clear_bonus.gems > 0 && <span className="flex items-center gap-1"><Gem className="w-3.5 h-3.5 text-jutsu" />+{resultData.rewards.first_clear_bonus.gems}</span>}
                         {Object.entries(resultData.rewards.first_clear_bonus.items || {}).map(([iid, q]) => (
-                          <span key={iid} className="text-xs px-2 py-0.5 rounded bg-white/10">{items[iid]?.name || iid} ×{q}</span>
+                          <span key={iid} className="text-xs px-2 py-0.5 rounded-md bg-black/[0.05] border border-black/10">{items[iid]?.name || iid} ×{q}</span>
                         ))}
                       </p>
                     </div>
@@ -579,17 +582,18 @@ export default function Battle() {
                 </div>
               )}
               {phase === "win" && mode === "spire" && resultData?.advancing && (
-                <p className="text-amber-300 font-semibold mt-2" data-testid="spire-advance">▲ Floor {floor} cleared — new height reached!</p>
+                <p className="text-amber-700 font-semibold mt-2" data-testid="spire-advance">▲ Floor {floor} cleared — new height reached!</p>
               )}
               {phase === "win" && mode === "arena" && (
-                <p className="text-emerald-400 font-semibold mt-2" data-testid="arena-rating-gain">+20 Arena Rating</p>
+                <p className="text-emerald-600 font-semibold mt-2" data-testid="arena-rating-gain">+20 Arena Rating</p>
               )}
               {phase === "lose" && mode === "arena" && (
-                <p className="text-slate-400 mt-3" data-testid="arena-rating-loss">-12 Arena Rating. Train harder and try again.</p>
+                <p className="text-slate-600 mt-3" data-testid="arena-rating-loss">-12 Arena Rating. Train harder and try again.</p>
               )}
-              {phase === "lose" && mode !== "arena" && <p className="text-slate-400 mt-3">Your squad was wiped out. Train harder and try again.</p>}
+              {phase === "lose" && mode !== "arena" && <p className="text-slate-600 mt-3">Your squad was wiped out. Train harder and try again.</p>}
               <div className="flex gap-2 mt-6">
-                <button onClick={() => navigate(backTo)} data-testid="result-back-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-white/10 text-white hover:bg-white/20 transition-colors">
+                <button onClick={() => navigate(backTo)} data-testid="result-back-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-black/[0.05] border border-black/10 text-ink hover:bg-black/10 transition-colors">
+
                   {mode === "campaign" ? "CAMPAIGN" : mode === "arena" ? "ARENA" : "BACK"}
                 </button>
                 {phase === "win" ? (
@@ -615,7 +619,7 @@ export default function Battle() {
                     </button>
                   )
                 ) : (
-                  <button onClick={() => window.location.reload()} data-testid="result-retry-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-fox text-white hover:bg-orange-600 transition-colors">
+                  <button onClick={() => window.location.reload()} data-testid="result-retry-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-fox text-ink hover:bg-orange-600 transition-colors">
                     RETRY
                   </button>
                 )}

@@ -89,16 +89,16 @@ export default function Lobby() {
 
         <div className="absolute bottom-0 inset-x-0 z-10 px-4 lg:px-5 pb-4 lg:pb-5">
           <p className="text-[11px] uppercase tracking-widest text-chakra mb-1" style={{ textShadow: "0 0 10px rgba(0,229,255,0.6)" }}>Squad Leader</p>
-          <h1 className="font-display tracking-wide text-ink leading-none text-3xl lg:text-5xl" style={{ textShadow: "0 4px 20px rgba(0,0,0,0.85)" }}>
+          <h1 className="font-display tracking-wide text-white leading-none text-3xl lg:text-5xl" style={{ textShadow: "0 4px 20px rgba(0,0,0,0.85)" }}>
             {leaderTpl?.name || "No Leader Set"}
           </h1>
           {leaderTpl ? (
             <div className="flex items-center gap-2 mt-2 text-xs lg:text-sm font-semibold tracking-wide flex-wrap">
               <span style={{ color: leaderRarity.color, textShadow: `0 0 10px ${leaderRarity.color}` }}>{leaderRarity.name.toUpperCase()}</span>
-              <span className="text-slate-500">·</span>
+              <span className="text-slate-400">·</span>
               <span style={{ color: leaderElement.color, textShadow: `0 0 10px ${leaderElement.color}` }}>{leaderTpl.element}</span>
-              <span className="text-slate-500">·</span>
-              <span className="text-slate-600">Lv.{leader.level}</span>
+              <span className="text-slate-400">·</span>
+              <span className="text-slate-200">Lv.{leader.level}</span>
             </div>
           ) : (
             <Link to="/team" data-testid="set-leader-link" className="inline-block mt-2 text-sm text-chakra underline">Choose your squad →</Link>
@@ -130,7 +130,7 @@ export default function Lobby() {
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-[11px] uppercase tracking-widest text-fox mb-0.5" style={{ textShadow: "0 0 8px rgba(255,87,34,0.6)" }}>Next Mission · Ch.{nextStage.chapter}</p>
-                <h3 className="font-display text-xl lg:text-2xl tracking-wide text-ink truncate">{nextStage.name}</h3>
+                <h3 className="font-display text-xl lg:text-2xl tracking-wide text-white truncate">{nextStage.name}</h3>
                 <div className="flex items-center gap-1.5 mt-2">
                   {nextStage.enemies.slice(0, 4).map((e, i) => (
                     <div key={i} className="w-7 h-7 rounded-full overflow-hidden border-2 shrink-0" style={{ borderColor: RARITY[catalogById[e.template_id]?.rarity || "R"].color }}>
@@ -166,7 +166,7 @@ export default function Lobby() {
                   <div className="w-9 h-9 rounded-full flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: `${t.color}22`, boxShadow: `0 0 12px ${t.color}55` }}>
                     <Icon className="w-5 h-5" style={{ color: t.color }} />
                   </div>
-                  <h4 className="font-display text-base tracking-wide text-ink leading-none">{t.label}</h4>
+                  <h4 className="font-display text-base tracking-wide text-white leading-none">{t.label}</h4>
                 </Link>
               </motion.div>
             );

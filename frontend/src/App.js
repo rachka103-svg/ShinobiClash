@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { Swords, WifiOff, RotateCw } from "lucide-react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { GameProvider, useGame } from "@/context/GameContext";
+import ServerGate from "@/components/ServerGate";
 import GameHud from "@/components/GameHud";
 import BottomNav from "@/components/BottomNav";
 import Login from "@/pages/Login";
@@ -139,12 +140,14 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <GameProvider>
-          <AppRoutes />
-          <Toaster theme="dark" position="top-center" richColors />
-        </GameProvider>
-      </AuthProvider>
+      <ServerGate>
+        <AuthProvider>
+          <GameProvider>
+            <AppRoutes />
+            <Toaster theme="dark" position="top-center" richColors />
+          </GameProvider>
+        </AuthProvider>
+      </ServerGate>
     </BrowserRouter>
   );
 }

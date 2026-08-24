@@ -83,7 +83,7 @@ export default function CampaignStagePreviewDrawer({ stage, state, catalogById, 
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-black/[0.04]"><Shield className="w-4 h-4 text-slate-500" /></div>
                     )}
-                    <span className="absolute bottom-0 right-0 text-[8px] bg-black/70 px-0.5 text-ink leading-tight">Lv{e.level}</span>
+                    <span className="absolute bottom-0 right-0 text-[8px] bg-black/70 px-0.5 text-white leading-tight">Lv{e.level}</span>
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-ink truncate">{tpl?.name || "Unknown"}</p>

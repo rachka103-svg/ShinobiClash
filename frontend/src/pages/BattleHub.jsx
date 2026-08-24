@@ -16,8 +16,8 @@ export default function BattleHub() {
   const cleared = user?.cleared_stages?.length || 0;
   const [auto, setAuto] = useState(() => { try { return localStorage.getItem("sc_battle_auto") === "1"; } catch { return false; } });
   const [speed, setSpeed] = useState(() => { try { return Number(localStorage.getItem("sc_battle_speed")) || 1; } catch { return 1; } });
-  const toggleAuto = () => { const v = !auto; setAuto(v); try { localStorage.setItem("sc_battle_auto", v ? "1" : "0"); } catch {} };
-  const cycleSpeed = () => { const v = speed >= 3 ? 1 : speed + 1; setSpeed(v); try { localStorage.setItem("sc_battle_speed", String(v)); } catch {} };
+  const toggleAuto = () => { const v = !auto; setAuto(v); try { localStorage.setItem("sc_battle_auto", v ? "1" : "0"); } catch { /* storage unavailable */ } };
+  const cycleSpeed = () => { const v = speed >= 3 ? 1 : speed + 1; setSpeed(v); try { localStorage.setItem("sc_battle_speed", String(v)); } catch { /* storage unavailable */ } };
 
   const modes = [
     { to: "/campaign", label: "Campaign", icon: Scroll, color: "#FF5722",
@@ -27,8 +27,8 @@ export default function BattleHub() {
       desc: "The Infinite Nightmare — 25 escalating dream-bosses that drop rare gear sets.",
       status: "Hunt boss gear & materials", testid: "mode-tsukuyomi", featured: true },
     { to: "/dungeons", label: "Resource Dungeons", icon: Landmark, color: "#00E676",
-      desc: "Farm Ryo, EXP tomes, gear and crafting materials.",
-      status: "Gold · EXP · Gear vaults", testid: "mode-dungeons" },
+      desc: "Farm Ryo, EXP tomes and crafting materials.",
+      status: "Gold · EXP · Materials", testid: "mode-dungeons" },
     { to: "/spire", label: "Endless Spire", icon: Castle, color: "#D500F9",
       desc: "Climb an endless tower of ever-tougher foes.",
       status: `Floor ${user?.spire_floor || 0} reached`, testid: "mode-spire" },
@@ -81,11 +81,11 @@ export default function BattleHub() {
                   <Icon className="w-7 h-7" style={{ color: m.color }} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-display text-2xl tracking-wide text-ink leading-none">{m.label}</h3>
-                  <p className="text-xs text-slate-500 mt-1 leading-snug">{m.desc}</p>
+                  <h3 className="font-display text-2xl tracking-wide text-white leading-none">{m.label}</h3>
+                  <p className="text-xs text-slate-300 mt-1 leading-snug">{m.desc}</p>
                   <p className="text-[11px] font-semibold mt-1.5" style={{ color: m.color }}>{m.status}</p>
                 </div>
-                <ChevronRight className="w-5 h-5 text-slate-500 shrink-0 group-hover:text-ink transition-colors" />
+                <ChevronRight className="w-5 h-5 text-slate-400 shrink-0 group-hover:text-white transition-colors" />
               </Link>
             </motion.div>
           );

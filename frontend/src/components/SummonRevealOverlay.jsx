@@ -151,7 +151,7 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
                           )}
                         </div>
                         <div className="absolute inset-x-0 bottom-0 px-1.5 pb-1.5 text-center">
-                          <p className="text-[11px] font-bold text-ink leading-tight truncate">{r.name}</p>
+                          <p className="text-[11px] font-bold text-white leading-tight truncate">{r.name}</p>
                           {r.duplicate && (
                             <p className="text-[9px] text-amber-300 flex items-center justify-center gap-0.5">
                               <Star className="w-2.5 h-2.5" /> +{r.shards_gained} shards
