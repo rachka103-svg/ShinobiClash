@@ -50,9 +50,13 @@ export default function Login() {
 
   return (
     <div className="min-h-screen grain relative flex items-center justify-center p-4 overflow-hidden">
-      <img src="/art/login-hero.png" alt="" className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-br from-[#05050A] via-[#05050A]/80 to-[#05050A]/40" />
-      <div className="absolute inset-0 bg-[#05050A]/40" />
+      <img
+        src="/art/login-hero.png"
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover saturate-[0.85] sepia-[0.15] brightness-[1.05] dark:saturate-100 dark:sepia-0 dark:brightness-100 transition-[filter] duration-700"
+      />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#2E2412] via-[#2E2412]/80 to-[#2E2412]/35 dark:from-[#05050A] dark:via-[#05050A]/80 dark:to-[#05050A]/40" />
+      <div className="absolute inset-0 bg-[#2E2412]/35 dark:bg-[#05050A]/40" />
 
       <button
         type="button"
