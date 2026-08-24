@@ -1,26 +1,18 @@
 [
   {
-    "content": "Backend: collapse rarities to 5 tiers (R/SR/SSR/UR/GR), GR pity, per-currency rates (gold=low+no pity), multiplicative rate-up",
+    "content": "Rewrite Summon.jsx into single-viewport (no-scroll) layout for PC + mobile",
     "status": "completed"
   },
   {
-    "content": "Frontend tokens: RARITY 5-tier, GR pinnacle, frame gold tiers, aura/sparkle thresholds",
+    "content": "Adapt Gear Armory mode to the same single-view two-column frame",
     "status": "completed"
   },
   {
-    "content": "Summon page: GR pity labels/data, gem+gold rates dialog, GameContext ryo rates",
+    "content": "Verify no compile errors + screenshot PC and gear viewports",
     "status": "completed"
   },
   {
-    "content": "Fix MYTHIC/LR refs in reveal overlay, Gallery, Roster, Admin, battle.js",
-    "status": "completed"
-  },
-  {
-    "content": "Redesign Lobby (home) to fit in viewport without scrolling",
-    "status": "completed"
-  },
-  {
-    "content": "Verify: backend summon tests + frontend screenshots (Lobby no-scroll, Summon GR pity, Gallery)",
+    "content": "Run frontend testing agent on the Summon flow (100% pass)",
     "status": "completed"
   }
 ]

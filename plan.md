@@ -62,6 +62,7 @@
   - Trials / Resource Dungeons
   - Future PvE modes
 - Mobile-first, no page-level horizontal overflow.
+- **Shell constraint:** keep the gamified shell (floating `GameHud` + `BottomNav`). Do **not** reintroduce browser-like headers.
 
 ---
 
@@ -105,8 +106,7 @@ Tests: ✅
 > Prioritized data architecture and progression systems over UI polish.
 
 ### 2A.1 — Hero data architecture ✅
-- 8 rarities: **N, R, SR, SSR, UR, GR, LR, MYTHIC**
-- Expanded stats + roles + factions/tags/passives
+- (Historical) rarities previously expanded beyond 5 tiers.
 
 ### 2A.2 — Catalog expansion ✅
 - Catalog expanded **38 → 69** heroes.
@@ -166,7 +166,7 @@ Tests: ✅
 
 ### Phase B (P0) — Hero Portrait + Roster Redesign ✅ COMPLETE
 - Created `HeroPortrait.jsx`.
-- Rebuilt `Roster.jsx` cinematic grid.
+- Rebuilt roster view.
 
 ### Phase C (P0) — Unified, fuller Hero Detail Modal ✅ COMPLETE (Verified)
 - Created `HeroDetailModal.jsx` shared by Roster/Gallery.
@@ -188,7 +188,7 @@ Goal: replace flat stage list with cinematic **World → Chapter → Stage → B
 - Backend enrichment: `recommended_power`, `chapters` metadata
 
 ### Phase E.8 (P1) — Campaign Map Visual Refinement Pass ✅ COMPLETE (Verified)
-- Root-cause horizontal overflow fix (`TopBar.jsx` shrink/min-w-0)
+- Root-cause horizontal overflow fix.
 - Background asset architecture (`chapter.background_image`, `chapter.accent`)
 
 ### Phase E.9 (P1) — Chapter 1 Real Artwork Integration ✅ COMPLETE (Verified)
@@ -204,7 +204,7 @@ Goal: replace flat stage list with cinematic **World → Chapter → Stage → B
 
 ### Global design reference
 - Extended guidelines added in `/app/design_guidelines.md`:
-  - Summon Ceremony: carousel + rates panel + pity module + skippable reveal overlay
+  - Summon Ceremony patterns
   - HeroDetailModal tabs: Train / Evolve / Gear
   - Gear/Forge page patterns
   - Resource Dungeons hub patterns
@@ -215,70 +215,34 @@ Goal: replace flat stage list with cinematic **World → Chapter → Stage → B
 ### Phase J1 (P1) — Backend: Evolution + Gear + Dungeons + Crafting + Summon Multi/Pity ✅ COMPLETE (Verified)
 
 #### J1.1 — Evolution system (stars only via evolution)
-- Replace/augment star-up into an **Evolution** model:
-  - Early stars: shards
-  - High stars (4–6): gated by rare materials (`evo_essence`, `celestial_core`)
-- Keep stars strictly tied to evolution; no star gain from leveling.
-- Add evolution costs helper: `evolution_cost()`.
+- Replace/augment star-up into an **Evolution** model.
 
 #### J1.2 — Leveling costs (EXP tomes + gold)
-- Add `EXP_TOME_GOLD_COST` (per tome type) and enforce in `POST /game/hero/use-exp`.
-- Ensure dedicated gold + tome farming loops exist (Resource Dungeons).
+- Enforce gold costs for tomes.
 
 #### J1.3 — Gear system (full depth)
-- Data/config in `game_data.py`:
-  - 4 slots: Weapon/Armor/Accessory/Relic
-  - 5 gear rarities
-  - Main stat + substats (flat + %)
-  - Gear score formula
-  - Enhancement +1..+15 (cost tables)
-  - Sets with 2pc/4pc bonuses
-- Add gear generator: `roll_gear()` and core gear structs.
+- Slots, rarities, enhancement, sets.
 
 #### J1.4 — Crafting + Fusion
-- Materials + blueprints:
-  - `scrap_iron`, `forge_steel`, `forge_hammer`, plus blueprint items
-- `FUSION_RECIPES` to merge low-tier materials into higher.
-- Crafting config: blueprint + forge materials + ryo → gear.
+- Materials + blueprints + fusion recipes.
 
 #### J1.5 — Resource Dungeons (Trials-based)
-- Implement as **trial-mode entries** to reuse existing energy/battle flow:
-  - Gold Vault (Ryo)
-  - EXP Temple (EXP tomes)
-  - Gear Foundry (gear + crafting mats)
-- 5 difficulty tiers each.
-- Register into `TRIALS` / `TRIALS_BY_ID` (and extend trial completion rewards for gear/material drops).
+- Gold Vault, EXP Temple, Gear Foundry.
 
-#### J1.6 — Summon system expansion
-- Support:
-  - x1/x10 pulls (`count` 1|10)
-  - banner selection (`banner_id`)
-  - rates disclosure returned via `/game/catalog`
-  - pity state persisted per user
-- MYTHIC pity rules:
-  - Soft pity begins at pull 100, ramps to 149
-  - Hard pity guarantees at 150
-  - Natural MYTHIC resets MYTHIC pity
-  - Featured banner 50/50 with guarantee after a loss
-- Add SR+ guarantee for x10 (does not interfere with MYTHIC pity unless MYTHIC obtained).
+#### J1.6 — Summon system expansion ✅ UPDATED
+- **Canonical rarity system:** collapsed to **5 tiers**: **R, SR, SSR, UR, GR** (GR = pinnacle).
+- **Dual-currency logic:**
+  - **Gems/Tickets**: normal rates + **GR pity** (soft start 60, hard 90).
+  - **Ryo**: **no pity**, significantly lower rare rates.
+- Featured chance is multiplicative (rate-up relative), not a flat override.
+- Duplicates convert to **flat 100 shards**.
 
-#### J1.7 — New endpoints
-- Hero evolution:
-  - Keep legacy route for compatibility, but introduce `POST /api/game/hero/evolve` (or rewire `/hero/star-up` to call evolve internally).
-- Gear:
-  - `/api/game/gear/list`
-  - `/api/game/gear/equip` + `/unequip`
-  - `/api/game/gear/enhance`
-  - `/api/game/gear/craft`
-  - `/api/game/material/fuse`
+#### J1.7 — New endpoints ✅ UPDATED
 - Summon:
-  - Extend `/api/game/summon` to accept `count`, `banner_id`, return multi results + pity state.
+  - `POST /api/game/summon/pull` supports `currency` pathing (Gems vs Ryo), pity, and multi pulls.
 
 #### J1.8 — Profile integration
-- Update `public_user()` to include:
-  - equipped gear per hero
-  - computed stats/power include gear + set bonuses + evolution star multiplier
-- Increase `_star_bonus_mult` to 0.07/star (per expansion spec).
+- Stats/power include gear + evolution.
 
 Testing:
 - Backend regression + new endpoint tests.
@@ -287,70 +251,69 @@ Testing:
 
 ### Phase J2 (P1–P2) — Frontend: Summon Ceremony + Hero Modal Tabs + Forge + Dungeons ✅ COMPLETE (Verified)
 
-#### J2.1 — Summon Ceremony redesign (Goddess Era-like)
-- `Summon.jsx` full redesign:
-  - Banner carousel, featured preview
-  - Rates Dialog + Table
-  - Pity module with visible MYTHIC counter + 50/50 status
-  - x1 / x10 CTAs
-  - RevealOverlay (staggered card flips, tiered glow, MYTHIC burst, tap-to-skip)
+#### J2.1 — Summon Ceremony redesign ✅ UPDATED + ENHANCED
+- Summon page upgraded to fit the **new gamified shell** (GameHud + BottomNav).
+- **Summon Blueprint (PC + Mobile) — Single-Viewport, No-Scroll** ✅ COMPLETE
+  - File: `/app/frontend/src/pages/Summon.jsx`
+  - Layout rules:
+    - Uses `h-full` + `overflow-hidden` page frame (same pattern as `Lobby.jsx`).
+    - **Hero/Gear mode toggle** at top.
+    - **Cinematic banner** region (left on desktop; top on mobile).
+    - **Control rail** (right on desktop; bottom stack on mobile):
+      - Compact **GR pity module**
+      - Gems/Ryo pay toggle + Rates link
+      - x1/x10 + Ticket summon buttons
+      - Desktop-only **"In This Banner"** showcase grid (fills rail space without adding mobile height)
+      - 3 quick-access buttons: **Roster**, **Featured**, **History**
+    - All secondary info (Available/Roster, Featured, Rates, History) moved into dialogs.
+  - Verification:
+    - esbuild compile ✅
+    - Frontend testing agent ✅ 100% pass
+    - PC + Gear screenshots captured (premium, scroll-free)
 
-#### J2.2 — HeroDetailModal enhancements
-- Add Tabs: Train / Evolve / Gear
-  - Train:
-    - bulk tome spending UI
-    - gold cost shown + confirm spend
-  - Evolve:
-    - star breakthrough panel
-    - required shards + rare materials
-    - stat preview delta
-  - Gear:
-    - 2x2 equip slots
-    - equip Sheet filtered by slot
-    - enhance shortcut
+#### J2.2 — HeroDetailModal enhancements ✅ COMPLETE
+- Tabs: Train / Evolve / Gear.
 
-#### J2.3 — Forge / Gear page (new)
-- New `Forge.jsx` routed at `/forge`
-  - Gear inventory list/grid with filters
-  - Gear detail Sheet
-  - Enhance flow (+1..+15)
-  - Crafting (blueprints + mats)
-  - Material fusion UI
+#### J2.3 — Forge / Gear page (new) ✅ COMPLETE
+- `Forge.jsx` routed at `/forge`.
 
-#### J2.4 — Resource Dungeons hub (new)
-- New `Dungeons.jsx` routed at `/dungeons`
-  - 3 dungeon cards
-  - difficulty ToggleGroup (5 tiers)
-  - drop preview
-  - Start battle via existing trial flow (`/battle/trial/:id`)
+#### J2.4 — Resource Dungeons hub (new) ✅ COMPLETE
+- `Dungeons.jsx` routed at `/dungeons`.
 
-#### J2.5 — Combat stat plumbing
-- Ensure gear/evolution stats affect combat:
-  - `buildCombatant` support stats override or build from `inst.stats`
-  - `Battle.jsx` passes computed `inst.stats` and power so combat matches profile.
+#### J2.5 — Combat stat plumbing ✅ COMPLETE
+- Gear/evolution stats affect combat.
 
-#### J2.6 — Nav + routing
-- Add TopBar items (bounded, no overflow):
-  - Dungeons
-  - Forge
-- Update `App.js` routes.
+#### J2.6 — Nav + routing ✅ UPDATED
+- Navigation via `BottomNav.jsx` and `GameHud.jsx` (no TopBar).
 
 Testing:
 - Frontend testing agent + manual multi-breakpoint verification.
 
 ---
 
-### Phase J3 (P1–P2) — Verification + Polish ✅ COMPLETE (testing agent iteration_16: backend 36/37 pass — 1 false positive, frontend all pass, 0 bugs; no horizontal overflow at 390/1920; unit tests pass)
-- Run `testing_agent_v3` (backend + frontend + regression).
-- Verify:
-  - No horizontal overflow returns
-  - Summon x10 flows, rates dialog, pity counter correctness
-  - Gear equip/enhance/craft/fuse works
-  - Evolution costs + star-only evolution constraint holds
-  - Dungeons reward loops function and are grind-friendly
-  - Combat reflects gear/evolution stats accurately
-- Add cinematic glow animations where appropriate (no continuous expensive effects).
-- Capture screenshots at 390px + desktop.
+### Phase J3 (P1–P2) — Verification + Polish ✅ COMPLETE
+- Testing agent runs confirm stability.
+
+---
+
+## 2C) Tech Debt / Maintainability (Deferred)
+> Not required for the Summon blueprint request, but tracked due to recurring risk.
+
+### TD1 (P1) — Fix empty catch blocks + hook deps (Frontend)
+- Fix empty catch blocks:
+  - `/app/frontend/src/pages/Arena.jsx` (empty catch)
+  - `/app/frontend/src/context/AuthContext.jsx` (empty catch)
+- Review `GameContext.jsx` for stale closures / missing `exhaustive-deps`.
+
+### TD2 (P2) — Backend modularization
+- Refactor `/app/backend/server.py` (approaching ~2000 lines):
+  - Extract helper functions/services
+  - Move large dictionaries/config helpers into separate modules
+
+### TD3 (P3) — Dead code cleanup
+- Remove unhooked legacy files:
+  - `/app/frontend/src/components/TopBar.jsx`
+  - `/app/frontend/src/pages/Roster.jsx`
 
 ---
 
@@ -358,22 +321,29 @@ Testing:
 - Visual-only changes.
 - Clear repeatable loops and rewards visibility.
 
+### Admin Additions (P2) — Stage Editor + Mode Toggles (Not started)
+- Stage editor to tune campaign/dungeon stage rewards/enemy power.
+- Global mode toggles.
+
 ### Phase H (P2) — Battle Arena (Visual redesign ONLY) (Not started)
 - Visual-only.
 
-### Phase I (P3) — Combat Effects / Polish (Not started)
-- Visual polish only (damage numbers, cinematic transitions, targeted VFX).
+### Quality of Life (P3) (Not started)
+- Smart Equip in Hero Details
+- Drag-to-slot mechanics in Squad builder
+- Remember Battle Speed across fights
 
 ---
 
 ## 3) Next Actions
-1. **Phase J1**: implement backend evolution + gear + dungeons + crafting + summon pity/multi.
-2. **Phase J2**: implement Summon Ceremony redesign + HeroDetailModal tabs + Forge + Dungeons.
-3. **Phase J3**: full testing + polish.
-4. Resume existing roadmap items:
-   - Spire UI redesign
-   - Arena visual redesign
-   - Combat VFX polish
+1. **Tech Debt (P1):** fix empty catch blocks in `Arena.jsx` and `AuthContext.jsx`; verify `GameContext` hooks.
+2. **Tech Debt (P2):** begin modularizing `server.py` into smaller service modules.
+3. **Cleanup (P3):** delete dead files `TopBar.jsx` and legacy `Roster.jsx`.
+4. Resume roadmap feature work:
+   - **Phase F:** Spire UI redesign
+   - **Admin additions:** Stage editor + toggles
+   - **Phase H:** Arena visual redesign
+   - **QoL:** Smart Equip, drag-to-slot, remember battle speed
 
 ---
 
@@ -389,11 +359,14 @@ Testing:
 - Dedicated farming dungeons provide consistent progression materials.
 - Crafting + fusion provide long-term material sinks.
 
-### Summon integrity
+### Summon integrity ✅ UPDATED
 - Rates transparent.
 - x1/x10 supported.
-- MYTHIC pity correctly implemented (soft 100–149, hard 150, resets on MYTHIC).
-- Featured 50/50 with guarantee implemented and displayed.
+- **5-tier rarity** canonical: R, SR, SSR, UR, GR.
+- **Gem/Ticket banners:** GR pity soft 60 / hard 90.
+- **Ryo banners:** no pity.
+- Featured 50/50 guarantee behavior displayed.
+- Summon page is **single-viewport** (no scroll) on PC and mobile.
 
 ### Combat feel
 - Auto-battle + speed controls remain stable.
@@ -402,6 +375,6 @@ Testing:
 
 ### Visual (Cinematic UI)
 - Mobile-first, no unintended horizontal scroll.
-- Summon ceremony feels premium and skippable.
-- Gear/Forge and Dungeons match the cinematic theme without heavy effects.
+- Summon experience feels premium and skippable.
+- UI respects gamified shell (GameHud + BottomNav) without browser headers.
 - Campaign continues supporting per-chapter artwork via `background_image` with no UI rewrites.

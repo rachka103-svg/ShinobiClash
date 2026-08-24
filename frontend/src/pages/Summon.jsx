@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, Coins, Gem, Loader2, Ticket, Star, Info, ChevronRight, Clock,
-  Percent, History, Plus, Anvil, Swords, Flame, Droplet, Wind as WindIcon,
-  Mountain, Zap, Moon, Sun, ShieldCheck,
+  History, Anvil, Flame, Droplet, Wind as WindIcon, Users2,
+  Mountain, Zap, Moon, Sun, ShieldCheck, LayoutGrid,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -11,14 +10,14 @@ import { useGame } from "@/context/GameContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import { rarityFrame, GOLD } from "@/lib/theme";
-import { auraClass, RaritySparkles, DecoCorners } from "@/components/RarityFx";
+import { auraClass, DecoCorners } from "@/components/RarityFx";
 import SummonRevealOverlay from "@/components/SummonRevealOverlay";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 // ---------------------------------------------------------------------------
-// Static, data-driven presentation helpers (no fake game state — purely
-// cosmetic theming derived from the live featured hero + catalog).
+// Static, data-driven presentation helpers (purely cosmetic theming derived
+// from the live featured hero + catalog — no fabricated game state).
 // ---------------------------------------------------------------------------
 const BANNER_THEME = {
   Dark: { name: "VOID CHRONICLES", tagline: "The threads of fate unravel. Mystic beings emerge from the void." },
@@ -46,7 +45,7 @@ const RARITY_ORDER = { R: 0, SR: 1, SSR: 2, UR: 3, GR: 4 };
 const nextWeeklyReset = () => {
   const now = new Date();
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
-  const day = d.getUTCDay(); // 0 Sun..6 Sat
+  const day = d.getUTCDay();
   const daysUntilMon = ((8 - day) % 7) || 7;
   d.setUTCDate(d.getUTCDate() + daysUntilMon);
   return d.getTime();
@@ -85,11 +84,11 @@ const Stars = ({ rarity, className = "w-3 h-3" }) => {
 };
 
 /**
- * SUMMONING SANCTUM — cinematic gacha banner. Featured rate-up hero, live
- * MYTHIC pity module (soft 100 / hard 150 / featured 50-50), transparent
- * rates, x1 / x10 / ticket pulls, an available-heroes carousel and a
- * localStorage-backed recent-summons feed. The Gear Armory is preserved as a
- * second banner accessible from the top toggle.
+ * SUMMONING SANCTUM — a single-viewport, no-scroll gacha experience for PC and
+ * mobile. The cinematic banner occupies the left/top hero region; a tight
+ * control rail on the right/bottom holds pity, pay-mode, and pull actions.
+ * Secondary panels (Featured, Available roster, Rates, History) are folded into
+ * dialogs so the entire page always fits one screen without scrolling.
  */
 export default function Summon() {
   const { user, setUser } = useAuth();
@@ -101,6 +100,7 @@ export default function Summon() {
   const [reveal, setReveal] = useState(null);
   const [ratesOpen, setRatesOpen] = useState(false);
   const [featuredOpen, setFeaturedOpen] = useState(false);
+  const [availableOpen, setAvailableOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [elementFilter, setElementFilter] = useState("ALL");
   const [history, setHistory] = useState([]);
@@ -149,14 +149,14 @@ export default function Summon() {
     const rest = [...catalog]
       .filter((c) => c.id !== featuredHero.id)
       .sort((a, b) => RARITY_ORDER[b.rarity] - RARITY_ORDER[a.rarity] || a.name.localeCompare(b.name));
-    return [featuredHero, ...rest].slice(0, 4);
+    return [featuredHero, ...rest].slice(0, 5);
   }, [featuredHero, catalog]);
   const featuredAll = useMemo(
     () => [...catalog].sort((a, b) => RARITY_ORDER[b.rarity] - RARITY_ORDER[a.rarity] || a.name.localeCompare(b.name)).slice(0, 12),
     [catalog]
   );
 
-  // ----- Available heroes carousel -----
+  // ----- Available heroes (dialog) -----
   const availableHeroes = useMemo(() => {
     return [...catalog]
       .filter((c) => elementFilter === "ALL" || c.element === elementFilter)
@@ -195,90 +195,72 @@ export default function Summon() {
     } finally { setBusy(false); setBusyKind(null); }
   };
 
-  const notifyEarn = (what) =>
-    toast.info(what === "gems"
-      ? "Earn Gems from daily login, missions & achievements."
-      : "Earn Ryo from battles, Campaign & Resource Dungeons.");
-
   // Hero pull costs
   const gemX1 = gemCosts.summon;
   const ryoX1 = summonCost;
   const heroX1 = payMode === "gems" ? gemX1 : ryoX1;
   const heroX10 = heroX1 * 10;
   const heroHave = payMode === "gems" ? (user?.gems || 0) : (user?.ryo || 0);
+  const payColor = payMode === "gems" ? "#D500F9" : "#FFCA28";
 
   const isHero = mode === "hero";
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 min-w-0" data-testid="summon-page">
-      {/* ===================== Resource strip ===================== */}
-      <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-2 mb-4 scrollbar-none" data-testid="summon-resource-strip">
-        <ResourcePill icon={Gem} color="#D500F9" label="Gems" value={user?.gems ?? 0} onAdd={() => notifyEarn("gems")} testid="resource-gems" />
-        <ResourcePill icon={Coins} color="#FFCA28" label="Ryo" value={user?.ryo ?? 0} onAdd={() => notifyEarn("ryo")} testid="resource-ryo" />
-        <ResourcePill icon={Ticket} color="#FFCA28" label="Summon Tickets" value={tickets} testid="resource-summon-tickets" />
-        <ResourcePill icon={Anvil} color="#7C4DFF" label="Armory Tickets" value={gearTickets} testid="resource-gear-tickets" />
-        <div className="shrink-0 ml-auto flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10">
-          <div className="text-right">
-            <p className="text-[10px] uppercase tracking-widest text-slate-500 leading-none">GR Pity</p>
-            <p className="font-display text-lg leading-tight" style={{ color: pityColor }} data-testid="resource-pity">
-              {pityCount}<span className="text-slate-500 text-sm"> / {hardPity}</span>
-            </p>
-          </div>
-          <div className="w-16 h-1.5 rounded-full bg-black/50 overflow-hidden">
-            <div className="h-full rounded-full" style={{ width: `${Math.min(100, (pityCount / hardPity) * 100)}%`, background: `linear-gradient(90deg,#D500F9,${pityColor})` }} />
-          </div>
-        </div>
-      </div>
-
-      {/* ===================== Banner mode toggle ===================== */}
-      <div className="flex items-center gap-2 mb-4" data-testid="summon-mode-toggle">
+    <div
+      data-testid="summon-page"
+      className="h-full max-w-6xl mx-auto px-3 sm:px-5 py-2.5 sm:py-3 flex flex-col overflow-hidden min-w-0"
+    >
+      {/* ===================== Mode toggle (compact) ===================== */}
+      <div className="flex items-center gap-2 shrink-0 mb-2.5" data-testid="summon-mode-toggle">
         <ModeTab active={isHero} onClick={() => setMode("hero")} icon={Sparkles} label="HERO BANNER" color="#D500F9" testid="mode-hero" />
         <ModeTab active={!isHero} onClick={() => setMode("gear")} icon={Anvil} label="GEAR ARMORY" color="#FF5722" testid="mode-gear" />
       </div>
 
+      {/* ===================== Single-view body ===================== */}
       {isHero ? (
-        <>
-          {/* ===================== Cinematic banner ===================== */}
-          {featuredHero && (
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 lg:gap-4">
+          {/* -------- LEFT: cinematic banner -------- */}
+          {featuredHero ? (
             <div
-              className="relative rounded-3xl overflow-hidden mb-4 min-h-[280px] sm:min-h-[340px]"
+              className="relative rounded-2xl sm:rounded-3xl overflow-hidden flex-1 min-h-[150px] lg:flex-none lg:basis-[57%] lg:h-full"
               style={{ border: `1px solid ${featRarity.color}55`, boxShadow: `0 0 60px ${featRarity.color}22` }}
               data-testid="summon-banner"
             >
               {/* Art */}
               <div className="absolute inset-0">
-                <img src={featuredHero.portrait} alt={featuredHero.name} className="absolute right-0 top-0 h-full w-full sm:w-3/4 object-cover object-right-top" />
-                <div className="absolute inset-0" style={{ background: `linear-gradient(90deg, #0B0B14 18%, #0B0B14cc 42%, transparent 78%)` }} />
-                <div className="absolute inset-0" style={{ background: `radial-gradient(120% 80% at 85% 30%, ${featElement.color || "#7C4DFF"}33, transparent 60%)` }} />
-                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0B0B14] to-transparent" />
+                <img src={featuredHero.portrait} alt={featuredHero.name} className="absolute right-0 top-0 h-full w-full object-cover object-top" />
+                <div className="absolute inset-0" style={{ background: `linear-gradient(90deg, #0B0B14 12%, #0B0B14bb 40%, transparent 80%)` }} />
+                <div className="absolute inset-0" style={{ background: `radial-gradient(120% 80% at 85% 25%, ${featElement.color || "#7C4DFF"}33, transparent 60%)` }} />
+                <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#0B0B14] to-transparent" />
               </div>
 
-              {/* prestige gold pinstripe along the top edge of the banner */}
               <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />
-              {/* deco corner ornaments framing the whole banner */}
-              <DecoCorners level={rarityFrame(featuredHero.rarity).useGold ? 4 : 3} color={rarityFrame(featuredHero.rarity).useGold ? GOLD.base : featRarity.color} size={26} />
+              <DecoCorners level={rarityFrame(featuredHero.rarity).useGold ? 4 : 3} color={rarityFrame(featuredHero.rarity).useGold ? GOLD.base : featRarity.color} size={24} />
 
               {/* Copy */}
-              <div className="relative z-10 p-5 sm:p-8 max-w-[92%] sm:max-w-[58%]">
-                <div className="flex items-center gap-3 flex-wrap mb-3">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-extrabold tracking-widest" style={{ background: `${featRarity.color}22`, color: featRarity.color, border: `1px solid ${featRarity.color}66` }}>
+              <div className="relative z-10 h-full flex flex-col p-4 sm:p-6">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-widest" style={{ background: `${featRarity.color}22`, color: featRarity.color, border: `1px solid ${featRarity.color}66` }}>
                     <Sparkles className="w-3.5 h-3.5" /> LIMITED SUMMON
                   </span>
-                  <span className="inline-flex items-center gap-1.5 text-xs text-slate-300" data-testid="banner-countdown">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-300" data-testid="banner-countdown">
                     <Clock className="w-3.5 h-3.5 text-chakra" /> {countdown}
                   </span>
                 </div>
 
-                <h1 className="font-display leading-[0.86] tracking-wide">
-                  <span className="block text-4xl sm:text-6xl text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(180deg,#fff, ${featRarity.color})` }}>{theme.name.split(" ")[0]}</span>
-                  <span className="block text-3xl sm:text-5xl text-white/90">{theme.name.split(" ").slice(1).join(" ")}</span>
-                </h1>
-                <p className="text-sm sm:text-base text-slate-300 mt-3 max-w-md">{theme.tagline}</p>
+                <div className="mt-3 max-w-[92%] sm:max-w-[64%]">
+                  <h1 className="font-display leading-[0.86] tracking-wide">
+                    <span className="block text-3xl sm:text-5xl text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(180deg,#fff, ${featRarity.color})` }}>{theme.name.split(" ")[0]}</span>
+                    <span className="block text-2xl sm:text-4xl text-white/90">{theme.name.split(" ").slice(1).join(" ")}</span>
+                  </h1>
+                  <p className="hidden sm:block text-sm text-slate-300 mt-2 max-w-md">{theme.tagline}</p>
+                </div>
 
-                <div className="mt-5">
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-slate-500 mb-0.5">Rate-Up Hero</p>
-                  <h2 className="font-display text-3xl sm:text-5xl text-white leading-none">{featuredHero.name}</h2>
-                  <div className="flex items-center gap-2 mt-1.5 text-sm" style={{ color: featRarity.color }}>
+                {/* Rate-up hero — pinned toward the bottom */}
+                <div className="mt-auto">
+                  <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400 mb-0.5">Rate-Up Hero</p>
+                  <h2 className="font-display text-2xl sm:text-4xl text-white leading-none">{featuredHero.name}</h2>
+                  <div className="flex items-center gap-2 mt-1.5 text-xs sm:text-sm" style={{ color: featRarity.color }}>
                     <span className="font-semibold">{featRarity.name}</span>
                     <span className="w-1 h-1 rounded-full bg-current opacity-60" />
                     <span className="flex items-center gap-1 text-slate-300">
@@ -286,229 +268,168 @@ export default function Summon() {
                       {featuredHero.role}
                     </span>
                   </div>
-
                   {heroTags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-3">
+                    <div className="hidden sm:flex flex-wrap gap-1.5 mt-2">
                       {heroTags.map((t) => (
-                        <span key={t} className="text-[11px] px-2.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-slate-200">{t}</span>
+                        <span key={t} className="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/10 text-slate-200">{t}</span>
                       ))}
                     </div>
                   )}
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* ===================== Featured heroes row ===================== */}
-          <div className="flex items-center gap-3 overflow-x-auto pb-1 mb-2 scrollbar-none" data-testid="featured-row">
-            {featuredSet.map((h, i) => {
-              const r = RARITY[h.rarity] || RARITY.R;
-              const fr = rarityFrame(h.rarity);
-              const isRateUp = i === 0;
-              return (
-                <div key={h.id} className="shrink-0 w-[88px] sm:w-[104px]">
-                  <div className={`relative rounded-xl overflow-hidden ${auraClass(h.rarity)}`} style={{ border: `${fr.strokeWidth}px solid ${fr.strokeColor}`, "--glow": fr.useGold ? GOLD.base : r.color }}>
-                    {isRateUp && (
-                      <span className="absolute top-1 left-1 z-10 text-[9px] font-extrabold px-1.5 py-0.5 rounded" style={{ background: r.color, color: "#05050A" }}>RATE-UP</span>
-                    )}
-                    <div className="aspect-[3/4] bg-black/40">
-                      <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" loading="lazy" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                  {/* Featured mini-row */}
+                  <div className="flex items-center gap-2 mt-3">
+                    <div className="flex -space-x-2">
+                      {featuredSet.slice(0, 5).map((h) => {
+                        const r = RARITY[h.rarity] || RARITY.R;
+                        return (
+                          <div key={h.id} className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg overflow-hidden shrink-0 ring-1" style={{ ["--tw-ring-color"]: r.color, borderColor: r.color }}>
+                            <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" loading="lazy" />
+                          </div>
+                        );
+                      })}
                     </div>
-                    {fr.cornerLevel >= 2 && <DecoCorners rarity={h.rarity} size={11} />}
-                    <div className="absolute bottom-1 inset-x-1">
-                      <p className="text-[11px] font-display tracking-wide text-white truncate">{h.name}</p>
-                      <Stars rarity={h.rarity} />
-                    </div>
+                    <button onClick={() => setFeaturedOpen(true)} data-testid="view-all-featured" className="text-[11px] font-semibold text-chakra hover:text-white transition-colors inline-flex items-center gap-0.5">
+                      View Featured <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-          <button onClick={() => setFeaturedOpen(true)} data-testid="view-all-featured" className="text-xs font-semibold text-chakra hover:text-white transition-colors mb-5 inline-flex items-center gap-1">
-            View All Featured <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-
-          {/* ===================== GR pity module ===================== */}
-          <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-4 sm:p-5 mb-5" data-testid="summon-pity-module">
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${pityColor}18`, border: `1px solid ${pityColor}55` }}>
-                  <Sparkles className="w-6 h-6" style={{ color: pityColor }} />
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-slate-500">GR Pity</p>
-                  <p className="font-display text-3xl leading-none" style={{ color: pityColor }} data-testid="summon-pity-count-text">
-                    {pityCount}<span className="text-slate-500 text-lg"> / {hardPity}</span>
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex-1 min-w-[180px]">
-                <p className="text-sm text-slate-300">
-                  Summon <span className="font-bold text-white" data-testid="pulls-to-pity">{pullsToPity}</span> more time(s) with Gems to guarantee a <span className="font-bold" style={{ color: pityColor }}>GR</span> hero.
-                </p>
-                <div className="h-2 rounded-full bg-black/50 overflow-hidden mt-2 relative">
-                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, (pityCount / hardPity) * 100)}%`, background: `linear-gradient(90deg,#D500F9,${pityColor})` }} />
-                  <div className="absolute top-0 bottom-0 w-px bg-fox/80" style={{ left: `${(softPity / hardPity) * 100}%` }} title="Soft pity begins" />
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  {inSoftPity && <span className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded bg-fox/15 text-fox border border-fox/40" data-testid="soft-pity-active-chip">SOFT PITY ACTIVE</span>}
-                  {pity.featured_guarantee && <span className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded bg-amber-400/15 text-amber-300 border border-amber-400/40" data-testid="featured-guarantee-chip">NEXT GR = FEATURED</span>}
-                  <span className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">GEM BANNER ONLY</span>
-                </div>
-              </div>
-
-              <div className="text-center shrink-0">
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Guaranteed At</p>
-                <div className="gold-crest w-12 h-12 mx-auto rounded-xl flex items-center justify-center">
-                  <span className="font-display text-lg" style={{ color: GOLD.base }}>{hardPity}</span>
-                </div>
               </div>
             </div>
-          </div>
-
-          {/* ===================== Pull deck ===================== */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1.5 p-1 rounded-lg bg-white/[0.04] border border-white/10" data-testid="pay-mode-toggle">
-              {["gems", "ryo"].map((c) => {
-                const active = payMode === c;
-                const Icon = c === "gems" ? Gem : Coins;
-                return (
-                  <button key={c} onClick={() => setPayMode(c)} data-testid={`pay-${c}`}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${active ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}>
-                    <Icon className="w-3.5 h-3.5" style={{ color: c === "gems" ? "#D500F9" : "#FFCA28" }} /> {c === "gems" ? "Gems" : "Ryo"}
-                  </button>
-                );
-              })}
+          ) : (
+            <div className="flex-1 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center">
+              <p className="text-slate-500 text-sm">No banner available yet.</p>
             </div>
-            <button onClick={() => setRatesOpen(true)} data-testid="summon-rates-open-button" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-chakra transition-colors">
-              <Info className="w-3.5 h-3.5" /> Drop Rates
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <PullCard
-              label="SUMMON ×1"
-              icon={payMode === "gems" ? Gem : Coins}
-              amount={heroX1}
-              color={payMode === "gems" ? "#D500F9" : "#FFCA28"}
-              disabled={busy || heroHave < heroX1}
-              busy={busyKind === `${payMode}-1`}
-              onClick={() => doHeroSummon(1, payMode)}
-              testid="summon-x1-button"
-            />
-            <PullCard
-              label="SUMMON ×10"
-              icon={payMode === "gems" ? Gem : Coins}
-              amount={heroX10}
-              color={payMode === "gems" ? "#D500F9" : "#FFCA28"}
-              ribbon="SR+ GUARANTEED"
-              primary
-              disabled={busy || heroHave < heroX10}
-              busy={busyKind === `${payMode}-10`}
-              onClick={() => doHeroSummon(10, payMode)}
-              testid="summon-x10-button"
-              sub="Every ×10 includes at least one SR or better"
-            />
-            <PullCard
-              label="SUMMON ×1"
-              icon={Ticket}
-              amount={1}
-              unit="Ticket"
-              color="#FFCA28"
-              disabled={busy || tickets < 1}
-              busy={busyKind === `ticket-1`}
-              onClick={() => doHeroSummon(1, "ticket")}
-              testid="summon-ticket-button"
-              sub={`Have: ${tickets} ticket${tickets === 1 ? "" : "s"}`}
-            />
-          </div>
-          {heroHave < heroX1 && (
-            <p className="text-xs text-fox mt-2 text-center" data-testid="summon-insufficient-text">
-              Not enough {payMode === "gems" ? "Gems" : "Ryo"} — win battles and missions to earn more.
-            </p>
           )}
 
-          {/* ===================== Available heroes ===================== */}
-          <div className="mt-8">
-            <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-              <h3 className="font-display text-2xl sm:text-3xl tracking-wide text-white">AVAILABLE HEROES</h3>
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none" data-testid="element-filters">
-                {elementFilters.map((el) => {
-                  const active = elementFilter === el;
-                  const Icon = el === "ALL" ? Sparkles : (ELEMENT_ICON[el] || Sparkles);
-                  const color = el === "ALL" ? "#00E5FF" : (ELEMENT[el]?.color || "#94a3b8");
+          {/* -------- RIGHT: control rail -------- */}
+          <div className="shrink-0 lg:basis-[43%] lg:h-full lg:min-h-0 flex flex-col gap-2.5" data-testid="summon-control-rail">
+            {/* Pity compact */}
+            <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-3 shrink-0" data-testid="summon-pity-module">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${pityColor}18`, border: `1px solid ${pityColor}55` }}>
+                    <Sparkles className="w-5 h-5" style={{ color: pityColor }} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[9px] uppercase tracking-widest text-slate-500 leading-none">GR Pity · Gems only</p>
+                    <p className="font-display text-2xl leading-none mt-0.5" style={{ color: pityColor }} data-testid="summon-pity-count-text">
+                      {pityCount}<span className="text-slate-500 text-base"> / {hardPity}</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-[9px] uppercase tracking-widest text-slate-500 leading-none">To Guarantee</p>
+                  <p className="font-display text-lg leading-none mt-0.5" style={{ color: GOLD.base }} data-testid="pulls-to-pity">{pullsToPity}</p>
+                </div>
+              </div>
+              <div className="h-1.5 rounded-full bg-black/50 overflow-hidden mt-2 relative">
+                <div className="h-full rounded-full" style={{ width: `${Math.min(100, (pityCount / hardPity) * 100)}%`, background: `linear-gradient(90deg,#D500F9,${pityColor})` }} />
+                <div className="absolute top-0 bottom-0 w-px bg-fox/80" style={{ left: `${(softPity / hardPity) * 100}%` }} title="Soft pity begins" />
+              </div>
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                {inSoftPity && <span className="text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded bg-fox/15 text-fox border border-fox/40" data-testid="soft-pity-active-chip">SOFT PITY</span>}
+                {pity.featured_guarantee && <span className="text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300 border border-amber-400/40" data-testid="featured-guarantee-chip">NEXT GR = FEATURED</span>}
+              </div>
+            </div>
+
+            {/* Pay toggle + rates */}
+            <div className="flex items-center justify-between gap-2 shrink-0">
+              <div className="flex items-center gap-1 p-1 rounded-lg bg-white/[0.04] border border-white/10" data-testid="pay-mode-toggle">
+                {["gems", "ryo"].map((c) => {
+                  const active = payMode === c;
+                  const Icon = c === "gems" ? Gem : Coins;
                   return (
-                    <button key={el} onClick={() => setElementFilter(el)} data-testid={`element-filter-${el}`}
-                      className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-                      style={active ? { background: `${color}22`, color, border: `1px solid ${color}` } : { color: "rgba(148,163,184,0.8)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                      <Icon className="w-3.5 h-3.5" /> {el === "ALL" ? "All" : el}
+                    <button key={c} onClick={() => setPayMode(c)} data-testid={`pay-${c}`}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${active ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}>
+                      <Icon className="w-3.5 h-3.5" style={{ color: c === "gems" ? "#D500F9" : "#FFCA28" }} /> {c === "gems" ? "Gems" : "Ryo"}
                     </button>
                   );
                 })}
               </div>
+              <button onClick={() => setRatesOpen(true)} data-testid="summon-rates-open-button" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-chakra transition-colors">
+                <Info className="w-3.5 h-3.5" /> Rates
+              </button>
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none" data-testid="available-heroes">
-              {availableHeroes.map((h) => {
-                const r = RARITY[h.rarity] || RARITY.R;
-                const fr = rarityFrame(h.rarity);
-                const owned = (user?.ninjas || []).some((n) => n.template_id === h.id);
-                return (
-                  <div key={h.id} className="shrink-0 w-[128px] sm:w-[144px]" data-testid={`available-hero-${h.id}`}>
-                    <div className={`relative rounded-xl overflow-hidden ${auraClass(h.rarity)}`} style={{ border: `${fr.strokeWidth}px solid ${fr.strokeColor}`, "--glow": fr.useGold ? GOLD.base : r.color }}>
-                      <span className="absolute top-1.5 right-1.5 z-10 text-[10px] font-display px-1.5 rounded" style={{ background: r.color, color: "#05050A" }}>{r.label}</span>
-                      {owned && <span className="absolute top-1.5 left-1.5 z-10 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white"><ShieldCheck className="w-3 h-3" /></span>}
+
+            {/* Pull deck */}
+            <div className="grid grid-cols-2 gap-2 shrink-0">
+              <PullButton
+                label="SUMMON ×1"
+                icon={payMode === "gems" ? Gem : Coins}
+                amount={heroX1}
+                color={payColor}
+                disabled={busy || heroHave < heroX1}
+                busy={busyKind === `${payMode}-1`}
+                onClick={() => doHeroSummon(1, payMode)}
+                testid="summon-x1-button"
+              />
+              <PullButton
+                label="SUMMON ×10"
+                icon={payMode === "gems" ? Gem : Coins}
+                amount={heroX10}
+                color={payColor}
+                ribbon="SR+"
+                primary
+                disabled={busy || heroHave < heroX10}
+                busy={busyKind === `${payMode}-10`}
+                onClick={() => doHeroSummon(10, payMode)}
+                testid="summon-x10-button"
+              />
+            </div>
+            <PullButton
+              label="TICKET SUMMON ×1"
+              icon={Ticket}
+              amount={1}
+              unit="Ticket"
+              color="#FFCA28"
+              slim
+              disabled={busy || tickets < 1}
+              busy={busyKind === `ticket-1`}
+              onClick={() => doHeroSummon(1, "ticket")}
+              testid="summon-ticket-button"
+              sub={`Have ${tickets} ticket${tickets === 1 ? "" : "s"}`}
+            />
+            {heroHave < heroX1 && (
+              <p className="text-[11px] text-fox text-center shrink-0" data-testid="summon-insufficient-text">
+                Not enough {payMode === "gems" ? "Gems" : "Ryo"} — win battles &amp; missions to earn more.
+              </p>
+            )}
+
+            {/* Desktop-only showcase — fills the rail's mid space without adding mobile height */}
+            <div className="hidden lg:flex flex-col flex-1 min-h-0 rounded-2xl bg-white/[0.03] border border-white/10 p-3 overflow-hidden" data-testid="banner-showcase">
+              <div className="flex items-center justify-between mb-2 shrink-0">
+                <p className="text-[10px] uppercase tracking-widest text-slate-500">In This Banner</p>
+                <button onClick={() => setAvailableOpen(true)} className="text-[11px] font-semibold text-chakra hover:text-white transition-colors inline-flex items-center gap-0.5" data-testid="showcase-view-all">
+                  View All <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="grid grid-cols-4 gap-2 overflow-y-auto scrollbar-none min-h-0">
+                {featuredAll.map((h) => {
+                  const r = RARITY[h.rarity] || RARITY.R;
+                  const fr = rarityFrame(h.rarity);
+                  return (
+                    <div key={h.id} className="relative rounded-lg overflow-hidden" style={{ border: `${fr.strokeWidth}px solid ${fr.strokeColor}` }}>
                       <div className="aspect-[3/4] bg-black/40">
                         <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" loading="lazy" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/85 to-transparent" />
                       </div>
-                      {fr.cornerLevel >= 2 && <DecoCorners rarity={h.rarity} size={14} />}
-                      <div className="absolute bottom-1.5 inset-x-2">
-                        <p className="text-xs font-display tracking-wide text-white truncate">{h.name}</p>
-                        <Stars rarity={h.rarity} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ===================== Info cards ===================== */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
-            <InfoCard icon={Percent} color="#FFCA28" title="Rates & Rules" sub="Drop rates, pity rules and more." onClick={() => setRatesOpen(true)} testid="open-rates-card" />
-            <InfoCard icon={History} color="#00E5FF" title="Summon History" sub="Review your recent summon results." onClick={() => setHistoryOpen(true)} testid="open-history-card" />
-          </div>
-
-          {/* ===================== Recent summons ===================== */}
-          {history.length > 0 && (
-            <div className="mt-6">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-display text-xl tracking-wide text-white">RECENT SUMMONS</h3>
-                <button onClick={() => setHistoryOpen(true)} data-testid="view-all-history" className="text-xs font-semibold text-chakra hover:text-white transition-colors">View All History</button>
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none" data-testid="recent-summons">
-                {history.slice(0, 10).map((h, i) => {
-                  const r = RARITY[h.rarity] || RARITY.R;
-                  return (
-                    <div key={i} className="shrink-0 flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/10">
-                      <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0" style={{ border: `1px solid ${r.color}` }}>
-                        {h.portrait ? <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" /> : <div className="w-full h-full" style={{ background: r.color }} />}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-white truncate max-w-[96px]">{h.name}</p>
-                        <p className="text-[10px]" style={{ color: r.color }}>{r.label} · <span className="text-slate-500">{relTime(h.ts)}</span></p>
-                      </div>
+                      <span className="absolute top-0.5 right-0.5 text-[8px] font-display px-1 rounded" style={{ background: r.color, color: "#05050A" }}>{r.label}</span>
+                      <p className="absolute bottom-0.5 inset-x-1 text-[9px] font-display text-white truncate">{h.name}</p>
                     </div>
                   );
                 })}
               </div>
             </div>
-          )}
-        </>
+
+            {/* Quick access — folds secondary panels into dialogs */}
+            <div className="grid grid-cols-3 gap-2 shrink-0 mt-auto pt-1" data-testid="summon-quick-access">
+              <QuickBtn icon={Users2} color="#00E5FF" label="Roster" onClick={() => setAvailableOpen(true)} testid="open-available-card" />
+              <QuickBtn icon={Star} color="#FFCA28" label="Featured" onClick={() => setFeaturedOpen(true)} testid="open-featured-card" />
+              <QuickBtn icon={History} color="#D500F9" label="History" onClick={() => setHistoryOpen(true)} testid="open-history-card" />
+            </div>
+          </div>
+        </div>
       ) : (
-        /* ===================== GEAR ARMORY ===================== */
         <GearArmory
           gearConfig={gearConfig}
           user={user}
@@ -523,10 +444,10 @@ export default function Summon() {
       <Dialog open={ratesOpen} onOpenChange={setRatesOpen}>
         <DialogContent className="max-w-md bg-[#0B0B14] border border-white/15 rounded-2xl max-h-[85vh] overflow-y-auto" data-testid="summon-rates-dialog">
           <DialogTitle className="font-display text-2xl tracking-wide text-white">SUMMON RATES</DialogTitle>
-          <DialogDescription className="text-xs text-slate-400">Transparent per-pull probabilities for the <span className="text-jutsu font-semibold">Gem banner</span>. Rates update automatically as new heroes join the catalog.</DialogDescription>
+          <DialogDescription className="text-xs text-slate-400">Transparent per-pull probabilities. The <span className="text-jutsu font-semibold">Gem banner</span> carries GR pity; the <span className="text-amber-300 font-semibold">Ryo banner</span> does not.</DialogDescription>
           <Table data-testid="summon-rates-table">
             <TableHeader>
-              <TableRow className="border-white/10"><TableHead className="text-slate-400">Rarity</TableHead><TableHead className="text-right text-slate-400">Gem</TableHead><TableHead className="text-right text-slate-400">Gold</TableHead></TableRow>
+              <TableRow className="border-white/10"><TableHead className="text-slate-400">Rarity</TableHead><TableHead className="text-right text-slate-400">Gem</TableHead><TableHead className="text-right text-slate-400">Ryo</TableHead></TableRow>
             </TableHeader>
             <TableBody>
               {Object.entries(summonRates).map(([r, pct]) => (
@@ -540,8 +461,8 @@ export default function Summon() {
           </Table>
           <div className="text-xs text-slate-400 space-y-1.5 mt-1">
             <p><span className="text-white font-semibold">GR pity (Gem banner only):</span> normal rate for pulls 1-{softPity - 1}; the chance climbs every pull from {softPity} and a GR is guaranteed by pull {hardPity}. Pulling a GR naturally resets the counter.</p>
-            <p><span className="text-white font-semibold">Gold banner:</span> pay with Ryo for far lower rare rates and <span className="text-white">no pity system</span> — a budget option for volume pulls.</p>
-            <p><span className="text-white font-semibold">Featured 50/50:</span> when a featured GR banner is live, your first GR has a 50% chance to be the featured hero — lose it and your next GR is guaranteed to be featured. Rate-up boosts the featured hero's own odds (relative), it is not a flat chance.</p>
+            <p><span className="text-white font-semibold">Ryo banner:</span> pay with Ryo for far lower rare rates and <span className="text-white">no pity system</span> — a budget option for volume pulls.</p>
+            <p><span className="text-white font-semibold">Featured 50/50:</span> when a featured GR banner is live, your first GR has a 50% chance to be the featured hero — lose it and your next GR is guaranteed featured.</p>
             <p><span className="text-white font-semibold">×10 guarantee:</span> every ×10 contains at least one SR or better. Duplicates always convert to shards for Evolution.</p>
           </div>
           <button onClick={() => setRatesOpen(false)} data-testid="summon-rates-close-button" className="w-full py-2.5 rounded-xl font-semibold text-sm bg-white/5 border border-white/15 text-slate-200 hover:bg-white/10 transition-colors">Close</button>
@@ -565,6 +486,49 @@ export default function Summon() {
                   {fr.cornerLevel >= 2 && <DecoCorners rarity={h.rarity} size={12} />}
                   <div className="absolute bottom-1 inset-x-1.5">
                     <p className="text-[11px] font-display text-white truncate">{h.name}</p>
+                    <Stars rarity={h.rarity} className="w-2.5 h-2.5" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={availableOpen} onOpenChange={setAvailableOpen}>
+        <DialogContent className="max-w-2xl bg-[#0B0B14] border border-white/15 rounded-2xl max-h-[85vh] overflow-y-auto" data-testid="available-dialog">
+          <DialogTitle className="font-display text-2xl tracking-wide text-white">AVAILABLE HEROES</DialogTitle>
+          <DialogDescription className="text-xs text-slate-400">Every hero currently obtainable from this banner. Owned heroes are marked.</DialogDescription>
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none" data-testid="element-filters">
+            {elementFilters.map((el) => {
+              const active = elementFilter === el;
+              const Icon = el === "ALL" ? Sparkles : (ELEMENT_ICON[el] || Sparkles);
+              const color = el === "ALL" ? "#00E5FF" : (ELEMENT[el]?.color || "#94a3b8");
+              return (
+                <button key={el} onClick={() => setElementFilter(el)} data-testid={`element-filter-${el}`}
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+                  style={active ? { background: `${color}22`, color, border: `1px solid ${color}` } : { color: "rgba(148,163,184,0.8)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  <Icon className="w-3.5 h-3.5" /> {el === "ALL" ? "All" : el}
+                </button>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5 mt-1" data-testid="available-heroes">
+            {availableHeroes.map((h) => {
+              const r = RARITY[h.rarity] || RARITY.R;
+              const fr = rarityFrame(h.rarity);
+              const owned = (user?.ninjas || []).some((n) => n.template_id === h.id);
+              return (
+                <div key={h.id} className={`relative rounded-lg overflow-hidden ${auraClass(h.rarity)}`} style={{ border: `${fr.strokeWidth}px solid ${fr.strokeColor}`, "--glow": fr.useGold ? GOLD.base : r.color }} data-testid={`available-hero-${h.id}`}>
+                  <span className="absolute top-1 right-1 z-10 text-[9px] font-display px-1 rounded" style={{ background: r.color, color: "#05050A" }}>{r.label}</span>
+                  {owned && <span className="absolute top-1 left-1 z-10 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center text-white"><ShieldCheck className="w-2.5 h-2.5" /></span>}
+                  <div className="aspect-[3/4] bg-black/40">
+                    <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" loading="lazy" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 to-transparent" />
+                  </div>
+                  {fr.cornerLevel >= 2 && <DecoCorners rarity={h.rarity} size={11} />}
+                  <div className="absolute bottom-1 inset-x-1.5">
+                    <p className="text-[10px] font-display text-white truncate">{h.name}</p>
                     <Stars rarity={h.rarity} className="w-2.5 h-2.5" />
                   </div>
                 </div>
@@ -610,101 +574,88 @@ export default function Summon() {
 // --------------------------------------------------------------------------
 // Sub-components
 // --------------------------------------------------------------------------
-const ResourcePill = ({ icon: Icon, color, label, value, onAdd, testid }) => (
-  <div className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10" data-testid={testid}>
-    <Icon className="w-4 h-4 shrink-0" style={{ color }} />
-    <div className="leading-none">
-      <p className="text-[9px] uppercase tracking-widest text-slate-500 whitespace-nowrap">{label}</p>
-      <p className="font-display text-base text-white leading-tight tabular-nums">{value.toLocaleString()}</p>
-    </div>
-    {onAdd && (
-      <button onClick={onAdd} data-testid={`${testid}-add`} className="w-6 h-6 rounded-md bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-white/10 transition-colors">
-        <Plus className="w-3.5 h-3.5" />
-      </button>
-    )}
-  </div>
-);
-
 const ModeTab = ({ active, onClick, icon: Icon, label, color, testid }) => (
   <button onClick={onClick} data-testid={testid}
-    className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl font-display text-base sm:text-lg tracking-wider transition-colors"
+    className="flex-1 inline-flex items-center justify-center gap-2 py-2 rounded-xl font-display text-sm sm:text-base tracking-wider transition-colors"
     style={active ? { background: `${color}1f`, color, border: `1px solid ${color}66` } : { color: "rgba(148,163,184,0.8)", border: "1px solid rgba(255,255,255,0.1)" }}>
-    <Icon className="w-5 h-5" /> {label}
+    <Icon className="w-4 h-4 sm:w-5 sm:h-5" /> {label}
   </button>
 );
 
-const PullCard = ({ label, icon: Icon, amount, unit, color, ribbon, sub, primary, disabled, busy, onClick, testid }) => (
+const PullButton = ({ label, icon: Icon, amount, unit, color, ribbon, sub, primary, slim, disabled, busy, onClick, testid }) => (
   <button onClick={onClick} disabled={disabled} data-testid={testid}
-    className={`relative flex flex-col items-center justify-center gap-1.5 py-5 px-3 rounded-2xl overflow-hidden transition-all disabled:opacity-40 ${
-      primary ? "shine-sweep" : ""
-    }`}
+    className={`relative flex overflow-hidden transition-all disabled:opacity-40 ${
+      slim
+        ? "items-center justify-center gap-2 py-2.5 px-3 rounded-xl flex-row"
+        : "flex-col items-center justify-center gap-1 py-3.5 px-2 rounded-2xl"
+    } ${primary ? "shine-sweep" : ""}`}
     style={primary
-      ? { background: "linear-gradient(135deg,#3a2a08,#1a1406)", border: "1.5px solid #FFCA2866", boxShadow: "0 0 30px #FFCA2822" }
+      ? { background: "linear-gradient(135deg,#3a2a08,#1a1406)", border: "1.5px solid #FFCA2866", boxShadow: "0 0 24px #FFCA2822" }
       : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)" }}>
     {ribbon && (
-      <span className="absolute top-0 right-0 text-[9px] font-extrabold tracking-wider px-2 py-0.5 rounded-bl-lg" style={{ background: "#FFCA28", color: "#05050A" }}>{ribbon}</span>
+      <span className="absolute top-0 right-0 text-[9px] font-extrabold tracking-wider px-1.5 py-0.5 rounded-bl-lg" style={{ background: "#FFCA28", color: "#05050A" }}>{ribbon}</span>
     )}
-    <span className="flex items-center gap-2 font-display text-xl sm:text-2xl tracking-wider text-white">
-      {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" style={{ color: primary ? "#FFCA28" : color }} />}
+    <span className="flex items-center gap-1.5 font-display text-base sm:text-lg tracking-wider text-white leading-none">
+      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" style={{ color: primary ? "#FFCA28" : color }} />}
       {label}
     </span>
-    <span className="flex items-center gap-1.5 text-base font-bold" style={{ color }}>
-      <Icon className="w-4 h-4" /> {amount.toLocaleString()}{unit ? ` ${unit}` : ""}
+    <span className="flex items-center gap-1 text-sm font-bold leading-none" style={{ color }}>
+      <Icon className="w-3.5 h-3.5" /> {amount.toLocaleString()}{unit ? ` ${unit}` : ""}
     </span>
-    {sub && <span className="text-[10px] text-slate-400 text-center leading-tight">{sub}</span>}
+    {sub && !slim && <span className="text-[9px] text-slate-400 text-center leading-tight">{sub}</span>}
+    {sub && slim && <span className="text-[10px] text-slate-500 leading-none">· {sub}</span>}
   </button>
 );
 
-const InfoCard = ({ icon: Icon, color, title, sub, onClick, testid }) => (
-  <button onClick={onClick} data-testid={testid} className="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.06] transition-colors text-left">
-    <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${color}18`, border: `1px solid ${color}44` }}>
-      <Icon className="w-5 h-5" style={{ color }} />
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="font-display text-lg tracking-wide text-white">{title}</p>
-      <p className="text-xs text-slate-400">{sub}</p>
-    </div>
-    <ChevronRight className="w-5 h-5 text-slate-500 shrink-0" />
+const QuickBtn = ({ icon: Icon, color, label, onClick, testid }) => (
+  <button onClick={onClick} data-testid={testid} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.06] transition-colors">
+    <Icon className="w-4 h-4" style={{ color }} />
+    <span className="text-xs font-semibold text-slate-200">{label}</span>
   </button>
 );
 
+// --------------------------------------------------------------------------
+// GEAR ARMORY — single-view sibling of the hero banner.
+// --------------------------------------------------------------------------
 const GearArmory = ({ gearConfig, user, gearTickets, busy, busyKind, onSummon }) => {
   const gemCost = gearConfig?.summon_gem_cost || 90;
   const gems = user?.gems || 0;
   const rarityMeta = gearConfig?.rarity_meta || {};
   const topRarity = Object.keys(rarityMeta).slice(-1)[0];
   return (
-    <div data-testid="gear-armory">
-      <div className="relative rounded-3xl overflow-hidden mb-5 min-h-[220px] p-6 sm:p-8 flex flex-col justify-end"
+    <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 lg:gap-4" data-testid="gear-armory">
+      {/* Cinematic gear banner */}
+      <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden flex-1 min-h-[150px] lg:flex-none lg:basis-[57%] lg:h-full p-4 sm:p-6 flex flex-col justify-center"
         style={{ border: "1px solid #FF572255", boxShadow: "0 0 60px #FF572218" }}>
         <div className="absolute inset-0" style={{ background: "radial-gradient(120% 90% at 80% 10%, #FF572233, transparent 55%)" }} />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B14] via-[#0B0B14aa] to-transparent" />
-        <Anvil className="absolute right-6 top-6 w-24 h-24 text-fox/20" />
+        <Anvil className="absolute right-6 top-1/2 -translate-y-1/2 w-40 h-40 text-fox/15" />
+        <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />
         <div className="relative z-10">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-extrabold tracking-widest bg-fox/15 text-fox border border-fox/40 mb-3"><Anvil className="w-3.5 h-3.5" /> THE ARMORY</span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-widest bg-fox/15 text-fox border border-fox/40 mb-2"><Anvil className="w-3.5 h-3.5" /> THE ARMORY</span>
           <h1 className="font-display text-4xl sm:text-6xl tracking-wide text-white leading-none">GEAR FOUNDRY</h1>
           <p className="text-sm text-slate-300 mt-2 max-w-md">Forge-blessed gear drops from the vault — every ×10 guarantees an Epic or better.</p>
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {Object.entries(rarityMeta).map(([rk, meta]) => (
+              <span key={rk} className="text-[11px] px-2 py-1 rounded-md border" style={{ color: meta.color, borderColor: `${meta.color}55`, background: `${meta.color}12` }}>{meta.name || rk}</span>
+            ))}
+          </div>
+          {topRarity && <p className="text-[10px] text-slate-500 mt-2">Highest tier: <span style={{ color: rarityMeta[topRarity].color }}>{rarityMeta[topRarity].name}</span> — equip &amp; enhance in the Forge.</p>}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-3">
-          <p className="text-[10px] uppercase tracking-widest text-slate-500">Pay with Gems ({gems.toLocaleString()})</p>
-          <PullCard label="ARMORY ×1" icon={Gem} amount={gemCost} color="#D500F9" disabled={busy || gems < gemCost} busy={busyKind === "gear-gems-1"} onClick={() => onSummon(1, "gems")} testid="gear-x1-button" />
-          <PullCard label="ARMORY ×10" icon={Gem} amount={gemCost * 10} color="#D500F9" ribbon="EPIC+ GUARANTEED" primary disabled={busy || gems < gemCost * 10} busy={busyKind === "gear-gems-10"} onClick={() => onSummon(10, "gems")} testid="gear-x10-button" sub="Every ×10 includes an Epic or better" />
-        </div>
-        <div className="space-y-3">
-          <p className="text-[10px] uppercase tracking-widest text-slate-500">Pay with Armory Tickets ({gearTickets})</p>
-          <PullCard label="ARMORY ×1" icon={Ticket} amount={1} unit="Ticket" color="#FFCA28" disabled={busy || gearTickets < 1} busy={busyKind === "gear-ticket-1"} onClick={() => onSummon(1, "ticket")} testid="gear-ticket-x1-button" sub={`Have: ${gearTickets} ticket${gearTickets === 1 ? "" : "s"}`} />
-          <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-4">
-            <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">Gear Rarities</p>
-            <div className="flex flex-wrap gap-1.5">
-              {Object.entries(rarityMeta).map(([rk, meta]) => (
-                <span key={rk} className="text-[11px] px-2 py-1 rounded-md border" style={{ color: meta.color, borderColor: `${meta.color}55`, background: `${meta.color}12` }}>{meta.name || rk}</span>
-              ))}
-            </div>
-            {topRarity && <p className="text-[10px] text-slate-500 mt-2">Highest tier: <span style={{ color: rarityMeta[topRarity].color }}>{rarityMeta[topRarity].name}</span> — equip &amp; enhance in the Forge.</p>}
+      {/* Gear control rail */}
+      <div className="shrink-0 lg:basis-[43%] lg:h-full lg:min-h-0 flex flex-col gap-2.5 lg:justify-center">
+        <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-3">
+          <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Pay with Gems ({gems.toLocaleString()})</p>
+          <div className="grid grid-cols-2 gap-2">
+            <PullButton label="ARMORY ×1" icon={Gem} amount={gemCost} color="#D500F9" disabled={busy || gems < gemCost} busy={busyKind === "gear-gems-1"} onClick={() => onSummon(1, "gems")} testid="gear-x1-button" />
+            <PullButton label="ARMORY ×10" icon={Gem} amount={gemCost * 10} color="#D500F9" ribbon="EPIC+" primary disabled={busy || gems < gemCost * 10} busy={busyKind === "gear-gems-10"} onClick={() => onSummon(10, "gems")} testid="gear-x10-button" />
           </div>
+        </div>
+        <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-3">
+          <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Pay with Armory Tickets ({gearTickets})</p>
+          <PullButton label="ARMORY TICKET ×1" icon={Ticket} amount={1} unit="Ticket" color="#FFCA28" slim disabled={busy || gearTickets < 1} busy={busyKind === "gear-ticket-1"} onClick={() => onSummon(1, "ticket")} testid="gear-ticket-x1-button" sub={`Have ${gearTickets}`} />
         </div>
       </div>
     </div>

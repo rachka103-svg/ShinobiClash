@@ -1,0 +1,40 @@
+{
+  "summary": "Completed comprehensive frontend testing of the rewritten Summon page (/summon) single-viewport layout. All core features verified: Hero/Gear mode toggle, Pay mode toggle (Gems/Ryo), Pity module, all summon buttons (x1/x10/ticket for both Hero and Gear modes), and all dialogs (Rates, Available/Roster, Featured, History) open/close correctly with proper data-testid attributes.",
+  "backend_issues": {
+    "critical_bugs": [],
+    "flaky_endpoints": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Login with admin@shinobi.com / admin123 successful",
+    "Navigation to /summon page successful",
+    "Hero/Gear mode toggle switches banner content correctly (data-testid: mode-hero, mode-gear)",
+    "Pay mode toggle Gems/Ryo updates button costs correctly (data-testid: pay-gems, pay-ryo)",
+    "Pity module renders with correct elements (data-testid: summon-pity-module, summon-pity-count-text, pulls-to-pity) showing 57/90 pity count",
+    "Summon x1 button found and functional (data-testid: summon-x1-button)",
+    "Summon x10 button found and functional (data-testid: summon-x10-button)",
+    "Summon ticket button found and functional (data-testid: summon-ticket-button)",
+    "Rates dialog opens correctly (data-testid: summon-rates-open-button, summon-rates-dialog) with rates table (summon-rates-table) showing all rarities",
+    "Roster/Available dialog opens correctly (data-testid: open-available-card, available-dialog) with element filters (element-filters) functional",
+    "Featured dialog opens correctly (data-testid: view-all-featured, featured-dialog) showing featured heroes grid",
+    "History dialog opens correctly (data-testid: open-history-card, summon-history-dialog) showing empty state message",
+    "Gear mode: gear-x1-button found and functional",
+    "Gear mode: gear-x10-button found and functional",
+    "Gear mode: gear-ticket-x1-button found (disabled due to no tickets, expected behavior)",
+    "All dialogs close correctly via ESC key or close buttons",
+    "Single-viewport layout displays correctly on desktop (1920x1080) with no scrolling required"
+  ],
+  "test_report_links": [],
+  "success_percentage": {
+    "frontend": "100%",
+    "integration": "100%"
+  },
+  "action_item_for_main_agent": "",
+  "updated_files": [],
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_test_itself": false
+}
