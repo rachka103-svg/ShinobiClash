@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Swords, Loader2, Zap } from "lucide-react";
+import { Swords, Loader2, Zap, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { formatApiErrorDetail } from "@/lib/api";
 
 export default function Login() {
   const { login, register } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
@@ -51,6 +53,16 @@ export default function Login() {
       <img src="/art/login-hero.png" alt="" className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-br from-[#05050A] via-[#05050A]/80 to-[#05050A]/40" />
       <div className="absolute inset-0 bg-[#05050A]/40" />
+
+      <button
+        type="button"
+        onClick={toggleTheme}
+        data-testid="login-theme-toggle"
+        aria-label={isDark ? "Switch to Ivory & Ink light theme" : "Switch to cinematic dark theme"}
+        className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/70 hover:text-chakra hover:border-chakra/40 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-chakra"
+      >
+        {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+      </button>
 
       <motion.div
         initial={{ opacity: 0, y: 30 }}

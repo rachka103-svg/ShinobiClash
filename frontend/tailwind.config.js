@@ -13,10 +13,10 @@ module.exports = {
         sm: 'calc(var(--radius) - 4px)'
       },
       colors: {
-        chakra: '#00B8D4',
-        fox: '#FF5722',
-        jutsu: '#C020E0',
-        ink: '#241C33',
+        chakra: 'rgb(var(--chakra-rgb) / <alpha-value>)',
+        fox: 'rgb(var(--fox-rgb) / <alpha-value>)',
+        jutsu: 'rgb(var(--jutsu-rgb) / <alpha-value>)',
+        ink: 'rgb(var(--ink-rgb) / <alpha-value>)',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {

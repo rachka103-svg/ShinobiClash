@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { Swords, WifiOff, RotateCw } from "lucide-react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { GameProvider, useGame } from "@/context/GameContext";
+import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import ServerGate from "@/components/ServerGate";
 import GameHud from "@/components/GameHud";
 import BottomNav from "@/components/BottomNav";
@@ -137,17 +138,24 @@ function AppRoutes() {
   );
 }
 
+function ThemedToaster() {
+  const { theme } = useTheme();
+  return <Toaster theme={theme} position="top-center" richColors />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <ServerGate>
-        <AuthProvider>
-          <GameProvider>
-            <AppRoutes />
-            <Toaster theme="dark" position="top-center" richColors />
-          </GameProvider>
-        </AuthProvider>
-      </ServerGate>
+      <ThemeProvider>
+        <ServerGate>
+          <AuthProvider>
+            <GameProvider>
+              <AppRoutes />
+              <ThemedToaster />
+            </GameProvider>
+          </AuthProvider>
+        </ServerGate>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }
