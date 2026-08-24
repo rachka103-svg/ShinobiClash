@@ -214,6 +214,19 @@ class TrialCompleteIn(BaseModel):
     survivors: List[str] = []
 
 
+class TsukuyomiCompleteIn(BaseModel):
+    boss_id: str
+    difficulty: str = "normal"
+    result: str
+    participants: List[str] = []
+    survivors: List[str] = []
+
+
+class ShopBuyIn(BaseModel):
+    entry_id: str
+    qty: int = 1
+
+
 class HeroGenerateIn(BaseModel):
     name: str = Field(min_length=1, max_length=40)
     concept: str = Field(default="", max_length=300)
@@ -786,6 +799,8 @@ async def battle_start(body: BattleStartIn, user: dict = Depends(get_current_use
         raise HTTPException(status_code=404, detail="Stage not found")
     if mode == "trial" and body.id not in gd.TRIALS_BY_ID:
         raise HTTPException(status_code=404, detail="Trial not found")
+    if mode == "tsukuyomi" and body.id not in gd.TSUKUYOMI_BY_ID:
+        raise HTTPException(status_code=404, detail="Nightmare not found")
     if mode == "spire":
         try:
             if int(body.id) < 1:
@@ -1425,6 +1440,121 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     return {"profile": public_user(user),
             "rewards": {"ryo": rw.get("ryo", 0), "items": items_out, "hero_exp": hero_exp, "gear": gear_reward},
             "result": "win"}
+
+
+@api_router.get("/game/tsukuyomi")
+async def tsukuyomi_list(user: dict = Depends(get_current_user)):
+    """The Infinite Nightmare — 25 escalating bosses with basic + rare (gear-set)
+    drops and a difficulty selector. Progress is tracked per boss + difficulty."""
+    progress = user.get("tsukuyomi") or {}
+    return {
+        "bosses": [gd.tsukuyomi_boss_public(b) for b in gd.TSUKUYOMI_BOSSES],
+        "difficulties": gd.TSUKUYOMI_DIFFICULTIES,
+        "progress": progress,
+        "energy_cost": gd.ENERGY_COST["tsukuyomi"],
+    }
+
+
+@api_router.post("/game/tsukuyomi/complete")
+async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get_current_user)):
+    boss = gd.TSUKUYOMI_BY_ID.get(body.boss_id)
+    if not boss:
+        raise HTTPException(status_code=404, detail="Nightmare not found")
+    diff = gd.TSUKU_DIFF_BY_ID.get(body.difficulty)
+    if not diff:
+        raise HTTPException(status_code=400, detail="Invalid difficulty")
+    if body.result != "win":
+        await db.users.update_one({"_id": user["_id"]}, {"$inc": {"losses": 1}})
+        user["losses"] = user.get("losses", 0) + 1
+        return {"profile": public_user(user), "rewards": None, "result": "lose"}
+
+    r = gd.tsukuyomi_rewards(boss, body.difficulty)
+    user["ryo"] = user.get("ryo", 0) + r["ryo"]
+    user["wins"] = user.get("wins", 0) + 1
+    hero_exp = distribute_hero_exp(user, body.participants or list(user.get("team", [])), body.survivors, r["hero_exp"])
+    inventory = user.get("inventory", {})
+    for iid, qty in r["items"].items():
+        inventory[iid] = inventory.get(iid, 0) + qty
+
+    # RARE drop — a single random piece of the boss's signature gear set.
+    gear_reward = None
+    rare_hit = random.random() < r["rare_chance"]
+    if rare_hit and len(user.get("gear", [])) < GEAR_INVENTORY_CAP:
+        g = gd.tsukuyomi_gear_drop(boss, body.difficulty)
+        user.setdefault("gear", []).append(g)
+        gear_reward = gear_public(g)
+
+    # progress: remember the highest difficulty cleared per boss
+    tsuku = user.get("tsukuyomi") or {}
+    order = {"normal": 1, "hard": 2, "nightmare": 3}
+    prev = tsuku.get(body.boss_id)
+    if not prev or order.get(body.difficulty, 0) > order.get(prev, 0):
+        tsuku[body.boss_id] = body.difficulty
+    user["tsukuyomi"] = tsuku
+
+    user["inventory"] = inventory
+    bump_mission(user, "any_win")
+    total_levels = sum(h["levels"] for h in hero_exp)
+    if total_levels:
+        bump_mission(user, "hero_levelup", total_levels)
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ryo": user["ryo"], "wins": user["wins"], "ninjas": user["ninjas"], "inventory": inventory,
+        "gear": user.get("gear", []), "daily": user["daily"], "tsukuyomi": tsuku}})
+    return {"profile": public_user(user), "result": "win",
+            "rewards": {"ryo": r["ryo"], "items": r["items"], "hero_exp": hero_exp,
+                        "gear": gear_reward, "rare_hit": rare_hit, "rare_chance": r["rare_chance"],
+                        "gear_set_name": boss["gear_set_name"]}}
+
+
+@api_router.get("/game/shop")
+async def shop_list(user: dict = Depends(get_current_user)):
+    return {"items": gd.SHOP_ITEMS}
+
+
+@api_router.post("/game/shop/buy")
+async def shop_buy(body: ShopBuyIn, user: dict = Depends(get_current_user)):
+    entry = gd.SHOP_BY_ID.get(body.entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Item not found in shop")
+    qty = max(1, min(99, body.qty))
+    total = entry["price"] * qty
+    currency = entry["currency"]
+    have = user.get("gems", 0) if currency == "gems" else user.get("ryo", 0)
+    if have < total:
+        label = "Gems" if currency == "gems" else "Ryo"
+        raise HTTPException(status_code=400, detail=f"Not enough {label} — need {total}, have {have}")
+
+    grant = entry.get("grant", {})
+    # energy grant clamps to max
+    granted = {"items": {}, "ryo": 0, "gems": 0, "energy": 0}
+    if grant.get("energy"):
+        estate = gd.compute_energy(user.get("energy"))
+        add = grant["energy"] * qty
+        new_current = min(estate["max"], estate["current"] + add)
+        user["energy"] = {**estate, "current": new_current, "last_regen_at": datetime.now(timezone.utc).isoformat()}
+        granted["energy"] = new_current - estate["current"]
+    if grant.get("ryo"):
+        user["ryo"] = user.get("ryo", 0) + grant["ryo"] * qty
+        granted["ryo"] = grant["ryo"] * qty
+    if grant.get("gems"):
+        user["gems"] = user.get("gems", 0) + grant["gems"] * qty
+        granted["gems"] = grant["gems"] * qty
+    inventory = user.get("inventory", {})
+    for iid, n in grant.get("items", {}).items():
+        inventory[iid] = inventory.get(iid, 0) + n * qty
+        granted["items"][iid] = n * qty
+    user["inventory"] = inventory
+
+    # charge
+    if currency == "gems":
+        user["gems"] = user.get("gems", 0) - total
+    else:
+        user["ryo"] = user.get("ryo", 0) - total
+
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ryo": user.get("ryo", 0), "gems": user.get("gems", 0),
+        "inventory": inventory, "energy": user.get("energy")}})
+    return {"profile": public_user(user), "granted": granted, "spent": {"currency": currency, "amount": total}}
 
 
 @api_router.get("/game/leaderboard")

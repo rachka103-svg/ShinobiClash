@@ -655,6 +655,166 @@ def test_spire_milestone_grants_gems():
 
 
 # ============================================================================
+# TSUKUYOMI TESTS (New Feature)
+# ============================================================================
+def test_tsukuyomi_list_endpoint():
+    """GET /game/tsukuyomi should return boss list and progress"""
+    s, _ = create_test_user()
+    r = s.get(f"{API}/game/tsukuyomi")
+    assert r.status_code == 200, f"Expected 200, got {r.status_code}"
+    data = r.json()
+    assert "bosses" in data, "Should have bosses"
+    assert "progress" in data, "Should have progress"
+    assert "energy_cost" in data, "Should have energy_cost"
+    assert len(data["bosses"]) > 0, "Should have at least one boss"
+    print(f"  Tsukuyomi: {len(data['bosses'])} bosses, energy cost: {data['energy_cost']}")
+
+def test_tsukuyomi_list_requires_auth():
+    """Tsukuyomi list should require authentication"""
+    r = requests.get(f"{API}/game/tsukuyomi")
+    assert r.status_code == 401, f"Expected 401, got {r.status_code}"
+
+def test_tsukuyomi_battle_start():
+    """POST /game/battle/start with mode=tsukuyomi should work"""
+    s, profile = create_test_user()
+    # Get first boss ID
+    r = s.get(f"{API}/game/tsukuyomi")
+    boss_id = r.json()["bosses"][0]["id"]
+    
+    initial_energy = profile["energy"]["current"]
+    r = s.post(f"{API}/game/battle/start", json={"mode": "tsukuyomi", "id": boss_id})
+    assert r.status_code == 200, f"Tsukuyomi battle start failed: {r.status_code} {r.text}"
+    new_energy = r.json()["profile"]["energy"]["current"]
+    assert new_energy == initial_energy - 12, f"Expected {initial_energy - 12}, got {new_energy}"
+    print(f"  Tsukuyomi battle started: Energy {initial_energy} → {new_energy} (-12)")
+
+def test_tsukuyomi_complete_victory():
+    """POST /game/tsukuyomi/complete should grant rewards on victory"""
+    s, profile = login_admin()  # Use admin for easier testing
+    # Get first boss
+    r = s.get(f"{API}/game/tsukuyomi")
+    boss = r.json()["bosses"][0]
+    
+    # Start battle
+    s.post(f"{API}/game/battle/start", json={"mode": "tsukuyomi", "id": boss["id"]})
+    
+    # Complete with victory
+    before_ryo = profile["ryo"]
+    r = s.post(f"{API}/game/tsukuyomi/complete", json={
+        "boss_id": boss["id"],
+        "difficulty": "normal",
+        "result": "win",
+        "participants": [],
+        "survivors": []
+    })
+    assert r.status_code == 200, f"Tsukuyomi complete failed: {r.status_code} {r.text}"
+    data = r.json()
+    assert data["result"] == "win", "Result should be win"
+    assert "rewards" in data, "Should have rewards"
+    assert data["rewards"]["ryo"] > 0, "Should grant Ryo"
+    print(f"  Victory rewards: +{data['rewards']['ryo']} Ryo, Gear drop: {data['rewards'].get('gear') is not None}")
+
+def test_tsukuyomi_complete_defeat():
+    """POST /game/tsukuyomi/complete with defeat should not grant rewards"""
+    s, _ = create_test_user()
+    # Get first boss
+    r = s.get(f"{API}/game/tsukuyomi")
+    boss = r.json()["bosses"][0]
+    
+    # Start battle
+    s.post(f"{API}/game/battle/start", json={"mode": "tsukuyomi", "id": boss["id"]})
+    
+    # Complete with defeat
+    r = s.post(f"{API}/game/tsukuyomi/complete", json={
+        "boss_id": boss["id"],
+        "difficulty": "normal",
+        "result": "lose",
+        "participants": [],
+        "survivors": []
+    })
+    assert r.status_code == 200, f"Tsukuyomi complete failed: {r.status_code} {r.text}"
+    data = r.json()
+    assert data["result"] == "lose", "Result should be lose"
+    assert data["rewards"] is None, "Should not grant rewards on defeat"
+    print(f"  Defeat: No rewards granted")
+
+
+# ============================================================================
+# SHOP TESTS (New Feature)
+# ============================================================================
+def test_shop_list_endpoint():
+    """GET /game/shop should return shop items"""
+    s, _ = create_test_user()
+    r = s.get(f"{API}/game/shop")
+    assert r.status_code == 200, f"Expected 200, got {r.status_code}"
+    data = r.json()
+    assert "items" in data, "Should have items"
+    assert len(data["items"]) > 0, "Should have at least one item"
+    gems_items = [i for i in data["items"] if i["currency"] == "gems"]
+    ryo_items = [i for i in data["items"] if i["currency"] == "ryo"]
+    print(f"  Shop: {len(gems_items)} gem items, {len(ryo_items)} ryo items")
+
+def test_shop_list_requires_auth():
+    """Shop list should require authentication"""
+    r = requests.get(f"{API}/game/shop")
+    assert r.status_code == 401, f"Expected 401, got {r.status_code}"
+
+def test_shop_buy_with_gems():
+    """POST /game/shop/buy should allow purchasing with gems"""
+    s, profile = login_admin()  # Use admin who has gems
+    # Get a gem item
+    r = s.get(f"{API}/game/shop")
+    gem_items = [i for i in r.json()["items"] if i["currency"] == "gems"]
+    if not gem_items:
+        print("  No gem items available, skipping")
+        return
+    
+    item = gem_items[0]
+    before_gems = profile["gems"]
+    
+    r = s.post(f"{API}/game/shop/buy", json={"entry_id": item["id"], "qty": 1})
+    assert r.status_code == 200, f"Shop buy failed: {r.status_code} {r.text}"
+    data = r.json()
+    assert data["profile"]["gems"] == before_gems - item["price"], "Gems should be deducted"
+    print(f"  Purchased {item['name']} for {item['price']} gems")
+
+def test_shop_buy_with_ryo():
+    """POST /game/shop/buy should allow purchasing with ryo"""
+    s, profile = login_admin()  # Use admin who has ryo
+    # Get a ryo item
+    r = s.get(f"{API}/game/shop")
+    ryo_items = [i for i in r.json()["items"] if i["currency"] == "ryo"]
+    if not ryo_items:
+        print("  No ryo items available, skipping")
+        return
+    
+    item = ryo_items[0]
+    before_ryo = profile["ryo"]
+    
+    r = s.post(f"{API}/game/shop/buy", json={"entry_id": item["id"], "qty": 1})
+    assert r.status_code == 200, f"Shop buy failed: {r.status_code} {r.text}"
+    data = r.json()
+    assert data["profile"]["ryo"] == before_ryo - item["price"], "Ryo should be deducted"
+    print(f"  Purchased {item['name']} for {item['price']} ryo")
+
+def test_shop_buy_insufficient_currency():
+    """Shop buy should fail with insufficient currency"""
+    s, _ = create_test_user()
+    # Get an expensive gem item
+    r = s.get(f"{API}/game/shop")
+    gem_items = [i for i in r.json()["items"] if i["currency"] == "gems" and i["price"] > 100]
+    if not gem_items:
+        print("  No expensive gem items, skipping")
+        return
+    
+    item = gem_items[0]
+    r = s.post(f"{API}/game/shop/buy", json={"entry_id": item["id"], "qty": 1})
+    assert r.status_code == 400, f"Should fail with insufficient gems, got {r.status_code}"
+    assert "gems" in r.json()["detail"].lower() or "currency" in r.json()["detail"].lower(), "Should mention insufficient currency"
+    print(f"  Correctly blocked: {r.json()['detail']}")
+
+
+# ============================================================================
 # MAIN TEST RUNNER
 # ============================================================================
 def main():
@@ -718,6 +878,22 @@ def main():
     runner.test("Campaign first clear grants gems", test_campaign_first_clear_grants_gems)
     runner.test("Arena milestone grants gems", test_arena_milestone_grants_gems)
     runner.test("Spire milestone grants gems", test_spire_milestone_grants_gems)
+    
+    # Tsukuyomi Tests
+    print(f"\n{Colors.YELLOW}━━━ TSUKUYOMI TESTS (New Feature) ━━━{Colors.RESET}")
+    runner.test("Tsukuyomi list endpoint works", test_tsukuyomi_list_endpoint)
+    runner.test("Tsukuyomi list requires auth", test_tsukuyomi_list_requires_auth)
+    runner.test("Tsukuyomi battle start works", test_tsukuyomi_battle_start)
+    runner.test("Tsukuyomi complete victory grants rewards", test_tsukuyomi_complete_victory)
+    runner.test("Tsukuyomi complete defeat no rewards", test_tsukuyomi_complete_defeat)
+    
+    # Shop Tests
+    print(f"\n{Colors.YELLOW}━━━ SHOP TESTS (New Feature) ━━━{Colors.RESET}")
+    runner.test("Shop list endpoint works", test_shop_list_endpoint)
+    runner.test("Shop list requires auth", test_shop_list_requires_auth)
+    runner.test("Shop buy with gems works", test_shop_buy_with_gems)
+    runner.test("Shop buy with ryo works", test_shop_buy_with_ryo)
+    runner.test("Shop buy insufficient currency blocked", test_shop_buy_insufficient_currency)
     
     # Regression Tests
     print(f"\n{Colors.YELLOW}━━━ REGRESSION TESTS ━━━{Colors.RESET}")

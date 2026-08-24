@@ -58,6 +58,9 @@ export default function Battle() {
   // sessionStorage by the Arena page right before navigating in here, since
   // there's no persistent "battle session" on the server for async PvP.
   const arenaOpponent = mode === "arena" ? JSON.parse(sessionStorage.getItem("arena_opponent") || "null") : null;
+  // Tsukuyomi fights are launched from the boss gallery, which stashes the
+  // chosen boss + difficulty + resolved enemy list here before navigating in.
+  const tsukuFight = mode === "tsukuyomi" ? JSON.parse(sessionStorage.getItem("tsukuyomi_fight") || "null") : null;
 
   // Resolve the battle definition from the route mode.
   const floor = mode === "spire" ? parseInt(id, 10) : null;
@@ -67,18 +70,21 @@ export default function Battle() {
     mode === "spire" ? (catalog.length ? spireEnemies(floor, catalog) : [])
     : mode === "trial" ? (trial?.enemies || [])
     : mode === "arena" ? (arenaOpponent?.team || [])
+    : mode === "tsukuyomi" ? (tsukuFight?.enemies || [])
     : (stage?.enemies || []);
   const title =
     mode === "spire" ? `SPIRE · FLOOR ${floor}`
     : mode === "trial" ? (trial?.name || "TRIAL")
     : mode === "arena" ? `ARENA · vs ${arenaOpponent?.name || "???"}`
+    : mode === "tsukuyomi" ? (tsukuFight?.boss?.name || "TSUKUYOMI")
     : (stage?.name || "BATTLE");
   const ready =
     mode === "spire" ? !!floor && catalog.length > 0
     : mode === "trial" ? !!trial
     : mode === "arena" ? !!arenaOpponent && Object.keys(catalogById).length > 0
+    : mode === "tsukuyomi" ? !!tsukuFight && Object.keys(catalogById).length > 0
     : !!stage;
-  const backTo = mode === "campaign" ? "/campaign" : mode === "arena" ? "/arena" : "/spire";
+  const backTo = mode === "campaign" ? "/campaign" : mode === "arena" ? "/arena" : mode === "tsukuyomi" ? "/tsukuyomi" : mode === "trial" ? "/dungeons" : "/spire";
 
   const [combs, setCombsState] = useState([]);
   const [activeUid, setActiveUid] = useState(null);
@@ -129,6 +135,12 @@ export default function Battle() {
     // Arena naturally skip this and run through the exact same engine).
     if (mode === "campaign" && stage?.is_boss && stage?.boss_mechanic && enemies[0]) {
       enemies[0].bossMechanicId = stage.boss_mechanic;
+      enemies[0].bossPhaseIndex = -1;
+    }
+    // Tsukuyomi bosses always carry a phase mechanic — wire it onto the boss
+    // (the first enemy), so nightmares play as true multi-phase fights.
+    if (mode === "tsukuyomi" && tsukuFight?.boss?.boss_mechanic && enemies[0]) {
+      enemies[0].bossMechanicId = tsukuFight.boss.boss_mechanic;
       enemies[0].bossPhaseIndex = -1;
     }
     const all = [...allies, ...enemies];
@@ -346,6 +358,7 @@ export default function Battle() {
         campaign: ["/game/battle/complete", { stage_id: id, result, participants, survivors }],
         spire: ["/game/spire/complete", { floor, result, participants, survivors }],
         trial: ["/game/trial/complete", { trial_id: id, result, participants, survivors }],
+        tsukuyomi: ["/game/tsukuyomi/complete", { boss_id: tsukuFight?.boss?.id, difficulty: tsukuFight?.difficulty, result, participants, survivors }],
         arena: ["/arena/battle/complete", { opponent_user_id: arenaOpponent?.user_id, result, participants, survivors }],
       };
       const [url, body] = reqs[mode] || reqs.campaign;
@@ -541,6 +554,14 @@ export default function Battle() {
                   {resultData.rewards.ninja && (
                     <p className="text-jutsu font-semibold mt-2" data-testid="reward-ninja">★ New ally recruited: {resultData.rewards.ninja.name}!</p>
                   )}
+                  {resultData.rewards.gear && (
+                    <p className="font-semibold mt-2 flex items-center justify-center gap-2" data-testid="reward-gear" style={{ color: resultData.rewards.gear.color || "#FFCA28" }}>
+                      ★ Rare Drop: {resultData.rewards.gear.set_name} {resultData.rewards.gear.slot} ({resultData.rewards.gear.rarity})
+                    </p>
+                  )}
+                  {mode === "tsukuyomi" && resultData.rewards.rare_hit === false && resultData.rewards.gear_set_name && (
+                    <p className="text-[11px] text-slate-500 mt-1" data-testid="reward-no-rare">No {resultData.rewards.gear_set_name} gear this time — the nightmare keeps its treasures.</p>
+                  )}
                 </div>
               )}
               {phase === "win" && mode === "spire" && resultData?.advancing && (
@@ -569,6 +590,10 @@ export default function Battle() {
                   ) : mode === "arena" ? (
                     <button onClick={() => navigate("/arena")} data-testid="result-find-opponent-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-chakra text-[#05050A] hover:bg-cyan-300 transition-colors flex items-center justify-center gap-1">
                       FIND OPPONENT <ArrowRight className="w-4 h-4" />
+                    </button>
+                  ) : mode === "tsukuyomi" ? (
+                    <button onClick={() => navigate("/tsukuyomi")} data-testid="result-tsukuyomi-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-chakra text-[#05050A] hover:bg-cyan-300 transition-colors flex items-center justify-center gap-1">
+                      NIGHTMARES <ArrowRight className="w-4 h-4" />
                     </button>
                   ) : (
                     <button onClick={() => navigate("/")} data-testid="result-lobby-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-chakra text-[#05050A] hover:bg-cyan-300 transition-colors flex items-center justify-center gap-1">

@@ -737,7 +737,7 @@ def generate_campaign_stages(start_chapter: int, end_chapter: int, stages_per_ch
 # Currently generate Chapters 5-8 (24 more stages) as the next content slice.
 # Calling generate_campaign_stages(9, 100) later scales the campaign further
 # with zero additional hand-authored data or UI work.
-STAGES.extend(generate_campaign_stages(5, 8, stages_per_chapter=6))
+STAGES.extend(generate_campaign_stages(5, 100, stages_per_chapter=6))
 STAGES_BY_ID = {s["id"]: s for s in STAGES}
 
 
@@ -933,7 +933,7 @@ from datetime import datetime, timezone, timedelta
 
 ENERGY_MAX_DEFAULT = 100
 ENERGY_REGEN_SECONDS = 180  # +1 energy every 3 minutes -> full regen in 5h
-ENERGY_COST = {"campaign": 10, "spire": 10, "trial": 8}
+ENERGY_COST = {"campaign": 10, "spire": 10, "trial": 8, "tsukuyomi": 12}
 
 
 def _parse_iso(ts: Optional[str]) -> datetime:
@@ -1486,3 +1486,175 @@ mythic_chance = gr_chance
 
 def fresh_pity_state() -> dict:
     return {"gr": 0, "featured_guarantee": False, "total_pulls": 0}
+
+
+
+# ===========================================================================
+# EXTENDED ITEM / MATERIAL METADATA
+# Enriches ITEMS with every material id referenced across gear, crafting,
+# fusion, dungeons and the new Tsukuyomi + Shop systems, so the UI always has
+# a proper name / icon / color / description instead of a raw id.
+# ===========================================================================
+ITEMS.update({
+    "gear_ticket":     {"id": "gear_ticket", "name": "Armory Ticket", "type": "ticket", "value": 0, "icon": "anvil", "color": "#7C4DFF", "desc": "Summons a piece of gear for free from the Armory."},
+    "forge_hammer":    {"id": "forge_hammer", "name": "Forge Hammer", "type": "material", "value": 0, "icon": "hammer", "color": "#FF5722", "desc": "Required to enhance gear beyond +5."},
+    "forge_steel":     {"id": "forge_steel", "name": "Forge Steel", "type": "material", "value": 0, "icon": "anvil", "color": "#B0BEC5", "desc": "Refined steel used to craft gear from blueprints."},
+    "scrap_iron":      {"id": "scrap_iron", "name": "Scrap Iron", "type": "material", "value": 0, "icon": "box", "color": "#90A4AE", "desc": "Fuse 3 into Forge Steel."},
+    "spirit_dust":     {"id": "spirit_dust", "name": "Spirit Dust", "type": "material", "value": 0, "icon": "sparkles", "color": "#80DEEA", "desc": "Fuse 4 into Evolution Essence."},
+    "evo_essence":     {"id": "evo_essence", "name": "Evolution Essence", "type": "material", "value": 0, "icon": "sparkles", "color": "#D500F9", "desc": "Rare material for high-tier hero evolution."},
+    "celestial_core":  {"id": "celestial_core", "name": "Celestial Core", "type": "material", "value": 0, "icon": "gem", "color": "#FFC857", "desc": "The rarest evolution material — for the final stars."},
+    "blueprint_weapon":    {"id": "blueprint_weapon", "name": "Weapon Blueprint", "type": "material", "value": 0, "icon": "sword", "color": "#FF7043", "desc": "Craft a random Weapon in the Forge."},
+    "blueprint_armor":     {"id": "blueprint_armor", "name": "Armor Blueprint", "type": "material", "value": 0, "icon": "shield", "color": "#42A5F5", "desc": "Craft a random Armor in the Forge."},
+    "blueprint_accessory": {"id": "blueprint_accessory", "name": "Accessory Blueprint", "type": "material", "value": 0, "icon": "gem", "color": "#26C6DA", "desc": "Craft a random Accessory in the Forge."},
+    "blueprint_relic":     {"id": "blueprint_relic", "name": "Relic Blueprint", "type": "material", "value": 0, "icon": "sparkles", "color": "#AB47BC", "desc": "Craft a random Relic in the Forge."},
+    # --- Tsukuyomi standalone material set (dream-realm themed) ---
+    "nightmare_dust":  {"id": "nightmare_dust", "name": "Nightmare Dust", "type": "material", "value": 0, "icon": "moon", "color": "#7C4DFF", "desc": "Residue of a slain dream-beast. The common spoil of Tsukuyomi."},
+    "dream_fragment":  {"id": "dream_fragment", "name": "Dream Fragment", "type": "material", "value": 0, "icon": "sparkles", "color": "#B388FF", "desc": "A shard of broken illusion — an uncommon Tsukuyomi spoil."},
+    "lunar_essence":   {"id": "lunar_essence", "name": "Lunar Essence", "type": "material", "value": 0, "icon": "gem", "color": "#E1BEE7", "desc": "Condensed moonlight torn from a Nightmare boss — a rare Tsukuyomi prize."},
+})
+
+
+# ===========================================================================
+# TSUKUYOMI — the Infinite Nightmare. A gallery of 25 escalating dream-bosses.
+# Each boss is stronger than the last, carries BASIC material drops plus a
+# 5-10% RARE drop (a single random piece of that boss's signature GEAR SET,
+# never the whole set), and supports a difficulty selector that slightly
+# raises the rare rate. Runs on the exact same client battle engine.
+# ===========================================================================
+TSUKUYOMI_DIFFICULTIES = [
+    {"id": "normal",    "name": "Normal",    "power_mult": 1.0, "rate_bonus": 0.00, "reward_mult": 1.0, "color": "#00E5FF"},
+    {"id": "hard",      "name": "Hard",      "power_mult": 1.7, "rate_bonus": 0.02, "reward_mult": 1.6, "color": "#FFCA28"},
+    {"id": "nightmare", "name": "Nightmare", "power_mult": 2.6, "rate_bonus": 0.04, "reward_mult": 2.4, "color": "#FF1744"},
+]
+TSUKU_DIFF_BY_ID = {d["id"]: d for d in TSUKUYOMI_DIFFICULTIES}
+
+_TSUKU_EPITHETS = [
+    "the Sleepless", "Dream Devourer", "the Hollow Moon", "Weaver of Fears", "the Silent Scream",
+    "Eater of Hope", "the Pale Requiem", "Herald of Endless Night", "the Broken Mirror", "Shade of Regret",
+    "the Drowning Lullaby", "Warden of Nightmares", "the Crimson Slumber", "Voice in the Dark", "the Fading Star",
+    "Keeper of Lost Dreams", "the Withered Crown", "Bringer of Sorrow", "the Veiled Abyss", "Whisper of the Void",
+    "the Last Nightmare", "Sovereign of Sleep", "the Eclipsed Heart", "Phantom of the Moon", "the Infinite Dream",
+]
+_TSUKU_LORE = [
+    "It waits at the edge of sleep, where the moon never sets.",
+    "Every dream it touches curdles into a waking terror.",
+    "Those who face it forget their own names by dawn.",
+    "It spins fear into silk and binds the mind in it.",
+    "Its scream is silent, yet it shatters the strongest will.",
+]
+
+
+def _tsukuyomi_boss_defs() -> list:
+    ranked = sorted(CATALOG_BY_ID.values(), key=lambda t: (-RARITY_ORDER.get(t["rarity"], 0), t["name"]))
+    if not ranked:
+        return []
+    picks = [ranked[i % len(ranked)] for i in range(25)]
+    set_keys = list(GEAR_SETS.keys())
+    all_ids = list(CATALOG_BY_ID.keys())
+    out = []
+    for i, t in enumerate(picks):
+        idx = i + 1
+        rng = _random.Random(7000 + idx)
+        adds = rng.sample(all_ids, min(2, len(all_ids)))
+        out.append({
+            "id": f"tsuku_{idx}",
+            "index": idx,
+            "name": f"{t['name']}, {_TSUKU_EPITHETS[i % len(_TSUKU_EPITHETS)]}",
+            "template_id": t["id"],
+            "portrait": t["portrait"],
+            "element": t["element"],
+            "rarity": t["rarity"],
+            "base_level": 18 + i * 5,
+            "rare_chance": round(min(0.10, 0.05 + (i // 5) * 0.0125), 4),
+            "gear_set": set_keys[i % len(set_keys)],
+            "gear_set_name": GEAR_SETS[set_keys[i % len(set_keys)]]["name"],
+            "gear_set_color": GEAR_SETS[set_keys[i % len(set_keys)]]["color"],
+            "boss_mechanic": "abyssal_warden" if i % 2 else "sealed_titan",
+            "adds": adds,
+            "lore": _TSUKU_LORE[i % len(_TSUKU_LORE)],
+        })
+    return out
+
+
+TSUKUYOMI_BOSSES = _tsukuyomi_boss_defs()
+TSUKUYOMI_BY_ID = {b["id"]: b for b in TSUKUYOMI_BOSSES}
+
+
+def tsukuyomi_enemies(boss: dict, difficulty: str = "normal") -> list:
+    diff = TSUKU_DIFF_BY_ID.get(difficulty, TSUKUYOMI_DIFFICULTIES[0])
+    lvl = max(1, round(boss["base_level"] * diff["power_mult"]))
+    enemies = [{"template_id": boss["template_id"], "level": lvl}]
+    add_lvl = max(1, round(lvl * 0.85))
+    if difficulty == "hard":
+        enemies.append({"template_id": boss["adds"][0], "level": add_lvl})
+    elif difficulty == "nightmare":
+        enemies += [{"template_id": a, "level": add_lvl} for a in boss["adds"]]
+    return enemies
+
+
+def tsukuyomi_recommended_power(boss: dict, difficulty: str = "normal") -> int:
+    return sum(ninja_power(e["template_id"], e["level"]) for e in tsukuyomi_enemies(boss, difficulty))
+
+
+def tsukuyomi_rewards(boss: dict, difficulty: str = "normal") -> dict:
+    diff = TSUKU_DIFF_BY_ID.get(difficulty, TSUKUYOMI_DIFFICULTIES[0])
+    rm = diff["reward_mult"]
+    i = boss["index"]
+    ryo = round((280 + i * 70) * rm)
+    hero_exp = round((55 + i * 12) * rm)
+    items = {
+        "nightmare_dust": max(2, round((2 + i // 4) * rm)),
+        "dream_fragment": 1 + (1 if difficulty != "normal" else 0),
+    }
+    if difficulty == "nightmare":
+        items["lunar_essence"] = 1
+    rare_chance = round(min(0.60, boss["rare_chance"] + diff["rate_bonus"]), 4)
+    return {"ryo": ryo, "hero_exp": hero_exp, "items": items, "rare_chance": rare_chance}
+
+
+def tsukuyomi_gear_drop(boss: dict, difficulty: str = "normal") -> dict:
+    """Rolls ONE random gear piece from this boss's signature set (a single
+    slot — weapon OR armor OR accessory OR relic, never the full set)."""
+    if difficulty == "nightmare":
+        band = (4, 5, 0.5)
+    elif difficulty == "hard":
+        band = (4, 4, 0.2)
+    else:
+        band = (3, 4, 0.1)
+    g = roll_gear(min_tier=band[0], max_tier=band[1], luck=band[2])
+    g["set_id"] = boss["gear_set"]  # force the boss's signature set
+    return g
+
+
+def tsukuyomi_boss_public(boss: dict) -> dict:
+    return {
+        **boss,
+        "difficulties": [
+            {**d, "recommended_power": tsukuyomi_recommended_power(boss, d["id"]),
+             "enemies": tsukuyomi_enemies(boss, d["id"])}
+            for d in TSUKUYOMI_DIFFICULTIES
+        ],
+    }
+
+
+# ===========================================================================
+# ITEM SHOP — spend Gems or Ryo on resource/progression consumables.
+# Each entry grants direct resources (energy/ryo) and/or inventory items.
+# ===========================================================================
+SHOP_ITEMS = [
+    # --- Gem shop (premium) ---
+    {"id": "shop_energy_flask", "name": "Energy Flask", "desc": "Instantly restore 60 Energy.", "icon": "zap", "color": "#00E676", "currency": "gems", "price": 40, "grant": {"energy": 60}},
+    {"id": "shop_gold_pouch", "name": "Gold Pouch", "desc": "A hefty pouch of 6,000 Ryo.", "icon": "coins", "color": "#FFCA28", "currency": "gems", "price": 50, "grant": {"ryo": 6000}},
+    {"id": "shop_summon_ticket", "name": "Summon Ticket", "desc": "One free hero summon.", "icon": "ticket", "color": "#FFCA28", "currency": "gems", "price": 120, "grant": {"items": {"summon_ticket": 1}}},
+    {"id": "shop_gear_ticket", "name": "Armory Ticket", "desc": "One free gear summon.", "icon": "anvil", "color": "#7C4DFF", "currency": "gems", "price": 80, "grant": {"items": {"gear_ticket": 1}}},
+    {"id": "shop_ascension", "name": "Ascension Crystals ×2", "desc": "Ascend heroes past their level cap.", "icon": "gem", "color": "#00E5FF", "currency": "gems", "price": 90, "grant": {"items": {"ascension_crystal": 2}}},
+    {"id": "shop_evo_essence", "name": "Evolution Essence ×2", "desc": "Rare evolution material.", "icon": "sparkles", "color": "#D500F9", "currency": "gems", "price": 110, "grant": {"items": {"evo_essence": 2}}},
+    {"id": "shop_ancient_tome", "name": "Ancient EXP Tome", "desc": "Grants 6,000 hero EXP.", "icon": "book-open", "color": "#AB47BC", "currency": "gems", "price": 70, "grant": {"items": {"exp_tome_ancient": 1}}},
+    # --- Ryo shop (grind-funded) ---
+    {"id": "shop_minor_tome", "name": "Minor EXP Tome ×5", "desc": "Five minor EXP tomes.", "icon": "scroll", "color": "#9E9E9E", "currency": "ryo", "price": 900, "grant": {"items": {"exp_tome_minor": 5}}},
+    {"id": "shop_greater_tome", "name": "Greater EXP Tome", "desc": "Grants 1,200 hero EXP.", "icon": "scroll-text", "color": "#29B6F6", "currency": "ryo", "price": 1400, "grant": {"items": {"exp_tome_greater": 1}}},
+    {"id": "shop_forge_hammer", "name": "Forge Hammer ×3", "desc": "Enhance gear beyond +5.", "icon": "hammer", "color": "#FF5722", "currency": "ryo", "price": 1800, "grant": {"items": {"forge_hammer": 3}}},
+    {"id": "shop_forge_steel", "name": "Forge Steel ×5", "desc": "Craft gear from blueprints.", "icon": "anvil", "color": "#B0BEC5", "currency": "ryo", "price": 1200, "grant": {"items": {"forge_steel": 5}}},
+    {"id": "shop_scrap_iron", "name": "Scrap Iron ×10", "desc": "Basic fusion material.", "icon": "box", "color": "#90A4AE", "currency": "ryo", "price": 700, "grant": {"items": {"scrap_iron": 10}}},
+]
+SHOP_BY_ID = {s["id"]: s for s in SHOP_ITEMS}

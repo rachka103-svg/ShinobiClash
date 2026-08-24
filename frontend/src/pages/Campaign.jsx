@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Play, Lock, Check, Crown, Swords, Zap, ChevronDown, Scroll } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import { startBattle, ENERGY_COST } from "@/lib/energy";
-import CampaignChapterStrip from "@/components/CampaignChapterStrip";
-import CampaignStageMap from "@/components/CampaignStageMap";
-import CampaignStagePreviewDrawer from "@/components/CampaignStagePreviewDrawer";
+import { RARITY } from "@/lib/styles";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 function stageStateOf(stage, stages, cleared) {
   const idx = stages.findIndex((s) => s.id === stage.id);
@@ -15,142 +19,157 @@ function stageStateOf(stage, stages, cleared) {
 }
 
 /**
- * Campaign World Map — replaces the old flat stage list. World -> Chapter
- * -> Stage -> Battle. All progression/energy/reward/battle logic is
- * untouched and still lives on the server; this screen is purely a
- * cinematic way to browse the exact same `stages` data and launch the
- * exact same `startBattle()` flow as before.
+ * Campaign — a clean, scannable LIST of chapters and stages (reverted from
+ * the cinematic node-map). A chapter picker up top, then a vertical list of
+ * stage rows. All energy/reward/battle logic is unchanged on the server.
  */
 export default function Campaign() {
   const { user, setUser } = useAuth();
-  const { stages, chapters, catalogById, bossMechanics } = useGame();
+  const { stages, chapters, catalogById } = useGame();
   const navigate = useNavigate();
   const [selectedChapter, setSelectedChapter] = useState(null);
-  const [selectedStageId, setSelectedStageId] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const cleared = user?.cleared_stages || [];
   const energyLow = (user?.energy?.current ?? 0) < ENERGY_COST.campaign;
-  const teamPower = user?.team_power ?? 0;
 
-  // Default to the chapter containing the next un-cleared stage — resume
-  // exactly where the player left off. Falls back to the final chapter if
-  // the whole campaign is cleared.
   useEffect(() => {
     if (selectedChapter != null || stages.length === 0) return;
     const next = stages.find((s) => !cleared.includes(s.id));
     setSelectedChapter(next ? next.chapter : stages[stages.length - 1].chapter);
-  }, [stages]);
+  }, [stages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const chapterStages = useMemo(
     () => stages.filter((s) => s.chapter === selectedChapter),
     [stages, selectedChapter]
   );
   const chapterMeta = chapters.find((c) => c.chapter === selectedChapter);
-  const chapterDone = chapterStages.length > 0 && chapterStages.every((s) => cleared.includes(s.id));
+  const accent = chapterMeta?.accent || "#00E5FF";
   const chapterDoneCount = chapterStages.filter((s) => cleared.includes(s.id)).length;
+  const chapterDone = chapterStages.length > 0 && chapterDoneCount === chapterStages.length;
+  const totalCleared = cleared.length;
 
-  const selectedStage = stages.find((s) => s.id === selectedStageId) || null;
-  const selectedState = selectedStage ? stageStateOf(selectedStage, stages, cleared) : null;
-
-  const handleBattle = async () => {
-    if (!selectedStage) return;
+  const launch = async (stage, state) => {
+    if (state === "locked" || busy) return;
     setBusy(true);
     try {
-      await startBattle({ mode: "campaign", id: selectedStage.id, navigate, setUser });
+      if (energyLow) { toast.error("Not enough Energy — refill in the Shop or wait for regen."); return; }
+      await startBattle({ mode: "campaign", id: stage.id, navigate, setUser });
     } finally {
       setBusy(false);
     }
   };
 
-  const totalCleared = cleared.length;
-  const accent = chapterMeta?.accent || "#00E5FF";
-  const chapterBg = chapterMeta?.background_image;
-
   return (
-    <div className="relative min-h-screen overflow-x-hidden" data-testid="campaign-page">
-      {/* Atmospheric backdrop — static, no continuous animation. Tinted per
-          chapter with the chapter's existing accent token so the world
-          feels less like flat empty black space; swaps to real chapter
-          art automatically the moment `background_image` is populated,
-          with zero UI changes required. */}
-      <div className="fixed inset-0 -z-10 pointer-events-none transition-[background] duration-500">
-        {chapterBg ? (
-          <img src={chapterBg} alt="" className="w-full h-full object-cover opacity-50" />
-        ) : (
-          <img src="/art/battle-bg.png" alt="" className="w-full h-full object-cover opacity-[0.12]" />
-        )}
-        <div
-          className="absolute inset-0"
-          style={{ background: `radial-gradient(ellipse 80% 50% at 50% 0%, ${accent}1A, transparent 65%)` }}
-        />
-        {/* Real chapter art gets a lighter scrim up top so the environment
-            reads as atmosphere; the bottom stays near-solid so the stage
-            path/nodes remain the primary layer. Fallback keeps the heavier
-            original scrim since its image renders at very low opacity. */}
-        <div
-          className={`absolute inset-0 bg-gradient-to-b ${
-            chapterBg
-              ? "from-[#05050A]/35 via-[#05050A]/75 to-[#05050A]"
-              : "from-[#05050A]/60 via-[#05050A]/95 to-[#05050A]"
-          }`}
-        />
-      </div>
-
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-6">
-          <h1 className="font-display text-4xl sm:text-5xl tracking-wide text-white">CAMPAIGN</h1>
-          <p className="text-slate-400 text-sm mt-1">Battle through the shadow realm, one mission at a time.</p>
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6" data-testid="campaign-page">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "#FF572218", border: "1px solid #FF572255" }}>
+          <Scroll className="w-6 h-6 text-fox" />
+        </div>
+        <div className="min-w-0">
+          <h1 className="font-display text-4xl sm:text-5xl tracking-wide text-white leading-none">CAMPAIGN</h1>
           <p className="text-[11px] text-slate-500 mt-1" data-testid="campaign-total-progress">{totalCleared}/{stages.length} stages cleared across the realm</p>
         </div>
-
-        <CampaignChapterStrip
-          chapters={chapters}
-          stages={stages}
-          cleared={cleared}
-          selectedChapter={selectedChapter}
-          onSelect={setSelectedChapter}
-        />
-
-        {chapterMeta && (
-          <div className="mt-7 mb-3">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="font-display text-2xl tracking-wide" style={{ color: accent }}>CH.{selectedChapter} — {chapterMeta.name}</h2>
-              {chapterDone && (
-                <span className="text-[10px] font-bold tracking-widest text-amber-400 px-2 py-1 rounded bg-amber-400/10 border border-amber-400/30 shrink-0" data-testid="chapter-cleared-badge">
-                  CHAPTER CLEARED
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-400 italic mt-1 max-w-md">{chapterMeta.lore}</p>
-            <p className="text-[11px] text-slate-500 mt-1">{chapterDoneCount}/{chapterStages.length} stages cleared in this chapter</p>
-          </div>
-        )}
-
-        <div className="mt-2 pb-8">
-          {chapterStages.length > 0 && (
-            <CampaignStageMap
-              stages={chapterStages}
-              allStages={stages}
-              cleared={cleared}
-              onSelectStage={(s) => setSelectedStageId(s.id)}
-              accent={accent}
-            />
-          )}
-        </div>
       </div>
 
-      <CampaignStagePreviewDrawer
-        stage={selectedStage}
-        state={selectedState}
-        catalogById={catalogById}
-        bossMechanics={bossMechanics}
-        teamPower={teamPower}
-        onClose={() => setSelectedStageId(null)}
-        onBattle={handleBattle}
-        energyLow={energyLow}
-        busy={busy}
-      />
+      {/* Chapter picker (dropdown — scales to 100 chapters cleanly) */}
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button data-testid="chapter-picker" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/12 hover:bg-white/[0.08] transition-colors">
+              <span className="font-display text-xl tracking-wide" style={{ color: accent }}>CH.{selectedChapter}</span>
+              <span className="text-sm text-white truncate max-w-[42vw]">{chapterMeta?.name}</span>
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="max-h-[50vh] overflow-y-auto bg-[#0B0B14] border border-white/15" data-testid="chapter-menu">
+            {chapters.map((c) => {
+              const cs = stages.filter((s) => s.chapter === c.chapter);
+              const done = cs.filter((s) => cleared.includes(s.id)).length;
+              const complete = done === cs.length;
+              return (
+                <DropdownMenuItem key={c.chapter} onClick={() => setSelectedChapter(c.chapter)} data-testid={`chapter-opt-${c.chapter}`}
+                  className="flex items-center justify-between gap-4 cursor-pointer focus:bg-white/10">
+                  <span className="text-slate-200"><span className="font-display" style={{ color: c.accent }}>CH.{c.chapter}</span> {c.name}</span>
+                  <span className={`text-[10px] ${complete ? "text-emerald-400" : "text-slate-500"}`}>{done}/{cs.length}</span>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {chapterDone && (
+          <span className="text-[10px] font-bold tracking-widest text-amber-400 px-2 py-1 rounded bg-amber-400/10 border border-amber-400/30" data-testid="chapter-cleared-badge">CHAPTER CLEARED</span>
+        )}
+      </div>
+
+      {chapterMeta && <p className="text-xs text-slate-400 italic mb-3 max-w-xl">{chapterMeta.lore}</p>}
+
+      {/* Stage list */}
+      <div className="space-y-2.5 pb-4" data-testid="campaign-stage-list">
+        {chapterStages.map((stage, i) => {
+          const state = stageStateOf(stage, stages, cleared);
+          const locked = state === "locked";
+          const isBoss = stage.is_boss;
+          return (
+            <motion.button
+              key={stage.id}
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.02 * i }}
+              onClick={() => launch(stage, state)}
+              disabled={locked || busy}
+              data-testid={`stage-row-${stage.id}`}
+              className="w-full text-left flex items-center gap-3 p-3 rounded-2xl border transition-all disabled:cursor-not-allowed group"
+              style={{
+                background: locked ? "rgba(255,255,255,0.02)" : isBoss ? "linear-gradient(120deg, rgba(255,87,34,0.14), rgba(11,11,20,0.9))" : "rgba(255,255,255,0.04)",
+                borderColor: state === "completed" ? "rgba(0,230,118,0.3)" : isBoss ? "rgba(255,87,34,0.4)" : "rgba(255,255,255,0.1)",
+                opacity: locked ? 0.55 : 1,
+              }}
+            >
+              {/* index / state */}
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-display text-lg"
+                style={{ background: state === "completed" ? "rgba(0,230,118,0.15)" : isBoss ? "rgba(255,87,34,0.18)" : "rgba(255,255,255,0.05)", color: state === "completed" ? "#00E676" : isBoss ? "#FF5722" : "#94a3b8" }}>
+                {locked ? <Lock className="w-4 h-4" /> : state === "completed" ? <Check className="w-5 h-5" /> : isBoss ? <Crown className="w-5 h-5" /> : i + 1}
+              </div>
+
+              {/* name + region + enemies */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-display text-lg tracking-wide text-white truncate">{stage.name}</p>
+                  {isBoss && <span className="text-[9px] font-bold tracking-widest text-fox px-1.5 py-0.5 rounded bg-fox/15 border border-fox/30">BOSS</span>}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex -space-x-1.5">
+                    {stage.enemies.slice(0, 4).map((e, k) => {
+                      const t = catalogById[e.template_id];
+                      const r = RARITY[t?.rarity || "R"];
+                      return (
+                        <div key={k} className="w-6 h-6 rounded-full overflow-hidden border shrink-0" style={{ borderColor: r.color }}>
+                          {t?.portrait ? <img src={t.portrait} alt="" className="w-full h-full object-cover object-top" /> : <div className="w-full h-full" style={{ background: r.color }} />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <span className="text-[11px] text-slate-500 flex items-center gap-1"><Swords className="w-3 h-3" /> Pow {(stage.recommended_power || 0).toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* action */}
+              {!locked && (
+                <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-105"
+                  style={{ background: isBoss ? "#FF5722" : accent, color: "#05050A" }}>
+                  <Play className="w-4 h-4 fill-current" />
+                </div>
+              )}
+            </motion.button>
+          );
+        })}
+      </div>
+
+      {energyLow && (
+        <p className="text-[11px] text-fox text-center flex items-center justify-center gap-1" data-testid="campaign-energy-low">
+          <Zap className="w-3.5 h-3.5" /> Low Energy — refill in the Shop or wait for regen.
+        </p>
+      )}
     </div>
   );
 }

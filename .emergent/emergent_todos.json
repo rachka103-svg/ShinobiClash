@@ -1,18 +1,38 @@
 [
   {
-    "content": "Rewrite Summon.jsx into single-viewport (no-scroll) layout for PC + mobile",
+    "content": "Backend: campaign 100 chapters + Tsukuyomi + Shop + item metadata",
     "status": "completed"
   },
   {
-    "content": "Adapt Gear Armory mode to the same single-view two-column frame",
+    "content": "Backend: endpoints + battle_start/energy wiring",
     "status": "completed"
   },
   {
-    "content": "Verify no compile errors + screenshot PC and gear viewports",
+    "content": "Backend test (curl) verified",
     "status": "completed"
   },
   {
-    "content": "Run frontend testing agent on the Summon flow (100% pass)",
+    "content": "Frontend: Battle.jsx tsukuyomi mode + gear reward display",
+    "status": "completed"
+  },
+  {
+    "content": "Frontend: BattleHub + BottomNav center=Battle, Summon relocated",
+    "status": "completed"
+  },
+  {
+    "content": "Frontend: Tsukuyomi swipe gallery + difficulty selector",
+    "status": "completed"
+  },
+  {
+    "content": "Frontend: Shop page (gems/gold) buy flow",
+    "status": "completed"
+  },
+  {
+    "content": "Frontend: Campaign reverted to clean list",
+    "status": "completed"
+  },
+  {
+    "content": "Test full flows (testing agent) — passed (frontend 100%, backend 98%)",
     "status": "completed"
   }
 ]

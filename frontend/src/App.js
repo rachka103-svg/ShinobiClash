@@ -19,6 +19,9 @@ import Admin from "@/pages/Admin";
 import Arena from "@/pages/Arena";
 import Forge from "@/pages/Forge";
 import Dungeons from "@/pages/Dungeons";
+import BattleHub from "@/pages/BattleHub";
+import Tsukuyomi from "@/pages/Tsukuyomi";
+import Shop from "@/pages/Shop";
 
 const LoadingScreen = () => (
   <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#05050A]" data-testid="loading-screen">
@@ -114,6 +117,9 @@ function AppRoutes() {
       <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
       <Route path="/" element={<Protected><Lobby /></Protected>} />
       <Route path="/campaign" element={<Protected><Campaign /></Protected>} />
+      <Route path="/battle" element={<Protected><BattleHub /></Protected>} />
+      <Route path="/tsukuyomi" element={<Protected><Tsukuyomi /></Protected>} />
+      <Route path="/shop" element={<Protected><Shop /></Protected>} />
       <Route path="/spire" element={<Protected><Spire /></Protected>} />
       <Route path="/arena" element={<Protected><Arena /></Protected>} />
       <Route path="/gallery" element={<Protected><Gallery /></Protected>} />

@@ -2,20 +2,23 @@ import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Home, Scroll, Users, Sparkles, Grid3x3, Castle, Crosshair, LayoutGrid,
-  Swords, Anvil, Trophy, Landmark, Wand2,
+  Swords, Anvil, Trophy, Landmark, Wand2, ShoppingBag, Moon,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 
-// Thumb-reachable primary destinations; Summon is the elevated center action.
+// Thumb-reachable primary destinations; Battle is the elevated center action.
 const PRIMARY = [
   { to: "/", label: "Home", icon: Home, color: "#00E5FF", testid: "nav-lobby" },
-  { to: "/campaign", label: "Battle", icon: Scroll, color: "#FF5722", testid: "nav-campaign" },
-  { to: "/summon", label: "Summon", icon: Sparkles, color: "#FFCA28", center: true, testid: "nav-summon" },
+  { to: "/summon", label: "Summon", icon: Sparkles, color: "#FFCA28", testid: "nav-summon" },
+  { to: "/battle", label: "Battle", icon: Swords, color: "#FF5722", center: true, testid: "nav-battle" },
   { to: "/roster", label: "Heroes", icon: Users, color: "#D500F9", testid: "nav-roster" },
 ];
 
 const MORE = [
+  { to: "/shop", label: "Shop", icon: ShoppingBag, color: "#FFCA28", testid: "nav-shop" },
+  { to: "/campaign", label: "Campaign", icon: Scroll, color: "#FF5722", testid: "nav-campaign" },
+  { to: "/tsukuyomi", label: "Tsukuyomi", icon: Moon, color: "#7C4DFF", testid: "nav-tsukuyomi" },
   { to: "/dungeons", label: "Dungeons", icon: Landmark, color: "#7C4DFF", testid: "nav-dungeons" },
   { to: "/spire", label: "Spire", icon: Castle, color: "#D500F9", testid: "nav-spire" },
   { to: "/arena", label: "Arena", icon: Crosshair, color: "#FF1744", testid: "nav-arena" },
