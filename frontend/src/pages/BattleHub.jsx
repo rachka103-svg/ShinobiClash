@@ -73,7 +73,7 @@ export default function BattleHub() {
                 to={m.to}
                 data-testid={m.testid}
                 className="group relative flex items-center gap-4 p-4 rounded-2xl overflow-hidden transition-all active:scale-[0.99] h-full"
-                style={{ background: `linear-gradient(120deg, ${m.color}1c, rgba(11,11,20,0.9) 60%)`, border: `1px solid ${m.color}44` }}
+                style={{ background: `linear-gradient(120deg, ${m.color}1c, rgba(11,11,20,0.94) 60%), #0B0B14`, border: `1px solid ${m.color}44` }}
               >
                 {m.featured && <div className="gold-pinstripe absolute top-0 inset-x-0" />}
                 <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"

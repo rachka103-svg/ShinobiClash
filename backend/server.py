@@ -9,6 +9,7 @@ import logging
 import asyncio
 import uuid
 import random
+import secrets
 import re
 import json
 import base64
@@ -26,6 +27,14 @@ from pydantic import BaseModel, EmailStr, Field
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 import game_data as gd
+
+# Cryptographically-secure RNG for all gameplay-affecting randomness (gacha
+# pulls, gear/loot drops, pity/5050 rolls). random.random()/random.choice()
+# use a Mersenne Twister that is NOT safe against a determined attacker
+# trying to predict/replay rolls — secrets.SystemRandom() draws from the OS
+# CSPRNG instead while keeping the exact same random.Random API (.random(),
+# .choice(), .choices(), .sample()), so call sites are drop-in compatible.
+rng = secrets.SystemRandom()
 
 # Generated/uploaded portraits are written here and served by the frontend at /custom/<id>.png
 CUSTOM_DIR = ROOT_DIR.parent / "frontend" / "public" / "custom"
@@ -76,7 +85,9 @@ def set_auth_cookies(response: Response, access: str, refresh: str):
     response.set_cookie("refresh_token", refresh, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
 
 
-async def get_current_user(request: Request) -> dict:
+def _extract_bearer_token(request: Request) -> str:
+    """Pulls the access token from the httpOnly cookie, falling back to an
+    `Authorization: Bearer <token>` header (used by non-browser clients)."""
     token = request.cookies.get("access_token")
     if not token:
         auth_header = request.headers.get("Authorization", "")
@@ -84,29 +95,46 @@ async def get_current_user(request: Request) -> dict:
             token = auth_header[7:]
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    return token
+
+
+def _decode_access_token(token: str) -> dict:
+    """Decodes + validates a JWT access token, raising 401 on any failure."""
     try:
         payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
-        if payload.get("type") != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-        user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        changed_e = ensure_energy_state(user)
-        changed_d = ensure_daily_state(user)
-        changed_a = ensure_arena_state(user)
-        changed_l = ensure_login_state(user)
-        if changed_e or changed_d or changed_a or changed_l:
-            await db.users.update_one({"_id": user["_id"]}, {"$set": {
-                "energy": user["energy"], "daily": user["daily"],
-                "arena_rating": user["arena_rating"], "arena_wins": user["arena_wins"],
-                "arena_losses": user["arena_losses"], "arena_daily": user["arena_daily"],
-                "login": user["login"],
-            }})
-        return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=401, detail="Invalid token type")
+    return payload
+
+
+async def _sync_lazy_daily_state(user: dict) -> None:
+    """Applies any pending energy/daily/arena/login resets (lazy migration
+    evaluated on every authenticated request) and persists them if changed."""
+    changed_e = ensure_energy_state(user)
+    changed_d = ensure_daily_state(user)
+    changed_a = ensure_arena_state(user)
+    changed_l = ensure_login_state(user)
+    if changed_e or changed_d or changed_a or changed_l:
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {
+            "energy": user["energy"], "daily": user["daily"],
+            "arena_rating": user["arena_rating"], "arena_wins": user["arena_wins"],
+            "arena_losses": user["arena_losses"], "arena_daily": user["arena_daily"],
+            "login": user["login"],
+        }})
+
+
+async def get_current_user(request: Request) -> dict:
+    token = _extract_bearer_token(request)
+    payload = _decode_access_token(token)
+    user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    await _sync_lazy_daily_state(user)
+    return user
 
 
 # ---------------------------------------------------------------------------
@@ -456,6 +484,46 @@ def gear_public(g: dict) -> dict:
     }
 
 
+def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, user: dict) -> None:
+    """Computes all derived fields (stats/power/gear/skill/etc.) for a single
+    owned hero instance, mutating it in place. Returns early (no-op) if the
+    hero's static template can't be found (e.g. a deleted custom hero)."""
+    inst.setdefault("exp", 0)
+    inst.setdefault("ascension", 0)
+    inst.setdefault("stars", 1)
+    asc = inst["ascension"]
+    tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
+    if not tmpl:
+        return
+    rarity = tmpl["rarity"]
+    star_mult = _star_bonus_mult(inst["stars"])
+    base_stats = gd.compute_stats(inst["template_id"], inst["level"], asc)
+    star_stats = {k: (round(v * star_mult) if k in ("hp", "atk", "def") else v) for k, v in base_stats.items()}
+    equipped = gear_by_hero.get(inst["instance_id"], [])
+    final_stats = gd.apply_gear_to_stats(star_stats, equipped) if equipped else star_stats
+    inst["stats"] = final_stats
+    inst["power"] = _power_from_stats(final_stats)
+    inst["equipped_gear"] = {g["slot"]: g["gear_id"] for g in equipped}
+    inst["gear_score"] = sum(gd.gear_score(g) for g in equipped)
+    inst["exp_to_next"] = gd.hero_exp_to_next(inst["level"])
+    inst["level_cap"] = gd.level_cap(rarity, asc)
+    inst["ascension_max"] = gd.ASCENSION_MAX[rarity]
+    inst["max_level"] = gd.max_level(rarity)
+    inst["stars_max"] = gd.STAR_LEVEL_MAX
+    inst["evolution_cost"] = gd.evolution_cost(rarity, inst["stars"]) if inst["stars"] < gd.STAR_LEVEL_MAX else None
+    inst["star_up_cost"] = inst["evolution_cost"]["shards"] if inst["evolution_cost"] else None
+    inst["faction"] = tmpl.get("faction")
+    inst["role"] = tmpl.get("role")
+    skill_rank = inst.get("skill_rank", 1)
+    sk = gd.skill_public(rarity, skill_rank)
+    inst["skill_rank"] = skill_rank
+    inst["skill"] = sk
+    inst["passive_full"] = tmpl.get("passive")
+    inst["passive"] = tmpl.get("passive") if sk["passive_unlocked"] else None
+    inst["passive_locked"] = not sk["passive_unlocked"]
+    inst["shards"] = user.get("hero_shards", {}).get(inst["template_id"], 0)
+
+
 def public_user(user: dict) -> dict:
     """Serialize a user document into a JSON-safe game profile."""
     ninjas = user.get("ninjas", [])
@@ -465,40 +533,7 @@ def public_user(user: dict) -> dict:
         if g.get("equipped_by"):
             gear_by_hero.setdefault(g["equipped_by"], []).append(g)
     for inst in ninjas:
-        inst.setdefault("exp", 0)
-        inst.setdefault("ascension", 0)
-        inst.setdefault("stars", 1)
-        asc = inst["ascension"]
-        tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
-        if not tmpl:
-            continue
-        rarity = tmpl["rarity"]
-        star_mult = _star_bonus_mult(inst["stars"])
-        base_stats = gd.compute_stats(inst["template_id"], inst["level"], asc)
-        star_stats = {k: (round(v * star_mult) if k in ("hp", "atk", "def") else v) for k, v in base_stats.items()}
-        equipped = gear_by_hero.get(inst["instance_id"], [])
-        final_stats = gd.apply_gear_to_stats(star_stats, equipped) if equipped else star_stats
-        inst["stats"] = final_stats
-        inst["power"] = _power_from_stats(final_stats)
-        inst["equipped_gear"] = {g["slot"]: g["gear_id"] for g in equipped}
-        inst["gear_score"] = sum(gd.gear_score(g) for g in equipped)
-        inst["exp_to_next"] = gd.hero_exp_to_next(inst["level"])
-        inst["level_cap"] = gd.level_cap(rarity, asc)
-        inst["ascension_max"] = gd.ASCENSION_MAX[rarity]
-        inst["max_level"] = gd.max_level(rarity)
-        inst["stars_max"] = gd.STAR_LEVEL_MAX
-        inst["evolution_cost"] = gd.evolution_cost(rarity, inst["stars"]) if inst["stars"] < gd.STAR_LEVEL_MAX else None
-        inst["star_up_cost"] = inst["evolution_cost"]["shards"] if inst["evolution_cost"] else None
-        inst["faction"] = tmpl.get("faction")
-        inst["role"] = tmpl.get("role")
-        skill_rank = inst.get("skill_rank", 1)
-        sk = gd.skill_public(rarity, skill_rank)
-        inst["skill_rank"] = skill_rank
-        inst["skill"] = sk
-        inst["passive_full"] = tmpl.get("passive")
-        inst["passive"] = tmpl.get("passive") if sk["passive_unlocked"] else None
-        inst["passive_locked"] = not sk["passive_unlocked"]
-        inst["shards"] = user.get("hero_shards", {}).get(inst["template_id"], 0)
+        _hydrate_ninja_instance(inst, gear_by_hero, user)
     team_ids = set(user.get("team", []))
     team_power = sum(i.get("power", 0) for i in ninjas if i["instance_id"] in team_ids)
     return {
@@ -794,6 +829,22 @@ async def claim_login_reward(user: dict = Depends(get_current_user)):
     return {"profile": public_user(user), "reward": reward, "day": new_day}
 
 
+def _validate_battle_target(mode: str, target_id: str) -> None:
+    """Raises 404/400 if the requested stage/trial/boss/floor doesn't exist."""
+    if mode == "campaign" and target_id not in gd.STAGES_BY_ID:
+        raise HTTPException(status_code=404, detail="Stage not found")
+    if mode == "trial" and target_id not in gd.TRIALS_BY_ID:
+        raise HTTPException(status_code=404, detail="Trial not found")
+    if mode == "tsukuyomi" and target_id not in gd.TSUKUYOMI_BY_ID:
+        raise HTTPException(status_code=404, detail="Nightmare not found")
+    if mode == "spire":
+        try:
+            if int(target_id) < 1:
+                raise ValueError()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid floor")
+
+
 @api_router.post("/game/battle/start")
 async def battle_start(body: BattleStartIn, user: dict = Depends(get_current_user)):
     """Consumes Energy for a Campaign/Spire/Trial attempt. Must be called before
@@ -802,18 +853,7 @@ async def battle_start(body: BattleStartIn, user: dict = Depends(get_current_use
     mode = body.mode
     if mode not in gd.ENERGY_COST:
         raise HTTPException(status_code=400, detail="Invalid battle mode")
-    if mode == "campaign" and body.id not in gd.STAGES_BY_ID:
-        raise HTTPException(status_code=404, detail="Stage not found")
-    if mode == "trial" and body.id not in gd.TRIALS_BY_ID:
-        raise HTTPException(status_code=404, detail="Trial not found")
-    if mode == "tsukuyomi" and body.id not in gd.TSUKUYOMI_BY_ID:
-        raise HTTPException(status_code=404, detail="Nightmare not found")
-    if mode == "spire":
-        try:
-            if int(body.id) < 1:
-                raise ValueError()
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid floor")
+    _validate_battle_target(mode, body.id)
 
     cost = gd.ENERGY_COST[mode]
     new_energy = gd.spend_energy(user.get("energy"), cost)
@@ -934,6 +974,62 @@ async def arena_battle_complete(body: ArenaBattleCompleteIn, user: dict = Depend
         return {"profile": public_user(user), "result": "lose", "rewards": None}
 
 
+def _distribute_battle_hero_exp(user: dict, participants: list, survivors: set, base_exp: int) -> list:
+    """Grants hero EXP to each participant (survivors get 1.6x, fallen 0.8x)
+    and returns the per-hero breakdown for the rewards payload."""
+    ninjas = user.get("ninjas", [])
+    hero_exp = []
+    for iid in participants:
+        inst = next((n for n in ninjas if n["instance_id"] == iid), None)
+        if not inst:
+            continue
+        gain = round(base_exp * (1.6 if iid in survivors else 0.8))
+        levels = grant_hero_exp(inst, gain)
+        tmpl = gd.CATALOG_BY_ID.get(inst["template_id"], {})
+        hero_exp.append({"instance_id": iid, "name": tmpl.get("name", "?"), "exp": gain,
+                          "levels": levels, "level": inst["level"]})
+    return hero_exp
+
+
+def _roll_battle_item_drops(user: dict, chapter: int, first_clear: bool) -> dict:
+    """Rolls the item-drop table for a campaign win and merges the results
+    into the user's inventory. Returns the drop dict for the rewards payload."""
+    inventory = user.get("inventory", {})
+    drops = gd.roll_drops(chapter, first_clear)
+    for iid, qty in drops.items():
+        inventory[iid] = inventory.get(iid, 0) + qty
+    user["inventory"] = inventory
+    return drops
+
+
+def _roll_battle_gear_drop(user: dict, chapter: int) -> Optional[dict]:
+    """Campaign battles from Chapter 2+ have a flat chance to drop a gear
+    piece (the long-term equipment loop), capped by GEAR_INVENTORY_CAP."""
+    if chapter < 2 or len(user.get("gear", [])) >= GEAR_INVENTORY_CAP or rng.random() >= 0.14:
+        return None
+    g = gd.roll_gear(min_tier=1, max_tier=min(1 + chapter // 3, 5), luck=min(0.5, chapter * 0.04))
+    user.setdefault("gear", []).append(g)
+    return gear_public(g)
+
+
+def _apply_campaign_first_clear_bonus(user: dict, stage: dict, stage_id: str, cleared: list,
+                                       ninjas: list, rewards: dict) -> None:
+    """Grants the one-time first-clear bonus (bonus Ryo/Gems + a guaranteed
+    hero drop, if any) and marks the stage as cleared. Mutates `cleared`,
+    `ninjas` and `rewards` in place."""
+    cleared.append(stage_id)
+    fc = stage.get("first_clear", {})
+    user["ryo"] += fc.get("ryo", 0)
+    rewards["ryo"] += fc.get("ryo", 0)
+    gems_gained = gd.first_clear_gems(stage.get("chapter", 1))
+    user["gems"] = user.get("gems", 0) + gems_gained
+    rewards["gems"] = gems_gained
+    drop = fc.get("ninja")
+    if drop and not any(i["template_id"] == drop for i in ninjas):
+        ninjas.append(new_ninja_instance(drop))
+        rewards["ninja"] = {"template_id": drop, "name": gd.CATALOG_BY_ID[drop]["name"], "rarity": gd.CATALOG_BY_ID[drop]["rarity"]}
+
+
 @api_router.post("/game/battle/complete")
 async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_current_user)):
     stage = gd.STAGES_BY_ID.get(body.stage_id)
@@ -947,6 +1043,7 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
 
     cleared = user.get("cleared_stages", [])
     first_clear = body.stage_id not in cleared
+    chapter = stage.get("chapter", 1)
     base_exp = stage["rewards"]["exp"]
     rewards = {"ryo": stage["rewards"]["ryo"], "gems": 0, "exp": base_exp, "ninja": None, "hero_exp": [], "items": {}}
 
@@ -958,44 +1055,17 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
     ninjas = user.get("ninjas", [])
     survivors = set(body.survivors)
     participants = body.participants or list(user.get("team", []))
-    for iid in participants:
-        inst = next((n for n in ninjas if n["instance_id"] == iid), None)
-        if not inst:
-            continue
-        gain = round(base_exp * (1.6 if iid in survivors else 0.8))
-        levels = grant_hero_exp(inst, gain)
-        tmpl = gd.CATALOG_BY_ID.get(inst["template_id"], {})
-        rewards["hero_exp"].append({"instance_id": iid, "name": tmpl.get("name", "?"), "exp": gain,
-                                     "levels": levels, "level": inst["level"]})
+    rewards["hero_exp"] = _distribute_battle_hero_exp(user, participants, survivors, base_exp)
 
     # item drops
-    inventory = user.get("inventory", {})
-    drops = gd.roll_drops(stage.get("chapter", 1), first_clear)
-    for iid, qty in drops.items():
-        inventory[iid] = inventory.get(iid, 0) + qty
-    user["inventory"] = inventory
-    rewards["items"] = drops
+    rewards["items"] = _roll_battle_item_drops(user, chapter, first_clear)
+    inventory = user["inventory"]
 
     # gear drops — battles from Chapter 2 onward can drop gear (long-term loop)
-    chapter = stage.get("chapter", 1)
-    rewards["gear"] = None
-    if chapter >= 2 and len(user.get("gear", [])) < GEAR_INVENTORY_CAP and random.random() < 0.14:
-        g = gd.roll_gear(min_tier=1, max_tier=min(1 + chapter // 3, 5), luck=min(0.5, chapter * 0.04))
-        user.setdefault("gear", []).append(g)
-        rewards["gear"] = gear_public(g)
+    rewards["gear"] = _roll_battle_gear_drop(user, chapter)
 
     if first_clear:
-        cleared.append(body.stage_id)
-        fc = stage.get("first_clear", {})
-        user["ryo"] += fc.get("ryo", 0)
-        rewards["ryo"] += fc.get("ryo", 0)
-        gems_gained = gd.first_clear_gems(stage.get("chapter", 1))
-        user["gems"] = user.get("gems", 0) + gems_gained
-        rewards["gems"] = gems_gained
-        drop = fc.get("ninja")
-        if drop and not any(i["template_id"] == drop for i in ninjas):
-            ninjas.append(new_ninja_instance(drop))
-            rewards["ninja"] = {"template_id": drop, "name": gd.CATALOG_BY_ID[drop]["name"], "rarity": gd.CATALOG_BY_ID[drop]["rarity"]}
+        _apply_campaign_first_clear_bonus(user, stage, body.stage_id, cleared, ninjas, rewards)
 
     bump_mission(user, "campaign_win")
     bump_mission(user, "any_win")
@@ -1038,7 +1108,53 @@ def _rarity_pool(min_rarity: str = None, exclude_top: bool = True,
 def _weighted_choice(pool: list) -> str:
     tids = [p[0] for p in pool]
     weights = [p[1] for p in pool]
-    return random.choices(tids, weights=weights, k=1)[0]
+    return rng.choices(tids, weights=weights, k=1)[0]
+
+
+def _roll_top_rarity_pity(pity: dict, currency: str, featured: Optional[str],
+                          featured_is_top: bool, top: str) -> tuple:
+    """Evaluates the top-rarity pity roll for a single pull (GEM/TICKET
+    banners only). Mutates `pity` in place. Returns
+    (chosen_template_id_or_None, pity_note)."""
+    if currency not in ("gems", "ticket"):
+        return None, None
+    counter = pity.get("gr", pity.get("mythic", 0)) + 1
+    if rng.random() >= gd.gr_chance(counter):
+        pity["gr"] = counter
+        return None, None
+
+    chosen = None
+    pity_note = None
+    tops = [tid for tid, t in gd.CATALOG_BY_ID.items() if t["rarity"] == top]
+    if featured_is_top:
+        if pity.get("featured_guarantee"):
+            chosen = featured; pity["featured_guarantee"] = False; pity_note = "featured_guaranteed"
+        elif rng.random() < gd.FEATURED_MYTHIC_5050:
+            chosen = featured; pity_note = "featured_5050_won"
+        else:
+            others = [m for m in tops if m != featured] or tops
+            chosen = rng.choice(others); pity["featured_guarantee"] = True; pity_note = "featured_5050_lost"
+    else:
+        chosen = rng.choice(tops) if tops else None
+    pity["gr"] = 0
+    if counter >= gd.MYTHIC_HARD_PITY:
+        pity_note = pity_note or "hard_pity"
+    return chosen, pity_note
+
+
+def _grant_summoned_hero(user: dict, chosen: str) -> tuple:
+    """Adds the pulled hero to the roster, or — if already owned — converts
+    the pull into Hero Shards instead. Returns (tmpl, is_duplicate, shards_gained)."""
+    tmpl = gd.CATALOG_BY_ID[chosen]
+    hero_shards = user.setdefault("hero_shards", {})
+    is_duplicate = any(n["template_id"] == chosen for n in user.get("ninjas", []))
+    shards_gained = 0
+    if is_duplicate:
+        shards_gained = gd.SHARD_YIELD_PER_DUPLICATE[tmpl["rarity"]]
+        hero_shards[chosen] = hero_shards.get(chosen, 0) + shards_gained
+    else:
+        user.setdefault("ninjas", []).append(new_ninja_instance(chosen))
+    return tmpl, is_duplicate, shards_gained
 
 
 def _pull_once(user: dict, pity: dict, currency: str = "gems", force_sr_plus: bool = False) -> dict:
@@ -1049,83 +1165,62 @@ def _pull_once(user: dict, pity: dict, currency: str = "gems", force_sr_plus: bo
     - GOLD / RYO banner: NO pity and much lower rare rates (via GOLD weights).
     Rate-up is applied multiplicatively inside `_rarity_pool` (never a flat
     chance). Mutates `pity`/`user`; returns the result dict."""
-    apply_pity = currency in ("gems", "ticket")
     top = gd.TOP_RARITY
     featured = FEATURED_BANNER["template_id"]
     featured_tmpl = gd.CATALOG_BY_ID.get(featured) if featured else None
     featured_is_top = bool(featured_tmpl and featured_tmpl["rarity"] == top)
 
-    chosen = None
-    pity_note = None
-    if apply_pity:
-        counter = pity.get("gr", pity.get("mythic", 0)) + 1
-        if random.random() < gd.gr_chance(counter):
-            tops = [tid for tid, t in gd.CATALOG_BY_ID.items() if t["rarity"] == top]
-            if featured_is_top:
-                if pity.get("featured_guarantee"):
-                    chosen = featured; pity["featured_guarantee"] = False; pity_note = "featured_guaranteed"
-                elif random.random() < gd.FEATURED_MYTHIC_5050:
-                    chosen = featured; pity_note = "featured_5050_won"
-                else:
-                    others = [m for m in tops if m != featured] or tops
-                    chosen = random.choice(others); pity["featured_guarantee"] = True; pity_note = "featured_5050_lost"
-            else:
-                chosen = random.choice(tops) if tops else None
-            pity["gr"] = 0
-            if counter >= gd.MYTHIC_HARD_PITY:
-                pity_note = pity_note or "hard_pity"
-        else:
-            pity["gr"] = counter
+    chosen, pity_note = _roll_top_rarity_pity(pity, currency, featured, featured_is_top, top)
     if chosen is None:
         pool = _rarity_pool(min_rarity=gd.X10_GUARANTEE_RARITY if force_sr_plus else None,
                             currency=currency, featured_id=featured)
         chosen = _weighted_choice(pool)
     pity["total_pulls"] = pity.get("total_pulls", 0) + 1
 
-    tmpl = gd.CATALOG_BY_ID[chosen]
-    hero_shards = user.setdefault("hero_shards", {})
-    is_duplicate = any(n["template_id"] == chosen for n in user.get("ninjas", []))
-    shards_gained = 0
-    if is_duplicate:
-        shards_gained = gd.SHARD_YIELD_PER_DUPLICATE[tmpl["rarity"]]
-        hero_shards[chosen] = hero_shards.get(chosen, 0) + shards_gained
-    else:
-        user.setdefault("ninjas", []).append(new_ninja_instance(chosen))
+    tmpl, is_duplicate, shards_gained = _grant_summoned_hero(user, chosen)
     return {"template_id": chosen, "name": tmpl["name"], "rarity": tmpl["rarity"],
             "element": tmpl["element"], "role": tmpl["role"], "portrait": tmpl["portrait"],
             "duplicate": is_duplicate, "shards_gained": shards_gained, "pity_note": pity_note}
+
+
+def _validate_summon_funds(user: dict, inventory: dict, currency: str, count: int) -> None:
+    """Raises 400 if the player can't afford `count` pulls on this currency."""
+    if currency == "ticket":
+        if inventory.get("summon_ticket", 0) < count:
+            raise HTTPException(status_code=400, detail=f"Need {count} summon tickets")
+    elif currency == "gems":
+        if user.get("gems", 0) < gd.GEM_SUMMON_COST * count:
+            raise HTTPException(status_code=400, detail=f"Not enough Gems — need {gd.GEM_SUMMON_COST * count}")
+    elif user.get("ryo", 0) < gd.SUMMON_COST * count:
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {gd.SUMMON_COST * count}")
+
+
+def _deduct_summon_cost(user: dict, inventory: dict, currency: str, count: int) -> None:
+    """Charges the player for `count` pulls (mutates user/inventory in place)."""
+    if currency == "ticket":
+        inventory["summon_ticket"] -= count
+        user["inventory"] = inventory
+    elif currency == "gems":
+        user["gems"] = user.get("gems", 0) - gd.GEM_SUMMON_COST * count
+    else:
+        user["ryo"] -= gd.SUMMON_COST * count
 
 
 @api_router.post("/game/summon")
 async def summon(body: SummonIn, user: dict = Depends(get_current_user)):
     count = 10 if body.count >= 10 else 1
     inventory = user.get("inventory", {})
-    use_ticket = body.currency == "ticket"
-    use_gems = body.currency == "gems"
-    if use_ticket:
-        if inventory.get("summon_ticket", 0) < count:
-            raise HTTPException(status_code=400, detail=f"Need {count} summon tickets")
-    elif use_gems:
-        if user.get("gems", 0) < gd.GEM_SUMMON_COST * count:
-            raise HTTPException(status_code=400, detail=f"Not enough Gems — need {gd.GEM_SUMMON_COST * count}")
-    elif user.get("ryo", 0) < gd.SUMMON_COST * count:
-        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {gd.SUMMON_COST * count}")
+    currency = "ticket" if body.currency == "ticket" else ("gems" if body.currency == "gems" else "ryo")
+    _validate_summon_funds(user, inventory, currency, count)
 
     pity = user.get("pity") or gd.fresh_pity_state()
-    currency = "ticket" if use_ticket else ("gems" if use_gems else "ryo")
     results = []
     for i in range(count):
         force = (count == 10 and i == 9 and
                  not any(gd.RARITY_ORDER[r["rarity"]] >= gd.RARITY_ORDER[gd.X10_GUARANTEE_RARITY] for r in results))
         results.append(_pull_once(user, pity, currency=currency, force_sr_plus=force))
 
-    if use_ticket:
-        inventory["summon_ticket"] -= count
-        user["inventory"] = inventory
-    elif use_gems:
-        user["gems"] = user.get("gems", 0) - gd.GEM_SUMMON_COST * count
-    else:
-        user["ryo"] -= gd.SUMMON_COST * count
+    _deduct_summon_cost(user, inventory, currency, count)
     user["pity"] = pity
     bump_mission(user, "summon", count)
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
@@ -1401,7 +1496,7 @@ async def gear_summon(body: GearSummonIn, user: dict = Depends(get_current_user)
     for i in range(count):
         force_epic = (count == 10 and i == 9 and
                       not any(gd.GEAR_RARITY_META[r["rarity"]]["tier"] >= 4 for r in results))
-        rarity = "epic" if force_epic else random.choices(
+        rarity = "epic" if force_epic else rng.choices(
             list(gd.GEAR_SUMMON_RATES.keys()), weights=list(gd.GEAR_SUMMON_RATES.values()), k=1)[0]
         tier = gd.GEAR_RARITY_META[rarity]["tier"]
         g = gd.roll_gear(min_tier=tier, max_tier=tier)
@@ -1470,8 +1565,8 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
         user.setdefault("gear", []).append(g)
         gear_reward = gear_public(g)
     bp_chance = rw.get("blueprint_chance")
-    if bp_chance and random.random() < bp_chance:
-        bp = f"blueprint_{random.choice(gd.GEAR_SLOTS)}"
+    if bp_chance and rng.random() < bp_chance:
+        bp = f"blueprint_{rng.choice(gd.GEAR_SLOTS)}"
         inventory[bp] = inventory.get(bp, 0) + 1
         blueprint_reward = bp
 
@@ -1530,7 +1625,7 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
 
     # RARE drop — a single random piece of the boss's signature gear set.
     gear_reward = None
-    rare_hit = random.random() < r["rare_chance"]
+    rare_hit = rng.random() < r["rare_chance"]
     if rare_hit and len(user.get("gear", [])) < GEAR_INVENTORY_CAP:
         g = gd.tsukuyomi_gear_drop(boss, body.difficulty)
         user.setdefault("gear", []).append(g)

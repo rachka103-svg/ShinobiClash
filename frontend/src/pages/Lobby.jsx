@@ -125,7 +125,7 @@ export default function Lobby() {
             to="/campaign"
             data-testid="continue-battle"
             className="block group relative rounded-2xl overflow-hidden p-4 transition-transform active:scale-[0.99] shrink-0"
-            style={{ background: "linear-gradient(120deg, rgba(255,87,34,0.16), rgba(11,11,20,0.9) 55%)", border: "1px solid rgba(255,87,34,0.35)", boxShadow: glow("#FF5722", 1) }}
+            style={{ background: "linear-gradient(120deg, rgba(255,87,34,0.16), rgba(11,11,20,0.94) 55%), #0B0B14", border: "1px solid rgba(255,87,34,0.35)", boxShadow: glow("#FF5722", 1) }}
           >
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0">
@@ -145,7 +145,7 @@ export default function Lobby() {
             </div>
           </Link>
         ) : (
-          <div className="relative rounded-2xl overflow-hidden p-4 text-center shrink-0" style={{ background: "linear-gradient(120deg, rgba(255,202,40,0.14), rgba(11,11,20,0.9))", border: "1px solid rgba(255,202,40,0.35)", boxShadow: glow("#FFCA28", 1) }} data-testid="campaign-complete">
+          <div className="relative rounded-2xl overflow-hidden p-4 text-center shrink-0" style={{ background: "linear-gradient(120deg, rgba(255,202,40,0.14), rgba(11,11,20,0.94)), #0B0B14", border: "1px solid rgba(255,202,40,0.35)", boxShadow: glow("#FFCA28", 1) }} data-testid="campaign-complete">
             <PartyPopper className="w-6 h-6 mx-auto mb-1 text-amber-300" />
             <h3 className="font-display text-xl lg:text-2xl text-amber-300" style={{ textShadow: "0 0 12px rgba(255,202,40,0.6)" }}>ALL MISSIONS CLEARED!</h3>
           </div>
@@ -161,7 +161,7 @@ export default function Lobby() {
                   to={t.to}
                   data-testid={t.testid}
                   className="flex flex-col items-center text-center gap-1.5 rounded-xl p-2.5 transition-all group active:scale-[0.97] h-full"
-                  style={{ background: `linear-gradient(160deg, ${t.color}1c, rgba(11,11,20,0.85))`, border: `1px solid ${t.color}33` }}
+                  style={{ background: `linear-gradient(160deg, ${t.color}1c, rgba(11,11,20,0.92)), #0B0B14`, border: `1px solid ${t.color}33` }}
                 >
                   <div className="w-9 h-9 rounded-full flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: `${t.color}22`, boxShadow: `0 0 12px ${t.color}55` }}>
                     <Icon className="w-5 h-5" style={{ color: t.color }} />

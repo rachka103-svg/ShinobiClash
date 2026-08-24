@@ -337,58 +337,89 @@ def _hero_stats(rarity, role):
     return out
 
 
+def _kit_support(hid, element, el, first, ri):
+    return [
+        {"id": f"{hid}_b", "name": f"{element} Bolt", "type": "attack", "power": 95, "chakra_cost": 0, "chakra_gain": 30, "element": element, "description": f"A bolt of {el} energy. Builds chakra."},
+        {"id": f"{hid}_heal", "name": "Divine Blessing", "type": "heal", "power": 200 + ri * 38, "chakra_cost": 55 + ri * 2, "chakra_gain": 0, "element": element, "description": "Restores a large amount of an ally's HP."},
+        {"id": f"{hid}_aoe", "name": f"{element} Radiance", "type": "aoe", "power": 125 + ri * 16, "chakra_cost": 70 + ri * 3, "chakra_gain": 0, "element": element, "description": f"Unleashes {el} energy on all enemies."},
+    ]
+
+
+def _kit_tank(hid, element, el, first, ri):
+    return [
+        {"id": f"{hid}_b", "name": f"{element} Smash", "type": "attack", "power": 95, "chakra_cost": 0, "chakra_gain": 28, "element": element, "description": "A heavy blow. Builds chakra."},
+        {"id": f"{hid}_sig", "name": f"{first}'s Wrath", "type": "attack", "power": 160 + ri * 18, "chakra_cost": 45 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A crushing {el} strike on one foe."},
+        {"id": f"{hid}_guard", "name": "Aegis Ward", "type": "shield", "power": 0, "chakra_cost": 50 + ri * 2, "chakra_gain": 0, "element": element, "description": "Grants a powerful damage shield to an ally."},
+    ]
+
+
+def _kit_assassin(hid, element, el, first, ri):
+    return [
+        {"id": f"{hid}_b", "name": f"{element} Slash", "type": "attack", "power": 110, "chakra_cost": 0, "chakra_gain": 32, "element": element, "description": "A quick strike. Builds chakra."},
+        {"id": f"{hid}_sig", "name": f"{first}'s Execution", "type": "attack", "power": 200 + ri * 24, "chakra_cost": 50 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A merciless {el} blow to one enemy."},
+        {"id": f"{hid}_aoe", "name": f"{element} Eclipse", "type": "aoe", "power": 155 + ri * 14, "chakra_cost": 80 + ri * 2, "chakra_gain": 0, "element": element, "description": f"{element} energy ravages all foes."},
+    ]
+
+
+def _kit_mage(hid, element, el, first, ri):
+    return [
+        {"id": f"{hid}_b", "name": f"{element} Spark", "type": "attack", "power": 105, "chakra_cost": 0, "chakra_gain": 30, "element": element, "description": f"A crackling burst of {el} energy. Builds chakra."},
+        {"id": f"{hid}_sig", "name": f"{first}'s Arcanum", "type": "attack", "power": 210 + ri * 26, "chakra_cost": 50 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A concentrated blast of pure {el} magic."},
+        {"id": f"{hid}_aoe", "name": f"{element} Nova", "type": "aoe", "power": 160 + ri * 18, "chakra_cost": 80 + ri * 3, "chakra_gain": 0, "element": element, "description": f"A detonation of {el} magic engulfs every enemy."},
+    ]
+
+
+def _kit_healer(hid, element, el, first, ri):
+    return [
+        {"id": f"{hid}_b", "name": f"{element} Mend", "type": "attack", "power": 90, "chakra_cost": 0, "chakra_gain": 30, "element": element, "description": "A modest strike. Builds chakra."},
+        {"id": f"{hid}_heal", "name": f"{first}'s Renewal", "type": "heal", "power": 230 + ri * 42, "chakra_cost": 55 + ri * 2, "chakra_gain": 0, "element": element, "description": "A potent restoration that mends an ally's deepest wounds."},
+        {"id": f"{hid}_aoe", "name": f"{element} Sanctuary", "type": "heal", "power": 140 + ri * 22, "chakra_cost": 75 + ri * 3, "chakra_gain": 0, "element": element, "description": "A wave of restorative energy washes over the whole team."},
+    ]
+
+
+def _kit_control(hid, element, el, first, ri):
+    return [
+        {"id": f"{hid}_b", "name": f"{element} Snare", "type": "attack", "power": 100, "chakra_cost": 0, "chakra_gain": 30, "element": element, "description": f"A binding lash of {el} energy. Builds chakra."},
+        {"id": f"{hid}_sig", "name": f"{first}'s Grasp", "type": "attack", "power": 175 + ri * 20, "chakra_cost": 45 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A disabling {el} strike that disrupts the target."},
+        {"id": f"{hid}_aoe", "name": f"{element} Lockdown", "type": "aoe", "power": 135 + ri * 15, "chakra_cost": 75 + ri * 3, "chakra_gain": 0, "element": element, "description": f"{element} energy binds every enemy at once."},
+    ]
+
+
+def _kit_bruiser(hid, element, el, first, ri):
+    return [
+        {"id": f"{hid}_b", "name": f"{element} Haymaker", "type": "attack", "power": 105, "chakra_cost": 0, "chakra_gain": 27, "element": element, "description": "A heavy-handed blow. Builds chakra."},
+        {"id": f"{hid}_sig", "name": f"{first}'s Reckoning", "type": "attack", "power": 195 + ri * 21, "chakra_cost": 45 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A brutal {el}-charged haymaker on one foe."},
+        {"id": f"{hid}_aoe", "name": f"{element} Rampage", "type": "aoe", "power": 145 + ri * 17, "chakra_cost": 75 + ri * 3, "chakra_gain": 0, "element": element, "description": f"A wide {el} rampage crashing into all enemies."},
+    ]
+
+
+def _kit_default(hid, element, el, first, ri):
+    return [
+        {"id": f"{hid}_b", "name": f"{element} Strike", "type": "attack", "power": 100, "chakra_cost": 0, "chakra_gain": 25, "element": element, "description": "An elemental strike. Builds chakra."},
+        {"id": f"{hid}_sig", "name": f"{first}'s Onslaught", "type": "attack", "power": 180 + ri * 22, "chakra_cost": 40 + ri * 3, "chakra_gain": 0, "element": element, "description": f"A devastating {el} blow on one enemy."},
+        {"id": f"{hid}_aoe", "name": f"{element} Cataclysm", "type": "aoe", "power": 130 + ri * 16, "chakra_cost": 70 + ri * 4, "chakra_gain": 0, "element": element, "description": f"Erupts with {el} energy hitting all enemies."},
+    ]
+
+
+# Role -> kit-builder lookup (replaces an 8-branch if/elif chain). Every
+# builder shares the exact same signature so _hero_jutsus can stay a single
+# dict lookup regardless of how many roles get added later.
+_ROLE_KIT_BUILDERS = {
+    "Support": _kit_support,
+    "Tank": _kit_tank,
+    "Assassin": _kit_assassin,
+    "Mage": _kit_mage,
+    "Healer": _kit_healer,
+    "Control": _kit_control,
+    "Bruiser": _kit_bruiser,
+}
+
+
 def _hero_jutsus(hid, name, element, rarity, role):
     ri = RARITY_ORDER[rarity]
     first = name.split(" ")[0]
     el = element.lower()
-    if role == "Support":
-        kit = [
-            {"id": f"{hid}_b", "name": f"{element} Bolt", "type": "attack", "power": 95, "chakra_cost": 0, "chakra_gain": 30, "element": element, "description": f"A bolt of {el} energy. Builds chakra."},
-            {"id": f"{hid}_heal", "name": "Divine Blessing", "type": "heal", "power": 200 + ri * 38, "chakra_cost": 55 + ri * 2, "chakra_gain": 0, "element": element, "description": "Restores a large amount of an ally's HP."},
-            {"id": f"{hid}_aoe", "name": f"{element} Radiance", "type": "aoe", "power": 125 + ri * 16, "chakra_cost": 70 + ri * 3, "chakra_gain": 0, "element": element, "description": f"Unleashes {el} energy on all enemies."},
-        ]
-    elif role == "Tank":
-        kit = [
-            {"id": f"{hid}_b", "name": f"{element} Smash", "type": "attack", "power": 95, "chakra_cost": 0, "chakra_gain": 28, "element": element, "description": "A heavy blow. Builds chakra."},
-            {"id": f"{hid}_sig", "name": f"{first}'s Wrath", "type": "attack", "power": 160 + ri * 18, "chakra_cost": 45 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A crushing {el} strike on one foe."},
-            {"id": f"{hid}_guard", "name": "Aegis Ward", "type": "shield", "power": 0, "chakra_cost": 50 + ri * 2, "chakra_gain": 0, "element": element, "description": "Grants a powerful damage shield to an ally."},
-        ]
-    elif role == "Assassin":
-        kit = [
-            {"id": f"{hid}_b", "name": f"{element} Slash", "type": "attack", "power": 110, "chakra_cost": 0, "chakra_gain": 32, "element": element, "description": "A quick strike. Builds chakra."},
-            {"id": f"{hid}_sig", "name": f"{first}'s Execution", "type": "attack", "power": 200 + ri * 24, "chakra_cost": 50 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A merciless {el} blow to one enemy."},
-            {"id": f"{hid}_aoe", "name": f"{element} Eclipse", "type": "aoe", "power": 155 + ri * 14, "chakra_cost": 80 + ri * 2, "chakra_gain": 0, "element": element, "description": f"{element} energy ravages all foes."},
-        ]
-    elif role == "Mage":
-        kit = [
-            {"id": f"{hid}_b", "name": f"{element} Spark", "type": "attack", "power": 105, "chakra_cost": 0, "chakra_gain": 30, "element": element, "description": f"A crackling burst of {el} energy. Builds chakra."},
-            {"id": f"{hid}_sig", "name": f"{first}'s Arcanum", "type": "attack", "power": 210 + ri * 26, "chakra_cost": 50 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A concentrated blast of pure {el} magic."},
-            {"id": f"{hid}_aoe", "name": f"{element} Nova", "type": "aoe", "power": 160 + ri * 18, "chakra_cost": 80 + ri * 3, "chakra_gain": 0, "element": element, "description": f"A detonation of {el} magic engulfs every enemy."},
-        ]
-    elif role == "Healer":
-        kit = [
-            {"id": f"{hid}_b", "name": f"{element} Mend", "type": "attack", "power": 90, "chakra_cost": 0, "chakra_gain": 30, "element": element, "description": "A modest strike. Builds chakra."},
-            {"id": f"{hid}_heal", "name": f"{first}'s Renewal", "type": "heal", "power": 230 + ri * 42, "chakra_cost": 55 + ri * 2, "chakra_gain": 0, "element": element, "description": "A potent restoration that mends an ally's deepest wounds."},
-            {"id": f"{hid}_aoe", "name": f"{element} Sanctuary", "type": "heal", "power": 140 + ri * 22, "chakra_cost": 75 + ri * 3, "chakra_gain": 0, "element": element, "description": "A wave of restorative energy washes over the whole team."},
-        ]
-    elif role == "Control":
-        kit = [
-            {"id": f"{hid}_b", "name": f"{element} Snare", "type": "attack", "power": 100, "chakra_cost": 0, "chakra_gain": 30, "element": element, "description": f"A binding lash of {el} energy. Builds chakra."},
-            {"id": f"{hid}_sig", "name": f"{first}'s Grasp", "type": "attack", "power": 175 + ri * 20, "chakra_cost": 45 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A disabling {el} strike that disrupts the target."},
-            {"id": f"{hid}_aoe", "name": f"{element} Lockdown", "type": "aoe", "power": 135 + ri * 15, "chakra_cost": 75 + ri * 3, "chakra_gain": 0, "element": element, "description": f"{element} energy binds every enemy at once."},
-        ]
-    elif role == "Bruiser":
-        kit = [
-            {"id": f"{hid}_b", "name": f"{element} Haymaker", "type": "attack", "power": 105, "chakra_cost": 0, "chakra_gain": 27, "element": element, "description": "A heavy-handed blow. Builds chakra."},
-            {"id": f"{hid}_sig", "name": f"{first}'s Reckoning", "type": "attack", "power": 195 + ri * 21, "chakra_cost": 45 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A brutal {el}-charged haymaker on one foe."},
-            {"id": f"{hid}_aoe", "name": f"{element} Rampage", "type": "aoe", "power": 145 + ri * 17, "chakra_cost": 75 + ri * 3, "chakra_gain": 0, "element": element, "description": f"A wide {el} rampage crashing into all enemies."},
-        ]
-    else:
-        kit = [
-            {"id": f"{hid}_b", "name": f"{element} Strike", "type": "attack", "power": 100, "chakra_cost": 0, "chakra_gain": 25, "element": element, "description": "An elemental strike. Builds chakra."},
-            {"id": f"{hid}_sig", "name": f"{first}'s Onslaught", "type": "attack", "power": 180 + ri * 22, "chakra_cost": 40 + ri * 3, "chakra_gain": 0, "element": element, "description": f"A devastating {el} blow on one enemy."},
-            {"id": f"{hid}_aoe", "name": f"{element} Cataclysm", "type": "aoe", "power": 130 + ri * 16, "chakra_cost": 70 + ri * 4, "chakra_gain": 0, "element": element, "description": f"Erupts with {el} energy hitting all enemies."},
-        ]
+    kit = _ROLE_KIT_BUILDERS.get(role, _kit_default)(hid, element, el, first, ri)
     # UR and above unlock a 4th, ultimate-tier ability — high chakra cost,
     # highest impact. This is what makes top-rarity kits feel meaningfully
     # deeper/more strategic than a common hero's straightforward kit.
@@ -690,6 +721,32 @@ BOSS_MECHANICS = {
 }
 
 
+def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rarity, stage_rng) -> dict:
+    boss_band = _boss_rarity_for_chapter(chapter)
+    boss_candidates = [tid for r in boss_band for tid in pool_by_rarity.get(r, [])] or candidates
+    boss_tid = stage_rng.choice(boss_candidates)
+    mech_id = "sealed_titan" if chapter % 2 == 0 else "abyssal_warden"
+    enemies = [{"template_id": boss_tid, "level": round(base_level * 1.6)}]
+    return {
+        "id": sid, "chapter": chapter, "name": f"{CATALOG_BY_ID[boss_tid]['name']}'s Last Stand",
+        "region": region, "enemies": enemies, "is_boss": True,
+        "boss_mechanic": mech_id,
+        "rewards": {"ryo": 400 + chapter * 120, "exp": 150 + chapter * 45},
+        "first_clear": {"ryo": 900 + chapter * 200, "ninja": None},
+    }
+
+
+def _build_normal_stage(sid, chapter, i, region, base_level, candidates, stage_rng) -> dict:
+    count = min(3, 2 + i // 3)
+    enemies = [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
+    return {
+        "id": sid, "chapter": chapter, "name": f"{region} Skirmish {i}",
+        "region": region, "enemies": enemies, "is_boss": False,
+        "rewards": {"ryo": 220 + chapter * 60, "exp": 80 + chapter * 25},
+        "first_clear": {"ryo": 400 + chapter * 100, "ninja": None},
+    }
+
+
 def generate_campaign_stages(start_chapter: int, end_chapter: int, stages_per_chapter: int = 6) -> list:
     """Procedurally builds stage definitions for any chapter range. Designed
     to scale to hundreds/thousands of stages without hand-authored data or
@@ -707,29 +764,11 @@ def generate_campaign_stages(start_chapter: int, end_chapter: int, stages_per_ch
             is_boss = i == stages_per_chapter
             sid = f"s{12 + (chapter - start_chapter) * stages_per_chapter + i}" if start_chapter > 4 else f"c{chapter}_{i}"
             base_level = chapter * 5 + i
-            rng = random.Random((chapter * 1000 + i))
+            stage_rng = random.Random((chapter * 1000 + i))
             if is_boss:
-                boss_band = _boss_rarity_for_chapter(chapter)
-                boss_candidates = [tid for r in boss_band for tid in pool_by_rarity.get(r, [])] or candidates
-                boss_tid = rng.choice(boss_candidates)
-                mech_id = "sealed_titan" if chapter % 2 == 0 else "abyssal_warden"
-                enemies = [{"template_id": boss_tid, "level": round(base_level * 1.6)}]
-                stage = {
-                    "id": sid, "chapter": chapter, "name": f"{CATALOG_BY_ID[boss_tid]['name']}'s Last Stand",
-                    "region": region, "enemies": enemies, "is_boss": True,
-                    "boss_mechanic": mech_id,
-                    "rewards": {"ryo": 400 + chapter * 120, "exp": 150 + chapter * 45},
-                    "first_clear": {"ryo": 900 + chapter * 200, "ninja": None},
-                }
+                stage = _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rarity, stage_rng)
             else:
-                count = min(3, 2 + i // 3)
-                enemies = [{"template_id": rng.choice(candidates), "level": base_level + rng.randint(0, 2)} for _ in range(count)]
-                stage = {
-                    "id": sid, "chapter": chapter, "name": f"{region} Skirmish {i}",
-                    "region": region, "enemies": enemies, "is_boss": False,
-                    "rewards": {"ryo": 220 + chapter * 60, "exp": 80 + chapter * 25},
-                    "first_clear": {"ryo": 400 + chapter * 100, "ninja": None},
-                }
+                stage = _build_normal_stage(sid, chapter, i, region, base_level, candidates, stage_rng)
             out.append(stage)
     return out
 
@@ -790,6 +829,16 @@ def chapter_meta(chapter: int) -> dict:
 # Combat / progression helpers
 # ---------------------------------------------------------------------------
 import random as _random
+import secrets as _secrets
+
+# Cryptographically-secure RNG for gameplay-affecting rolls (loot/drop tables,
+# gear rarity/slot/substat generation, craft rarity). Kept separate from the
+# `_random.Random(seed)` instances used elsewhere in this file for
+# INTENTIONALLY deterministic/reproducible content (e.g. the Tsukuyomi boss
+# roster and the daily shop deals, which must give every player the exact
+# same result on the exact same day) — those must stay seeded and are not
+# touched here.
+secure_rng = _secrets.SystemRandom()
 
 
 # ---------------------------------------------------------------------------
@@ -820,7 +869,7 @@ def roll_drops(chapter: int, first_clear: bool) -> dict:
     for iid, qty, w in DROP_TABLE:
         pool.extend([(iid, qty)] * w)
     for _ in range(rolls):
-        iid, qty = _random.choice(pool)
+        iid, qty = secure_rng.choice(pool)
         drops[iid] = drops.get(iid, 0) + qty
     return drops
 
@@ -1278,15 +1327,15 @@ def roll_gear(min_tier: int = 1, max_tier: int = 3, luck: float = 0.0) -> dict:
     for i, r in enumerate(band):
         w = max(1.0, (len(band) - i) * 10 * (1 - luck) + (i + 1) * 10 * luck)
         weights.append(w)
-    rarity = _random.choices(band, weights=weights, k=1)[0]
-    slot = _random.choice(GEAR_SLOTS)
-    set_id = _random.choice(list(GEAR_SETS.keys()))
+    rarity = secure_rng.choices(band, weights=weights, k=1)[0]
+    slot = secure_rng.choice(GEAR_SLOTS)
+    set_id = secure_rng.choice(list(GEAR_SETS.keys()))
     n_subs = GEAR_RARITY_META[rarity]["subs"]
     subs = []
     pool = GEAR_SUBSTAT_POOL[:]
-    _random.shuffle(pool)
+    secure_rng.shuffle(pool)
     for stat, lo, hi in pool[:n_subs]:
-        subs.append({"stat": stat, "value": _random.randint(lo, hi)})
+        subs.append({"stat": stat, "value": secure_rng.randint(lo, hi)})
     return {
         "gear_id": str(_uuid.uuid4()), "slot": slot, "set_id": set_id, "rarity": rarity,
         "plus": 0, "subs": subs, "equipped_by": None, "locked": False,
@@ -1374,7 +1423,7 @@ FUSION_RECIPES = {
 
 
 def craft_gear(slot: str) -> dict:
-    rarity = _random.choices(list(CRAFT_RARITY_WEIGHTS.keys()),
+    rarity = secure_rng.choices(list(CRAFT_RARITY_WEIGHTS.keys()),
                              weights=list(CRAFT_RARITY_WEIGHTS.values()), k=1)[0]
     g = roll_gear(min_tier=GEAR_RARITY_META[rarity]["tier"], max_tier=GEAR_RARITY_META[rarity]["tier"])
     g["slot"] = slot  # blueprint dictates the slot

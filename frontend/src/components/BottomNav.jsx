@@ -52,7 +52,7 @@ export default function BottomNav() {
       <div className="relative mx-auto max-w-lg px-3 pb-2">
         <div
           className="relative flex items-end justify-between rounded-2xl px-2 h-16 border border-black/10"
-          style={{ background: "rgba(11,11,20,0.82)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.07), 0 -8px 30px rgba(0,0,0,0.5)" }}
+          style={{ background: "rgba(11,11,20,0.96)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.07), 0 -8px 30px rgba(0,0,0,0.5)" }}
         >
           {/* gold hairline crown */}
           <div className="gold-pinstripe absolute -top-px inset-x-6 opacity-60" />

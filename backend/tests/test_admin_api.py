@@ -6,8 +6,8 @@ import requests
 import pytest
 
 BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") if os.environ.get("REACT_APP_BACKEND_URL") else "https://shinobi-combat-zone.preview.emergentagent.com"
-ADMIN_EMAIL = "admin@shinobi.com"
-ADMIN_PASSWORD = "admin123"
+ADMIN_EMAIL = os.environ.get("TEST_ADMIN_EMAIL", "admin@shinobi.com")
+ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD", "admin123")
 
 CREATED_HEROES = []  # cleanup
 

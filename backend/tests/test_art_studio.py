@@ -14,8 +14,8 @@ import requests
 import pytest
 
 BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
-ADMIN_EMAIL = "admin@shinobi.com"
-ADMIN_PASSWORD = "admin123"
+ADMIN_EMAIL = os.environ.get("TEST_ADMIN_EMAIL", "admin@shinobi.com")
+ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD", "admin123")
 
 DATA_URL_RE = re.compile(r"^data:image/(png|jpeg);base64,[A-Za-z0-9+/=]+$")
 

@@ -120,7 +120,7 @@ export default function Campaign() {
               data-testid={`stage-row-${stage.id}`}
               className="w-full text-left flex items-center gap-3 p-3 rounded-2xl border transition-all disabled:cursor-not-allowed group"
               style={{
-                background: locked ? "rgba(255,255,255,0.02)" : isBoss ? "linear-gradient(120deg, rgba(255,87,34,0.14), rgba(11,11,20,0.9))" : "rgba(255,255,255,0.04)",
+                background: locked ? "rgba(255,255,255,0.02)" : isBoss ? "linear-gradient(120deg, rgba(255,87,34,0.14), rgba(11,11,20,0.94)), #0B0B14" : "rgba(255,255,255,0.04)",
                 borderColor: state === "completed" ? "rgba(0,230,118,0.3)" : isBoss ? "rgba(255,87,34,0.4)" : "rgba(255,255,255,0.1)",
                 opacity: locked ? 0.55 : 1,
               }}
