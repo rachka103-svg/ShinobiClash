@@ -22,7 +22,7 @@ ELEMENT_ADVANTAGE = {
 # ---------------------------------------------------------------------------
 RARITY_ORDER = {"N": 0, "R": 1, "SR": 2, "SSR": 3, "UR": 4, "GR": 5, "LR": 6, "MYTHIC": 7}
 RARITY_TIERS = {k: v + 1 for k, v in RARITY_ORDER.items()}
-ASCENSION_MAX = {"N": 1, "R": 2, "SR": 3, "SSR": 4, "UR": 5, "GR": 6, "LR": 6, "MYTHIC": 7}
+ASCENSION_MAX = {"N": 16, "R": 16, "SR": 16, "SSR": 16, "UR": 16, "GR": 16, "LR": 16, "MYTHIC": 16}
 
 # ---------------------------------------------------------------------------
 # Ninja catalog. All characters are original/fictional to avoid copyright.
@@ -828,9 +828,17 @@ def roll_drops(chapter: int, first_clear: bool) -> dict:
 # ---------------------------------------------------------------------------
 # Combat / progression helpers
 # ---------------------------------------------------------------------------
+HERO_MAX_LEVEL = 500
+BOSS_MAX_LEVEL = 1000
+ASCENSION_STEP = 25
+
+
 def level_cap(rarity: str, ascension: int) -> int:
-    """Base cap of 20, +10 per ascension star."""
-    return 20 + ascension * 10
+    """Levels 1-100 need NO ascension. Each ascension then unlocks +25 more
+    levels (asc1->125, asc2->150, asc3->175 ...), capped at 500 for all heroes."""
+    if ascension <= 0:
+        return 100
+    return min(HERO_MAX_LEVEL, 100 + ascension * ASCENSION_STEP)
 
 
 def max_team_size(level: int) -> int:
@@ -878,9 +886,18 @@ def hero_exp_to_next(level: int) -> int:
 
 
 def ascension_cost(rarity: str, ascension: int) -> dict:
-    """Cost to go from `ascension` -> ascension + 1."""
+    """Cost to go from `ascension` -> ascension + 1. Massively scaled so
+    pushing a hero toward level 500 is a genuine long-term investment. High
+    ascensions also demand rare evolution materials."""
     ri = RARITY_ORDER[rarity]
-    return {"ascension_crystal": 5 + ascension * 5 + ri * 3, "ryo": 500 + ascension * 400 + ri * 300}
+    crystals = 8 + ascension * 6 + ri * 4
+    ryo = 8000 + ascension * 9000 + ri * 3000
+    items = {"ascension_crystal": crystals}
+    if ascension >= 4:
+        items["evo_essence"] = 2 + (ascension - 4) * 2
+    if ascension >= 8:
+        items["celestial_core"] = 1 + (ascension - 8)
+    return {"ascension_crystal": crystals, "ryo": ryo, "items": items}
 
 
 # ---------------------------------------------------------------------------
@@ -933,7 +950,7 @@ from datetime import datetime, timezone, timedelta
 
 ENERGY_MAX_DEFAULT = 100
 ENERGY_REGEN_SECONDS = 180  # +1 energy every 3 minutes -> full regen in 5h
-ENERGY_COST = {"campaign": 10, "spire": 10, "trial": 8, "tsukuyomi": 12}
+ENERGY_COST = {"campaign": 10, "spire": 0, "trial": 8, "tsukuyomi": 0}
 
 
 def _parse_iso(ts: Optional[str]) -> datetime:
@@ -1188,7 +1205,7 @@ EXP_TOME_GOLD_COST = {"exp_tome_minor": 60, "exp_tome_greater": 260, "exp_tome_a
 # Early stars burn duplicate shards; the highest stars are gated behind rare
 # evolution materials so 5-6★ remains a genuine long-term chase.
 # ---------------------------------------------------------------------------
-STAR_BONUS_PER_STAR = 0.07  # +7% HP/ATK/DEF per star beyond the 1st
+STAR_BONUS_PER_STAR = 0.18  # +18% HP/ATK/DEF per star beyond the 1st (big evolution payoff)
 
 
 def evolution_cost(rarity: str, current_star: int) -> dict:
@@ -1646,7 +1663,6 @@ SHOP_ITEMS = [
     {"id": "shop_energy_flask", "name": "Energy Flask", "desc": "Instantly restore 60 Energy.", "icon": "zap", "color": "#00E676", "currency": "gems", "price": 40, "grant": {"energy": 60}},
     {"id": "shop_gold_pouch", "name": "Gold Pouch", "desc": "A hefty pouch of 6,000 Ryo.", "icon": "coins", "color": "#FFCA28", "currency": "gems", "price": 50, "grant": {"ryo": 6000}},
     {"id": "shop_summon_ticket", "name": "Summon Ticket", "desc": "One free hero summon.", "icon": "ticket", "color": "#FFCA28", "currency": "gems", "price": 120, "grant": {"items": {"summon_ticket": 1}}},
-    {"id": "shop_gear_ticket", "name": "Armory Ticket", "desc": "One free gear summon.", "icon": "anvil", "color": "#7C4DFF", "currency": "gems", "price": 80, "grant": {"items": {"gear_ticket": 1}}},
     {"id": "shop_ascension", "name": "Ascension Crystals ×2", "desc": "Ascend heroes past their level cap.", "icon": "gem", "color": "#00E5FF", "currency": "gems", "price": 90, "grant": {"items": {"ascension_crystal": 2}}},
     {"id": "shop_evo_essence", "name": "Evolution Essence ×2", "desc": "Rare evolution material.", "icon": "sparkles", "color": "#D500F9", "currency": "gems", "price": 110, "grant": {"items": {"evo_essence": 2}}},
     {"id": "shop_ancient_tome", "name": "Ancient EXP Tome", "desc": "Grants 6,000 hero EXP.", "icon": "book-open", "color": "#AB47BC", "currency": "gems", "price": 70, "grant": {"items": {"exp_tome_ancient": 1}}},
@@ -1658,3 +1674,86 @@ SHOP_ITEMS = [
     {"id": "shop_scrap_iron", "name": "Scrap Iron ×10", "desc": "Basic fusion material.", "icon": "box", "color": "#90A4AE", "currency": "ryo", "price": 700, "grant": {"items": {"scrap_iron": 10}}},
 ]
 SHOP_BY_ID = {s["id"]: s for s in SHOP_ITEMS}
+
+
+# ===========================================================================
+# SKILLS / JUTSUS — duplicate hero shards now also rank up a hero's skills.
+# A hero has a single Skill Rank (1..10). Each rank boosts the power of all
+# active jutsus (+8% each) and, at PASSIVE_UNLOCK_RANK, permanently UNLOCKS
+# the hero's signature passive. Shards are shared with Evolution, creating a
+# meaningful choice between raw stars and stronger, passive-enabled skills.
+# ===========================================================================
+SKILL_RANK_MAX = 10
+PASSIVE_UNLOCK_RANK = 3
+SKILL_POWER_PER_RANK = 0.08  # +8% jutsu power per rank beyond the 1st
+
+
+def skill_power_mult(rank: int) -> float:
+    return round(1 + max(0, (rank or 1) - 1) * SKILL_POWER_PER_RANK, 4)
+
+
+def skill_rank_cost(rarity: str, rank: int) -> dict:
+    """Shard + Ryo cost to raise Skill Rank from `rank` -> `rank + 1`."""
+    ri = RARITY_ORDER.get(rarity, 1)
+    shards = round((30 + ri * 12) * (1 + 0.5 * (rank - 1)))
+    ryo = 600 + rank * 500 + ri * 200
+    return {"shards": shards, "ryo": ryo}
+
+
+def skill_public(rarity: str, rank: int) -> dict:
+    rank = max(1, rank or 1)
+    return {
+        "rank": rank,
+        "rank_max": SKILL_RANK_MAX,
+        "power_mult": skill_power_mult(rank),
+        "passive_unlock_rank": PASSIVE_UNLOCK_RANK,
+        "passive_unlocked": rank >= PASSIVE_UNLOCK_RANK,
+        "next_cost": skill_rank_cost(rarity, rank) if rank < SKILL_RANK_MAX else None,
+    }
+
+
+# ===========================================================================
+# DAILY SHOP DEALS — a few rotating discounted items, deterministic per UTC
+# day so every player sees the same deals and they refresh at midnight UTC.
+# ===========================================================================
+DAILY_DEAL_COUNT = 3
+_DEAL_DISCOUNTS = [20, 25, 30, 35, 40]
+
+
+def daily_shop_deals() -> list:
+    day = daily_cycle_utc()
+    seed = int(day.replace("-", ""))
+    rng = _random.Random(seed)
+    pool = [s["id"] for s in SHOP_ITEMS]
+    picks = rng.sample(pool, min(DAILY_DEAL_COUNT, len(pool)))
+    out = []
+    for pid in picks:
+        entry = SHOP_BY_ID[pid]
+        disc = rng.choice(_DEAL_DISCOUNTS)
+        deal_price = max(1, round(entry["price"] * (100 - disc) / 100))
+        out.append({"entry_id": pid, "discount_pct": disc, "orig_price": entry["price"], "deal_price": deal_price})
+    return out
+
+
+def deal_price_for(entry_id: str) -> Optional[int]:
+    for d in daily_shop_deals():
+        if d["entry_id"] == entry_id:
+            return d["deal_price"]
+    return None
+
+
+# ===========================================================================
+# TSUKUYOMI FIRST-CLEAR BONUS — a one-time reward the first time each boss is
+# beaten on each difficulty (Normal / Hard / Nightmare).
+# ===========================================================================
+def tsukuyomi_first_clear_bonus(boss: dict, difficulty: str) -> dict:
+    diff = TSUKU_DIFF_BY_ID.get(difficulty, TSUKUYOMI_DIFFICULTIES[0])
+    i = boss["index"]
+    gems = round((20 + i * 2) * diff["reward_mult"])
+    items = {}
+    if difficulty == "hard":
+        items["summon_ticket"] = 1
+    elif difficulty == "nightmare":
+        items["summon_ticket"] = 1
+        items["gear_ticket"] = 1
+    return {"gems": gems, "items": items}

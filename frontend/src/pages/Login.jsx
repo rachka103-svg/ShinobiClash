@@ -56,15 +56,15 @@ export default function Login() {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="relative z-10 w-full max-w-md glass border border-white/10 rounded-xl p-8 fade-up"
+        className="relative z-10 w-full max-w-md glass border border-black/10 rounded-xl p-8 fade-up"
         data-testid="auth-panel"
       >
         <div className="flex flex-col items-center mb-8">
           <Swords className="w-12 h-12 text-chakra glow-text-cyan mb-3" />
-          <h1 className="font-display text-5xl tracking-wider text-white">
+          <h1 className="font-display text-5xl tracking-wider text-ink">
             SHINOBI<span className="text-fox">CLASH</span>
           </h1>
-          <p className="text-slate-400 text-sm mt-1">Forge your squad. Conquer the shadow realm.</p>
+          <p className="text-slate-500 text-sm mt-1">Forge your squad. Conquer the shadow realm.</p>
         </div>
 
         <div className="flex mb-6 bg-black/40 rounded-lg p-1">
@@ -74,7 +74,7 @@ export default function Login() {
               onClick={() => setMode(m)}
               data-testid={`tab-${m}`}
               className={`flex-1 py-2 rounded-md text-sm font-semibold capitalize transition-all ${
-                mode === m ? "bg-chakra text-[#05050A]" : "text-slate-400 hover:text-white"
+                mode === m ? "bg-chakra text-[#05050A]" : "text-slate-500 hover:text-ink"
               }`}
             >
               {m === "login" ? "Sign In" : "Register"}
@@ -93,7 +93,7 @@ export default function Login() {
             type="submit"
             disabled={busy}
             data-testid="auth-submit-button"
-            className="w-full py-3 rounded-lg font-display text-xl tracking-wider bg-fox text-white hover:bg-orange-600 transition-colors glow-text-orange disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-lg font-display text-xl tracking-wider bg-fox text-ink hover:bg-orange-600 transition-colors glow-text-orange disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {busy && <Loader2 className="w-5 h-5 animate-spin" />}
             {mode === "login" ? "ENTER THE VILLAGE" : "BEGIN YOUR JOURNEY"}
@@ -101,9 +101,9 @@ export default function Login() {
         </form>
 
         <div className="flex items-center gap-3 my-4">
-          <div className="flex-1 h-px bg-white/10" />
+          <div className="flex-1 h-px bg-black/[0.06]" />
           <span className="text-[11px] uppercase tracking-widest text-slate-500">or</span>
-          <div className="flex-1 h-px bg-white/10" />
+          <div className="flex-1 h-px bg-black/[0.06]" />
         </div>
 
         <button
@@ -127,12 +127,12 @@ export default function Login() {
 
 const Field = ({ label, testid, ...props }) => (
   <div>
-    <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">{label}</label>
+    <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">{label}</label>
     <input
       {...props}
       required
       data-testid={testid}
-      className="w-full px-4 py-2.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-slate-600 focus:border-chakra focus:outline-none focus:ring-1 focus:ring-chakra transition-all"
+      className="w-full px-4 py-2.5 rounded-lg bg-black/40 border border-black/10 text-ink placeholder-slate-600 focus:border-chakra focus:outline-none focus:ring-1 focus:ring-chakra transition-all"
     />
   </div>
 );

@@ -73,10 +73,10 @@ export default function EnergyWidget({ energy, onRefresh, compact = false, gems,
           <Zap className="w-4 h-4" />
           <span className="text-xs uppercase tracking-widest font-semibold">Energy</span>
         </div>
-        <span className="text-xs text-slate-400" data-testid="energy-timer">{full ? "FULL" : `+1 in ${fmt(remaining)}`}</span>
+        <span className="text-xs text-slate-500" data-testid="energy-timer">{full ? "FULL" : `+1 in ${fmt(remaining)}`}</span>
       </div>
       <div className="flex items-end gap-2">
-        <span className="font-display text-3xl text-white leading-none" data-testid="energy-value">{energy.current}</span>
+        <span className="font-display text-3xl text-ink leading-none" data-testid="energy-value">{energy.current}</span>
         <span className="text-sm text-slate-500 mb-0.5">/ {energy.max}</span>
       </div>
       <div className="w-full h-2 rounded bg-black/40 overflow-hidden mt-2">

@@ -38,11 +38,11 @@ export const TopBar = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 glass border-b border-white/10" data-testid="top-bar">
+    <header className="sticky top-0 z-40 glass border-b border-black/10" data-testid="top-bar">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
         <Link to="/" className="flex items-center gap-2 group shrink-0" data-testid="logo-link">
           <Swords className="w-6 h-6 text-chakra glow-text-cyan" />
-          <span className="font-display text-2xl tracking-wider text-white group-hover:text-chakra transition-colors">
+          <span className="font-display text-2xl tracking-wider text-ink group-hover:text-chakra transition-colors">
             SHINOBI<span className="text-fox">CLASH</span>
           </span>
         </Link>
@@ -57,7 +57,7 @@ export const TopBar = () => {
                 to={n.to}
                 data-testid={n.testid}
                 className={`flex items-center gap-1.5 px-2.5 lg:px-3 xl:px-3.5 py-2 lg:py-2.5 rounded text-sm font-medium transition-all whitespace-nowrap shrink-0 ${
-                  active ? "text-chakra bg-cyan-500/10" : "text-slate-400 hover:text-white hover:bg-white/5"
+                  active ? "text-chakra bg-cyan-500/10" : "text-slate-500 hover:text-ink hover:bg-black/5"
                 }`}
               >
                 <Icon className="w-4 h-4 lg:w-[18px] lg:h-[18px]" />
@@ -80,10 +80,10 @@ export const TopBar = () => {
             <span className="font-display text-lg lg:text-xl text-jutsu tracking-wide">{user?.gems ?? 0}</span>
           </div>
           <div className="hidden sm:flex flex-col items-end leading-none">
-            <span className="text-sm lg:text-[15px] font-semibold text-white" data-testid="player-name">{user?.name}</span>
+            <span className="text-sm lg:text-[15px] font-semibold text-ink" data-testid="player-name">{user?.name}</span>
             <span className="text-xs lg:text-sm text-chakra">Lv. {user?.level}</span>
           </div>
-          <button onClick={handleLogout} data-testid="logout-button" className="p-2 rounded text-slate-400 hover:text-fox hover:bg-fox/10 transition-colors">
+          <button onClick={handleLogout} data-testid="logout-button" className="p-2 rounded text-slate-500 hover:text-fox hover:bg-fox/10 transition-colors">
             <LogOut className="w-5 h-5" />
           </button>
         </div>
@@ -96,7 +96,7 @@ export const TopBar = () => {
           const Icon = n.icon;
           return (
             <Link key={n.to} to={n.to} data-testid={`m-${n.testid}`}
-              className={`flex flex-1 flex-col items-center gap-0.5 px-1 py-1.5 rounded text-[10px] transition-colors ${active ? "text-chakra" : "text-slate-400"}`}>
+              className={`flex flex-1 flex-col items-center gap-0.5 px-1 py-1.5 rounded text-[10px] transition-colors ${active ? "text-chakra" : "text-slate-500"}`}>
               <Icon className="w-5 h-5" />
               {n.label}
             </Link>
@@ -106,15 +106,15 @@ export const TopBar = () => {
           <SheetTrigger asChild>
             <button
               data-testid="m-nav-more"
-              className={`flex flex-1 flex-col items-center gap-0.5 px-1 py-1.5 rounded text-[10px] transition-colors ${moreActive ? "text-chakra" : "text-slate-400"}`}
+              className={`flex flex-1 flex-col items-center gap-0.5 px-1 py-1.5 rounded text-[10px] transition-colors ${moreActive ? "text-chakra" : "text-slate-500"}`}
             >
               <MoreHorizontal className="w-5 h-5" />
               More
             </button>
           </SheetTrigger>
-          <SheetContent side="bottom" data-testid="more-sheet" className="bg-[#0B0B14] border-white/10 rounded-t-2xl max-h-[70vh]">
+          <SheetContent side="bottom" data-testid="more-sheet" className="bg-[#FFFFFF] border-black/10 rounded-t-2xl max-h-[70vh]">
             <SheetHeader>
-              <SheetTitle className="font-display text-2xl tracking-wide text-white text-left">More</SheetTitle>
+              <SheetTitle className="font-display text-2xl tracking-wide text-ink text-left">More</SheetTitle>
             </SheetHeader>
             <div className="grid grid-cols-4 gap-2 mt-4 pb-6">
               {moreNav.map((n) => {
@@ -125,7 +125,7 @@ export const TopBar = () => {
                     <Link
                       to={n.to}
                       data-testid={`more-${n.testid}`}
-                      className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl transition-colors ${active ? "text-chakra bg-cyan-500/10" : "text-slate-300 hover:bg-white/5"}`}
+                      className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl transition-colors ${active ? "text-chakra bg-cyan-500/10" : "text-slate-600 hover:bg-black/5"}`}
                     >
                       <Icon className="w-6 h-6" />
                       <span className="text-[11px] font-medium">{n.label}</span>

@@ -68,7 +68,7 @@ export default function Campaign() {
           <Scroll className="w-6 h-6 text-fox" />
         </div>
         <div className="min-w-0">
-          <h1 className="font-display text-4xl sm:text-5xl tracking-wide text-white leading-none">CAMPAIGN</h1>
+          <h1 className="font-display text-4xl sm:text-5xl tracking-wide text-ink leading-none">CAMPAIGN</h1>
           <p className="text-[11px] text-slate-500 mt-1" data-testid="campaign-total-progress">{totalCleared}/{stages.length} stages cleared across the realm</p>
         </div>
       </div>
@@ -77,21 +77,21 @@ export default function Campaign() {
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button data-testid="chapter-picker" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/12 hover:bg-white/[0.08] transition-colors">
+            <button data-testid="chapter-picker" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black/[0.04] border border-black/10 hover:bg-black/[0.06] transition-colors">
               <span className="font-display text-xl tracking-wide" style={{ color: accent }}>CH.{selectedChapter}</span>
-              <span className="text-sm text-white truncate max-w-[42vw]">{chapterMeta?.name}</span>
-              <ChevronDown className="w-4 h-4 text-slate-400" />
+              <span className="text-sm text-ink truncate max-w-[42vw]">{chapterMeta?.name}</span>
+              <ChevronDown className="w-4 h-4 text-slate-500" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="max-h-[50vh] overflow-y-auto bg-[#0B0B14] border border-white/15" data-testid="chapter-menu">
+          <DropdownMenuContent className="max-h-[50vh] overflow-y-auto bg-[#FFFFFF] border border-black/12" data-testid="chapter-menu">
             {chapters.map((c) => {
               const cs = stages.filter((s) => s.chapter === c.chapter);
               const done = cs.filter((s) => cleared.includes(s.id)).length;
               const complete = done === cs.length;
               return (
                 <DropdownMenuItem key={c.chapter} onClick={() => setSelectedChapter(c.chapter)} data-testid={`chapter-opt-${c.chapter}`}
-                  className="flex items-center justify-between gap-4 cursor-pointer focus:bg-white/10">
-                  <span className="text-slate-200"><span className="font-display" style={{ color: c.accent }}>CH.{c.chapter}</span> {c.name}</span>
+                  className="flex items-center justify-between gap-4 cursor-pointer focus:bg-black/[0.06]">
+                  <span className="text-slate-700"><span className="font-display" style={{ color: c.accent }}>CH.{c.chapter}</span> {c.name}</span>
                   <span className={`text-[10px] ${complete ? "text-emerald-400" : "text-slate-500"}`}>{done}/{cs.length}</span>
                 </DropdownMenuItem>
               );
@@ -103,7 +103,7 @@ export default function Campaign() {
         )}
       </div>
 
-      {chapterMeta && <p className="text-xs text-slate-400 italic mb-3 max-w-xl">{chapterMeta.lore}</p>}
+      {chapterMeta && <p className="text-xs text-slate-500 italic mb-3 max-w-xl">{chapterMeta.lore}</p>}
 
       {/* Stage list */}
       <div className="space-y-2.5 pb-4" data-testid="campaign-stage-list">
@@ -134,7 +134,7 @@ export default function Campaign() {
               {/* name + region + enemies */}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-display text-lg tracking-wide text-white truncate">{stage.name}</p>
+                  <p className="font-display text-lg tracking-wide text-ink truncate">{stage.name}</p>
                   {isBoss && <span className="text-[9px] font-bold tracking-widest text-fox px-1.5 py-0.5 rounded bg-fox/15 border border-fox/30">BOSS</span>}
                 </div>
                 <div className="flex items-center gap-2 mt-1">

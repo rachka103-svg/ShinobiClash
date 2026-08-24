@@ -74,7 +74,7 @@ export default function Lobby() {
         {leaderTpl ? (
           <img src={leaderTpl.portrait} alt={leaderTpl.name} className="absolute inset-0 w-full h-full object-cover object-top" />
         ) : (
-          <div className="absolute inset-0 bg-[#0B0B14]" />
+          <div className="absolute inset-0 bg-[#FFFFFF]" />
         )}
         {leaderTpl && <div className="absolute inset-x-0 top-0 h-28 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${leaderElement.color}55, transparent)` }} />}
         <div className="absolute inset-0 pointer-events-none" style={{ background: vignetteInset }} />
@@ -83,13 +83,13 @@ export default function Lobby() {
         {leaderFrame && leaderFrame.cornerLevel >= 2 && <DecoCorners rarity={leaderTpl.rarity} size={22} />}
 
         <div className="absolute top-3 right-3 z-10 text-right">
-          <p className="text-[10px] uppercase tracking-widest text-slate-400">Sensei Rank</p>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">Sensei Rank</p>
           <p className="font-display text-2xl lg:text-3xl text-chakra leading-none" style={{ textShadow: glow("#00E5FF", 1) }} data-testid="stat-level">Lv.{user?.level ?? 1}</p>
         </div>
 
         <div className="absolute bottom-0 inset-x-0 z-10 px-4 lg:px-5 pb-4 lg:pb-5">
           <p className="text-[11px] uppercase tracking-widest text-chakra mb-1" style={{ textShadow: "0 0 10px rgba(0,229,255,0.6)" }}>Squad Leader</p>
-          <h1 className="font-display tracking-wide text-white leading-none text-3xl lg:text-5xl" style={{ textShadow: "0 4px 20px rgba(0,0,0,0.85)" }}>
+          <h1 className="font-display tracking-wide text-ink leading-none text-3xl lg:text-5xl" style={{ textShadow: "0 4px 20px rgba(0,0,0,0.85)" }}>
             {leaderTpl?.name || "No Leader Set"}
           </h1>
           {leaderTpl ? (
@@ -98,7 +98,7 @@ export default function Lobby() {
               <span className="text-slate-500">·</span>
               <span style={{ color: leaderElement.color, textShadow: `0 0 10px ${leaderElement.color}` }}>{leaderTpl.element}</span>
               <span className="text-slate-500">·</span>
-              <span className="text-slate-300">Lv.{leader.level}</span>
+              <span className="text-slate-600">Lv.{leader.level}</span>
             </div>
           ) : (
             <Link to="/team" data-testid="set-leader-link" className="inline-block mt-2 text-sm text-chakra underline">Choose your squad →</Link>
@@ -111,11 +111,11 @@ export default function Lobby() {
         {/* HUD strip */}
         <div className="flex items-center gap-3 sm:gap-5 overflow-x-auto scrollbar-none glass-panel px-4 py-2.5 shrink-0" data-testid="lobby-hud">
           <HudStat icon={Zap} label="Energy" value={`${user?.energy?.current ?? 0}/${user?.energy?.max ?? 0}`} color="#00E676" testid="stat-energy" action={handleGemRefill} actionTitle="Refill energy with Gems" />
-          <div className="w-px h-8 bg-white/10 shrink-0" />
+          <div className="w-px h-8 bg-black/[0.06] shrink-0" />
           <HudStat icon={Coins} label="Ryo" value={user?.ryo ?? 0} color="#FFCA28" testid="stat-ryo" />
-          <div className="w-px h-8 bg-white/10 shrink-0" />
+          <div className="w-px h-8 bg-black/[0.06] shrink-0" />
           <HudStat icon={Gem} label="Gems" value={user?.gems ?? 0} color="#D500F9" testid="stat-gems" />
-          <div className="w-px h-8 bg-white/10 shrink-0" />
+          <div className="w-px h-8 bg-black/[0.06] shrink-0" />
           <HudStat icon={Trophy} label="Power" value={user?.team_power ?? 0} color="#FF5722" testid="stat-power" />
         </div>
 
@@ -130,7 +130,7 @@ export default function Lobby() {
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-[11px] uppercase tracking-widest text-fox mb-0.5" style={{ textShadow: "0 0 8px rgba(255,87,34,0.6)" }}>Next Mission · Ch.{nextStage.chapter}</p>
-                <h3 className="font-display text-xl lg:text-2xl tracking-wide text-white truncate">{nextStage.name}</h3>
+                <h3 className="font-display text-xl lg:text-2xl tracking-wide text-ink truncate">{nextStage.name}</h3>
                 <div className="flex items-center gap-1.5 mt-2">
                   {nextStage.enemies.slice(0, 4).map((e, i) => (
                     <div key={i} className="w-7 h-7 rounded-full overflow-hidden border-2 shrink-0" style={{ borderColor: RARITY[catalogById[e.template_id]?.rarity || "R"].color }}>
@@ -139,7 +139,7 @@ export default function Lobby() {
                   ))}
                 </div>
               </div>
-              <div className="shrink-0 w-12 h-12 lg:w-14 lg:h-14 rounded-full flex items-center justify-center bg-fox text-white group-hover:scale-105 transition-transform" style={{ boxShadow: glow("#FF5722", 2) }} data-testid="continue-battle-button">
+              <div className="shrink-0 w-12 h-12 lg:w-14 lg:h-14 rounded-full flex items-center justify-center bg-fox text-ink group-hover:scale-105 transition-transform" style={{ boxShadow: glow("#FF5722", 2) }} data-testid="continue-battle-button">
                 <Play className="w-5 h-5 fill-current" />
               </div>
             </div>
@@ -166,7 +166,7 @@ export default function Lobby() {
                   <div className="w-9 h-9 rounded-full flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: `${t.color}22`, boxShadow: `0 0 12px ${t.color}55` }}>
                     <Icon className="w-5 h-5" style={{ color: t.color }} />
                   </div>
-                  <h4 className="font-display text-base tracking-wide text-white leading-none">{t.label}</h4>
+                  <h4 className="font-display text-base tracking-wide text-ink leading-none">{t.label}</h4>
                 </Link>
               </motion.div>
             );
@@ -194,11 +194,11 @@ const HudStat = ({ icon: Icon, label, value, color, testid, action, actionTitle 
       <Icon className="w-4 h-4" style={{ color }} />
     </div>
     <div className="leading-none">
-      <p className="font-display text-lg text-white leading-none">{value}</p>
+      <p className="font-display text-lg text-ink leading-none">{value}</p>
       <p className="text-[10px] uppercase tracking-widest text-slate-500">{label}</p>
     </div>
     {action && (
-      <button onClick={action} title={actionTitle} data-testid={`${testid}-action`} className="ml-0.5 w-5 h-5 rounded-md bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-white/10 transition-colors">
+      <button onClick={action} title={actionTitle} data-testid={`${testid}-action`} className="ml-0.5 w-5 h-5 rounded-md bg-black/[0.04] border border-black/10 flex items-center justify-center text-slate-600 hover:bg-black/10 transition-colors">
         <Plus className="w-3 h-3" />
       </button>
     )}

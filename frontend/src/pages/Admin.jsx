@@ -43,7 +43,7 @@ const Field = ({ label, children }) => (
   </label>
 );
 
-const sel = "mt-1 w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-chakra";
+const sel = "mt-1 w-full bg-black/40 border border-black/10 rounded px-3 py-2 text-sm text-ink focus:outline-none focus:border-chakra";
 
 export default function Admin() {
   const { catalog, refreshCatalog, banner } = useGame();
@@ -52,16 +52,16 @@ export default function Admin() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8" data-testid="admin-page">
       <div className="mb-6">
-        <h1 className="font-display text-5xl tracking-wide text-white flex items-center gap-3">
+        <h1 className="font-display text-5xl tracking-wide text-ink flex items-center gap-3">
           <Wand2 className="w-9 h-9 text-jutsu" /> ADMIN FORGE
         </h1>
-        <p className="text-slate-400">Generate heroes with AI, balance their stats, and manage portraits — changes go live instantly.</p>
+        <p className="text-slate-500">Generate heroes with AI, balance their stats, and manage portraits — changes go live instantly.</p>
       </div>
 
       <div className="flex items-center gap-2 mb-6">
         {[["generate", "AI Generator"], ["art", "Art Studio"], ["manage", `Manage Heroes (${catalog.length})`], ["players", "Players"], ["economy", "Economy"]].map(([id, lbl]) => (
           <button key={id} data-testid={`admin-tab-${id}`} onClick={() => setTab(id)}
-            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${tab === id ? "bg-chakra text-[#05050A]" : "text-slate-300 bg-white/5 hover:bg-white/10"}`}>
+            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${tab === id ? "bg-chakra text-[#05050A]" : "text-slate-600 bg-black/[0.04] hover:bg-black/10"}`}>
             {lbl}
           </button>
         ))}
@@ -125,7 +125,7 @@ function Generator({ onSaved }) {
   return (
     <div className="grid md:grid-cols-2 gap-6">
       {/* Form */}
-      <div className="rounded-xl border border-white/10 bg-[#0B0B14] p-5 space-y-4" data-testid="generator-form">
+      <div className="rounded-xl border border-black/10 bg-[#FFFFFF] p-5 space-y-4" data-testid="generator-form">
         <Field label="Hero Name">
           <input className={sel} data-testid="gen-name" value={form.name} maxLength={40}
             onChange={(e) => set("name", e.target.value)} placeholder="e.g. Kaen Ryujin" />
@@ -155,14 +155,14 @@ function Generator({ onSaved }) {
           </Field>
         </div>
         <button onClick={generate} disabled={busy} data-testid="gen-submit"
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold bg-gradient-to-r from-jutsu to-fox text-white disabled:opacity-60 hover:brightness-110 transition-all">
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold bg-gradient-to-r from-jutsu to-fox text-ink disabled:opacity-60 hover:brightness-110 transition-all">
           {busy ? <><Loader2 className="w-5 h-5 animate-spin" /> Conjuring… (AI is drawing)</> : <><Sparkles className="w-5 h-5" /> Generate Hero</>}
         </button>
         <p className="text-[11px] text-slate-500 text-center">Each generation spends Universal Key credits (1 image + text).</p>
       </div>
 
       {/* Preview */}
-      <div className="rounded-xl border border-white/10 bg-[#0B0B14] overflow-hidden" data-testid="generator-preview">
+      <div className="rounded-xl border border-black/10 bg-[#FFFFFF] overflow-hidden" data-testid="generator-preview">
         {!draft && !busy && (
           <div className="h-full min-h-[420px] flex flex-col items-center justify-center text-slate-600 gap-3">
             <ImagePlus className="w-12 h-12" />
@@ -188,7 +188,7 @@ function DraftEditor({ draft, setDraft, onSave, saving }) {
     <div>
       <div className="relative h-[300px]">
         <img src={draft.portrait} alt={draft.name} className="w-full h-full object-cover object-top" data-testid="draft-portrait" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B14] to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#FFFFFF] to-transparent" />
         <span className="absolute top-3 left-3 font-display text-lg px-2 rounded" style={{ background: RARITY[draft.rarity].color, color: "#05050A" }}>{draft.rarity}</span>
       </div>
       <div className="p-5 space-y-3">
@@ -325,7 +325,7 @@ function ArtStudio({ catalog, onApplied }) {
   return (
     <div className="grid lg:grid-cols-[380px_1fr] gap-6">
       {/* Form */}
-      <div className="rounded-xl border border-white/10 bg-[#0B0B14] p-5 space-y-4 self-start" data-testid="art-form">
+      <div className="rounded-xl border border-black/10 bg-[#FFFFFF] p-5 space-y-4 self-start" data-testid="art-form">
         <Field label="Character Name">
           <input className={sel} data-testid="art-name" value={form.name} maxLength={60}
             onChange={(e) => set("name", e.target.value)} placeholder="e.g. Raiden Kage" />
@@ -370,25 +370,25 @@ function ArtStudio({ catalog, onApplied }) {
           <div className="grid grid-cols-2 gap-2 mt-1">
             {[["pro", "Pro · Highest"], ["flash", "Fast · Standard"]].map(([id, lbl]) => (
               <button key={id} data-testid={`art-model-${id}`} onClick={() => set("model", id)}
-                className={`py-2 rounded-lg text-sm font-bold border transition-all ${form.model === id ? "bg-jutsu/20 border-jutsu text-jutsu" : "border-white/10 text-slate-400 hover:bg-white/5"}`}>
+                className={`py-2 rounded-lg text-sm font-bold border transition-all ${form.model === id ? "bg-jutsu/20 border-jutsu text-jutsu" : "border-black/10 text-slate-500 hover:bg-black/5"}`}>
                 {lbl}
               </button>
             ))}
           </div>
         </div>
         <button onClick={surprise} data-testid="art-surprise"
-          className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-semibold bg-white/5 text-slate-200 border border-white/10 hover:bg-white/10 transition-all">
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-semibold bg-black/[0.04] text-slate-700 border border-black/10 hover:bg-black/10 transition-all">
           <Shuffle className="w-4 h-4" /> Surprise Me
         </button>
         <button onClick={generate} disabled={busy} data-testid="art-generate"
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold bg-gradient-to-r from-jutsu to-fox text-white disabled:opacity-60 hover:brightness-110 transition-all">
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold bg-gradient-to-r from-jutsu to-fox text-ink disabled:opacity-60 hover:brightness-110 transition-all">
           {busy ? <><Loader2 className="w-5 h-5 animate-spin" /> Painting 4 variations…</> : <><Brush className="w-5 h-5" /> Generate Art (4)</>}
         </button>
         <p className="text-[11px] text-slate-500 text-center">Generates 4 high-quality 3:4 portraits. Pro uses more Universal Key credits.</p>
       </div>
 
       {/* Results */}
-      <div className="rounded-xl border border-white/10 bg-[#0B0B14] p-5" data-testid="art-results">
+      <div className="rounded-xl border border-black/10 bg-[#FFFFFF] p-5" data-testid="art-results">
         {!images.length && !busy && (
           <div className="h-full min-h-[420px] flex flex-col items-center justify-center text-slate-600 gap-3">
             <ImagePlus className="w-12 h-12" />
@@ -406,11 +406,11 @@ function ArtStudio({ catalog, onApplied }) {
             <div className="grid grid-cols-2 gap-4">
               {images.map((img) => (
                 <div key={img.id} data-testid={`art-image-${img.id}`}
-                  className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${picked === img.id ? "border-chakra glow-cyan" : "border-white/10 hover:border-white/30"}`}
+                  className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${picked === img.id ? "border-chakra glow-cyan" : "border-black/10 hover:border-white/30"}`}
                   onClick={() => setPicked(img.id)}>
                   <img src={img.data_url} alt={`variation ${img.id + 1}`} className="w-full aspect-[3/4] object-cover" />
                   {img.scene && (
-                    <span className="absolute top-2 right-2 max-w-[70%] truncate px-2 py-1 rounded bg-black/65 text-[10px] text-slate-200" data-testid={`art-scene-${img.id}`}>
+                    <span className="absolute top-2 right-2 max-w-[70%] truncate px-2 py-1 rounded bg-black/65 text-[10px] text-slate-700" data-testid={`art-scene-${img.id}`}>
                       {img.scene}
                     </span>
                   )}
@@ -418,14 +418,14 @@ function ArtStudio({ catalog, onApplied }) {
                     <span className="absolute top-2 left-2 w-6 h-6 rounded-full bg-chakra text-[#05050A] flex items-center justify-center"><Check className="w-4 h-4" /></span>
                   )}
                   <button onClick={(e) => { e.stopPropagation(); download(img); }} data-testid={`art-download-${img.id}`}
-                    className="absolute bottom-2 right-2 flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-black/70 text-white text-xs font-semibold hover:bg-black/90 transition-colors">
+                    className="absolute bottom-2 right-2 flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-black/70 text-ink text-xs font-semibold hover:bg-black/90 transition-colors">
                     <Download className="w-3.5 h-3.5" /> Download
                   </button>
                 </div>
               ))}
             </div>
 
-            <div className="mt-5 p-4 rounded-lg bg-black/30 border border-white/10">
+            <div className="mt-5 p-4 rounded-lg bg-black/30 border border-black/10">
               <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">Use selected art as a hero portrait</p>
               <div className="flex flex-wrap items-center gap-3">
                 <select className={`${sel} mt-0 flex-1 min-w-[180px]`} data-testid="art-apply-target" value={target} onChange={(e) => setTarget(e.target.value)}>
@@ -469,9 +469,9 @@ function Manage({ catalog, banner, onChanged }) {
     <div className="grid lg:grid-cols-[1fr_360px] gap-6">
       <div>
         <div className="flex items-center justify-between gap-3 mb-3 p-3 rounded-lg bg-jutsu/10 border border-jutsu/30" data-testid="banner-status">
-          <span className="flex items-center gap-2 text-sm text-slate-200">
+          <span className="flex items-center gap-2 text-sm text-slate-700">
             <Star className="w-4 h-4 text-jutsu" />
-            {banner ? <>Featured on Summon: <b className="text-white">{banner.name}</b> <span className="text-jutsu">({banner.rarity}, {Math.round(banner.rate_up_chance * 100)}% rate-up)</span></> : <span className="text-slate-400">No rate-up banner active. Select an SSR+ hero to feature.</span>}
+            {banner ? <>Featured on Summon: <b className="text-ink">{banner.name}</b> <span className="text-jutsu">({banner.rarity}, {Math.round(banner.rate_up_chance * 100)}% rate-up)</span></> : <span className="text-slate-500">No rate-up banner active. Select an SSR+ hero to feature.</span>}
           </span>
           {banner && <button onClick={clearBanner} data-testid="clear-banner-btn" className="text-xs font-semibold text-fox hover:text-fox/80">Clear</button>}
         </div>
@@ -480,10 +480,10 @@ function Manage({ catalog, banner, onChanged }) {
             <div key={c.id} className="relative">
               <NinjaCard ninja={c} testid={`manage-card-${c.id}`} selected={c.id === selectedId} onClick={() => setSelectedId(c.id)} />
               {c.is_custom && (
-                <span className="absolute -top-1.5 -right-1.5 z-10 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-fox text-white" data-testid={`custom-tag-${c.id}`}>CUSTOM</span>
+                <span className="absolute -top-1.5 -right-1.5 z-10 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-fox text-ink" data-testid={`custom-tag-${c.id}`}>CUSTOM</span>
               )}
               {banner?.template_id === c.id && (
-                <span className="absolute -top-1.5 -left-1.5 z-10 flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-jutsu text-white"><Star className="w-2.5 h-2.5" /></span>
+                <span className="absolute -top-1.5 -left-1.5 z-10 flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-jutsu text-ink"><Star className="w-2.5 h-2.5" /></span>
               )}
             </div>
           ))}
@@ -492,7 +492,7 @@ function Manage({ catalog, banner, onChanged }) {
       <div>
         {selected
           ? <HeroManager key={selected.id} hero={selected} banner={banner} onChanged={onChanged} onDeleted={() => { setSelectedId(null); onChanged(); }} />
-          : <div className="rounded-xl border border-white/10 bg-[#0B0B14] p-8 text-center text-slate-600 sticky top-24" data-testid="manage-empty">Select a hero to manage their portrait{`,`} stats &amp; more.</div>}
+          : <div className="rounded-xl border border-black/10 bg-[#FFFFFF] p-8 text-center text-slate-600 sticky top-24" data-testid="manage-empty">Select a hero to manage their portrait{`,`} stats &amp; more.</div>}
       </div>
     </div>
   );
@@ -588,12 +588,12 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl border border-white/10 bg-[#0B0B14] overflow-hidden sticky top-24" data-testid="hero-manager">
+      className="rounded-xl border border-black/10 bg-[#FFFFFF] overflow-hidden sticky top-24" data-testid="hero-manager">
       <div className="relative h-[260px]">
         <img src={hero.portrait} alt={hero.name} className="w-full h-full object-cover object-top" data-testid="manager-portrait" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B14] to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#FFFFFF] to-transparent" />
         <div className="absolute bottom-3 left-4 right-4">
-          <h3 className="font-display text-3xl text-white leading-none">{hero.name}</h3>
+          <h3 className="font-display text-3xl text-ink leading-none">{hero.name}</h3>
           <p className="text-xs text-chakra italic">{hero.title}</p>
         </div>
       </div>
@@ -606,14 +606,14 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
 
         {hasOverride && (
           <button onClick={resetPortrait} disabled={busy} data-testid="reset-portrait-btn"
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-semibold bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 disabled:opacity-60 transition-all">
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-semibold bg-black/[0.04] text-slate-600 border border-black/10 hover:bg-black/10 disabled:opacity-60 transition-all">
             <Trash2 className="w-4 h-4" /> Reset to Original Art
           </button>
         )}
 
         {canFeature && (
           <button onClick={toggleFeature} disabled={busy} data-testid="feature-banner-btn"
-            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold border transition-all disabled:opacity-60 ${isFeatured ? "bg-jutsu text-white border-jutsu" : "bg-jutsu/15 text-jutsu border-jutsu/40 hover:bg-jutsu/25"}`}>
+            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold border transition-all disabled:opacity-60 ${isFeatured ? "bg-jutsu text-ink border-jutsu" : "bg-jutsu/15 text-jutsu border-jutsu/40 hover:bg-jutsu/25"}`}>
             <Star className="w-4 h-4" /> {isFeatured ? "Featured ★ — Remove from Banner" : "Feature on Summon (Rate-Up)"}
           </button>
         )}
@@ -664,7 +664,7 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
               {STAT_KEYS.map(({ k, label, color }) => (
                 <div key={k} className="text-center">
                   <span className="block text-[10px]" style={{ color }}>{label}</span>
-                  <span className="font-display text-base text-white">{hero.base_stats[k]}</span>
+                  <span className="font-display text-base text-ink">{hero.base_stats[k]}</span>
                 </div>
               ))}
             </div>
@@ -721,18 +721,18 @@ function Players() {
         <div className="flex gap-2 mb-3">
           <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()}
             placeholder="Search name or email…" data-testid="players-search"
-            className="flex-1 bg-black/40 border border-white/12 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-chakra" />
+            className="flex-1 bg-black/40 border border-black/10 rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-chakra" />
           <button onClick={search} disabled={busy} data-testid="players-search-btn" className="px-4 rounded-lg bg-chakra text-[#05050A] font-bold text-sm">Search</button>
         </div>
         <div className="space-y-1.5 max-h-[60vh] overflow-y-auto scrollbar-none">
           {rows.map((p) => (
             <button key={p.id} onClick={() => setSel(p)} data-testid={`player-row-${p.id}`}
-              className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${sel?.id === p.id ? "bg-chakra/15 border-chakra/50" : "bg-white/[0.03] border-white/10 hover:bg-white/[0.06]"}`}>
+              className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${sel?.id === p.id ? "bg-chakra/15 border-chakra/50" : "bg-black/[0.04] border-black/10 hover:bg-black/[0.05]"}`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-white truncate">{p.name} {p.role === "admin" && <span className="text-[10px] text-fox">ADMIN</span>}</span>
-                <span className="text-xs text-slate-400">Lv.{p.level}</span>
+                <span className="font-semibold text-ink truncate">{p.name} {p.role === "admin" && <span className="text-[10px] text-fox">ADMIN</span>}</span>
+                <span className="text-xs text-slate-500">Lv.{p.level}</span>
               </div>
-              <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-0.5">
+              <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-0.5">
                 <span className="text-amber-300">{p.ryo?.toLocaleString()} ryo</span>
                 <span className="text-jutsu">{p.gems} gems</span>
                 <span>{p.heroes} heroes</span>
@@ -749,12 +749,12 @@ function Players() {
           <p className="text-slate-500 text-sm text-center py-16">Select a player to edit their account.</p>
         ) : (
           <>
-            <h3 className="font-display text-2xl text-white mb-1">{sel.name}</h3>
+            <h3 className="font-display text-2xl text-ink mb-1">{sel.name}</h3>
             <p className="text-xs text-slate-500 mb-4">{sel.email}</p>
             <div className="flex gap-2 mb-4">
               {["add", "set"].map((m) => (
                 <button key={m} onClick={() => setMode(m)} data-testid={`grant-mode-${m}`}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold ${mode === m ? "bg-chakra text-[#05050A]" : "bg-white/5 text-slate-300"}`}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold ${mode === m ? "bg-chakra text-[#05050A]" : "bg-black/[0.04] text-slate-600"}`}>
                   {m === "add" ? "ADD (+/-)" : "SET (=)"}
                 </button>
               ))}
@@ -765,25 +765,25 @@ function Players() {
                   <span className="text-[10px] uppercase tracking-widest" style={{ color: c }}>{lbl}</span>
                   <input type="number" value={form[k] ?? ""} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
                     data-testid={`grant-${k}`} placeholder={mode === "add" ? "+/-" : "="}
-                    className="w-full bg-black/40 border border-white/12 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-chakra" />
+                    className="w-full bg-black/40 border border-black/10 rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-chakra" />
                 </label>
               ))}
             </div>
             <div className="grid grid-cols-3 gap-2 mt-3">
               {GRANT_MATS.map(([k, lbl]) => (
                 <label key={k} className="block">
-                  <span className="text-[10px] uppercase tracking-widest text-slate-400">{lbl}</span>
+                  <span className="text-[10px] uppercase tracking-widest text-slate-500">{lbl}</span>
                   <input type="number" value={form[k] ?? ""} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
                     data-testid={`grant-${k}`} placeholder={mode === "add" ? "+/-" : "="}
-                    className="w-full bg-black/40 border border-white/12 rounded-lg px-2 py-1.5 text-sm text-white outline-none focus:border-chakra" />
+                    className="w-full bg-black/40 border border-black/10 rounded-lg px-2 py-1.5 text-sm text-ink outline-none focus:border-chakra" />
                 </label>
               ))}
             </div>
             <button onClick={grant} disabled={busy} data-testid="grant-apply"
-              className="w-full mt-5 py-3 rounded-xl bg-fox text-white font-display text-lg tracking-wide disabled:opacity-50">
+              className="w-full mt-5 py-3 rounded-xl bg-fox text-ink font-display text-lg tracking-wide disabled:opacity-50">
               {busy ? "APPLYING…" : `APPLY ${mode.toUpperCase()}`}
             </button>
-            <div className="mt-4 text-xs text-slate-400 grid grid-cols-2 gap-1">
+            <div className="mt-4 text-xs text-slate-500 grid grid-cols-2 gap-1">
               <span className="text-amber-300">Ryo: {sel.ryo?.toLocaleString()}</span>
               <span className="text-jutsu">Gems: {sel.gems}</span>
               <span>Energy: {sel.energy}</span>
@@ -834,16 +834,16 @@ function Economy() {
   return (
     <div className="grid lg:grid-cols-3 gap-5" data-testid="admin-economy">
       <div className="glass-panel p-4 lg:col-span-2">
-        <h3 className="font-display text-2xl text-white mb-1">GLOBAL ECONOMY</h3>
+        <h3 className="font-display text-2xl text-ink mb-1">GLOBAL ECONOMY</h3>
         <p className="text-xs text-slate-500 mb-4">Changes apply instantly to every player and persist across restarts.</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {ECON_FIELDS.map(([k, lbl]) => (
             <label key={k} className="block">
-              <span className="text-[10px] uppercase tracking-widest text-slate-400">{lbl}</span>
+              <span className="text-[10px] uppercase tracking-widest text-slate-500">{lbl}</span>
               <input type="number" step={k === "featured_5050" || k === "featured_rate_mult" ? "0.1" : "1"}
                 value={form[k] ?? ""} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))}
                 data-testid={`econ-${k}`}
-                className="w-full bg-black/40 border border-white/12 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-chakra" />
+                className="w-full bg-black/40 border border-black/10 rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-chakra" />
             </label>
           ))}
         </div>
@@ -853,12 +853,12 @@ function Economy() {
         </button>
       </div>
       <div className="glass-panel p-4">
-        <h4 className="font-display text-lg text-white mb-2">Live Gem Rates</h4>
+        <h4 className="font-display text-lg text-ink mb-2">Live Gem Rates</h4>
         <div className="space-y-1.5">
           {Object.entries(rates).map(([r, pct]) => (
             <div key={r} className="flex items-center justify-between text-sm">
               <span className="font-bold" style={{ color: (RARITY[r] || RARITY.R).color }}>{r}</span>
-              <span className="text-white tabular-nums">{pct}%</span>
+              <span className="text-ink tabular-nums">{pct}%</span>
             </div>
           ))}
         </div>

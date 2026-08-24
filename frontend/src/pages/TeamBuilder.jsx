@@ -135,8 +135,8 @@ export default function TeamBuilder() {
       {/* ===================== Header ===================== */}
       <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
         <div>
-          <h1 className="font-display text-5xl sm:text-6xl tracking-wide text-white leading-none">HEROES</h1>
-          <p className="text-slate-400 mt-1.5" data-testid="team-counter">
+          <h1 className="font-display text-5xl sm:text-6xl tracking-wide text-ink leading-none">HEROES</h1>
+          <p className="text-slate-500 mt-1.5" data-testid="team-counter">
             Tap a hero to view details · tap <span className="text-chakra">+</span> to add to your squad. <span className="text-chakra font-semibold">({team.length}/{cap})</span>
           </p>
           {nextSlotLevel && (
@@ -149,7 +149,7 @@ export default function TeamBuilder() {
           <div className="glass-panel px-4 py-2.5 flex items-center gap-2.5">
             <Zap className="w-5 h-5 text-fox" />
             <div className="leading-none">
-              <p className="font-display text-3xl text-white tabular-nums" data-testid="squad-power">{teamPower.toLocaleString()}</p>
+              <p className="font-display text-3xl text-ink tabular-nums" data-testid="squad-power">{teamPower.toLocaleString()}</p>
               <p className="text-[10px] uppercase tracking-widest text-slate-500">Squad Power</p>
             </div>
           </div>
@@ -158,7 +158,7 @@ export default function TeamBuilder() {
             {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} SAVE SQUAD
           </button>
           <button onClick={autoForm} data-testid="auto-form-button"
-            className="flex items-center gap-2 px-4 py-3 rounded-xl font-display text-base tracking-wide bg-white/5 border border-white/15 text-slate-200 hover:bg-white/10 transition-colors">
+            className="flex items-center gap-2 px-4 py-3 rounded-xl font-display text-base tracking-wide bg-black/[0.04] border border-black/12 text-slate-700 hover:bg-black/10 transition-colors">
             <Users className="w-4.5 h-4.5" /> AUTO FORM
           </button>
         </div>
@@ -171,8 +171,8 @@ export default function TeamBuilder() {
           if (!hero) {
             return (
               <button key={i} onClick={() => toast.info("Pick a shinobi from your collection below.")} data-testid={`squad-slot-empty-${i}`}
-                className="aspect-[3/4.2] rounded-2xl border border-dashed border-white/15 bg-white/[0.02] flex flex-col items-center justify-center gap-3 text-slate-500 hover:border-chakra/40 hover:text-chakra transition-colors">
-                <div className="w-14 h-14 rounded-full border border-white/15 flex items-center justify-center"><Plus className="w-6 h-6" /></div>
+                className="aspect-[3/4.2] rounded-2xl border border-dashed border-black/12 bg-black/[0.03] flex flex-col items-center justify-center gap-3 text-slate-500 hover:border-chakra/40 hover:text-chakra transition-colors">
+                <div className="w-14 h-14 rounded-full border border-black/12 flex items-center justify-center"><Plus className="w-6 h-6" /></div>
                 <span className="text-sm font-semibold">Add Shinobi</span>
               </button>
             );
@@ -182,9 +182,9 @@ export default function TeamBuilder() {
 
         {/* Locked next slot */}
         {nextSlotLevel && (
-          <div className="aspect-[3/4.2] rounded-2xl border border-white/10 bg-white/[0.02] flex flex-col items-center justify-center gap-3 text-slate-500" data-testid="squad-slot-locked">
-            <div className="w-16 h-16 rounded-full border border-white/12 flex items-center justify-center"><Plus className="w-7 h-7" /></div>
-            <span className="text-sm font-semibold text-slate-300">Unlock {cap + 1}th Slot</span>
+          <div className="aspect-[3/4.2] rounded-2xl border border-black/10 bg-black/[0.03] flex flex-col items-center justify-center gap-3 text-slate-500" data-testid="squad-slot-locked">
+            <div className="w-16 h-16 rounded-full border border-black/10 flex items-center justify-center"><Plus className="w-7 h-7" /></div>
+            <span className="text-sm font-semibold text-slate-600">Unlock {cap + 1}th Slot</span>
             <span className="flex items-center gap-1.5 text-xs text-amber-400/90"><Lock className="w-3.5 h-3.5" /> Reach Lv.{nextSlotLevel}</span>
           </div>
         )}
@@ -193,7 +193,7 @@ export default function TeamBuilder() {
       {/* ===================== Squad Synergy ===================== */}
       <div className="glass-panel p-4 sm:p-5 mb-6" data-testid="squad-synergy">
         <div className="flex items-center gap-2 mb-3">
-          <h2 className="font-display text-xl tracking-wide text-white">SQUAD SYNERGY</h2>
+          <h2 className="font-display text-xl tracking-wide text-ink">SQUAD SYNERGY</h2>
           <Info className="w-4 h-4 text-slate-500" />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -210,7 +210,7 @@ export default function TeamBuilder() {
 
       {/* ===================== Collection ===================== */}
       <div className="flex items-center gap-3 flex-wrap mb-3">
-        <h2 className="font-display text-2xl tracking-wide text-white">SHINOBI COLLECTION</h2>
+        <h2 className="font-display text-2xl tracking-wide text-ink">SHINOBI COLLECTION</h2>
         <span className="text-sm text-slate-500" data-testid="collection-count">{owned.length} / 60</span>
         <div className="flex items-center gap-1.5 ml-auto flex-wrap">
           <ElChip active={elFilter === "ALL"} onClick={() => setElFilter("ALL")} testid="el-filter-ALL"><span className="text-xs font-bold px-1">ALL</span></ElChip>
@@ -224,14 +224,14 @@ export default function TeamBuilder() {
           })}
           <div className="relative">
             <button onClick={() => setRarOpen((v) => !v)} data-testid="rarity-filter-button"
-              className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-white/5 border border-white/12 text-sm text-slate-200 hover:bg-white/10 transition-colors">
+              className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-black/[0.04] border border-black/10 text-sm text-slate-700 hover:bg-black/10 transition-colors">
               {rarFilter === "ALL" ? "Rarity" : rarFilter} <ChevronDown className="w-3.5 h-3.5" />
             </button>
             {rarOpen && (
-              <div className="absolute right-0 top-11 z-30 w-32 rounded-xl bg-[#0B0B14] border border-white/12 p-1 shadow-2xl" data-testid="rarity-menu">
+              <div className="absolute right-0 top-11 z-30 w-32 rounded-xl bg-[#FFFFFF] border border-black/10 p-1 shadow-2xl" data-testid="rarity-menu">
                 {["ALL", ...RARITY_KEYS].map((rk) => (
                   <button key={rk} onClick={() => { setRarFilter(rk); setRarOpen(false); }}
-                    className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${rarFilter === rk ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5"}`}
+                    className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${rarFilter === rk ? "bg-black/[0.06] text-ink" : "text-slate-600 hover:bg-black/5"}`}
                     style={{ color: rk !== "ALL" && rarFilter !== rk ? (RARITY[rk]?.color) : undefined }}>
                     {rk === "ALL" ? "All Rarities" : `${RARITY[rk]?.name} (${rk})`}
                   </button>
@@ -240,7 +240,7 @@ export default function TeamBuilder() {
             )}
           </div>
           <button onClick={() => { setElFilter("ALL"); setRarFilter("ALL"); toast.info("Filters reset"); }} data-testid="reset-filters"
-            className="w-9 h-9 rounded-lg bg-white/5 border border-white/12 flex items-center justify-center text-slate-300 hover:bg-white/10 transition-colors">
+            className="w-9 h-9 rounded-lg bg-black/[0.04] border border-black/10 flex items-center justify-center text-slate-600 hover:bg-black/10 transition-colors">
             <SlidersHorizontal className="w-4 h-4" />
           </button>
         </div>
@@ -257,7 +257,7 @@ export default function TeamBuilder() {
       {filtered.length > 12 && (
         <div className="flex justify-center mt-5">
           <button onClick={() => setShowAll((v) => !v)} data-testid="view-more-shinobi"
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white/5 border border-white/12 text-sm font-semibold text-slate-200 hover:bg-white/10 transition-colors">
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-black/[0.04] border border-black/10 text-sm font-semibold text-slate-700 hover:bg-black/10 transition-colors">
             {showAll ? "SHOW LESS" : "VIEW MORE SHINOBI"} <ChevronDown className={`w-4 h-4 transition-transform ${showAll ? "rotate-180" : ""}`} />
           </button>
         </div>
@@ -295,10 +295,8 @@ const SquadSlotCard = ({ hero, index, onView, onRemove }) => {
       <div className="absolute inset-0" style={{ background: `linear-gradient(to top, #05050Af2 6%, #05050A66 42%, transparent 70%)` }} />
       {fr.cornerLevel >= 2 && <DecoCorners rarity={hero.rarity} size={18} />}
 
-      <span className="absolute top-2 left-2 z-10 w-7 h-7 rounded-md bg-black/55 border border-white/15 flex items-center justify-center font-display text-sm" style={{ color: r.color }}>{r.label}</span>
-      <span className="absolute top-11 left-2 z-10 w-6 h-6 rounded-md bg-black/50 flex items-center justify-center"><EIcon className="w-3.5 h-3.5" style={{ color: el.color }} /></span>
       <button onClick={(e) => { e.stopPropagation(); onRemove(); }} data-testid={`squad-remove-${index}`}
-        className="absolute top-2 right-2 z-20 w-7 h-7 rounded-md bg-black/55 border border-white/15 flex items-center justify-center text-slate-300 hover:bg-fox/80 hover:text-white transition-colors" title="Remove from squad">
+        className="absolute top-2 right-2 z-20 w-7 h-7 rounded-md bg-black/55 border border-white/15 flex items-center justify-center text-white/80 hover:bg-fox/80 hover:text-white transition-colors" title="Remove from squad">
         <X className="w-4 h-4" />
       </button>
 
@@ -306,7 +304,7 @@ const SquadSlotCard = ({ hero, index, onView, onRemove }) => {
         <div className="flex items-end justify-between gap-2">
           <div className="min-w-0">
             <h3 className="font-display text-lg sm:text-xl tracking-wide text-white leading-none truncate">{hero.name}</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">{hero.role}</p>
+            <p className="text-[11px] text-slate-300 mt-0.5">{hero.role}</p>
             <p className="flex items-center gap-1 text-fox font-display text-base mt-0.5"><Zap className="w-3.5 h-3.5" />{(hero.power || 0).toLocaleString()}</p>
           </div>
           <span className="font-display text-lg text-white shrink-0">Lv.{hero.level}</span>
@@ -340,8 +338,6 @@ const CollectionCard = ({ hero, slot, squadFull, onView, onToggle }) => {
       <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #05050Af5 8%, #05050A55 45%, transparent 72%)" }} />
       {fr.cornerLevel >= 2 && <DecoCorners rarity={hero.rarity} size={12} />}
 
-      <span className="absolute top-1.5 left-1.5 z-10 text-[10px] font-display px-1.5 rounded" style={{ background: r.color, color: "#05050A" }}>{r.label}</span>
-      <span className="absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded bg-black/45 flex items-center justify-center"><EIcon className="w-3 h-3" style={{ color: el.color }} /></span>
       {selected && (
         <span className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 w-6 h-6 rounded-full bg-chakra text-[#05050A] flex items-center justify-center font-display text-sm" style={{ boxShadow: "0 0 10px #00E5FF" }}>{slot + 1}</span>
       )}
@@ -374,7 +370,7 @@ const Synergy = ({ icon: Icon, color, label, main }) => (
     </div>
     <div className="min-w-0">
       <p className="text-[10px] uppercase tracking-widest text-slate-500">{label}</p>
-      <p className="text-sm font-semibold text-white truncate">{main}</p>
+      <p className="text-sm font-semibold text-ink truncate">{main}</p>
     </div>
   </div>
 );

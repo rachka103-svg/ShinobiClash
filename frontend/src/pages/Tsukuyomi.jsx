@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Moon, ChevronLeft, ChevronRight, Swords, Shield, Zap, Sparkles, Trophy,
-  Flame, Droplet, Wind as WindIcon, Mountain, Sun, Loader2, Percent, Gem,
+  Flame, Droplet, Wind as WindIcon, Mountain, Sun, Loader2, Percent, Gem, Search, Grid3x3, Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -12,6 +12,9 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import { rarityFrame, GOLD } from "@/lib/theme";
 import { DecoCorners } from "@/components/RarityFx";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+
+const SLOTS = ["weapon", "armor", "accessory", "relic"];
 
 const ELEMENT_ICON = { Fire: Flame, Water: Droplet, Wind: WindIcon, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: Sun };
 const DIFF_COLOR = { normal: "#00E5FF", hard: "#FFCA28", nightmare: "#FF1744" };
@@ -29,11 +32,13 @@ export default function Tsukuyomi() {
   const [bosses, setBosses] = useState([]);
   const [progress, setProgress] = useState({});
   const [energyCost, setEnergyCost] = useState(12);
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => { try { return Number(localStorage.getItem("sc_tsuku_idx")) || 0; } catch { return 0; } });
   const [dir, setDir] = useState(0);
   const [difficulty, setDifficulty] = useState("normal");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [jump, setJump] = useState("");
+  const [collectionOpen, setCollectionOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -41,7 +46,8 @@ export default function Tsukuyomi() {
       if (!alive) return;
       setBosses(data.bosses || []);
       setProgress(data.progress || {});
-      setEnergyCost(data.energy_cost || 12);
+      setEnergyCost(data.energy_cost || 0);
+      setIndex((i) => Math.max(0, Math.min((data.bosses || []).length - 1, i)));
       setLoading(false);
     }).catch((e) => {
       toast.error(formatApiErrorDetail(e?.response?.data?.detail) || "Failed to load nightmares");
@@ -65,10 +71,38 @@ export default function Tsukuyomi() {
     setIndex((i) => Math.max(0, Math.min(bosses.length - 1, i + d)));
   };
 
+  const jumpTo = () => {
+    const n = parseInt(jump, 10);
+    if (!Number.isNaN(n) && n >= 1 && n <= bosses.length) {
+      setDir(n - 1 > index ? 1 : -1);
+      setIndex(n - 1);
+      setJump("");
+    } else {
+      toast.error(`Enter a boss number 1–${bosses.length}`);
+    }
+  };
+
+  // Gear-set collection tracker — owned slots per unique set from your gear.
+  const gearOwned = useMemo(() => {
+    const map = {};
+    (user?.gear || []).forEach((g) => {
+      if (!g.set_id) return;
+      map[g.set_id] = map[g.set_id] || new Set();
+      map[g.set_id].add(g.slot);
+    });
+    return map;
+  }, [user?.gear]);
+  const uniqueSets = useMemo(() => {
+    const seen = {};
+    bosses.forEach((b) => { if (!seen[b.gear_set]) seen[b.gear_set] = { id: b.gear_set, name: b.gear_set_name, color: b.gear_set_color }; });
+    return Object.values(seen);
+  }, [bosses]);
+
   const startNightmare = async () => {
     if (!boss || !diff) return;
     setBusy(true);
     try {
+      localStorage.setItem("sc_tsuku_idx", String(index));
       sessionStorage.setItem("tsukuyomi_fight", JSON.stringify({
         boss: { id: boss.id, name: boss.name, boss_mechanic: boss.boss_mechanic },
         difficulty, enemies: diff.enemies,
@@ -87,7 +121,7 @@ export default function Tsukuyomi() {
     return <div className="h-full flex items-center justify-center" data-testid="tsukuyomi-loading"><Loader2 className="w-8 h-8 text-jutsu animate-spin" /></div>;
   }
   if (!boss) {
-    return <div className="p-10 text-center text-slate-400" data-testid="tsukuyomi-empty">No nightmares available.</div>;
+    return <div className="p-10 text-center text-slate-500" data-testid="tsukuyomi-empty">No nightmares available.</div>;
   }
 
   const EIcon = ELEMENT_ICON[boss.element] || Moon;
@@ -102,13 +136,26 @@ export default function Tsukuyomi() {
             <Moon className="w-5 h-5 text-jutsu" />
           </div>
           <div>
-            <h1 className="font-display text-2xl sm:text-3xl tracking-wide text-white leading-none">TSUKUYOMI</h1>
+            <h1 className="font-display text-2xl sm:text-3xl tracking-wide text-ink leading-none">TSUKUYOMI</h1>
             <p className="text-[11px] text-slate-500 leading-none mt-0.5">The Infinite Nightmare</p>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 leading-none">Nightmare</p>
-          <p className="font-display text-xl leading-none mt-0.5 text-jutsu" data-testid="tsukuyomi-index">{index + 1} / {bosses.length}</p>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-black/[0.04] border border-black/10" data-testid="tsukuyomi-search">
+            <Search className="w-3.5 h-3.5 text-slate-500" />
+            <input value={jump} onChange={(e) => setJump(e.target.value.replace(/[^0-9]/g, ""))} onKeyDown={(e) => e.key === "Enter" && jumpTo()}
+              placeholder="No." inputMode="numeric" data-testid="tsukuyomi-jump-input"
+              className="w-10 bg-transparent text-sm text-ink outline-none placeholder:text-slate-600" />
+            <button onClick={jumpTo} data-testid="tsukuyomi-jump-go" className="text-[11px] font-bold text-jutsu hover:text-ink transition-colors">GO</button>
+          </div>
+          <button onClick={() => setCollectionOpen(true)} data-testid="tsukuyomi-collection-open"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/[0.04] border border-black/10 text-slate-600 hover:text-ink transition-colors">
+            <Grid3x3 className="w-4 h-4" /> <span className="hidden sm:inline text-xs font-semibold">Sets</span>
+          </button>
+          <div className="text-right">
+            <p className="text-[10px] uppercase tracking-widest text-slate-500 leading-none">Nightmare</p>
+            <p className="font-display text-xl leading-none mt-0.5 text-jutsu" data-testid="tsukuyomi-index">{index + 1} / {bosses.length}</p>
+          </div>
         </div>
       </div>
 
@@ -116,7 +163,7 @@ export default function Tsukuyomi() {
       <div className="flex-1 min-h-0 flex items-stretch gap-2 sm:gap-3">
         {/* Left arrow */}
         <button onClick={() => go(-1)} disabled={index === 0} data-testid="tsukuyomi-prev"
-          className="shrink-0 self-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-white/[0.04] border border-white/12 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30">
+          className="shrink-0 self-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/[0.04] border border-black/10 flex items-center justify-center text-slate-600 hover:text-ink hover:bg-black/10 transition-colors disabled:opacity-30">
           <ChevronLeft className="w-5 h-5" />
         </button>
 
@@ -142,7 +189,7 @@ export default function Tsukuyomi() {
               <div className="absolute inset-0">
                 <img src={boss.portrait} alt={boss.name} className="absolute inset-0 w-full h-full object-cover object-top" style={{ filter: "saturate(0.7) brightness(0.72) contrast(1.05)" }} />
                 <div className="absolute inset-0" style={{ background: "radial-gradient(120% 90% at 70% 20%, rgba(124,77,255,0.35), transparent 55%)" }} />
-                <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(5,5,10,0.45) 0%, rgba(5,5,10,0.15) 30%, rgba(11,11,20,0.9) 78%, #0B0B14 100%)" }} />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(5,5,10,0.45) 0%, rgba(5,5,10,0.15) 30%, rgba(11,11,20,0.9) 78%, #FFFFFF 100%)" }} />
                 <div className="absolute inset-0 mix-blend-overlay" style={{ background: "radial-gradient(circle at 50% 40%, transparent 40%, rgba(0,0,0,0.6) 100%)" }} />
               </div>
 
@@ -161,25 +208,25 @@ export default function Tsukuyomi() {
                     </span>
                   )}
                 </div>
-                <h2 className="font-display text-3xl sm:text-5xl text-white leading-[0.9]" data-testid="tsukuyomi-boss-name">{boss.name}</h2>
-                <p className="text-xs sm:text-sm text-slate-300 italic mt-1.5 max-w-md">{boss.lore}</p>
+                <h2 className="font-display text-3xl sm:text-5xl text-ink leading-[0.9]" data-testid="tsukuyomi-boss-name">{boss.name}</h2>
+                <p className="text-xs sm:text-sm text-slate-600 italic mt-1.5 max-w-md">{boss.lore}</p>
 
                 <div className="flex items-center gap-3 mt-2.5 text-xs">
                   <span className="flex items-center gap-1 font-semibold" style={{ color: rarity.color }}>{rarity.name}</span>
                   <span className="w-1 h-1 rounded-full bg-slate-600" />
-                  <span className="flex items-center gap-1 text-slate-200"><EIcon className="w-3.5 h-3.5" style={{ color: element.color }} /> {boss.element}</span>
+                  <span className="flex items-center gap-1 text-slate-700"><EIcon className="w-3.5 h-3.5" style={{ color: element.color }} /> {boss.element}</span>
                   <span className="w-1 h-1 rounded-full bg-slate-600" />
-                  <span className="flex items-center gap-1 text-slate-200"><Swords className="w-3.5 h-3.5 text-fox" /> Pow {diff?.recommended_power?.toLocaleString()}</span>
+                  <span className="flex items-center gap-1 text-slate-700"><Swords className="w-3.5 h-3.5 text-fox" /> Pow {diff?.recommended_power?.toLocaleString()}</span>
                 </div>
 
                 {/* Drop info */}
                 <div className="grid grid-cols-2 gap-2 mt-3">
-                  <div className="rounded-xl bg-black/40 border border-white/10 px-3 py-2" data-testid="tsukuyomi-gear-drop">
+                  <div className="rounded-xl bg-white/90 border border-black/10 px-3 py-2" data-testid="tsukuyomi-gear-drop">
                     <p className="text-[9px] uppercase tracking-widest text-slate-500">Signature Gear Set</p>
                     <p className="font-display text-base leading-none mt-0.5" style={{ color: boss.gear_set_color || GOLD.base }}>{boss.gear_set_name}</p>
                     <p className="text-[10px] text-slate-500 mt-0.5">Random piece · not the full set</p>
                   </div>
-                  <div className="rounded-xl bg-black/40 border border-white/10 px-3 py-2" data-testid="tsukuyomi-rare-chance">
+                  <div className="rounded-xl bg-white/90 border border-black/10 px-3 py-2" data-testid="tsukuyomi-rare-chance">
                     <p className="text-[9px] uppercase tracking-widest text-slate-500 flex items-center gap-1"><Percent className="w-3 h-3" /> Rare Drop</p>
                     <p className="font-display text-base leading-none mt-0.5" style={{ color: DIFF_COLOR[difficulty] }}>{rareChance}%</p>
                     <p className="text-[10px] text-slate-500 mt-0.5">+ basic nightmare materials</p>
@@ -192,7 +239,7 @@ export default function Tsukuyomi() {
 
         {/* Right arrow */}
         <button onClick={() => go(1)} disabled={index === bosses.length - 1} data-testid="tsukuyomi-next"
-          className="shrink-0 self-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-white/[0.04] border border-white/12 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30">
+          className="shrink-0 self-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/[0.04] border border-black/10 flex items-center justify-center text-slate-600 hover:text-ink hover:bg-black/10 transition-colors disabled:opacity-30">
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
@@ -218,15 +265,48 @@ export default function Tsukuyomi() {
 
         {/* Fight button */}
         <button onClick={startNightmare} disabled={busy || energyLow} data-testid="tsukuyomi-fight-button"
-          className="w-full py-3.5 rounded-2xl font-display text-xl tracking-widest text-white flex items-center justify-center gap-2 transition-all disabled:opacity-40 shine-sweep"
+          className="w-full py-3.5 rounded-2xl font-display text-xl tracking-widest text-ink flex items-center justify-center gap-2 transition-all disabled:opacity-40 shine-sweep"
           style={{ background: "linear-gradient(135deg, rgba(124,77,255,0.35), rgba(26,10,50,0.9))", border: "1.5px solid rgba(124,77,255,0.6)", boxShadow: "0 0 26px rgba(124,77,255,0.3)" }}>
           {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Swords className="w-5 h-5" />}
           ENTER NIGHTMARE
-          <span className="inline-flex items-center gap-1 text-sm text-emerald-300"><Zap className="w-3.5 h-3.5" />{energyCost}</span>
+          {energyCost > 0 && <span className="inline-flex items-center gap-1 text-sm text-emerald-300"><Zap className="w-3.5 h-3.5" />{energyCost}</span>}
         </button>
-        {energyLow && <p className="text-[11px] text-fox text-center" data-testid="tsukuyomi-energy-low">Not enough Energy — refill in the Shop or wait for regen.</p>}
-        <p className="text-[10px] text-slate-500 text-center">Your squad power: <span className="text-slate-300">{teamPower.toLocaleString()}</span></p>
+        {energyCost > 0 && energyLow && <p className="text-[11px] text-fox text-center" data-testid="tsukuyomi-energy-low">Not enough Energy — refill in the Shop or wait for regen.</p>}
+        <p className="text-[10px] text-slate-500 text-center">Your squad power: <span className="text-slate-600">{teamPower.toLocaleString()}</span></p>
       </div>
+
+      {/* Gear-set Collection tracker */}
+      <Dialog open={collectionOpen} onOpenChange={setCollectionOpen}>
+        <DialogContent className="max-w-lg bg-[#FFFFFF] border border-black/12 rounded-2xl max-h-[85vh] overflow-y-auto" data-testid="tsukuyomi-collection-dialog">
+          <DialogTitle className="font-display text-2xl tracking-wide text-ink">NIGHTMARE GEAR SETS</DialogTitle>
+          <DialogDescription className="text-xs text-slate-500">Collect a piece for every slot to complete each Tsukuyomi set.</DialogDescription>
+          <div className="space-y-2.5 mt-1">
+            {uniqueSets.map((set) => {
+              const owned = gearOwned[set.id] || new Set();
+              const complete = SLOTS.every((s) => owned.has(s));
+              return (
+                <div key={set.id} className="rounded-xl bg-black/[0.04] border p-3" style={{ borderColor: complete ? "rgba(0,230,118,0.4)" : "rgba(255,255,255,0.1)" }} data-testid={`set-row-${set.id}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="font-display text-lg tracking-wide" style={{ color: set.color || GOLD.base }}>{set.name}</p>
+                    <span className="text-xs font-bold" style={{ color: complete ? "#00E676" : "#94a3b8" }}>{owned.size}/{SLOTS.length} {complete && "✓"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {SLOTS.map((s) => {
+                      const has = owned.has(s);
+                      return (
+                        <div key={s} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-semibold capitalize"
+                          style={has ? { background: `${set.color}1f`, color: set.color, border: `1px solid ${set.color}66` } : { background: "rgba(255,255,255,0.03)", color: "#64748b", border: "1px solid rgba(255,255,255,0.08)" }}>
+                          {has ? <Check className="w-3 h-3" /> : <span className="w-3 h-3 rounded-full border border-current opacity-50" />} {s}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

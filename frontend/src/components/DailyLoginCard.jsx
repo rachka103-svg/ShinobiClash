@@ -38,7 +38,7 @@ export default function DailyLoginCard({ login, onClaim }) {
           <Gift className="w-4 h-4" />
           <span className="text-xs uppercase tracking-widest font-semibold">Daily Login</span>
         </div>
-        <span className="text-xs text-slate-400" data-testid="daily-login-streak">Day {currentDay || "0"}/7</span>
+        <span className="text-xs text-slate-500" data-testid="daily-login-streak">Day {currentDay || "0"}/7</span>
       </div>
 
       <div className="grid grid-cols-7 gap-1 mb-3">
@@ -52,7 +52,7 @@ export default function DailyLoginCard({ login, onClaim }) {
               className={`aspect-square rounded-md flex items-center justify-center text-[10px] font-bold border ${
                 claimed ? "bg-amber-400/20 border-amber-400/50 text-amber-300"
                 : isNext ? "border-chakra text-chakra bg-cyan-500/10 animate-pulse"
-                : "border-white/10 text-slate-500"
+                : "border-black/10 text-slate-500"
               }`}
             >
               {claimed ? <Check className="w-3 h-3" /> : d}
@@ -70,7 +70,7 @@ export default function DailyLoginCard({ login, onClaim }) {
           onClick={handleClaim}
           disabled={busy || login.claimed_today}
           data-testid="daily-login-claim-btn"
-          className="shrink-0 px-4 py-2 rounded-lg font-display text-sm tracking-wide bg-amber-400 text-[#05050A] hover:bg-amber-300 transition-colors disabled:opacity-40 disabled:bg-white/10 disabled:text-slate-400 flex items-center gap-1.5"
+          className="shrink-0 px-4 py-2 rounded-lg font-display text-sm tracking-wide bg-amber-400 text-[#05050A] hover:bg-amber-300 transition-colors disabled:opacity-40 disabled:bg-black/[0.06] disabled:text-slate-500 flex items-center gap-1.5"
         >
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
           {login.claimed_today ? "CLAIMED" : "CLAIM"}

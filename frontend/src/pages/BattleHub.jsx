@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Scroll, Moon, Castle, Crosshair, Landmark, ChevronRight, Swords, Zap } from "lucide-react";
+import { Scroll, Moon, Castle, Crosshair, Landmark, ChevronRight, Swords, Zap, Bot, Gauge } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 
@@ -13,6 +14,10 @@ export default function BattleHub() {
   const { user } = useAuth();
   const { stages } = useGame();
   const cleared = user?.cleared_stages?.length || 0;
+  const [auto, setAuto] = useState(() => { try { return localStorage.getItem("sc_battle_auto") === "1"; } catch { return false; } });
+  const [speed, setSpeed] = useState(() => { try { return Number(localStorage.getItem("sc_battle_speed")) || 1; } catch { return 1; } });
+  const toggleAuto = () => { const v = !auto; setAuto(v); try { localStorage.setItem("sc_battle_auto", v ? "1" : "0"); } catch {} };
+  const cycleSpeed = () => { const v = speed >= 3 ? 1 : speed + 1; setSpeed(v); try { localStorage.setItem("sc_battle_speed", String(v)); } catch {} };
 
   const modes = [
     { to: "/campaign", label: "Campaign", icon: Scroll, color: "#FF5722",
@@ -39,9 +44,23 @@ export default function BattleHub() {
           <Swords className="w-6 h-6 text-fox" />
         </div>
         <div>
-          <h1 className="font-display text-4xl sm:text-5xl tracking-wide text-white leading-none">BATTLE</h1>
-          <p className="text-slate-400 text-sm mt-1">Choose your battlefield.</p>
+          <h1 className="font-display text-4xl sm:text-5xl tracking-wide text-ink leading-none">BATTLE</h1>
+          <p className="text-slate-500 text-sm mt-1">Choose your battlefield.</p>
         </div>
+      </div>
+
+      {/* Pre-battle preferences — applied to every fight you enter */}
+      <div className="flex items-center gap-2 mb-4 p-2.5 rounded-2xl bg-black/[0.04] border border-black/10" data-testid="battle-prefs">
+        <span className="text-[11px] uppercase tracking-widest text-slate-500 ml-1 mr-auto">Battle Defaults</span>
+        <button onClick={toggleAuto} data-testid="pref-auto-toggle"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display tracking-wide border transition-colors"
+          style={auto ? { color: "#00E5FF", borderColor: "#00E5FF", background: "rgba(0,229,255,0.12)" } : { color: "#94a3b8", borderColor: "rgba(255,255,255,0.15)" }}>
+          <Bot className="w-3.5 h-3.5" /> AUTO {auto ? "ON" : "OFF"}
+        </button>
+        <button onClick={cycleSpeed} data-testid="pref-speed-toggle"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display tracking-wide border border-black/12 text-slate-600 hover:text-ink transition-colors">
+          <Gauge className="w-3.5 h-3.5" /> {speed}X
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -62,11 +81,11 @@ export default function BattleHub() {
                   <Icon className="w-7 h-7" style={{ color: m.color }} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-display text-2xl tracking-wide text-white leading-none">{m.label}</h3>
-                  <p className="text-xs text-slate-400 mt-1 leading-snug">{m.desc}</p>
+                  <h3 className="font-display text-2xl tracking-wide text-ink leading-none">{m.label}</h3>
+                  <p className="text-xs text-slate-500 mt-1 leading-snug">{m.desc}</p>
                   <p className="text-[11px] font-semibold mt-1.5" style={{ color: m.color }}>{m.status}</p>
                 </div>
-                <ChevronRight className="w-5 h-5 text-slate-500 shrink-0 group-hover:text-white transition-colors" />
+                <ChevronRight className="w-5 h-5 text-slate-500 shrink-0 group-hover:text-ink transition-colors" />
               </Link>
             </motion.div>
           );

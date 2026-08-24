@@ -100,17 +100,17 @@ export default function Roster() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8" data-testid="roster-page">
       {/* ---------- Header ---------- */}
       <div className="mb-1">
-        <h1 className="font-display text-5xl sm:text-6xl tracking-wide text-white leading-none">ROSTER</h1>
-        <p className="text-slate-400 mt-1">Build your ultimate squad.</p>
+        <h1 className="font-display text-5xl sm:text-6xl tracking-wide text-ink leading-none">ROSTER</h1>
+        <p className="text-slate-500 mt-1">Build your ultimate squad.</p>
       </div>
 
       {/* ---------- Slim summary strip — no boxed stat cards ---------- */}
       <div className="flex items-center gap-5 sm:gap-8 mt-5 mb-6 overflow-x-auto pb-1" data-testid="roster-summary">
         <div className="shrink-0">
           <p className="text-[10px] uppercase tracking-widest text-slate-500">Heroes</p>
-          <p className="font-display text-2xl text-white leading-none">{owned.length}</p>
+          <p className="font-display text-2xl text-ink leading-none">{owned.length}</p>
         </div>
-        <div className="w-px h-8 bg-white/10 shrink-0" />
+        <div className="w-px h-8 bg-black/[0.06] shrink-0" />
         <div className="shrink-0 flex items-center gap-1.5">
           <Crown className="w-4 h-4" style={{ color: highestRarity ? RARITY[highestRarity].color : "#475569" }} />
           <div>
@@ -120,20 +120,20 @@ export default function Roster() {
             </p>
           </div>
         </div>
-        <div className="w-px h-8 bg-white/10 shrink-0" />
+        <div className="w-px h-8 bg-black/[0.06] shrink-0" />
         <div className="shrink-0 flex items-center gap-1.5">
           <Zap className="w-4 h-4 text-fox" />
           <div>
             <p className="text-[10px] uppercase tracking-widest text-slate-500">Squad Power</p>
-            <p className="font-display text-xl text-white leading-none">{user?.team_power ?? 0}</p>
+            <p className="font-display text-xl text-ink leading-none">{user?.team_power ?? 0}</p>
           </div>
         </div>
-        <div className="w-px h-8 bg-white/10 shrink-0" />
+        <div className="w-px h-8 bg-black/[0.06] shrink-0" />
         <div className="shrink-0 flex items-center gap-1.5">
           <Gem className="w-4 h-4 text-jutsu" />
           <div>
             <p className="text-[10px] uppercase tracking-widest text-slate-500">Crystals</p>
-            <p className="font-display text-xl text-white leading-none">{inv.ascension_crystal || 0}</p>
+            <p className="font-display text-xl text-ink leading-none">{inv.ascension_crystal || 0}</p>
           </div>
         </div>
       </div>

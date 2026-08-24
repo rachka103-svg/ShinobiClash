@@ -49,8 +49,8 @@ export default function CampaignChapterStrip({ chapters, stages, cleared, select
             aria-label={`Chapter ${ch.chapter}: ${ch.name}${unlocked ? "" : " (locked)"}`}
             aria-current={active}
             className={`relative shrink-0 snap-start text-left min-w-[200px] sm:min-w-[240px] h-[86px] rounded-xl px-3.5 py-2.5 border transition-colors duration-200 ${
-              !unlocked ? "opacity-45 cursor-not-allowed border-white/10 bg-white/[0.02]"
-              : active ? "bg-white/[0.05]" : "border-white/10 bg-white/[0.03] hover:border-white/25"
+              !unlocked ? "opacity-45 cursor-not-allowed border-black/10 bg-black/[0.03]"
+              : active ? "bg-black/[0.05]" : "border-black/10 bg-black/[0.04] hover:border-white/25"
             }`}
             style={active ? { borderColor: accent, boxShadow: `0 0 20px ${accent}33` } : undefined}
           >
@@ -58,7 +58,7 @@ export default function CampaignChapterStrip({ chapters, stages, cleared, select
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">Chapter {ch.chapter}</p>
-                <h3 className="font-display text-lg text-white leading-tight truncate">{ch.name}</h3>
+                <h3 className="font-display text-lg text-ink leading-tight truncate">{ch.name}</h3>
               </div>
               {!unlocked ? (
                 <Lock className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
@@ -66,7 +66,7 @@ export default function CampaignChapterStrip({ chapters, stages, cleared, select
                 <Skull className={`w-4 h-4 shrink-0 mt-0.5 ${bossDefeated ? "text-amber-400" : "text-slate-600"}`} />
               )}
             </div>
-            <p className="text-[11px] text-slate-400 truncate mt-1">{ch.lore}</p>
+            <p className="text-[11px] text-slate-500 truncate mt-1">{ch.lore}</p>
             <div className="flex items-center gap-2 mt-1.5">
               <div className="flex-1 h-1 rounded-full bg-black/40 overflow-hidden">
                 <div

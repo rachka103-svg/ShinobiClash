@@ -30,11 +30,18 @@ export function rollDamage(actor, target, jutsu, advantage) {
   return { dmg, crit, mult };
 }
 
-export function buildCombatant(uid, side, template, level, ascension = 0, instanceId = null, statsOverride = null) {
+export function buildCombatant(uid, side, template, level, ascension = 0, instanceId = null, statsOverride = null, skillRank = 1, passiveUnlocked = true) {
   // `statsOverride` lets allies use the server-computed stats (which include
   // evolution stars + equipped gear + set bonuses) so combat always matches
   // the profile; enemies fall back to the base formula.
   const s = statsOverride || computeStats(template, level, ascension);
+  // Skill Rank scales all active jutsu power (+8% per rank beyond the 1st);
+  // the signature passive only applies once unlocked (skill rank >= 3).
+  const skillMult = 1 + Math.max(0, (skillRank || 1) - 1) * 0.08;
+  const jutsus = (template.jutsus || []).map((j) =>
+    (j.type === "attack" || j.type === "aoe" || j.type === "heal")
+      ? { ...j, power: Math.round((j.power || 0) * skillMult) }
+      : { ...j });
   return {
     uid,
     instanceId,
@@ -45,7 +52,8 @@ export function buildCombatant(uid, side, template, level, ascension = 0, instan
     element: template.element,
     rarity: template.rarity,
     role: template.role,
-    passive: template.passive || null,
+    passive: passiveUnlocked ? (template.passive || null) : null,
+    skillRank: skillRank || 1,
     level,
     ascension,
     maxHp: s.hp,
@@ -56,7 +64,7 @@ export function buildCombatant(uid, side, template, level, ascension = 0, instan
     def: s.def,
     spd: s.spd,
     shield: 0,
-    jutsus: template.jutsus,
+    jutsus,
     alive: true,
     // --- ability-resolution / status-effect state (Phase 3B) ---
     statuses: [],       // [{id, effectType, source, stacks, duration, magnitude}]

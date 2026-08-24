@@ -31,7 +31,7 @@ export default function MissionsPanel({ missions, onClaimed }) {
     <div className="panel rounded-xl p-5" data-testid="missions-panel">
       <div className="flex items-center gap-2 mb-4">
         <Gift className="w-5 h-5 text-fox" />
-        <h3 className="font-display text-2xl tracking-wide text-white">Daily Missions</h3>
+        <h3 className="font-display text-2xl tracking-wide text-ink">Daily Missions</h3>
       </div>
       <div className="space-y-3">
         {missions.map((m) => {
@@ -50,8 +50,8 @@ export default function MissionsPanel({ missions, onClaimed }) {
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold text-white truncate">{m.name}</span>
-                  <span className="text-[11px] text-slate-400 shrink-0" data-testid={`mission-progress-${m.id}`}>
+                  <span className="text-sm font-semibold text-ink truncate">{m.name}</span>
+                  <span className="text-[11px] text-slate-500 shrink-0" data-testid={`mission-progress-${m.id}`}>
                     {Math.min(m.progress, m.target)}/{m.target}
                   </span>
                 </div>
@@ -74,10 +74,10 @@ export default function MissionsPanel({ missions, onClaimed }) {
                 data-testid={`claim-btn-${m.id}`}
                 className={`shrink-0 px-3 py-2 rounded-lg text-xs font-display tracking-wide flex items-center gap-1 transition-colors ${
                   m.claimed
-                    ? "bg-white/5 text-slate-500"
+                    ? "bg-black/[0.04] text-slate-500"
                     : claimable
                     ? "bg-chakra text-[#05050A] hover:bg-cyan-300"
-                    : "bg-white/5 text-slate-500 cursor-not-allowed"
+                    : "bg-black/[0.04] text-slate-500 cursor-not-allowed"
                 }`}
               >
                 {claimingId === m.id ? (

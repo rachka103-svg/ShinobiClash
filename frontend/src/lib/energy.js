@@ -4,7 +4,7 @@
 import { toast } from "sonner";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
-export const ENERGY_COST = { campaign: 10, spire: 10, trial: 8 };
+export const ENERGY_COST = { campaign: 10, spire: 0, trial: 8 };
 
 export async function startBattle({ mode, id, navigate, setUser }) {
   try {

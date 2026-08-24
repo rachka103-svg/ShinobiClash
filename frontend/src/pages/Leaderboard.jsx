@@ -26,8 +26,8 @@ export default function Leaderboard() {
           <Trophy className="w-6 h-6" style={{ color: GOLD.base }} />
         </div>
         <div>
-          <h1 className="font-display text-5xl tracking-wide text-white leading-none">RANKINGS</h1>
-          <p className="text-slate-400 text-sm mt-1">The realm's mightiest sensei, ranked.</p>
+          <h1 className="font-display text-5xl tracking-wide text-ink leading-none">RANKINGS</h1>
+          <p className="text-slate-500 text-sm mt-1">The realm's mightiest sensei, ranked.</p>
         </div>
       </div>
       <div className="gold-pinstripe max-w-[220px] my-5 opacity-70" />
@@ -37,7 +37,7 @@ export default function Leaderboard() {
           onClick={() => setTab("power")}
           data-testid="leaderboard-tab-power"
           className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-display text-sm tracking-wide transition-colors ${
-            tab === "power" ? "bg-chakra text-[#05050A]" : "bg-white/5 border border-white/10 text-slate-400 hover:text-white"
+            tab === "power" ? "bg-chakra text-[#05050A]" : "bg-black/[0.04] border border-black/10 text-slate-500 hover:text-ink"
           }`}
         >
           <Zap className="w-4 h-4" /> POWER
@@ -46,7 +46,7 @@ export default function Leaderboard() {
           onClick={() => setTab("arena")}
           data-testid="leaderboard-tab-arena"
           className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-display text-sm tracking-wide transition-colors ${
-            tab === "arena" ? "bg-fox text-white" : "bg-white/5 border border-white/10 text-slate-400 hover:text-white"
+            tab === "arena" ? "bg-fox text-ink" : "bg-black/[0.04] border border-black/10 text-slate-500 hover:text-ink"
           }`}
         >
           <Crosshair className="w-4 h-4" /> ARENA
@@ -56,7 +56,7 @@ export default function Leaderboard() {
       {!rows ? (
         <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 text-chakra animate-spin" /></div>
       ) : rows.length === 0 ? (
-        <div className="glass-panel p-8 text-center text-slate-400">No rankings yet — be the first!</div>
+        <div className="glass-panel p-8 text-center text-slate-500">No rankings yet — be the first!</div>
       ) : (
         <div className="space-y-2.5">
           {rows.map((r, i) => {
@@ -85,11 +85,11 @@ export default function Leaderboard() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-display text-2xl tracking-wide text-white truncate">{r.name} {isMe && <span className="text-xs text-chakra align-middle">(You)</span>}</p>
+                  <p className="font-display text-2xl tracking-wide text-ink truncate">{r.name} {isMe && <span className="text-xs text-chakra align-middle">(You)</span>}</p>
                   {tab === "power" ? (
-                    <p className="text-xs text-slate-400">Rank Lv. {r.level} · {r.wins} wins · {r.cleared} stages</p>
+                    <p className="text-xs text-slate-500">Rank Lv. {r.level} · {r.wins} wins · {r.cleared} stages</p>
                   ) : (
-                    <p className="text-xs text-slate-400">{r.arena_wins} wins · {r.arena_losses} losses</p>
+                    <p className="text-xs text-slate-500">{r.arena_wins} wins · {r.arena_losses} losses</p>
                   )}
                 </div>
                 {tab === "power" ? (

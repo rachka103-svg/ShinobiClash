@@ -40,7 +40,7 @@ export default function CampaignStagePreviewDrawer({ stage, state, catalogById, 
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
       <DrawerContent
         data-testid="campaign-stage-drawer"
-        className="bg-[#0B0B14] border-white/10 max-h-[88vh] focus:outline-none"
+        className="bg-[#FFFFFF] border-black/10 max-h-[88vh] focus:outline-none"
       >
         <div className="mx-auto w-full max-w-lg px-4 sm:px-5 pb-[env(safe-area-inset-bottom)] overflow-y-auto max-h-[calc(88vh-1rem)]">
           <DrawerTitle className="sr-only">{stage.name}</DrawerTitle>
@@ -52,15 +52,15 @@ export default function CampaignStagePreviewDrawer({ stage, state, catalogById, 
             <span className="text-[11px] uppercase tracking-widest text-slate-500">Chapter {stage.chapter} · {stage.region}</span>
           </div>
           <div className="flex items-center gap-2 mb-4">
-            <h2 className="font-display text-2xl sm:text-3xl text-white tracking-wide leading-none" data-testid="stage-drawer-name">{stage.name}</h2>
+            <h2 className="font-display text-2xl sm:text-3xl text-ink tracking-wide leading-none" data-testid="stage-drawer-name">{stage.name}</h2>
             {done && <Star className="w-4 h-4 fill-amber-400 text-amber-400 shrink-0" />}
           </div>
 
           {/* power comparison */}
-          <div className="flex items-center justify-between rounded-xl bg-white/[0.03] border border-white/10 px-4 py-3 mb-5">
+          <div className="flex items-center justify-between rounded-xl bg-black/[0.04] border border-black/10 px-4 py-3 mb-5">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-500">Recommended Power</p>
-              <p className="font-display text-xl text-white mt-0.5" data-testid="stage-recommended-power">{stage.recommended_power}</p>
+              <p className="font-display text-xl text-ink mt-0.5" data-testid="stage-recommended-power">{stage.recommended_power}</p>
             </div>
             <div className={`flex items-center gap-1.5 text-sm font-semibold shrink-0 ${overpowered ? "text-emerald-400" : "text-fox"}`}>
               {overpowered ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
@@ -76,17 +76,17 @@ export default function CampaignStagePreviewDrawer({ stage, state, catalogById, 
               const rc = RARITY[tpl?.rarity || "R"]?.color || "#94A3B8";
               const ec = ELEMENT[tpl?.element]?.color || "#94A3B8";
               return (
-                <div key={i} className="flex items-center gap-2 rounded-lg bg-white/[0.03] border border-white/10 pr-2.5 py-1.5 pl-1.5 min-w-0">
+                <div key={i} className="flex items-center gap-2 rounded-lg bg-black/[0.04] border border-black/10 pr-2.5 py-1.5 pl-1.5 min-w-0">
                   <div className="relative w-11 h-11 rounded-md overflow-hidden border shrink-0" style={{ borderColor: rc }}>
                     {tpl?.portrait ? (
                       <img src={tpl.portrait} alt={tpl?.name || "enemy"} className="w-full h-full object-cover object-top" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-white/5"><Shield className="w-4 h-4 text-slate-500" /></div>
+                      <div className="w-full h-full flex items-center justify-center bg-black/[0.04]"><Shield className="w-4 h-4 text-slate-500" /></div>
                     )}
-                    <span className="absolute bottom-0 right-0 text-[8px] bg-black/70 px-0.5 text-white leading-tight">Lv{e.level}</span>
+                    <span className="absolute bottom-0 right-0 text-[8px] bg-black/70 px-0.5 text-ink leading-tight">Lv{e.level}</span>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-white truncate">{tpl?.name || "Unknown"}</p>
+                    <p className="text-xs font-semibold text-ink truncate">{tpl?.name || "Unknown"}</p>
                     <p className="text-[10px] truncate" style={{ color: ec }}>{tpl?.element || "?"} · {tpl?.role || "Fighter"}</p>
                   </div>
                 </div>
@@ -102,10 +102,10 @@ export default function CampaignStagePreviewDrawer({ stage, state, catalogById, 
                 {mech.phases.map((p, i) => {
                   const { range, detail } = describePhase(p);
                   return (
-                    <p key={i} className="text-[11px] text-slate-300 leading-snug"><span className="text-slate-500">{range}:</span> {detail}</p>
+                    <p key={i} className="text-[11px] text-slate-600 leading-snug"><span className="text-slate-500">{range}:</span> {detail}</p>
                   );
                 })}
-                {mech.summons_adds_at_pct && <p className="text-[11px] text-slate-300 leading-snug"><span className="text-slate-500">Below {mech.summons_adds_at_pct}% HP:</span> Summons reinforcements</p>}
+                {mech.summons_adds_at_pct && <p className="text-[11px] text-slate-600 leading-snug"><span className="text-slate-500">Below {mech.summons_adds_at_pct}% HP:</span> Summons reinforcements</p>}
               </div>
             </div>
           )}
@@ -113,8 +113,8 @@ export default function CampaignStagePreviewDrawer({ stage, state, catalogById, 
           {/* rewards */}
           <p className="text-xs uppercase tracking-widest text-slate-500 mb-2.5">Rewards</p>
           <div className="flex flex-wrap gap-2 mb-2.5">
-            <span className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-white/5 text-amber-300 font-medium"><Coins className="w-3.5 h-3.5" />{stage.rewards.ryo} Ryo</span>
-            <span className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-white/5 text-chakra font-medium"><Zap className="w-3.5 h-3.5" />{stage.rewards.exp} EXP</span>
+            <span className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-black/[0.04] text-amber-300 font-medium"><Coins className="w-3.5 h-3.5" />{stage.rewards.ryo} Ryo</span>
+            <span className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-black/[0.04] text-chakra font-medium"><Zap className="w-3.5 h-3.5" />{stage.rewards.exp} EXP</span>
           </div>
           {!done && (stage.first_clear?.ryo > 0 || stage.first_clear?.ninja) && (
             <div className="mb-5">
@@ -131,9 +131,9 @@ export default function CampaignStagePreviewDrawer({ stage, state, catalogById, 
         </div>
 
         {/* sticky CTA */}
-        <div className="sticky bottom-0 mx-auto w-full max-w-lg px-4 sm:px-5 pt-3 pb-4 bg-[#0B0B14] border-t border-white/10">
+        <div className="sticky bottom-0 mx-auto w-full max-w-lg px-4 sm:px-5 pt-3 pb-4 bg-[#FFFFFF] border-t border-black/10">
           {locked ? (
-            <div className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-white/5 text-slate-500 font-display text-lg tracking-wide">
+            <div className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-black/[0.04] text-slate-500 font-display text-lg tracking-wide">
               <Lock className="w-4 h-4" /> LOCKED
             </div>
           ) : (
@@ -142,7 +142,7 @@ export default function CampaignStagePreviewDrawer({ stage, state, catalogById, 
               disabled={busy || energyLow}
               data-testid="stage-drawer-battle-btn"
               className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display text-lg tracking-wide transition-colors ${
-                energyLow ? "bg-white/10 text-slate-400" : "bg-fox text-white hover:bg-orange-600"
+                energyLow ? "bg-black/[0.06] text-slate-500" : "bg-fox text-ink hover:bg-orange-600"
               } disabled:opacity-60`}
             >
               {done ? <RotateCcw className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}

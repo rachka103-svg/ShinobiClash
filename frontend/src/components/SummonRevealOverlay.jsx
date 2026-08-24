@@ -117,7 +117,7 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
                     initial={{ rotateY: 90, opacity: 0 }}
                     animate={shown ? { rotateY: 0, opacity: 1 } : { rotateY: 90, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 160, damping: 18 }}
-                    className={`relative rounded-xl overflow-hidden bg-[#0B0B14] ${shown && tier >= 4 ? auraClass(isGear ? "UR" : r.rarity) : ""}`}
+                    className={`relative rounded-xl overflow-hidden bg-[#FFFFFF] ${shown && tier >= 4 ? auraClass(isGear ? "UR" : r.rarity) : ""}`}
                     style={{ border: `${strokeW}px solid ${strokeCol}`, "--glow": fr?.useGold ? GOLD.base : color, boxShadow: shown && tier >= 5 ? `0 0 26px ${color}66` : undefined }}
                     data-testid={`summon-result-card-${i}`}
                   >
@@ -134,9 +134,9 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
                     {isGear ? (
                       <div className="aspect-[3/4] flex flex-col items-center justify-center gap-2 p-2">
                         <ItemIcon icon={r.icon || "anvil"} className="w-9 h-9" style={{ color }} />
-                        <p className="text-[11px] font-bold text-center leading-tight text-white">{r.set_name} {r.slot_name}</p>
+                        <p className="text-[11px] font-bold text-center leading-tight text-ink">{r.set_name} {r.slot_name}</p>
                         <span className="text-[10px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ background: `${color}22`, color }}>{r.rarity}</span>
-                        <span className="text-[10px] text-slate-400">Score {r.score}</span>
+                        <span className="text-[10px] text-slate-500">Score {r.score}</span>
                       </div>
                     ) : (
                       <>
@@ -147,11 +147,11 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
                           <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/90 to-transparent" />
                           <span className="absolute top-1.5 left-1.5 font-display text-sm px-1.5 rounded text-[#05050A]" style={{ background: color }}>{r.rarity}</span>
                           {!r.duplicate && (
-                            <span className="absolute top-1.5 right-1.5 text-[9px] font-extrabold tracking-widest px-1.5 py-0.5 rounded bg-emerald-500 text-white" data-testid={`summon-new-badge-${i}`}>NEW</span>
+                            <span className="absolute top-1.5 right-1.5 text-[9px] font-extrabold tracking-widest px-1.5 py-0.5 rounded bg-emerald-500 text-ink" data-testid={`summon-new-badge-${i}`}>NEW</span>
                           )}
                         </div>
                         <div className="absolute inset-x-0 bottom-0 px-1.5 pb-1.5 text-center">
-                          <p className="text-[11px] font-bold text-white leading-tight truncate">{r.name}</p>
+                          <p className="text-[11px] font-bold text-ink leading-tight truncate">{r.name}</p>
                           {r.duplicate && (
                             <p className="text-[9px] text-amber-300 flex items-center justify-center gap-0.5">
                               <Star className="w-2.5 h-2.5" /> +{r.shards_gained} shards
@@ -170,7 +170,7 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
             {stage !== "done" ? (
               <button
                 onClick={(e) => { e.stopPropagation(); skip(); }}
-                className="px-5 py-2 rounded-lg text-sm font-semibold text-slate-300 bg-white/5 border border-white/15 hover:bg-white/10 transition-colors"
+                className="px-5 py-2 rounded-lg text-sm font-semibold text-slate-600 bg-black/[0.04] border border-black/12 hover:bg-black/10 transition-colors"
                 data-testid="summon-skip-button"
               >
                 Skip

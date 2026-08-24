@@ -1,38 +1,42 @@
 [
   {
-    "content": "Backend: campaign 100 chapters + Tsukuyomi + Shop + item metadata",
+    "content": "Backend: spire/tsukuyomi energy=0, remove gear-ticket shop item, profile EXP in all modes",
     "status": "completed"
   },
   {
-    "content": "Backend: endpoints + battle_start/energy wiring",
+    "content": "Summon: remove Gear Armory mode (hero-only)",
     "status": "completed"
   },
   {
-    "content": "Backend test (curl) verified",
+    "content": "Shop: manual editable quantity input + bulk",
     "status": "completed"
   },
   {
-    "content": "Frontend: Battle.jsx tsukuyomi mode + gear reward display",
+    "content": "Tsukuyomi: return to same boss after fight; hide energy",
     "status": "completed"
   },
   {
-    "content": "Frontend: BattleHub + BottomNav center=Battle, Summon relocated",
+    "content": "Spire: reflect 0 energy",
     "status": "completed"
   },
   {
-    "content": "Frontend: Tsukuyomi swipe gallery + difficulty selector",
+    "content": "Battle: auto/speed toggle in ALL modes; bigger cards",
     "status": "completed"
   },
   {
-    "content": "Frontend: Shop page (gems/gold) buy flow",
+    "content": "Cards: remove rarity symbols + element from card/full views",
     "status": "completed"
   },
   {
-    "content": "Frontend: Campaign reverted to clean list",
+    "content": "Team slots: locked-slot UI up to max 5",
     "status": "completed"
   },
   {
-    "content": "Test full flows (testing agent) — passed (frontend 100%, backend 98%)",
+    "content": "Theme: bright Ivory & Ink light theme app-wide",
+    "status": "completed"
+  },
+  {
+    "content": "Compile + screenshots + testing agent (100% pass)",
     "status": "completed"
   }
 ]

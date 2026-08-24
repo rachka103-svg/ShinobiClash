@@ -66,9 +66,9 @@ export default function Arena() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8" data-testid="arena-page">
       <div className="flex items-center gap-3 mb-2">
         <Crosshair className="w-8 h-8 text-rose-400" />
-        <h1 className="font-display text-4xl tracking-wide text-white">ARENA</h1>
+        <h1 className="font-display text-4xl tracking-wide text-ink">ARENA</h1>
       </div>
-      <p className="text-slate-400 mb-6">Fight a frozen snapshot of another Shinobi&apos;s saved team. Async — no live opponents.</p>
+      <p className="text-slate-500 mb-6">Fight a frozen snapshot of another Shinobi&apos;s saved team. Async — no live opponents.</p>
 
       {/* Stat strip */}
       <div className="grid grid-cols-3 gap-3 mb-6">
@@ -78,7 +78,7 @@ export default function Arena() {
         </div>
         <div className="panel rounded-xl p-4 text-center">
           <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-1">Record</p>
-          <p className="font-display text-2xl text-white" data-testid="arena-record">
+          <p className="font-display text-2xl text-ink" data-testid="arena-record">
             <span className="text-emerald-400">{status?.wins ?? 0}W</span> - <span className="text-fox">{status?.losses ?? 0}L</span>
           </p>
         </div>
@@ -93,14 +93,14 @@ export default function Arena() {
       {/* Opponent card */}
       <div className="panel rounded-2xl p-6" data-testid="arena-opponent-card">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-2xl text-white tracking-wide flex items-center gap-2">
+          <h3 className="font-display text-2xl text-ink tracking-wide flex items-center gap-2">
             <Swords className="w-5 h-5 text-rose-400" /> Challenger
           </h3>
           <button
             onClick={fetchOpponent}
             disabled={loadingOpp}
             data-testid="arena-refresh-btn"
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-ink transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loadingOpp ? "animate-spin" : ""}`} /> Find Another
           </button>
@@ -112,7 +112,7 @@ export default function Arena() {
               <Loader2 className="w-8 h-8 animate-spin" />
             </motion.div>
           ) : noOpponents ? (
-            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-14 text-slate-400" data-testid="arena-no-opponents">
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-14 text-slate-500" data-testid="arena-no-opponents">
               <Crosshair className="w-10 h-10 mx-auto mb-2 text-slate-600" />
               No challengers available yet — check back once more Shinobi have saved a team!
             </motion.div>
@@ -120,8 +120,8 @@ export default function Arena() {
             <motion.div key={opponent.user_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="font-display text-2xl text-white">{opponent.name}</p>
-                  <p className="text-xs text-slate-400">Level {opponent.level} · Power {opponent.power}</p>
+                  <p className="font-display text-2xl text-ink">{opponent.name}</p>
+                  <p className="text-xs text-slate-500">Level {opponent.level} · Power {opponent.power}</p>
                 </div>
                 <Trophy className="w-8 h-8 text-slate-600" />
               </div>
@@ -145,7 +145,7 @@ export default function Arena() {
                 disabled={starting || noAttempts}
                 data-testid="arena-fight-btn"
                 className={`w-full py-3.5 rounded-lg font-display text-2xl tracking-wider flex items-center justify-center gap-2 transition-colors ${
-                  noAttempts ? "bg-white/5 text-slate-500 cursor-not-allowed" : "bg-fox text-white hover:bg-orange-600"
+                  noAttempts ? "bg-black/[0.04] text-slate-500 cursor-not-allowed" : "bg-fox text-ink hover:bg-orange-600"
                 }`}
               >
                 {starting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Swords className="w-5 h-5" />}

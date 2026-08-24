@@ -51,7 +51,7 @@ export default function BottomNav() {
       <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#05050A] via-[#05050A]/85 to-transparent pointer-events-none" />
       <div className="relative mx-auto max-w-lg px-3 pb-2">
         <div
-          className="relative flex items-end justify-between rounded-2xl px-2 h-16 border border-white/12"
+          className="relative flex items-end justify-between rounded-2xl px-2 h-16 border border-black/10"
           style={{ background: "rgba(11,11,20,0.82)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.07), 0 -8px 30px rgba(0,0,0,0.5)" }}
         >
           {/* gold hairline crown */}
@@ -67,9 +67,9 @@ export default function BottomNav() {
                       <span className="text-[10px] font-semibold tracking-wide" style={{ color: moreActive ? "#00E5FF" : "#64748b" }}>More</span>
                     </button>
                   </SheetTrigger>
-                  <SheetContent side="bottom" className="bg-[#0B0B14] border-t border-white/12 rounded-t-3xl pb-[calc(1.5rem+env(safe-area-inset-bottom))]" data-testid="nav-more-sheet">
+                  <SheetContent side="bottom" className="bg-[#FFFFFF] border-t border-black/10 rounded-t-3xl pb-[calc(1.5rem+env(safe-area-inset-bottom))]" data-testid="nav-more-sheet">
                     <SheetHeader>
-                      <SheetTitle className="font-display text-2xl tracking-wide text-white">MORE</SheetTitle>
+                      <SheetTitle className="font-display text-2xl tracking-wide text-ink">MORE</SheetTitle>
                     </SheetHeader>
                     <div className="grid grid-cols-4 gap-3 mt-4">
                       {more.map((m) => {
@@ -86,7 +86,7 @@ export default function BottomNav() {
                               <span className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: `${m.color}18`, boxShadow: `0 0 14px ${m.color}44` }}>
                                 <MIcon className="w-5 h-5" style={{ color: m.color }} />
                               </span>
-                              <span className="text-xs font-semibold text-white">{m.label}</span>
+                              <span className="text-xs font-semibold text-ink">{m.label}</span>
                             </Link>
                           </SheetClose>
                         );

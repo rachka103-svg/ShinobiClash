@@ -25,7 +25,7 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
       onClick={onClick}
       disabled={disabled}
       data-testid={testid}
-      className={`relative text-left rounded-lg overflow-hidden group transition-all bg-[#0B0B14] ${
+      className={`relative text-left rounded-lg overflow-hidden group transition-all bg-[#FFFFFF] ${
         selected ? "ring-2 ring-cyan-400 glow-cyan" : elite ? aura : ""
       } ${disabled ? "opacity-50 grayscale" : ""}`}
       style={frameStyle}
@@ -41,26 +41,14 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
         {!disabled && <RaritySparkles rarity={ninja.rarity} />}
         {tier >= 4 && !disabled && <span className="absolute inset-0 shine-sweep pointer-events-none" />}
         {fr.cornerLevel >= 2 && !disabled && <DecoCorners rarity={ninja.rarity} size={16} />}
-        <span
-          className="absolute top-1.5 left-1.5 font-display text-sm px-1.5 leading-tight rounded shadow"
-          style={{ background: rarity.color, color: "#05050A", boxShadow: `0 0 10px ${rarity.color}aa` }}
-        >
-          {rarity.label}
-        </span>
-        <span
-          className="absolute top-1.5 right-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded"
-          style={{ background: `${element.color}26`, color: element.color, border: `1px solid ${element.color}66` }}
-        >
-          {ninja.element}
-        </span>
         {ninja.level != null && (
           <span className="absolute bottom-1.5 right-1.5 font-display text-base text-white glow-text-cyan">Lv.{ninja.level}</span>
         )}
         {badge}
       </div>
       <div className="px-2 py-1.5">
-        <p className="font-display text-base tracking-wide text-white truncate leading-none">{ninja.name}</p>
-        <p className="text-[11px] text-slate-400 truncate">{ninja.role}</p>
+        <p className="font-display text-base tracking-wide text-ink truncate leading-none">{ninja.name}</p>
+        <p className="text-[11px] text-slate-500 truncate">{ninja.role}</p>
       </div>
     </motion.button>
   );

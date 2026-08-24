@@ -429,7 +429,7 @@ def arena_team_public(snapshot_team: list) -> list:
 # Game profile helpers
 # ---------------------------------------------------------------------------
 def new_ninja_instance(template_id: str, level: int = 1) -> dict:
-    return {"instance_id": str(uuid.uuid4()), "template_id": template_id, "level": level, "exp": 0, "ascension": 0, "stars": 1}
+    return {"instance_id": str(uuid.uuid4()), "template_id": template_id, "level": level, "exp": 0, "ascension": 0, "stars": 1, "skill_rank": 1}
 
 
 def _star_bonus_mult(stars: int) -> float:
@@ -491,7 +491,14 @@ def public_user(user: dict) -> dict:
         inst["star_up_cost"] = inst["evolution_cost"]["shards"] if inst["evolution_cost"] else None
         inst["faction"] = tmpl.get("faction")
         inst["role"] = tmpl.get("role")
-        inst["passive"] = tmpl.get("passive")
+        skill_rank = inst.get("skill_rank", 1)
+        sk = gd.skill_public(rarity, skill_rank)
+        inst["skill_rank"] = skill_rank
+        inst["skill"] = sk
+        inst["passive_full"] = tmpl.get("passive")
+        inst["passive"] = tmpl.get("passive") if sk["passive_unlocked"] else None
+        inst["passive_locked"] = not sk["passive_unlocked"]
+        inst["shards"] = user.get("hero_shards", {}).get(inst["template_id"], 0)
     team_ids = set(user.get("team", []))
     team_power = sum(i.get("power", 0) for i in ninjas if i["instance_id"] in team_ids)
     return {
@@ -911,9 +918,11 @@ async def arena_battle_complete(body: ArenaBattleCompleteIn, user: dict = Depend
         hero_exp = distribute_hero_exp(
             user, body.participants or list(user.get("team", [])), body.survivors, gd.ARENA_WIN_REWARDS["hero_exp_base"]
         )
+        await grant_player_exp(user, gd.ARENA_WIN_REWARDS["hero_exp_base"])
         await db.users.update_one({"_id": user["_id"]}, {"$set": {
             "arena_rating": user["arena_rating"], "arena_wins": user["arena_wins"],
             "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"],
+            "level": user["level"], "exp": user["exp"],
         }})
         return {"profile": public_user(user), "result": "win",
                 "rewards": {"ryo": gd.ARENA_WIN_REWARDS["ryo"], "gems": gems_gained, "hero_exp": hero_exp}}
@@ -1218,15 +1227,56 @@ async def ascend_hero(body: AscendIn, user: dict = Depends(get_current_user)):
     cost = gd.ascension_cost(rarity, asc)
     inventory = user.get("inventory", {})
     if inventory.get("ascension_crystal", 0) < cost["ascension_crystal"]:
-        raise HTTPException(status_code=400, detail="Not enough Ascension Crystals")
+        raise HTTPException(status_code=400, detail=f"Not enough Ascension Crystals ({inventory.get('ascension_crystal', 0)}/{cost['ascension_crystal']})")
     if user.get("ryo", 0) < cost["ryo"]:
-        raise HTTPException(status_code=400, detail="Not enough Ryo")
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost['ryo']}")
+    for iid, qty in cost.get("items", {}).items():
+        if iid == "ascension_crystal":
+            continue
+        if inventory.get(iid, 0) < qty:
+            name = gd.ITEMS.get(iid, {}).get("name", iid)
+            raise HTTPException(status_code=400, detail=f"Not enough {name} ({inventory.get(iid, 0)}/{qty})")
     inventory["ascension_crystal"] -= cost["ascension_crystal"]
+    for iid, qty in cost.get("items", {}).items():
+        if iid == "ascension_crystal":
+            continue
+        inventory[iid] = inventory.get(iid, 0) - qty
     user["ryo"] -= cost["ryo"]
     inst["ascension"] = asc + 1
     user["inventory"] = inventory
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"ninjas": user["ninjas"], "inventory": inventory, "ryo": user["ryo"]}})
     return public_user(user)
+
+
+@api_router.post("/game/hero/skill-up")
+async def skill_up(body: StarUpIn, user: dict = Depends(get_current_user)):
+    """Rank up a hero's skills using duplicate shards + Ryo. Each rank boosts
+    all jutsu power; reaching PASSIVE_UNLOCK_RANK permanently unlocks the
+    hero's signature passive."""
+    inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == body.instance_id), None)
+    if not inst:
+        raise HTTPException(status_code=404, detail="Hero not found")
+    tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Hero template not found")
+    rank = inst.get("skill_rank", 1)
+    if rank >= gd.SKILL_RANK_MAX:
+        raise HTTPException(status_code=400, detail="Skills are already at max rank")
+    cost = gd.skill_rank_cost(tmpl["rarity"], rank)
+    hero_shards = user.setdefault("hero_shards", {})
+    have = hero_shards.get(inst["template_id"], 0)
+    if have < cost["shards"]:
+        raise HTTPException(status_code=400, detail=f"Not enough shards ({have}/{cost['shards']})")
+    if user.get("ryo", 0) < cost["ryo"]:
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost['ryo']}")
+    hero_shards[inst["template_id"]] = have - cost["shards"]
+    user["ryo"] -= cost["ryo"]
+    inst["skill_rank"] = rank + 1
+    unlocked_passive = (rank + 1) == gd.PASSIVE_UNLOCK_RANK
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"]}})
+    return {"profile": public_user(user), "instance_id": inst["instance_id"],
+            "skill_rank": inst["skill_rank"], "unlocked_passive": unlocked_passive}
 
 
 # ---------------------------------------------------------------------------
@@ -1428,12 +1478,13 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     user["inventory"] = inventory
     bump_mission(user, "trial_win")
     bump_mission(user, "any_win")
+    await grant_player_exp(user, rw.get("hero_exp", 40))
     total_levels = sum(h["levels"] for h in hero_exp)
     if total_levels:
         bump_mission(user, "hero_levelup", total_levels)
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ryo": user["ryo"], "ninjas": user["ninjas"], "inventory": inventory, "daily": user["daily"],
-        "gear": user.get("gear", [])}})
+        "gear": user.get("gear", []), "level": user["level"], "exp": user["exp"]}})
     items_out = dict(rw.get("items", {}))
     if blueprint_reward:
         items_out[blueprint_reward] = items_out.get(blueprint_reward, 0) + 1
@@ -1451,6 +1502,7 @@ async def tsukuyomi_list(user: dict = Depends(get_current_user)):
         "bosses": [gd.tsukuyomi_boss_public(b) for b in gd.TSUKUYOMI_BOSSES],
         "difficulties": gd.TSUKUYOMI_DIFFICULTIES,
         "progress": progress,
+        "first_clears": user.get("tsukuyomi_fc") or {},
         "energy_cost": gd.ENERGY_COST["tsukuyomi"],
     }
 
@@ -1492,23 +1544,41 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
         tsuku[body.boss_id] = body.difficulty
     user["tsukuyomi"] = tsuku
 
+    # FIRST-CLEAR BONUS — one-time per (boss, difficulty).
+    fc = user.get("tsukuyomi_fc") or {}
+    done = fc.get(body.boss_id, [])
+    first_clear_bonus = None
+    if body.difficulty not in done:
+        fcb = gd.tsukuyomi_first_clear_bonus(boss, body.difficulty)
+        if fcb.get("gems"):
+            user["gems"] = user.get("gems", 0) + fcb["gems"]
+        for iid, n in fcb.get("items", {}).items():
+            inventory[iid] = inventory.get(iid, 0) + n
+        done = done + [body.difficulty]
+        fc[body.boss_id] = done
+        first_clear_bonus = fcb
+    user["tsukuyomi_fc"] = fc
+
     user["inventory"] = inventory
     bump_mission(user, "any_win")
+    await grant_player_exp(user, r["hero_exp"])
     total_levels = sum(h["levels"] for h in hero_exp)
     if total_levels:
         bump_mission(user, "hero_levelup", total_levels)
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
-        "ryo": user["ryo"], "wins": user["wins"], "ninjas": user["ninjas"], "inventory": inventory,
-        "gear": user.get("gear", []), "daily": user["daily"], "tsukuyomi": tsuku}})
+        "ryo": user["ryo"], "gems": user.get("gems", 0), "wins": user["wins"], "ninjas": user["ninjas"], "inventory": inventory,
+        "gear": user.get("gear", []), "daily": user["daily"], "tsukuyomi": tsuku, "tsukuyomi_fc": fc,
+        "level": user["level"], "exp": user["exp"]}})
     return {"profile": public_user(user), "result": "win",
             "rewards": {"ryo": r["ryo"], "items": r["items"], "hero_exp": hero_exp,
                         "gear": gear_reward, "rare_hit": rare_hit, "rare_chance": r["rare_chance"],
-                        "gear_set_name": boss["gear_set_name"]}}
+                        "gear_set_name": boss["gear_set_name"], "first_clear_bonus": first_clear_bonus}}
 
 
 @api_router.get("/game/shop")
 async def shop_list(user: dict = Depends(get_current_user)):
-    return {"items": gd.SHOP_ITEMS}
+    return {"items": gd.SHOP_ITEMS, "deals": gd.daily_shop_deals(), "skill_config": {
+        "rank_max": gd.SKILL_RANK_MAX, "passive_unlock_rank": gd.PASSIVE_UNLOCK_RANK}}
 
 
 @api_router.post("/game/shop/buy")
@@ -1517,7 +1587,11 @@ async def shop_buy(body: ShopBuyIn, user: dict = Depends(get_current_user)):
     if not entry:
         raise HTTPException(status_code=404, detail="Item not found in shop")
     qty = max(1, min(99, body.qty))
-    total = entry["price"] * qty
+    unit_price = gd.deal_price_for(body.entry_id)  # discounted if on today's deals
+    on_deal = unit_price is not None
+    if not on_deal:
+        unit_price = entry["price"]
+    total = unit_price * qty
     currency = entry["currency"]
     have = user.get("gems", 0) if currency == "gems" else user.get("ryo", 0)
     if have < total:

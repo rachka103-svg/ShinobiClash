@@ -96,8 +96,8 @@ export default function Battle() {
   const [resultData, setResultData] = useState(null);
   const [shakeUid, setShakeUid] = useState(null);
   const [events, setEvents] = useState([]); // structured combat event log (Phase 3B) — for future VFX/animation
-  const [auto, setAutoState] = useState(false);
-  const [speed, setSpeedState] = useState(1); // 1x | 2x | 3x
+  const [auto, setAutoState] = useState(() => { try { return localStorage.getItem("sc_battle_auto") === "1"; } catch { return false; } });
+  const [speed, setSpeedState] = useState(() => { try { return Number(localStorage.getItem("sc_battle_speed")) || 1; } catch { return 1; } });
 
   const combRef = useRef([]);
   const orderRef = useRef([]);
@@ -106,6 +106,8 @@ export default function Battle() {
   const actionLockRef = useRef(false); // guards against multi-tap / double-submit dealing double damage
   const autoRef = useRef(false);
   const speedRef = useRef(1);
+  // Honor the pre-battle preferences chosen in the Battle hub on first mount.
+  useEffect(() => { autoRef.current = auto; speedRef.current = speed; }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setCombs = (next) => { combRef.current = next; setCombsState(next); };
   const pushLog = (msg) => setLog((l) => [msg, ...l].slice(0, 30));
@@ -115,11 +117,12 @@ export default function Battle() {
   // manual and auto-battle play feel fast-paced.
   const ms = useCallback((base) => Math.max(60, Math.round(base / speedRef.current)), []);
 
-  const setAuto = (v) => { autoRef.current = v; setAutoState(v); };
+  const setAuto = (v) => { autoRef.current = v; setAutoState(v); try { localStorage.setItem("sc_battle_auto", v ? "1" : "0"); } catch {} };
   const cycleSpeed = () => {
     const next = speed >= 3 ? 1 : speed + 1;
     speedRef.current = next;
     setSpeedState(next);
+    try { localStorage.setItem("sc_battle_speed", String(next)); } catch {}
   };
 
   // ---------- init ----------
@@ -128,7 +131,7 @@ export default function Battle() {
     const allies = (user.team || [])
       .map((tid) => user.ninjas.find((n) => n.instance_id === tid))
       .filter(Boolean)
-      .map((inst) => buildCombatant(nextUid(), "ally", catalogById[inst.template_id], inst.level, inst.ascension || 0, inst.instance_id, inst.stats || null));
+      .map((inst) => buildCombatant(nextUid(), "ally", catalogById[inst.template_id], inst.level, inst.ascension || 0, inst.instance_id, inst.stats || null, inst.skill_rank || 1, !(inst.passive_locked)));
     const enemies = enemiesDef.map((e) => buildCombatant(nextUid(), "enemy", catalogById[e.template_id], e.level, e.ascension || 0));
     // Wire the boss-mechanic framework onto the boss stage's single enemy
     // (only real Campaign boss stages set stage.boss_mechanic — Spire and
@@ -562,6 +565,17 @@ export default function Battle() {
                   {mode === "tsukuyomi" && resultData.rewards.rare_hit === false && resultData.rewards.gear_set_name && (
                     <p className="text-[11px] text-slate-500 mt-1" data-testid="reward-no-rare">No {resultData.rewards.gear_set_name} gear this time — the nightmare keeps its treasures.</p>
                   )}
+                  {resultData.rewards.first_clear_bonus && (
+                    <div className="mt-2 rounded-xl bg-amber-400/10 border border-amber-400/40 px-3 py-2" data-testid="reward-first-clear">
+                      <p className="text-[11px] uppercase tracking-widest text-amber-300 font-bold">First-Clear Bonus</p>
+                      <p className="text-sm text-white flex items-center justify-center gap-2 mt-0.5">
+                        {resultData.rewards.first_clear_bonus.gems > 0 && <span className="flex items-center gap-1"><Gem className="w-3.5 h-3.5 text-jutsu" />+{resultData.rewards.first_clear_bonus.gems}</span>}
+                        {Object.entries(resultData.rewards.first_clear_bonus.items || {}).map(([iid, q]) => (
+                          <span key={iid} className="text-xs px-2 py-0.5 rounded bg-white/10">{items[iid]?.name || iid} ×{q}</span>
+                        ))}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
               {phase === "win" && mode === "spire" && resultData?.advancing && (
@@ -619,11 +633,11 @@ function Fighter({ c, active, shake, floaters, highlight, onClick, flip }) {
   const ckPct = (c.chakra / c.maxChakra) * 100;
   const el = ELEMENT[c.element] || {};
   return (
-    <div className="relative flex flex-col items-center" style={{ width: 110 }}>
+    <div className="relative flex flex-col items-center" style={{ width: 150 }}>
       {/* floaters */}
       <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
         {floaters.map((f) => (
-          <div key={f.id} className="float-text font-display text-2xl whitespace-nowrap" style={{ color: f.color, textShadow: "0 2px 6px #000" }}>
+          <div key={f.id} className="float-text font-display text-3xl whitespace-nowrap" style={{ color: f.color, textShadow: "0 2px 6px #000" }}>
             {f.text}
           </div>
         ))}
@@ -633,15 +647,15 @@ function Fighter({ c, active, shake, floaters, highlight, onClick, flip }) {
         onClick={onClick}
         disabled={!highlight}
         data-testid={`fighter-${c.uid}`}
-        className={`relative w-[92px] h-[120px] rounded-lg overflow-hidden border-2 transition-all ${shake ? "shake" : ""} ${
+        className={`relative w-[128px] h-[164px] rounded-xl overflow-hidden border-2 transition-all ${shake ? "shake" : ""} ${
           highlight ? "border-fox cursor-crosshair ring-2 ring-fox animate-pulse" : "border-white/10"
         } ${!c.alive ? "grayscale opacity-40" : ""} ${active ? "active-turn" : ""}`}
         style={{ borderColor: active ? "#00E5FF" : highlight ? "#FF5722" : `${RARITY[c.rarity]?.color}66` }}
       >
         <img src={c.portrait} alt={c.name} className={`w-full h-full object-cover object-top ${flip ? "scale-x-[-1]" : ""}`} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        {!c.alive && <Skull className="absolute inset-0 m-auto w-8 h-8 text-white/70" />}
-        <span className="absolute top-0.5 right-0.5 text-[9px] font-display text-white bg-black/50 px-1 rounded">Lv{c.level}</span>
+        {!c.alive && <Skull className="absolute inset-0 m-auto w-10 h-10 text-white/70" />}
+        <span className="absolute top-0.5 right-0.5 text-[11px] font-display text-white bg-black/50 px-1.5 rounded">Lv{c.level}</span>
         {c.enraged && (
           <span data-testid={`enraged-${c.uid}`} className="absolute top-0.5 left-0.5 flex items-center gap-0.5 text-[8px] font-display text-white bg-red-600/80 px-1 rounded">
             <Flame className="w-2.5 h-2.5" /> RAGE
@@ -654,9 +668,9 @@ function Fighter({ c, active, shake, floaters, highlight, onClick, flip }) {
         )}
       </button>
 
-      <p className="text-[10px] text-white font-semibold mt-1 truncate w-full text-center" style={{ color: el.color }}>{c.name.split(" ")[0]}</p>
+      <p className="text-xs text-white font-semibold mt-1 truncate w-full text-center" style={{ color: el.color }}>{c.name.split(" ")[0]}</p>
       {/* HP */}
-      <div className="w-full h-2 rounded bg-black/60 overflow-hidden mt-0.5">
+      <div className="w-full h-2.5 rounded bg-black/60 overflow-hidden mt-0.5">
         <div className="h-full hp-bar-fill rounded" style={{ width: `${hpPct}%`, background: "linear-gradient(90deg,#FF1744,#FF8A80)" }} />
       </div>
       {c.shield > 0 && <span className="text-[9px] text-sky-300">🛡 {c.shield}</span>}

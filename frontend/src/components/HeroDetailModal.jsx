@@ -18,7 +18,7 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 const Stat = ({ icon: Icon, label, value, color }) => (
   <div className="flex flex-col items-center gap-1 flex-1 min-w-0 py-1">
     <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color }} />
-    <span className="font-display text-xl sm:text-2xl text-white leading-none">{value}</span>
+    <span className="font-display text-xl sm:text-2xl text-ink leading-none">{value}</span>
     <span className="text-[10px] uppercase tracking-widest text-slate-500">{label}</span>
   </div>
 );
@@ -77,6 +77,22 @@ export default function HeroDetailModal({
     } finally { setBusyLocal(false); }
   };
 
+  // ---------- Skills / Jutsu derived state ----------
+  const skill = instance?.skill || null;
+  const skillCost = skill?.next_cost || null;
+  const skillAffordable = skillCost && shardsOwned >= skillCost.shards && (user?.ryo || 0) >= skillCost.ryo;
+
+  const doSkillUp = async () => {
+    setBusyLocal(true);
+    try {
+      const { data } = await api.post("/game/hero/skill-up", { instance_id: instance.instance_id });
+      setUser(data.profile);
+      toast.success(data.unlocked_passive ? "Passive Unlocked!" : `Skills raised to Rank ${data.skill_rank}!`);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setBusyLocal(false); }
+  };
+
   // ---------- Gear derived state ----------
   const allGear = user?.gear || [];
   const equippedBySlot = {};
@@ -117,7 +133,7 @@ export default function HeroDetailModal({
     <Dialog open={open} onOpenChange={(o) => !o && closeAll()}>
       <DialogContent
         data-testid="hero-detail-modal"
-        className="max-w-xl sm:max-w-2xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] overflow-y-auto bg-[#0B0B14] border-0 rounded-2xl"
+        className="max-w-xl sm:max-w-2xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] overflow-y-auto bg-[#FFFFFF] border-0 rounded-2xl"
         style={{ border: `${frame.strokeWidth}px solid ${frame.useGold ? GOLD.stroke : rarity.color + "66"}`, boxShadow: `0 0 60px ${(frame.useGold ? GOLD.base : rarity.color)}40` }}
       >
         <DialogTitle className="sr-only">{template.name}</DialogTitle>
@@ -136,14 +152,11 @@ export default function HeroDetailModal({
             <div className="absolute inset-x-0 top-0 h-32 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${element.color}55, transparent)` }} />
             <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
 
-            {/* rarity badge */}
-            <div className="absolute top-4 right-16 sm:right-20 z-10"><RarityBadge rarity={template.rarity} size="lg" /></div>
-
             {/* exit immersive */}
             <button
               onClick={() => setImmersive(false)}
               data-testid="hero-immersive-exit"
-              className="absolute top-4 left-4 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/55 backdrop-blur border border-white/15 text-slate-200 text-xs font-semibold hover:bg-black/75 transition-colors"
+              className="absolute top-4 left-4 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/55 backdrop-blur border border-black/12 text-slate-700 text-xs font-semibold hover:bg-black/75 transition-colors"
             >
               <Minimize2 className="w-3.5 h-3.5" /> Show Info
             </button>
@@ -151,8 +164,7 @@ export default function HeroDetailModal({
             {/* minimal caption */}
             <div className="absolute inset-x-0 bottom-0 z-10 p-5 sm:p-7">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-bold px-2.5 py-1 rounded-md" style={{ background: `${element.color}22`, color: element.color, border: `1px solid ${element.color}66` }}>{template.element}</span>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-white/10 text-slate-200">{template.role}</span>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-white/15 text-white">{template.role}</span>
                 {instance && (
                   <span className="ml-auto font-display text-lg text-amber-300 flex items-center gap-1"><Zap className="w-4 h-4" />{instance.power} PWR</span>
                 )}
@@ -172,12 +184,11 @@ export default function HeroDetailModal({
         <div className="relative h-[300px] sm:h-[400px] shrink-0">
           <img src={template.portrait} alt={template.name} className="w-full h-full object-cover object-top" />
           <div className="absolute inset-x-0 top-0 h-28 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${element.color}40, transparent)` }} />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B14] via-transparent to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#FFFFFF] via-transparent to-transparent pointer-events-none" />
           {frame.useGold && <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />}
           {frame.cornerLevel >= 2 && <DecoCorners rarity={template.rarity} size={22} />}
-          <div className="absolute top-4 right-16 sm:right-20 z-10"><RarityBadge rarity={template.rarity} size="lg" /></div>
           {owned && (
-            <span className="absolute top-4 left-4 z-10 flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/90 text-white text-xs font-bold" data-testid="detail-owned-badge">
+            <span className="absolute top-4 left-4 z-10 flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/90 text-ink text-xs font-bold" data-testid="detail-owned-badge">
               <Check className="w-3.5 h-3.5" /> OWNED
             </span>
           )}
@@ -190,7 +201,7 @@ export default function HeroDetailModal({
           <button
             onClick={() => setImmersive(true)}
             data-testid="hero-fullscreen-toggle"
-            className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/50 backdrop-blur border border-white/15 text-slate-200 text-xs font-semibold hover:bg-black/70 transition-colors"
+            className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/50 backdrop-blur border border-black/12 text-slate-700 text-xs font-semibold hover:bg-black/70 transition-colors"
           >
             <Maximize2 className="w-3.5 h-3.5" /> View Art
           </button>
@@ -199,15 +210,14 @@ export default function HeroDetailModal({
         {/* ---------- Profile content ---------- */}
         <div className="p-5 sm:p-7">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-bold px-2.5 py-1 rounded-md" style={{ background: `${element.color}22`, color: element.color, border: `1px solid ${element.color}66` }}>{template.element}</span>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-white/10 text-slate-200">{template.role}</span>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-black/[0.06] text-slate-700">{template.role}</span>
             {instance && (
               <span className="ml-auto font-display text-lg text-amber-300 flex items-center gap-1" data-testid="hero-power-label"><Zap className="w-4 h-4" />{instance.power} PWR</span>
             )}
           </div>
-          <h2 className="font-display text-4xl sm:text-6xl tracking-wide text-white leading-none">{template.name}</h2>
+          <h2 className="font-display text-4xl sm:text-6xl tracking-wide text-ink leading-none">{template.name}</h2>
           {template.title && <p className="text-sm sm:text-base text-chakra italic mt-1.5">{template.title}</p>}
-          {template.lore && <p className="text-sm text-slate-400 italic mt-3">&ldquo;{template.lore}&rdquo;</p>}
+          {template.lore && <p className="text-sm text-slate-500 italic mt-3">&ldquo;{template.lore}&rdquo;</p>}
 
           {/* Add to / remove from squad (unified Heroes & Squad hub) */}
           {squad && instance && (
@@ -236,23 +246,24 @@ export default function HeroDetailModal({
 
           {progression && instance ? (
             <Tabs value={tab} onValueChange={setTab} className="mt-6" data-testid="hero-detail-tabs">
-              <TabsList className="grid grid-cols-3 w-full bg-white/[0.04] border border-white/10 rounded-xl h-11">
-                <TabsTrigger value="train" data-testid="hero-train-tab" className="font-display tracking-wider text-base data-[state=active]:bg-chakra/15 data-[state=active]:text-chakra rounded-lg">TRAIN</TabsTrigger>
-                <TabsTrigger value="evolve" data-testid="hero-evolve-tab" className="font-display tracking-wider text-base data-[state=active]:bg-amber-400/15 data-[state=active]:text-amber-300 rounded-lg">EVOLVE</TabsTrigger>
-                <TabsTrigger value="gear" data-testid="hero-gear-tab" className="font-display tracking-wider text-base data-[state=active]:bg-fox/15 data-[state=active]:text-fox rounded-lg">GEAR</TabsTrigger>
+              <TabsList className="grid grid-cols-4 w-full bg-black/[0.04] border border-black/10 rounded-xl h-11">
+                <TabsTrigger value="train" data-testid="hero-train-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-chakra/15 data-[state=active]:text-chakra rounded-lg">TRAIN</TabsTrigger>
+                <TabsTrigger value="evolve" data-testid="hero-evolve-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-amber-400/15 data-[state=active]:text-amber-300 rounded-lg">EVOLVE</TabsTrigger>
+                <TabsTrigger value="skills" data-testid="hero-skills-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">SKILLS</TabsTrigger>
+                <TabsTrigger value="gear" data-testid="hero-gear-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-fox/15 data-[state=active]:text-fox rounded-lg">GEAR</TabsTrigger>
               </TabsList>
 
               {/* ================= TRAIN ================= */}
               <TabsContent value="train" className="mt-4" data-testid="hero-progression-section">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-display text-xl text-white">Lv.{instance.level}<span className="text-slate-500 text-sm">/{instance.level_cap}</span></span>
+                  <span className="font-display text-xl text-ink">Lv.{instance.level}<span className="text-slate-500 text-sm">/{instance.level_cap}</span></span>
                   <div className="flex gap-0.5" data-testid="ascension-stars">
                     {Array.from({ length: instance.ascension_max }).map((_, i) => (
                       <ChevronsUp key={i} className="w-4 h-4" style={{ color: i < instance.ascension ? "#00E5FF" : "#334155" }} />
                     ))}
                   </div>
                 </div>
-                <div className="flex justify-between text-xs text-slate-400 mb-1">
+                <div className="flex justify-between text-xs text-slate-500 mb-1">
                   <span>EXP</span>
                   <span data-testid="hero-exp-label">{progression.atCap ? "MAX — ascend to continue" : `${instance.exp} / ${instance.exp_to_next}`}</span>
                 </div>
@@ -268,7 +279,7 @@ export default function HeroDetailModal({
                         key={q}
                         onClick={() => setQty(q)}
                         data-testid={`train-qty-${q}`}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${qty === q ? "bg-chakra/20 text-chakra border border-chakra/40" : "text-slate-400 border border-white/10"}`}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${qty === q ? "bg-chakra/20 text-chakra border border-chakra/40" : "text-slate-500 border border-black/10"}`}
                       >
                         x{q}
                       </button>
@@ -287,11 +298,11 @@ export default function HeroDetailModal({
                         onClick={() => progression.onUseExpTome(tid, useQty || 1)}
                         disabled={busy || count < 1 || progression.atCap}
                         data-testid={`use-${tid}`}
-                        className="flex flex-col items-center gap-0.5 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 hover:border-white/25 transition-colors disabled:opacity-40"
+                        className="flex flex-col items-center gap-0.5 py-2.5 rounded-xl bg-black/[0.04] border border-black/10 hover:border-white/25 transition-colors disabled:opacity-40"
                       >
                         <Sparkles className="w-4 h-4" style={{ color: meta?.color }} />
-                        <span className="text-[10px] text-slate-300">+{(meta?.value ?? 0) * Math.max(1, useQty)} xp</span>
-                        <span className="text-[10px] text-white font-semibold">×{count}</span>
+                        <span className="text-[10px] text-slate-600">+{(meta?.value ?? 0) * Math.max(1, useQty)} xp</span>
+                        <span className="text-[10px] text-ink font-semibold">×{count}</span>
                         <span className="text-[9px] text-amber-300 flex items-center gap-0.5"><Coins className="w-2.5 h-2.5" />{goldCost}</span>
                       </button>
                     );
@@ -333,8 +344,8 @@ export default function HeroDetailModal({
                     </>
                   )}
                 </div>
-                <p className="text-center text-xs text-slate-400 mb-4">
-                  Each star grants a permanent <span className="text-amber-300 font-bold">+7% HP / ATK / DEF</span>. Stars can ONLY be gained through Evolution.
+                <p className="text-center text-xs text-slate-500 mb-4">
+                  Each star grants a permanent <span className="text-amber-300 font-bold">+18% HP / ATK / DEF</span> plus a stat multiplier surge. Stars can ONLY be gained through Evolution.
                 </p>
 
                 {evoCost ? (
@@ -382,6 +393,63 @@ export default function HeroDetailModal({
                 )}
               </TabsContent>
 
+              {/* ================= SKILLS / JUTSU ================= */}
+              <TabsContent value="skills" className="mt-4" data-testid="hero-skills-panel">
+                {skill ? (
+                  <>
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-widest text-slate-500">Skill Rank</p>
+                        <p className="font-display text-3xl leading-none text-jutsu" data-testid="hero-skill-rank">{skill.rank}<span className="text-slate-500 text-lg"> / {skill.rank_max}</span></p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] uppercase tracking-widest text-slate-500">Jutsu Power</p>
+                        <p className="font-display text-2xl leading-none text-emerald-400" data-testid="hero-skill-mult">+{Math.round((skill.power_mult - 1) * 100)}%</p>
+                      </div>
+                    </div>
+                    <div className="h-2 rounded-full bg-black/50 overflow-hidden mb-3">
+                      <div className="h-full rounded-full" style={{ width: `${(skill.rank / skill.rank_max) * 100}%`, background: "linear-gradient(90deg,#7C4DFF,#00E5FF)" }} />
+                    </div>
+
+                    {/* Passive unlock status */}
+                    <div className="rounded-xl border p-3 mb-4" style={{ borderColor: skill.passive_unlocked ? "rgba(0,230,118,0.4)" : "rgba(255,255,255,0.12)", background: skill.passive_unlocked ? "rgba(0,230,118,0.06)" : "rgba(255,255,255,0.03)" }} data-testid="hero-passive-status">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Sparkles className="w-4 h-4" style={{ color: skill.passive_unlocked ? "#00E676" : "#64748b" }} />
+                        <p className="font-display text-lg tracking-wide" style={{ color: skill.passive_unlocked ? "#00E676" : "#94a3b8" }}>
+                          {instance.passive_full?.name || "Signature Passive"}
+                        </p>
+                        {skill.passive_unlocked
+                          ? <span className="ml-auto text-[10px] font-bold text-emerald-400 flex items-center gap-1"><Check className="w-3 h-3" /> ACTIVE</span>
+                          : <span className="ml-auto text-[10px] font-bold text-slate-500">LOCKED · RANK {skill.passive_unlock_rank}</span>}
+                      </div>
+                      <p className="text-xs text-slate-500 leading-snug">{instance.passive_full?.description || "This hero's signature passive."}</p>
+                    </div>
+
+                    {skillCost ? (
+                      <>
+                        <div className="space-y-2 mb-4" data-testid="skill-cost-list">
+                          <CostRow icon={<Star className="w-4 h-4 text-jutsu" />} label={`${template.name} Shards`} have={shardsOwned} need={skillCost.shards} testid="skill-cost-shards" />
+                          <CostRow icon={<Coins className="w-4 h-4 text-amber-400" />} label="Ryo" have={user?.ryo || 0} need={skillCost.ryo} testid="skill-cost-ryo" />
+                        </div>
+                        <button onClick={doSkillUp} disabled={busy || !skillAffordable} data-testid="hero-skill-up-button"
+                          className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-jutsu to-chakra text-[#05050A] hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2">
+                          {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <ChevronsUp className="w-5 h-5" />}
+                          {(skill.rank + 1) === skill.passive_unlock_rank ? "UNLOCK PASSIVE" : `RANK UP → ${skill.rank + 1}`}
+                        </button>
+                        <p className="text-[10px] text-slate-500 mt-2 text-center">Shards are shared with Evolution — spend them wisely on stars or stronger skills.</p>
+                      </>
+                    ) : (
+                      <div className="w-full py-3 rounded-xl text-center font-display text-base tracking-wide text-jutsu bg-jutsu/10 flex items-center justify-center gap-2" data-testid="skills-maxed-label">
+                        <Sparkles className="w-4 h-4" /> SKILLS MASTERED — RANK {skill.rank_max}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-center text-slate-500 py-8 text-sm">Skills unlock once you own this hero.</p>
+                )}
+              </TabsContent>
+
+
               {/* ================= GEAR ================= */}
               <TabsContent value="gear" className="mt-4" data-testid="hero-gear-panel">
                 <div className="flex items-center justify-between mb-3">
@@ -401,7 +469,7 @@ export default function HeroDetailModal({
                         key={slot}
                         onClick={() => setGearSlot(active ? null : slot)}
                         data-testid={`hero-gear-slot-${slot}`}
-                        className={`relative p-3 rounded-xl text-left transition-colors ${active ? "bg-white/[0.08]" : "bg-white/[0.03] hover:bg-white/[0.06]"}`}
+                        className={`relative p-3 rounded-xl text-left transition-colors ${active ? "bg-black/[0.06]" : "bg-black/[0.04] hover:bg-black/[0.05]"}`}
                         style={{ border: `1.5px solid ${active ? "#00E5FF" : color}` }}
                       >
                         <div className="flex items-center gap-2">
@@ -411,7 +479,7 @@ export default function HeroDetailModal({
                             {g ? (
                               <>
                                 <p className="text-xs font-bold truncate" style={{ color }}>{g.set_name} +{g.plus}</p>
-                                <p className="text-[10px] text-slate-400">Score {g.score}</p>
+                                <p className="text-[10px] text-slate-500">Score {g.score}</p>
                               </>
                             ) : (
                               <p className="text-xs text-slate-500">Empty</p>
@@ -446,7 +514,7 @@ export default function HeroDetailModal({
 
                 {/* Slot inventory */}
                 {gearSlot && (
-                  <div className="rounded-xl bg-black/30 border border-white/10 p-2 max-h-56 overflow-y-auto space-y-1.5" data-testid="hero-gear-inventory">
+                  <div className="rounded-xl bg-black/30 border border-black/10 p-2 max-h-56 overflow-y-auto space-y-1.5" data-testid="hero-gear-inventory">
                     {equippedBySlot[gearSlot] && (
                       <button
                         onClick={() => unequipGear(equippedBySlot[gearSlot].gear_id)}
@@ -463,7 +531,7 @@ export default function HeroDetailModal({
                       .map((g) => {
                         const color = rarityMeta[g.rarity]?.color || "#9E9E9E";
                         return (
-                          <div key={g.gear_id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10">
+                          <div key={g.gear_id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/[0.04] border border-black/10">
                             <ItemIcon icon={slotMeta[g.slot]?.icon} className="w-4 h-4 shrink-0" style={{ color }} />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-bold truncate" style={{ color }}>{g.set_name} +{g.plus} <span className="text-slate-500 font-normal">· {g.main_stat.toUpperCase()} {g.main_value}</span></p>
@@ -503,13 +571,13 @@ export default function HeroDetailModal({
           <p className="text-xs uppercase tracking-widest text-slate-500 mt-6 mb-2">Jutsu</p>
           <div className="space-y-2">
             {template.jutsus.map((j) => (
-              <div key={j.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5">
+              <div key={j.id} className="flex items-start gap-3 p-3 rounded-xl bg-black/[0.04] border border-white/5">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-white text-sm">{j.name}</span>
+                    <span className="font-semibold text-ink text-sm">{j.name}</span>
                     {j.chakra_cost > 0 ? <span className="text-[10px] font-bold text-chakra">{j.chakra_cost} CK</span> : <span className="text-[10px] text-slate-500">Basic</span>}
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">{j.description}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{j.description}</p>
                 </div>
               </div>
             ))}
@@ -525,9 +593,9 @@ export default function HeroDetailModal({
 const CostRow = ({ icon, label, have, need, testid }) => {
   const ok = have >= need;
   return (
-    <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10" data-testid={testid}>
+    <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-black/[0.04] border border-black/10" data-testid={testid}>
       {icon}
-      <span className="text-xs text-slate-300 flex-1 min-w-0 truncate">{label}</span>
+      <span className="text-xs text-slate-600 flex-1 min-w-0 truncate">{label}</span>
       <span className={`text-xs font-bold tabular-nums ${ok ? "text-emerald-400" : "text-fox"}`}>{have} / {need}</span>
     </div>
   );

@@ -36,25 +36,25 @@ export default function Gallery() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8" data-testid="gallery-page">
       <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
         <div>
-          <h1 className="font-display text-5xl tracking-wide text-white">HERO GALLERY</h1>
-          <p className="text-slate-400">Every obtainable hero in the realm — summon them to your squad.</p>
+          <h1 className="font-display text-5xl tracking-wide text-ink">HERO GALLERY</h1>
+          <p className="text-slate-500">Every obtainable hero in the realm — summon them to your squad.</p>
         </div>
-        <div className="font-display text-2xl text-chakra" data-testid="gallery-count">{ownedCount}<span className="text-slate-500">/{catalog.length}</span> <span className="text-sm text-slate-400">collected</span></div>
+        <div className="font-display text-2xl text-chakra" data-testid="gallery-count">{ownedCount}<span className="text-slate-500">/{catalog.length}</span> <span className="text-sm text-slate-500">collected</span></div>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-5">
         {RARITY_FILTERS.map((r) => (
           <button key={r} onClick={() => setRarity(r)} data-testid={`filter-rarity-${r}`}
-            className={`px-3 py-1.5 rounded-full text-sm font-bold transition-all ${rarity === r ? "text-[#05050A]" : "text-slate-300 bg-white/5 hover:bg-white/10"}`}
+            className={`px-3 py-1.5 rounded-full text-sm font-bold transition-all ${rarity === r ? "text-[#05050A]" : "text-slate-600 bg-black/[0.04] hover:bg-black/10"}`}
             style={rarity === r ? { background: r === "All" ? "#00E5FF" : RARITY[r].color } : {}}>
             {r}
           </button>
         ))}
-        <span className="w-px h-5 bg-white/10 mx-1" />
+        <span className="w-px h-5 bg-black/[0.06] mx-1" />
         {elements.map((e) => (
           <button key={e} onClick={() => setElement(e)} data-testid={`filter-element-${e}`}
-            className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${element === e ? "text-white" : "text-slate-300 bg-white/5 hover:bg-white/10"}`}
+            className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${element === e ? "text-ink" : "text-slate-600 bg-black/[0.04] hover:bg-black/10"}`}
             style={element === e && e !== "All" ? { background: `${ELEMENT[e].color}33`, color: ELEMENT[e].color, border: `1px solid ${ELEMENT[e].color}` } : element === e ? { background: "#ffffff22" } : {}}>
             {e}
           </button>
@@ -72,7 +72,7 @@ export default function Gallery() {
               testid={`gallery-card-${c.id}`}
               onClick={() => setSelected(c.id)}
               badge={owned && (
-                <span className="absolute bottom-1.5 left-1.5 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center" data-testid={`owned-${c.id}`}>
+                <span className="absolute bottom-1.5 left-1.5 w-6 h-6 rounded-full bg-emerald-500 text-ink flex items-center justify-center" data-testid={`owned-${c.id}`}>
                   <Check className="w-4 h-4" />
                 </span>
               )}

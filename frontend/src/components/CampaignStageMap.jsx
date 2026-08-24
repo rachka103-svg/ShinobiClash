@@ -99,9 +99,9 @@ export default function CampaignStageMap({ stages, allStages, cleared, onSelectS
                   width: size, height: size,
                   borderColor: state === "completed" ? "#FFCA28" : state === "current" ? "#00E5FF" : "rgba(255,255,255,0.14)",
                   background: state === "locked" ? "rgba(255,255,255,0.03)"
-                    : isBoss ? "radial-gradient(circle,#3B0A0A,#0B0B14)"
-                    : state === "completed" ? "radial-gradient(circle,rgba(255,202,40,0.16),#0B0B14)"
-                    : "radial-gradient(circle,rgba(0,229,255,0.16),#0B0B14)",
+                    : isBoss ? "radial-gradient(circle,#3B0A0A,#FFFFFF)"
+                    : state === "completed" ? "radial-gradient(circle,rgba(255,202,40,0.16),#FFFFFF)"
+                    : "radial-gradient(circle,rgba(0,229,255,0.16),#FFFFFF)",
                   boxShadow: state === "current" ? "0 0 12px rgba(0,229,255,0.35)" : state === "completed" ? "0 0 8px rgba(255,202,40,0.25)" : "none",
                 }}
               >
@@ -117,7 +117,7 @@ export default function CampaignStageMap({ stages, allStages, cleared, onSelectS
               </button>
               <span
                 className={`text-[10px] mt-1.5 max-w-[100px] text-center leading-tight truncate ${
-                  state === "locked" ? "text-slate-600" : "text-slate-200"
+                  state === "locked" ? "text-slate-600" : "text-slate-700"
                 }`}
                 style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}
               >
