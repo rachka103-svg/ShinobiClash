@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Sparkles, Coins, Gem, Loader2, Ticket, Star, Info, ChevronRight, Clock,
   History, Anvil, Flame, Droplet, Wind as WindIcon, Users2,
-  Mountain, Zap, Moon, Sun, ShieldCheck, LayoutGrid,
+  Mountain, Zap, Moon, Sun, ShieldCheck, LayoutGrid, Gift,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -12,6 +12,7 @@ import { RARITY, ELEMENT } from "@/lib/styles";
 import { rarityFrame, GOLD } from "@/lib/theme";
 import { auraClass, DecoCorners } from "@/components/RarityFx";
 import SummonRevealOverlay from "@/components/SummonRevealOverlay";
+import NewbieSummonOverlay from "@/components/NewbieSummonOverlay";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -104,6 +105,7 @@ export default function Summon() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [elementFilter, setElementFilter] = useState("ALL");
   const [history, setHistory] = useState([]);
+  const [newbieOpen, setNewbieOpen] = useState(false);
 
   const historyKey = `sc_summon_history_${user?.id || "me"}`;
   useEffect(() => {
@@ -297,6 +299,28 @@ export default function Summon() {
 
           {/* -------- RIGHT: control rail -------- */}
           <div className="shrink-0 lg:basis-[43%] lg:h-full lg:min-h-0 flex flex-col gap-2.5" data-testid="summon-control-rail">
+            {/* Beginner summon — one-time free ×10 with re-rolls */}
+            {user?.newbie_summon && !user.newbie_summon.used && (
+              <button
+                onClick={() => setNewbieOpen(true)}
+                data-testid="newbie-summon-entry"
+                className="relative shrink-0 text-left p-3 rounded-2xl overflow-hidden shine-sweep"
+                style={{ background: "linear-gradient(135deg,#0c3b2e,#062018)", border: "1.5px solid #00E67666", boxShadow: "0 0 24px #00E67622" }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(0,229,118,0.18)", border: "1px solid rgba(0,229,118,0.5)" }}>
+                    <Gift className="w-5 h-5 text-emerald-300" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-display text-base text-emerald-200 leading-none tracking-wide">BEGINNER SUMMON</p>
+                    <p className="text-[11px] text-slate-300 mt-1 leading-tight">Free ×10 — re-roll up to {user.newbie_summon.max_rolls - 1} times, keep your favorites.</p>
+                  </div>
+                  <Sparkles className="w-4 h-4 text-emerald-300 shrink-0" />
+                </div>
+                <span className="absolute top-0 right-0 text-[9px] font-extrabold tracking-wider px-1.5 py-0.5 rounded-bl-lg bg-emerald-500 text-[#05050A]">FREE</span>
+              </button>
+            )}
+
             {/* Pity compact */}
             <div className="rounded-2xl bg-black/[0.04] border border-black/10 p-3 shrink-0" data-testid="summon-pity-module">
               <div className="flex items-center justify-between gap-2">
@@ -552,6 +576,7 @@ export default function Summon() {
       </Dialog>
 
       <SummonRevealOverlay open={!!reveal} results={reveal || []} onClose={() => setReveal(null)} />
+      <NewbieSummonOverlay open={newbieOpen} onClose={() => setNewbieOpen(false)} setUser={setUser} />
     </div>
   );
 }

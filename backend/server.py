@@ -171,6 +171,10 @@ class SummonIn(BaseModel):
     count: int = 1         # 1 | 10
 
 
+class NewbieSummonIn(BaseModel):
+    action: str = "roll"   # "peek" | "roll" | "keep"
+
+
 class EvolveIn(BaseModel):
     instance_id: str
 
@@ -557,6 +561,8 @@ def public_user(user: dict) -> dict:
         "pity": user.get("pity") or gd.fresh_pity_state(),
         "team": user.get("team", []),
         "cleared_stages": user.get("cleared_stages", []),
+        "cleared_chapters": user.get("cleared_chapters", []),
+        "cleared_trials": user.get("cleared_trials", []),
         "spire_floor": user.get("spire_floor", 0),
         "wins": user.get("wins", 0),
         "losses": user.get("losses", 0),
@@ -567,6 +573,22 @@ def public_user(user: dict) -> dict:
         "missions": missions_public(user.get("daily") or gd.fresh_daily_state()),
         "arena": arena_public(user),
         "login": login_public(user),
+        "newbie_summon": _newbie_summon_public(user),
+    }
+
+
+def _newbie_summon_public(user: dict) -> dict:
+    """Beginner summon status for the HUD: whether it's still available and
+    how many rerolls remain. The pending session (held server-side) is not
+    exposed here — the overlay fetches it on demand via the peek action."""
+    st = user.get("newbie_summon") or {}
+    max_rolls = 1 + gd.NEWBIE_SUMMON_MAX_REROLLS
+    attempts = st.get("attempts", 0)
+    return {
+        "used": bool(st.get("used")),
+        "attempts": attempts,
+        "max_rolls": max_rolls,
+        "retries_left": max(0, max_rolls - attempts) if not st.get("used") else 0,
     }
 
 
@@ -620,7 +642,12 @@ async def register(body: RegisterIn, response: Response):
     email = body.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Email already registered")
-    starters = [new_ninja_instance(tid) for tid in gd.STARTER_NINJAS]
+    # Beginner gift: Freyja (the beginner hero) is granted as the squad
+    # leader / first card, ahead of the standard starter trio. The team is
+    # capped to the level-1 squad size (3), so Freyja leads while the third
+    # starter sits on the bench until the 4th slot unlocks at Lv.10.
+    gift = new_ninja_instance(gd.BEGINNER_GIFT_HERO)
+    starters = [gift] + [new_ninja_instance(tid) for tid in gd.STARTER_NINJAS]
     doc = {
         "email": email,
         "password_hash": hash_password(body.password),
@@ -633,10 +660,13 @@ async def register(body: RegisterIn, response: Response):
         "gems": 100,
         "inventory": {"exp_tome_minor": 5, "exp_tome_greater": 1, "summon_ticket": 1},
         "ninjas": starters,
-        "team": [s["instance_id"] for s in starters],
+        "team": [s["instance_id"] for s in starters[:3]],
         "cleared_stages": [],
+        "cleared_chapters": [],
+        "cleared_trials": [],
         "wins": 0,
         "losses": 0,
+        "newbie_summon": {"used": False, "session": None, "attempts": 0},
         "energy": gd.compute_energy(None),
         "daily": gd.fresh_daily_state(),
         "login": gd.fresh_login_state(),
@@ -1033,6 +1063,18 @@ def _apply_campaign_first_clear_bonus(user: dict, stage: dict, stage_id: str, cl
         ninjas.append(new_ninja_instance(drop))
         rewards["ninja"] = {"template_id": drop, "name": gd.CATALOG_BY_ID[drop]["name"], "rarity": gd.CATALOG_BY_ID[drop]["rarity"]}
 
+    # Chapter-completion bonus — when this first clear completes the entire
+    # chapter (every stage in it now cleared) and the chapter bonus hasn't
+    # been claimed yet, grant the one-time chapter-clear Gems.
+    chapter = stage.get("chapter", 1)
+    chapter_stages = gd.STAGES_BY_CHAPTER.get(chapter, [])
+    cleared_chapters = user.setdefault("cleared_chapters", [])
+    if chapter_stages and chapter not in cleared_chapters and all(s in cleared for s in chapter_stages):
+        cleared_chapters.append(chapter)
+        user["gems"] = user.get("gems", 0) + gd.CHAPTER_CLEAR_GEMS
+        rewards["chapter_gems"] = gd.CHAPTER_CLEAR_GEMS
+        rewards["chapter_complete"] = chapter
+
 
 @api_router.post("/game/battle/complete")
 async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_current_user)):
@@ -1081,7 +1123,8 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
         {"_id": user["_id"]},
         {"$set": {"ryo": user["ryo"], "gems": user.get("gems", 0), "level": user["level"], "exp": user["exp"],
                   "ninjas": ninjas, "inventory": inventory, "cleared_stages": cleared, "wins": user["wins"],
-                  "daily": user["daily"], "gear": user.get("gear", [])}},
+                  "daily": user["daily"], "gear": user.get("gear", []),
+                  "cleared_chapters": user.get("cleared_chapters", [])}},
     )
     user["cleared_stages"] = cleared
     return {"profile": public_user(user), "rewards": rewards, "result": "win", "first_clear": first_clear}
@@ -1234,6 +1277,87 @@ async def summon(body: SummonIn, user: dict = Depends(get_current_user)):
     return {"profile": public_user(user), "results": results, "pity": pity,
             # legacy single-pull field kept for backward compatibility
             "summoned": results[0] if count == 1 else None}
+
+
+# ---------------------------------------------------------------------------
+# Newbie Summon — a one-time FREE ×10 with re-rolls.
+# ---------------------------------------------------------------------------
+def _newbie_roll_x10(user: dict) -> list:
+    """Rolls a 10-pull for the newbie banner WITHOUT committing anything to
+    the roster (the results are held in a server-side session and only
+    granted on the player's "keep"). Uses the Gem-banner pool including the
+    top rarity (no pity — it's a single gift), with the standard ×10 SR+
+    guarantee. Duplicate flags reflect the current roster for display only."""
+    owned = {n["template_id"] for n in user.get("ninjas", [])}
+    results = []
+    for i in range(10):
+        force = (i == 9 and not any(
+            gd.RARITY_ORDER[r["rarity"]] >= gd.RARITY_ORDER[gd.X10_GUARANTEE_RARITY] for r in results))
+        pool = _rarity_pool(min_rarity=gd.X10_GUARANTEE_RARITY if force else None,
+                            currency="gems", exclude_top=False)
+        chosen = _weighted_choice(pool)
+        tmpl = gd.CATALOG_BY_ID[chosen]
+        is_dup = chosen in owned
+        shards = gd.SHARD_YIELD_PER_DUPLICATE.get(tmpl["rarity"], 0) if is_dup else 0
+        results.append({
+            "template_id": chosen, "name": tmpl["name"], "rarity": tmpl["rarity"],
+            "element": tmpl["element"], "role": tmpl["role"], "portrait": tmpl["portrait"],
+            "duplicate": is_dup, "shards_gained": shards, "pity_note": None,
+        })
+    return results
+
+
+@api_router.post("/game/summon/newbie")
+async def newbie_summon(body: NewbieSummonIn, user: dict = Depends(get_current_user)):
+    """Beginner ×10 summon with re-rolls.
+
+    - peek: returns the current pending session (for resuming an in-progress
+      newbie summon) without spending a re-roll.
+    - roll: spends one roll (the first, or a re-roll up to the cap) and
+      stores the new results as the pending session.
+    - keep: commits the pending session's heroes to the roster, locks the
+      newbie summon as used, and clears the session.
+    """
+    st = user.get("newbie_summon") or {"used": False, "session": None, "attempts": 0}
+    if st.get("used"):
+        raise HTTPException(status_code=400, detail="Newbie summon already used")
+    max_rolls = 1 + gd.NEWBIE_SUMMON_MAX_REROLLS
+    session = st.get("session")
+    attempts = st.get("attempts", 0)
+
+    if body.action == "peek":
+        results = session.get("results") if session else None
+        return {"results": results, "attempts": attempts, "max_rolls": max_rolls,
+                "retries_left": max(0, max_rolls - attempts), "locked": attempts >= max_rolls}
+
+    if body.action == "keep":
+        if not session or not session.get("results"):
+            raise HTTPException(status_code=400, detail="No newbie summon results to keep")
+        results = session["results"]
+        # Commit the pending heroes now (duplicates within the batch convert
+        # to shards via _grant_summoned_hero's roster check).
+        for r in results:
+            _grant_summoned_hero(user, r["template_id"])
+        st = {"used": True, "session": None, "attempts": attempts}
+        user["newbie_summon"] = st
+        bump_mission(user, "summon", 10)
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {
+            "ninjas": user["ninjas"], "hero_shards": user.get("hero_shards", {}),
+            "daily": user["daily"], "newbie_summon": st}})
+        return {"profile": public_user(user), "results": results, "used": True,
+                "attempts": attempts, "max_rolls": max_rolls}
+
+    # default: roll
+    if session and attempts >= max_rolls:
+        raise HTTPException(status_code=400, detail="No re-rolls left — keep your current results")
+    attempts += 1
+    results = _newbie_roll_x10(user)
+    locked = attempts >= max_rolls
+    st = {"used": False, "session": {"results": results, "attempts": attempts}, "attempts": attempts}
+    user["newbie_summon"] = st
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"newbie_summon": st}})
+    return {"results": results, "attempts": attempts, "max_rolls": max_rolls,
+            "retries_left": max(0, max_rolls - attempts), "locked": locked}
 
 
 async def _do_evolve(instance_id: str, user: dict) -> dict:
@@ -1524,8 +1648,13 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     r = gd.spire_rewards(floor, advancing)
     user["ryo"] = user.get("ryo", 0) + r["ryo"]
     gems_gained = 0
-    if advancing and floor % gd.SPIRE_FLOOR_MILESTONE_EVERY == 0:
-        gems_gained = gd.SPIRE_FLOOR_MILESTONE_GEMS_BASE + floor
+    if advancing:
+        # First clear of a Spire floor (you only ever advance to a new,
+        # unplayed floor) awards the beginner first-clear Gems; milestone
+        # floors grant an additional bonus on top.
+        gems_gained = gd.FIRST_CLEAR_GEMS
+        if floor % gd.SPIRE_FLOOR_MILESTONE_EVERY == 0:
+            gems_gained += gd.SPIRE_FLOOR_MILESTONE_GEMS_BASE + floor
         user["gems"] = user.get("gems", 0) + gems_gained
     hero_exp = distribute_hero_exp(user, body.participants or list(user.get("team", [])), body.survivors, r["hero_exp_base"])
     inventory = user.get("inventory", {})
@@ -1554,6 +1683,16 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     if body.result != "win":
         return {"profile": public_user(user), "rewards": None, "result": "lose"}
     rw = trial["rewards"]
+    # First-clear Gems (beginner progression) — tracked per trial so the
+    # bonus is paid exactly once for each trial/dungeon the first time it's
+    # cleared, not on every repeat farm run.
+    cleared_trials = user.get("cleared_trials", [])
+    first_clear = body.trial_id not in cleared_trials
+    gems_gained = 0
+    if first_clear:
+        cleared_trials.append(body.trial_id)
+        gems_gained = gd.FIRST_CLEAR_GEMS
+        user["gems"] = user.get("gems", 0) + gems_gained
     user["ryo"] = user.get("ryo", 0) + rw.get("ryo", 0)
     hero_exp = distribute_hero_exp(user, body.participants or list(user.get("team", [])), body.survivors, rw.get("hero_exp", 40))
     inventory = user.get("inventory", {})
@@ -1582,13 +1721,15 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     if total_levels:
         bump_mission(user, "hero_levelup", total_levels)
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
-        "ryo": user["ryo"], "ninjas": user["ninjas"], "inventory": inventory, "daily": user["daily"],
-        "gear": user.get("gear", []), "level": user["level"], "exp": user["exp"]}})
+        "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"], "inventory": inventory, "daily": user["daily"],
+        "gear": user.get("gear", []), "level": user["level"], "exp": user["exp"],
+        "cleared_trials": cleared_trials}})
     items_out = dict(rw.get("items", {}))
     if blueprint_reward:
         items_out[blueprint_reward] = items_out.get(blueprint_reward, 0) + 1
     return {"profile": public_user(user),
-            "rewards": {"ryo": rw.get("ryo", 0), "items": items_out, "hero_exp": hero_exp, "gear": gear_reward},
+            "rewards": {"ryo": rw.get("ryo", 0), "gems": gems_gained, "first_clear": first_clear,
+                        "items": items_out, "hero_exp": hero_exp, "gear": gear_reward},
             "result": "win"}
 
 

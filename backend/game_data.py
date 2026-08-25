@@ -779,6 +779,12 @@ def generate_campaign_stages(start_chapter: int, end_chapter: int, stages_per_ch
 STAGES.extend(generate_campaign_stages(5, 100, stages_per_chapter=6))
 STAGES_BY_ID = {s["id"]: s for s in STAGES}
 
+# All stage ids grouped by chapter — used to detect "full chapter cleared"
+# (the beginner-progression chapter-completion reward).
+STAGES_BY_CHAPTER = {}
+for _s in STAGES:
+    STAGES_BY_CHAPTER.setdefault(_s["chapter"], []).append(_s["id"])
+
 
 # ---------------------------------------------------------------------------
 # Chapter presentation metadata — purely descriptive (name + one-line lore)
@@ -1119,8 +1125,19 @@ SPIRE_FLOOR_MILESTONE_GEMS_BASE = 15
 
 
 def first_clear_gems(chapter: int) -> int:
-    """Small, chapter-scaled Gem bonus for a Campaign stage's first clear."""
-    return min(60, 8 + max(1, chapter) * 3)
+    """Flat Gem bonus for a Campaign stage's first clear (beginner reward)."""
+    return 50
+
+
+# Beginner progression rewards.
+FIRST_CLEAR_GEMS = 50          # awarded on the first clear of any campaign stage / spire floor / trial
+CHAPTER_CLEAR_GEMS = 100       # awarded once for clearing every stage in a campaign chapter
+BEGINNER_GIFT_HERO = "freyja"  # gifted to new players as their squad leader / first card
+
+# Newbie Summon — a one-time free ×10 with up to N re-rolls before the
+# results are locked in (kept). Generous by design so new players start
+# with a hero they're happy with.
+NEWBIE_SUMMON_MAX_REROLLS = 10
 
 
 # 7-day repeating daily-login reward cycle. Consecutive calendar days (UTC)

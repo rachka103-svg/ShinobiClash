@@ -545,6 +545,14 @@ export default function Battle() {
                   {resultData.rewards.gems > 0 && (
                     <p className="flex items-center justify-center gap-2 font-semibold" data-testid="reward-gems"><Gem className="w-4 h-4 text-jutsu" /> +{resultData.rewards.gems} Gems</p>
                   )}
+                  {resultData.rewards.chapter_gems > 0 && (
+                    <div className="mt-2 rounded-xl bg-emerald-400/10 border border-emerald-400/40 px-3 py-2" data-testid="reward-chapter-clear">
+                      <p className="text-[11px] uppercase tracking-widest text-emerald-600 font-bold">Chapter {resultData.rewards.chapter_complete} Cleared!</p>
+                      <p className="text-sm text-ink font-semibold flex items-center justify-center gap-1.5 mt-0.5">
+                        <Gem className="w-3.5 h-3.5 text-jutsu" /> +{resultData.rewards.chapter_gems} Gems
+                      </p>
+                    </div>
+                  )}
                   {resultData.rewards.exp != null && (
                     <p className="flex items-center justify-center gap-2 font-semibold"><Zap className="w-4 h-4 text-chakra" /> +{resultData.rewards.exp} Account EXP</p>
                   )}
