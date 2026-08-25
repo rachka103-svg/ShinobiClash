@@ -1,0 +1,73 @@
+# Base44 dev environment for Shinobi Clash (FastAPI + React CRA/CRACO + MongoDB)
+# Runs the cloned source with live-reload dev servers. Edits appear without rebuilds.
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    image: python:3.12-slim
+    working_dir: /app/backend
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=shinobi_clash
+      - JWT_SECRET=base44-dev-jwt-secret-change-me-9f3a7c1e
+      - FRONTEND_URL=https://3000-${BASE44_PUBLIC_HOST_SUFFIX}
+      - ADMIN_EMAIL=admin@shinobi.com
+      - ADMIN_PASSWORD=admin123
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - ./.env.base44-defaults   # placeholders (e.g. EMERGENT_LLM_KEY) — overridden below
+      - /run/base44/app.env       # platform-delivered user secrets — LAST, always wins
+    volumes:
+      # Mount the whole repo so backend can write portraits into frontend/public/custom
+      # (shared with the web service) and so edits hot-reload.
+      - ./:/app
+      - pip_cache:/root/.cache/pip
+    command: >
+      bash -c "pip install --no-cache-dir -r requirements.base44.txt
+      && python -m uvicorn server:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/backend"
+
+  web:
+    image: node:22
+    working_dir: /app/frontend
+    depends_on:
+      - backend
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - BROWSER=none
+      - CI=false
+      # Empty => axios baseURL becomes "/api" (relative), proxied to the backend
+      # by src/setupProxy.js so cookie auth stays same-origin.
+      - REACT_APP_BACKEND_URL=
+      - BASE44_PUBLIC_HOST_SUFFIX=${BASE44_PUBLIC_HOST_SUFFIX}
+    volumes:
+      - ./:/app
+      - frontend_node_modules:/app/frontend/node_modules
+    ports:
+      - "3000:3000"
+    command: >
+      bash -c "yarn install --network-timeout 600000
+      && yarn start"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/3000; echo -e 'GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3; cat <&3 | head -1 | grep -q '200\\|304'"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 120s
+
+volumes:
+  mongo_data:
+  pip_cache:
+  frontend_node_modules:

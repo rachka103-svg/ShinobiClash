@@ -24,7 +24,11 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 from pydantic import BaseModel, EmailStr, Field
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+try:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+except Exception:  # private package not available in this dev environment
+    LlmChat = None
+    UserMessage = None
 
 import game_data as gd
 
@@ -1829,8 +1833,19 @@ def _save_portrait_png(hid: str, image_b64: str) -> str:
     return f"/custom/{hid}.png?v={int(time.time())}"
 
 
+def _require_llm():
+    """Raises a clear 503 when the optional emergentintegrations package (or its
+    EMERGENT_LLM_KEY) isn't available, so AI hero/art generation degrades
+    gracefully instead of crashing the whole API."""
+    if LlmChat is None:
+        raise HTTPException(status_code=503, detail="AI generation unavailable (emergentintegrations not installed)")
+    if not os.environ.get("EMERGENT_LLM_KEY") or os.environ["EMERGENT_LLM_KEY"] == "placeholder-not-a-real-key":
+        raise HTTPException(status_code=503, detail="AI generation unavailable (EMERGENT_LLM_KEY not configured)")
+
+
 async def _ai_hero_design(body: HeroGenerateIn) -> dict:
     """Use the LLM to design stats/lore/element/role as structured JSON."""
+    _require_llm()
     key = os.environ["EMERGENT_LLM_KEY"]
     chosen_el = body.element if body.element in gd.ELEMENTS else None
     chosen_rar = body.rarity if body.rarity in gd.RARITIES else None
@@ -1881,6 +1896,7 @@ async def _ai_hero_design(body: HeroGenerateIn) -> dict:
 
 
 async def _ai_hero_portrait(hid: str, name: str, element: str, role: str, lore: str, rarity: str = "SR") -> str:
+    _require_llm()
     key = os.environ["EMERGENT_LLM_KEY"]
     chat = LlmChat(api_key=key, session_id=f"hero-art-{uuid.uuid4()}",
                    system_message="You generate high-quality, richly varied anime character portraits.")
@@ -2235,6 +2251,7 @@ def _build_art_prompt(name: str, description: str, element: Optional[str], style
 
 
 async def _generate_art_image(prompt: str, model_id: str):
+    _require_llm()
     key = os.environ["EMERGENT_LLM_KEY"]
     chat = LlmChat(api_key=key, session_id=f"art-{uuid.uuid4()}",
                    system_message="You generate high-quality, richly detailed anime character art.")
@@ -2248,6 +2265,7 @@ async def _generate_art_image(prompt: str, model_id: str):
 
 @api_router.post("/admin/art/describe")
 async def admin_art_describe(body: ArtDescribeIn, _: dict = Depends(get_admin_user)):
+    _require_llm()
     key = os.environ["EMERGENT_LLM_KEY"]
     system = (
         "You are a concept artist for an anime ninja game. Given a character's traits, write a vivid, "
