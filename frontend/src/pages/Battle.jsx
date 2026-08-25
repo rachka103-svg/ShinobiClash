@@ -9,6 +9,7 @@ import {
   tickStatuses, applyBattleStartPassives, checkBossPhaseTransitions, makeEvent, spireEnemies,
 } from "@/lib/battle";
 import { ELEMENT, RARITY } from "@/lib/styles";
+import SkillBanner from "@/components/SkillBanner";
 import api from "@/lib/api";
 
 let _uid = 0;
@@ -98,6 +99,7 @@ export default function Battle() {
   const [events, setEvents] = useState([]); // structured combat event log (Phase 3B) — for future VFX/animation
   const [auto, setAutoState] = useState(() => { try { return localStorage.getItem("sc_battle_auto") === "1"; } catch { return false; } });
   const [speed, setSpeedState] = useState(() => { try { return Number(localStorage.getItem("sc_battle_speed")) || 1; } catch { return 1; } });
+  const [skillFx, setSkillFx] = useState(null); // active skill-use callout { jutsu, actorName, side, key }
 
   const combRef = useRef([]);
   const orderRef = useRef([]);
@@ -228,6 +230,10 @@ export default function Battle() {
     // pay / gain chakra
     act.chakra = Math.max(0, act.chakra - jutsu.chakra_cost + (jutsu.chakra_gain || 0));
     act.chakra = Math.min(act.maxChakra, act.chakra);
+
+    // Skill-use callout — show the jutsu name + effects for a beat.
+    setSkillFx({ jutsu, actorName: act.name, side: act.side, key: Date.now() });
+    setTimeout(() => setSkillFx(null), ms(1150));
 
     const newFloaters = [];
     const newEvents = [];
@@ -513,6 +519,9 @@ export default function Battle() {
           )}
         </div>
       </div>
+
+      {/* skill-use callout */}
+      <SkillBanner fx={skillFx} />
 
       {/* result overlay */}
       <AnimatePresence>
