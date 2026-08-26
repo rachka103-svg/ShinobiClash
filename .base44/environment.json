@@ -1,0 +1,12 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "EMERGENT_LLM_KEY",
+      "description": "API key for the emergent.sh LLM service used by the AI art/hero-generation endpoints (emergentintegrations). Not required to boot the app — the core game runs without it; only AI-art features need it.",
+      "requiredAtBoot": false
+    }
+  ]
+}

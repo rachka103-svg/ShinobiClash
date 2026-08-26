@@ -61,6 +61,19 @@ let webpackConfig = {
 };
 
 webpackConfig.devServer = (devServerConfig) => {
+  // Proxy /api to the backend so the SPA and API share one origin
+  // (cookie auth works without cross-site SameSite/Secure gymnastics).
+  devServerConfig.proxy = {
+    "/api": {
+      target: "http://backend:8000",
+      changeOrigin: true,
+      secure: false,
+    },
+  };
+  // The preview is served through a proxy hostname that changes between
+  // environments — accept any host.
+  devServerConfig.allowedHosts = "all";
+
   // Add health check endpoints if enabled
   if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
     const originalSetupMiddlewares = devServerConfig.setupMiddlewares;
