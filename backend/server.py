@@ -2229,6 +2229,165 @@ async def admin_set_economy(body: dict = Body(...), _: dict = Depends(get_admin_
 
 
 # ---------------------------------------------------------------------------
+# ADMIN — Game Tuning: growth curves, energy, summon weights. Live knobs
+# that mutate game_data attributes and persist to Mongo for restarts.
+# ---------------------------------------------------------------------------
+async def load_tuning():
+    doc = await db.game_config.find_one({"_id": "tuning"}) or {}
+    scalars = doc.get("scalars") or {}
+    gd.apply_tuning(scalars)
+    gem_w = doc.get("summon_weights_gem")
+    if isinstance(gem_w, dict):
+        gd.SUMMON_WEIGHTS = {r: max(1, int(w)) for r, w in gem_w.items() if r in gd.SUMMON_WEIGHTS}
+    gold_w = doc.get("summon_weights_gold")
+    if isinstance(gold_w, dict):
+        gd.GOLD_SUMMON_WEIGHTS = {r: max(1, int(w)) for r, w in gold_w.items() if r in gd.GOLD_SUMMON_WEIGHTS}
+
+
+@api_router.get("/admin/tuning")
+async def admin_get_tuning(_: dict = Depends(get_admin_user)):
+    return {
+        "tuning": gd.tuning_snapshot(),
+        "summon_weights_gem": dict(gd.SUMMON_WEIGHTS),
+        "summon_weights_gold": dict(gd.GOLD_SUMMON_WEIGHTS),
+        "summon_rates": gd.summon_rates("gems"),
+        "summon_rates_ryo": gd.summon_rates("ryo"),
+    }
+
+
+@api_router.post("/admin/tuning")
+async def admin_set_tuning(body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    scalars = body.get("tuning") or {}
+    gd.apply_tuning(scalars)
+    persist = {"scalars": gd.tuning_snapshot()}
+    gem_w = body.get("summon_weights_gem")
+    if isinstance(gem_w, dict):
+        gd.SUMMON_WEIGHTS = {r: max(1, int(w)) for r, w in gem_w.items() if r in gd.SUMMON_WEIGHTS}
+        persist["summon_weights_gem"] = dict(gd.SUMMON_WEIGHTS)
+    gold_w = body.get("summon_weights_gold")
+    if isinstance(gold_w, dict):
+        gd.GOLD_SUMMON_WEIGHTS = {r: max(1, int(w)) for r, w in gold_w.items() if r in gd.GOLD_SUMMON_WEIGHTS}
+        persist["summon_weights_gold"] = dict(gd.GOLD_SUMMON_WEIGHTS)
+    await db.game_config.update_one({"_id": "tuning"}, {"$set": persist}, upsert=True)
+    return {
+        "tuning": gd.tuning_snapshot(),
+        "summon_weights_gem": dict(gd.SUMMON_WEIGHTS),
+        "summon_weights_gold": dict(gd.GOLD_SUMMON_WEIGHTS),
+        "summon_rates": gd.summon_rates("gems"),
+        "summon_rates_ryo": gd.summon_rates("ryo"),
+    }
+
+
+# ---------------------------------------------------------------------------
+# ADMIN — Campaign stage overrides: edit enemy roster, levels, rewards,
+# first-clear bonuses and boss mechanic per stage. Persists to Mongo.
+# ---------------------------------------------------------------------------
+async def load_stage_overrides():
+    doc = await db.game_config.find_one({"_id": "stage_overrides"}) or {}
+    gd.apply_stage_overrides(doc.get("overrides") or {})
+
+
+@api_router.get("/admin/stages")
+async def admin_list_stages(_: dict = Depends(get_admin_user)):
+    enriched = [
+        {**s, "recommended_power": sum(gd.ninja_power(e["template_id"], e["level"]) for e in s["enemies"])}
+        for s in gd.STAGES
+    ]
+    return {"stages": enriched, "boss_mechanics": gd.BOSS_MECHANICS,
+            "overrides": gd.stage_overrides_snapshot()}
+
+
+@api_router.post("/admin/stage")
+async def admin_set_stage(body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    sid = body.get("stage_id")
+    if sid not in gd.STAGES_BY_ID:
+        raise HTTPException(status_code=404, detail="Stage not found")
+    ov = {}
+    if "enemies" in body:
+        ov["enemies"] = [
+            {"template_id": e["template_id"], "level": int(e["level"])}
+            for e in body["enemies"] if e.get("template_id") in gd.CATALOG_BY_ID
+        ]
+    if "rewards" in body:
+        ov["rewards"] = body["rewards"]
+    if "first_clear" in body:
+        ov["first_clear"] = body["first_clear"]
+    if "boss_mechanic" in body:
+        ov["boss_mechanic"] = body["boss_mechanic"]
+    gd.apply_stage_overrides({**gd.stage_overrides_snapshot(), sid: ov})
+    await db.game_config.update_one({"_id": "stage_overrides"},
+                                    {"$set": {"overrides": gd.stage_overrides_snapshot()}}, upsert=True)
+    s = gd.STAGES_BY_ID[sid]
+    return {"stage": {**s, "recommended_power": sum(gd.ninja_power(e["template_id"], e["level"]) for e in s["enemies"])}}
+
+
+@api_router.post("/admin/stage/reset")
+async def admin_reset_stage(body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    sid = body.get("stage_id")
+    if sid not in gd.STAGES_BY_ID:
+        raise HTTPException(status_code=404, detail="Stage not found")
+    overrides = gd.stage_overrides_snapshot()
+    overrides.pop(sid, None)
+    gd.apply_stage_overrides(overrides)
+    await db.game_config.update_one({"_id": "stage_overrides"},
+                                    {"$set": {"overrides": overrides}}, upsert=True)
+    s = gd.STAGES_BY_ID[sid]
+    return {"stage": {**s, "recommended_power": sum(gd.ninja_power(e["template_id"], e["level"]) for e in s["enemies"])}}
+
+
+# ---------------------------------------------------------------------------
+# ADMIN — Tsukuyomi (Goddess) boss overrides: base level, rare drop chance,
+# signature gear set per dream-boss. Persists to Mongo.
+# ---------------------------------------------------------------------------
+async def load_tsukuyomi_overrides():
+    doc = await db.game_config.find_one({"_id": "tsukuyomi_overrides"}) or {}
+    gd.apply_tsukuyomi_overrides(doc.get("overrides") or {})
+
+
+@api_router.get("/admin/tsukuyomi")
+async def admin_list_tsukuyomi(_: dict = Depends(get_admin_user)):
+    return {"bosses": [gd.tsukuyomi_boss_public(b) for b in gd.TSUKUYOMI_BOSSES],
+            "gear_sets": gd.GEAR_SETS, "overrides": gd.tsukuyomi_overrides_snapshot()}
+
+
+@api_router.post("/admin/tsukuyomi")
+async def admin_set_tsukuyomi(body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    bid = body.get("boss_id")
+    if bid not in gd.TSUKUYOMI_BY_ID:
+        raise HTTPException(status_code=404, detail="Boss not found")
+    ov = {}
+    for k in ("base_level", "rare_chance", "gear_set"):
+        if k in body:
+            ov[k] = body[k]
+    gd.apply_tsukuyomi_overrides({**gd.tsukuyomi_overrides_snapshot(), bid: ov})
+    await db.game_config.update_one({"_id": "tsukuyomi_overrides"},
+                                    {"$set": {"overrides": gd.tsukuyomi_overrides_snapshot()}}, upsert=True)
+    return {"boss": gd.tsukuyomi_boss_public(gd.TSUKUYOMI_BY_ID[bid])}
+
+
+# ---------------------------------------------------------------------------
+# ADMIN — Hero base-stat overrides: tweak any hero's stats live (static or
+# custom). Persisted separately so static catalog art/lore is preserved.
+# ---------------------------------------------------------------------------
+async def load_stat_overrides():
+    doc = await db.game_config.find_one({"_id": "stat_overrides"}) or {}
+    gd.apply_stat_overrides(doc.get("overrides") or {})
+
+
+@api_router.post("/admin/hero/stats")
+async def admin_set_hero_stats(body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    hid = body.get("template_id")
+    if hid not in gd.CATALOG_BY_ID:
+        raise HTTPException(status_code=404, detail="Hero not found")
+    stats = body.get("base_stats") or {}
+    if not gd.set_stat_override(hid, stats):
+        raise HTTPException(status_code=400, detail="Could not set stats")
+    await db.game_config.update_one({"_id": "stat_overrides"},
+                                    {"$set": {"overrides": gd.stat_overrides_snapshot()}}, upsert=True)
+    return {"hero": gd._hero_public(gd.CATALOG_BY_ID[hid])}
+
+
+# ---------------------------------------------------------------------------
 # ADMIN — Player management. Search users and grant/set any currency, level,
 # energy, tickets or upgrade materials. "add" increments, "set" overwrites.
 # ---------------------------------------------------------------------------
@@ -2460,6 +2619,10 @@ async def startup():
     await load_catalog_config()
     await load_banner()
     await load_economy()
+    await load_tuning()
+    await load_stage_overrides()
+    await load_tsukuyomi_overrides()
+    await load_stat_overrides()
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@shinobi.com").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
     existing = await db.users.find_one({"email": admin_email})
