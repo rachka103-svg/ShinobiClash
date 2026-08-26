@@ -24,7 +24,11 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 from pydantic import BaseModel, EmailStr, Field
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+try:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+except Exception:  # private package not available in this dev environment
+    LlmChat = None
+    UserMessage = None
 
 import game_data as gd
 
@@ -165,6 +169,10 @@ class BattleCompleteIn(BaseModel):
 class SummonIn(BaseModel):
     currency: str = "ryo"  # "ryo" | "ticket" | "gems"
     count: int = 1         # 1 | 10
+
+
+class NewbieSummonIn(BaseModel):
+    action: str = "roll"   # "peek" | "roll" | "keep"
 
 
 class EvolveIn(BaseModel):
@@ -553,6 +561,8 @@ def public_user(user: dict) -> dict:
         "pity": user.get("pity") or gd.fresh_pity_state(),
         "team": user.get("team", []),
         "cleared_stages": user.get("cleared_stages", []),
+        "cleared_chapters": user.get("cleared_chapters", []),
+        "cleared_trials": user.get("cleared_trials", []),
         "spire_floor": user.get("spire_floor", 0),
         "wins": user.get("wins", 0),
         "losses": user.get("losses", 0),
@@ -563,6 +573,22 @@ def public_user(user: dict) -> dict:
         "missions": missions_public(user.get("daily") or gd.fresh_daily_state()),
         "arena": arena_public(user),
         "login": login_public(user),
+        "newbie_summon": _newbie_summon_public(user),
+    }
+
+
+def _newbie_summon_public(user: dict) -> dict:
+    """Beginner summon status for the HUD: whether it's still available and
+    how many rerolls remain. The pending session (held server-side) is not
+    exposed here — the overlay fetches it on demand via the peek action."""
+    st = user.get("newbie_summon") or {}
+    max_rolls = 1 + gd.NEWBIE_SUMMON_MAX_REROLLS
+    attempts = st.get("attempts", 0)
+    return {
+        "used": bool(st.get("used")),
+        "attempts": attempts,
+        "max_rolls": max_rolls,
+        "retries_left": max(0, max_rolls - attempts) if not st.get("used") else 0,
     }
 
 
@@ -616,7 +642,12 @@ async def register(body: RegisterIn, response: Response):
     email = body.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Email already registered")
-    starters = [new_ninja_instance(tid) for tid in gd.STARTER_NINJAS]
+    # Beginner gift: Freyja (the beginner hero) is granted as the squad
+    # leader / first card, ahead of the standard starter trio. The team is
+    # capped to the level-1 squad size (3), so Freyja leads while the third
+    # starter sits on the bench until the 4th slot unlocks at Lv.10.
+    gift = new_ninja_instance(gd.BEGINNER_GIFT_HERO)
+    starters = [gift] + [new_ninja_instance(tid) for tid in gd.STARTER_NINJAS]
     doc = {
         "email": email,
         "password_hash": hash_password(body.password),
@@ -629,10 +660,13 @@ async def register(body: RegisterIn, response: Response):
         "gems": 100,
         "inventory": {"exp_tome_minor": 5, "exp_tome_greater": 1, "summon_ticket": 1},
         "ninjas": starters,
-        "team": [s["instance_id"] for s in starters],
+        "team": [s["instance_id"] for s in starters[:3]],
         "cleared_stages": [],
+        "cleared_chapters": [],
+        "cleared_trials": [],
         "wins": 0,
         "losses": 0,
+        "newbie_summon": {"used": False, "session": None, "attempts": 0},
         "energy": gd.compute_energy(None),
         "daily": gd.fresh_daily_state(),
         "login": gd.fresh_login_state(),
@@ -1029,6 +1063,18 @@ def _apply_campaign_first_clear_bonus(user: dict, stage: dict, stage_id: str, cl
         ninjas.append(new_ninja_instance(drop))
         rewards["ninja"] = {"template_id": drop, "name": gd.CATALOG_BY_ID[drop]["name"], "rarity": gd.CATALOG_BY_ID[drop]["rarity"]}
 
+    # Chapter-completion bonus — when this first clear completes the entire
+    # chapter (every stage in it now cleared) and the chapter bonus hasn't
+    # been claimed yet, grant the one-time chapter-clear Gems.
+    chapter = stage.get("chapter", 1)
+    chapter_stages = gd.STAGES_BY_CHAPTER.get(chapter, [])
+    cleared_chapters = user.setdefault("cleared_chapters", [])
+    if chapter_stages and chapter not in cleared_chapters and all(s in cleared for s in chapter_stages):
+        cleared_chapters.append(chapter)
+        user["gems"] = user.get("gems", 0) + gd.CHAPTER_CLEAR_GEMS
+        rewards["chapter_gems"] = gd.CHAPTER_CLEAR_GEMS
+        rewards["chapter_complete"] = chapter
+
 
 @api_router.post("/game/battle/complete")
 async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_current_user)):
@@ -1077,7 +1123,8 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
         {"_id": user["_id"]},
         {"$set": {"ryo": user["ryo"], "gems": user.get("gems", 0), "level": user["level"], "exp": user["exp"],
                   "ninjas": ninjas, "inventory": inventory, "cleared_stages": cleared, "wins": user["wins"],
-                  "daily": user["daily"], "gear": user.get("gear", [])}},
+                  "daily": user["daily"], "gear": user.get("gear", []),
+                  "cleared_chapters": user.get("cleared_chapters", [])}},
     )
     user["cleared_stages"] = cleared
     return {"profile": public_user(user), "rewards": rewards, "result": "win", "first_clear": first_clear}
@@ -1230,6 +1277,87 @@ async def summon(body: SummonIn, user: dict = Depends(get_current_user)):
     return {"profile": public_user(user), "results": results, "pity": pity,
             # legacy single-pull field kept for backward compatibility
             "summoned": results[0] if count == 1 else None}
+
+
+# ---------------------------------------------------------------------------
+# Newbie Summon — a one-time FREE ×10 with re-rolls.
+# ---------------------------------------------------------------------------
+def _newbie_roll_x10(user: dict) -> list:
+    """Rolls a 10-pull for the newbie banner WITHOUT committing anything to
+    the roster (the results are held in a server-side session and only
+    granted on the player's "keep"). Uses the Gem-banner pool including the
+    top rarity (no pity — it's a single gift), with the standard ×10 SR+
+    guarantee. Duplicate flags reflect the current roster for display only."""
+    owned = {n["template_id"] for n in user.get("ninjas", [])}
+    results = []
+    for i in range(10):
+        force = (i == 9 and not any(
+            gd.RARITY_ORDER[r["rarity"]] >= gd.RARITY_ORDER[gd.X10_GUARANTEE_RARITY] for r in results))
+        pool = _rarity_pool(min_rarity=gd.X10_GUARANTEE_RARITY if force else None,
+                            currency="gems", exclude_top=False)
+        chosen = _weighted_choice(pool)
+        tmpl = gd.CATALOG_BY_ID[chosen]
+        is_dup = chosen in owned
+        shards = gd.SHARD_YIELD_PER_DUPLICATE.get(tmpl["rarity"], 0) if is_dup else 0
+        results.append({
+            "template_id": chosen, "name": tmpl["name"], "rarity": tmpl["rarity"],
+            "element": tmpl["element"], "role": tmpl["role"], "portrait": tmpl["portrait"],
+            "duplicate": is_dup, "shards_gained": shards, "pity_note": None,
+        })
+    return results
+
+
+@api_router.post("/game/summon/newbie")
+async def newbie_summon(body: NewbieSummonIn, user: dict = Depends(get_current_user)):
+    """Beginner ×10 summon with re-rolls.
+
+    - peek: returns the current pending session (for resuming an in-progress
+      newbie summon) without spending a re-roll.
+    - roll: spends one roll (the first, or a re-roll up to the cap) and
+      stores the new results as the pending session.
+    - keep: commits the pending session's heroes to the roster, locks the
+      newbie summon as used, and clears the session.
+    """
+    st = user.get("newbie_summon") or {"used": False, "session": None, "attempts": 0}
+    if st.get("used"):
+        raise HTTPException(status_code=400, detail="Newbie summon already used")
+    max_rolls = 1 + gd.NEWBIE_SUMMON_MAX_REROLLS
+    session = st.get("session")
+    attempts = st.get("attempts", 0)
+
+    if body.action == "peek":
+        results = session.get("results") if session else None
+        return {"results": results, "attempts": attempts, "max_rolls": max_rolls,
+                "retries_left": max(0, max_rolls - attempts), "locked": attempts >= max_rolls}
+
+    if body.action == "keep":
+        if not session or not session.get("results"):
+            raise HTTPException(status_code=400, detail="No newbie summon results to keep")
+        results = session["results"]
+        # Commit the pending heroes now (duplicates within the batch convert
+        # to shards via _grant_summoned_hero's roster check).
+        for r in results:
+            _grant_summoned_hero(user, r["template_id"])
+        st = {"used": True, "session": None, "attempts": attempts}
+        user["newbie_summon"] = st
+        bump_mission(user, "summon", 10)
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {
+            "ninjas": user["ninjas"], "hero_shards": user.get("hero_shards", {}),
+            "daily": user["daily"], "newbie_summon": st}})
+        return {"profile": public_user(user), "results": results, "used": True,
+                "attempts": attempts, "max_rolls": max_rolls}
+
+    # default: roll
+    if session and attempts >= max_rolls:
+        raise HTTPException(status_code=400, detail="No re-rolls left — keep your current results")
+    attempts += 1
+    results = _newbie_roll_x10(user)
+    locked = attempts >= max_rolls
+    st = {"used": False, "session": {"results": results, "attempts": attempts}, "attempts": attempts}
+    user["newbie_summon"] = st
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"newbie_summon": st}})
+    return {"results": results, "attempts": attempts, "max_rolls": max_rolls,
+            "retries_left": max(0, max_rolls - attempts), "locked": locked}
 
 
 async def _do_evolve(instance_id: str, user: dict) -> dict:
@@ -1520,8 +1648,13 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     r = gd.spire_rewards(floor, advancing)
     user["ryo"] = user.get("ryo", 0) + r["ryo"]
     gems_gained = 0
-    if advancing and floor % gd.SPIRE_FLOOR_MILESTONE_EVERY == 0:
-        gems_gained = gd.SPIRE_FLOOR_MILESTONE_GEMS_BASE + floor
+    if advancing:
+        # First clear of a Spire floor (you only ever advance to a new,
+        # unplayed floor) awards the beginner first-clear Gems; milestone
+        # floors grant an additional bonus on top.
+        gems_gained = gd.FIRST_CLEAR_GEMS
+        if floor % gd.SPIRE_FLOOR_MILESTONE_EVERY == 0:
+            gems_gained += gd.SPIRE_FLOOR_MILESTONE_GEMS_BASE + floor
         user["gems"] = user.get("gems", 0) + gems_gained
     hero_exp = distribute_hero_exp(user, body.participants or list(user.get("team", [])), body.survivors, r["hero_exp_base"])
     inventory = user.get("inventory", {})
@@ -1550,6 +1683,16 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     if body.result != "win":
         return {"profile": public_user(user), "rewards": None, "result": "lose"}
     rw = trial["rewards"]
+    # First-clear Gems (beginner progression) — tracked per trial so the
+    # bonus is paid exactly once for each trial/dungeon the first time it's
+    # cleared, not on every repeat farm run.
+    cleared_trials = user.get("cleared_trials", [])
+    first_clear = body.trial_id not in cleared_trials
+    gems_gained = 0
+    if first_clear:
+        cleared_trials.append(body.trial_id)
+        gems_gained = gd.FIRST_CLEAR_GEMS
+        user["gems"] = user.get("gems", 0) + gems_gained
     user["ryo"] = user.get("ryo", 0) + rw.get("ryo", 0)
     hero_exp = distribute_hero_exp(user, body.participants or list(user.get("team", [])), body.survivors, rw.get("hero_exp", 40))
     inventory = user.get("inventory", {})
@@ -1578,13 +1721,15 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     if total_levels:
         bump_mission(user, "hero_levelup", total_levels)
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
-        "ryo": user["ryo"], "ninjas": user["ninjas"], "inventory": inventory, "daily": user["daily"],
-        "gear": user.get("gear", []), "level": user["level"], "exp": user["exp"]}})
+        "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"], "inventory": inventory, "daily": user["daily"],
+        "gear": user.get("gear", []), "level": user["level"], "exp": user["exp"],
+        "cleared_trials": cleared_trials}})
     items_out = dict(rw.get("items", {}))
     if blueprint_reward:
         items_out[blueprint_reward] = items_out.get(blueprint_reward, 0) + 1
     return {"profile": public_user(user),
-            "rewards": {"ryo": rw.get("ryo", 0), "items": items_out, "hero_exp": hero_exp, "gear": gear_reward},
+            "rewards": {"ryo": rw.get("ryo", 0), "gems": gems_gained, "first_clear": first_clear,
+                        "items": items_out, "hero_exp": hero_exp, "gear": gear_reward},
             "result": "win"}
 
 
@@ -1829,8 +1974,19 @@ def _save_portrait_png(hid: str, image_b64: str) -> str:
     return f"/custom/{hid}.png?v={int(time.time())}"
 
 
+def _require_llm():
+    """Raises a clear 503 when the optional emergentintegrations package (or its
+    EMERGENT_LLM_KEY) isn't available, so AI hero/art generation degrades
+    gracefully instead of crashing the whole API."""
+    if LlmChat is None:
+        raise HTTPException(status_code=503, detail="AI generation unavailable (emergentintegrations not installed)")
+    if not os.environ.get("EMERGENT_LLM_KEY") or os.environ["EMERGENT_LLM_KEY"] == "placeholder-not-a-real-key":
+        raise HTTPException(status_code=503, detail="AI generation unavailable (EMERGENT_LLM_KEY not configured)")
+
+
 async def _ai_hero_design(body: HeroGenerateIn) -> dict:
     """Use the LLM to design stats/lore/element/role as structured JSON."""
+    _require_llm()
     key = os.environ["EMERGENT_LLM_KEY"]
     chosen_el = body.element if body.element in gd.ELEMENTS else None
     chosen_rar = body.rarity if body.rarity in gd.RARITIES else None
@@ -1881,6 +2037,7 @@ async def _ai_hero_design(body: HeroGenerateIn) -> dict:
 
 
 async def _ai_hero_portrait(hid: str, name: str, element: str, role: str, lore: str, rarity: str = "SR") -> str:
+    _require_llm()
     key = os.environ["EMERGENT_LLM_KEY"]
     chat = LlmChat(api_key=key, session_id=f"hero-art-{uuid.uuid4()}",
                    system_message="You generate high-quality, richly varied anime character portraits.")
@@ -2072,6 +2229,165 @@ async def admin_set_economy(body: dict = Body(...), _: dict = Depends(get_admin_
 
 
 # ---------------------------------------------------------------------------
+# ADMIN — Game Tuning: growth curves, energy, summon weights. Live knobs
+# that mutate game_data attributes and persist to Mongo for restarts.
+# ---------------------------------------------------------------------------
+async def load_tuning():
+    doc = await db.game_config.find_one({"_id": "tuning"}) or {}
+    scalars = doc.get("scalars") or {}
+    gd.apply_tuning(scalars)
+    gem_w = doc.get("summon_weights_gem")
+    if isinstance(gem_w, dict):
+        gd.SUMMON_WEIGHTS = {r: max(1, int(w)) for r, w in gem_w.items() if r in gd.SUMMON_WEIGHTS}
+    gold_w = doc.get("summon_weights_gold")
+    if isinstance(gold_w, dict):
+        gd.GOLD_SUMMON_WEIGHTS = {r: max(1, int(w)) for r, w in gold_w.items() if r in gd.GOLD_SUMMON_WEIGHTS}
+
+
+@api_router.get("/admin/tuning")
+async def admin_get_tuning(_: dict = Depends(get_admin_user)):
+    return {
+        "tuning": gd.tuning_snapshot(),
+        "summon_weights_gem": dict(gd.SUMMON_WEIGHTS),
+        "summon_weights_gold": dict(gd.GOLD_SUMMON_WEIGHTS),
+        "summon_rates": gd.summon_rates("gems"),
+        "summon_rates_ryo": gd.summon_rates("ryo"),
+    }
+
+
+@api_router.post("/admin/tuning")
+async def admin_set_tuning(body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    scalars = body.get("tuning") or {}
+    gd.apply_tuning(scalars)
+    persist = {"scalars": gd.tuning_snapshot()}
+    gem_w = body.get("summon_weights_gem")
+    if isinstance(gem_w, dict):
+        gd.SUMMON_WEIGHTS = {r: max(1, int(w)) for r, w in gem_w.items() if r in gd.SUMMON_WEIGHTS}
+        persist["summon_weights_gem"] = dict(gd.SUMMON_WEIGHTS)
+    gold_w = body.get("summon_weights_gold")
+    if isinstance(gold_w, dict):
+        gd.GOLD_SUMMON_WEIGHTS = {r: max(1, int(w)) for r, w in gold_w.items() if r in gd.GOLD_SUMMON_WEIGHTS}
+        persist["summon_weights_gold"] = dict(gd.GOLD_SUMMON_WEIGHTS)
+    await db.game_config.update_one({"_id": "tuning"}, {"$set": persist}, upsert=True)
+    return {
+        "tuning": gd.tuning_snapshot(),
+        "summon_weights_gem": dict(gd.SUMMON_WEIGHTS),
+        "summon_weights_gold": dict(gd.GOLD_SUMMON_WEIGHTS),
+        "summon_rates": gd.summon_rates("gems"),
+        "summon_rates_ryo": gd.summon_rates("ryo"),
+    }
+
+
+# ---------------------------------------------------------------------------
+# ADMIN — Campaign stage overrides: edit enemy roster, levels, rewards,
+# first-clear bonuses and boss mechanic per stage. Persists to Mongo.
+# ---------------------------------------------------------------------------
+async def load_stage_overrides():
+    doc = await db.game_config.find_one({"_id": "stage_overrides"}) or {}
+    gd.apply_stage_overrides(doc.get("overrides") or {})
+
+
+@api_router.get("/admin/stages")
+async def admin_list_stages(_: dict = Depends(get_admin_user)):
+    enriched = [
+        {**s, "recommended_power": sum(gd.ninja_power(e["template_id"], e["level"]) for e in s["enemies"])}
+        for s in gd.STAGES
+    ]
+    return {"stages": enriched, "boss_mechanics": gd.BOSS_MECHANICS,
+            "overrides": gd.stage_overrides_snapshot()}
+
+
+@api_router.post("/admin/stage")
+async def admin_set_stage(body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    sid = body.get("stage_id")
+    if sid not in gd.STAGES_BY_ID:
+        raise HTTPException(status_code=404, detail="Stage not found")
+    ov = {}
+    if "enemies" in body:
+        ov["enemies"] = [
+            {"template_id": e["template_id"], "level": int(e["level"])}
+            for e in body["enemies"] if e.get("template_id") in gd.CATALOG_BY_ID
+        ]
+    if "rewards" in body:
+        ov["rewards"] = body["rewards"]
+    if "first_clear" in body:
+        ov["first_clear"] = body["first_clear"]
+    if "boss_mechanic" in body:
+        ov["boss_mechanic"] = body["boss_mechanic"]
+    gd.apply_stage_overrides({**gd.stage_overrides_snapshot(), sid: ov})
+    await db.game_config.update_one({"_id": "stage_overrides"},
+                                    {"$set": {"overrides": gd.stage_overrides_snapshot()}}, upsert=True)
+    s = gd.STAGES_BY_ID[sid]
+    return {"stage": {**s, "recommended_power": sum(gd.ninja_power(e["template_id"], e["level"]) for e in s["enemies"])}}
+
+
+@api_router.post("/admin/stage/reset")
+async def admin_reset_stage(body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    sid = body.get("stage_id")
+    if sid not in gd.STAGES_BY_ID:
+        raise HTTPException(status_code=404, detail="Stage not found")
+    overrides = gd.stage_overrides_snapshot()
+    overrides.pop(sid, None)
+    gd.apply_stage_overrides(overrides)
+    await db.game_config.update_one({"_id": "stage_overrides"},
+                                    {"$set": {"overrides": overrides}}, upsert=True)
+    s = gd.STAGES_BY_ID[sid]
+    return {"stage": {**s, "recommended_power": sum(gd.ninja_power(e["template_id"], e["level"]) for e in s["enemies"])}}
+
+
+# ---------------------------------------------------------------------------
+# ADMIN — Tsukuyomi (Goddess) boss overrides: base level, rare drop chance,
+# signature gear set per dream-boss. Persists to Mongo.
+# ---------------------------------------------------------------------------
+async def load_tsukuyomi_overrides():
+    doc = await db.game_config.find_one({"_id": "tsukuyomi_overrides"}) or {}
+    gd.apply_tsukuyomi_overrides(doc.get("overrides") or {})
+
+
+@api_router.get("/admin/tsukuyomi")
+async def admin_list_tsukuyomi(_: dict = Depends(get_admin_user)):
+    return {"bosses": [gd.tsukuyomi_boss_public(b) for b in gd.TSUKUYOMI_BOSSES],
+            "gear_sets": gd.GEAR_SETS, "overrides": gd.tsukuyomi_overrides_snapshot()}
+
+
+@api_router.post("/admin/tsukuyomi")
+async def admin_set_tsukuyomi(body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    bid = body.get("boss_id")
+    if bid not in gd.TSUKUYOMI_BY_ID:
+        raise HTTPException(status_code=404, detail="Boss not found")
+    ov = {}
+    for k in ("base_level", "rare_chance", "gear_set"):
+        if k in body:
+            ov[k] = body[k]
+    gd.apply_tsukuyomi_overrides({**gd.tsukuyomi_overrides_snapshot(), bid: ov})
+    await db.game_config.update_one({"_id": "tsukuyomi_overrides"},
+                                    {"$set": {"overrides": gd.tsukuyomi_overrides_snapshot()}}, upsert=True)
+    return {"boss": gd.tsukuyomi_boss_public(gd.TSUKUYOMI_BY_ID[bid])}
+
+
+# ---------------------------------------------------------------------------
+# ADMIN — Hero base-stat overrides: tweak any hero's stats live (static or
+# custom). Persisted separately so static catalog art/lore is preserved.
+# ---------------------------------------------------------------------------
+async def load_stat_overrides():
+    doc = await db.game_config.find_one({"_id": "stat_overrides"}) or {}
+    gd.apply_stat_overrides(doc.get("overrides") or {})
+
+
+@api_router.post("/admin/hero/stats")
+async def admin_set_hero_stats(body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    hid = body.get("template_id")
+    if hid not in gd.CATALOG_BY_ID:
+        raise HTTPException(status_code=404, detail="Hero not found")
+    stats = body.get("base_stats") or {}
+    if not gd.set_stat_override(hid, stats):
+        raise HTTPException(status_code=400, detail="Could not set stats")
+    await db.game_config.update_one({"_id": "stat_overrides"},
+                                    {"$set": {"overrides": gd.stat_overrides_snapshot()}}, upsert=True)
+    return {"hero": gd._hero_public(gd.CATALOG_BY_ID[hid])}
+
+
+# ---------------------------------------------------------------------------
 # ADMIN — Player management. Search users and grant/set any currency, level,
 # energy, tickets or upgrade materials. "add" increments, "set" overwrites.
 # ---------------------------------------------------------------------------
@@ -2235,6 +2551,7 @@ def _build_art_prompt(name: str, description: str, element: Optional[str], style
 
 
 async def _generate_art_image(prompt: str, model_id: str):
+    _require_llm()
     key = os.environ["EMERGENT_LLM_KEY"]
     chat = LlmChat(api_key=key, session_id=f"art-{uuid.uuid4()}",
                    system_message="You generate high-quality, richly detailed anime character art.")
@@ -2248,6 +2565,7 @@ async def _generate_art_image(prompt: str, model_id: str):
 
 @api_router.post("/admin/art/describe")
 async def admin_art_describe(body: ArtDescribeIn, _: dict = Depends(get_admin_user)):
+    _require_llm()
     key = os.environ["EMERGENT_LLM_KEY"]
     system = (
         "You are a concept artist for an anime ninja game. Given a character's traits, write a vivid, "
@@ -2301,6 +2619,10 @@ async def startup():
     await load_catalog_config()
     await load_banner()
     await load_economy()
+    await load_tuning()
+    await load_stage_overrides()
+    await load_tsukuyomi_overrides()
+    await load_stat_overrides()
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@shinobi.com").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
     existing = await db.users.find_one({"email": admin_email})

@@ -1,0 +1,12 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "EMERGENT_LLM_KEY",
+      "description": "Emergent 'Universal Key' used by the AI hero-design and portrait/art generation features (calls OpenAI + Gemini via the private `emergentintegrations` package). Optional at boot — the app runs fully without it and those AI endpoints return HTTP 503 until a real key is set. Obtain it from your Emergent dashboard.",
+      "requiredAtBoot": false
+    }
+  ]
+}

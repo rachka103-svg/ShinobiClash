@@ -779,6 +779,12 @@ def generate_campaign_stages(start_chapter: int, end_chapter: int, stages_per_ch
 STAGES.extend(generate_campaign_stages(5, 100, stages_per_chapter=6))
 STAGES_BY_ID = {s["id"]: s for s in STAGES}
 
+# All stage ids grouped by chapter — used to detect "full chapter cleared"
+# (the beginner-progression chapter-completion reward).
+STAGES_BY_CHAPTER = {}
+for _s in STAGES:
+    STAGES_BY_CHAPTER.setdefault(_s["chapter"], []).append(_s["id"])
+
 
 # ---------------------------------------------------------------------------
 # Chapter presentation metadata — purely descriptive (name + one-line lore)
@@ -823,6 +829,27 @@ def chapter_meta(chapter: int) -> dict:
         "accent": _CHAPTER_ACCENTS[(chapter - 1) % len(_CHAPTER_ACCENTS)],
         "background_image": CHAPTER_BACKGROUNDS.get(chapter),
     }
+
+
+# ---------------------------------------------------------------------------
+# Tunable growth & progression constants. Exposed as module-level attributes
+# so the Admin "Game Tuning" controls can override them live (persisted to
+# Mongo and re-applied on startup). Functions below reference these by name
+# instead of hard-coded literals so overrides take effect everywhere.
+# ---------------------------------------------------------------------------
+STAT_LEVEL_GROWTH = 0.09      # per-level multiplier for hp/atk
+STAT_ASCENSION_GROWTH = 0.12  # per-ascension multiplier for all stats
+DEF_LEVEL_GROWTH = 0.08       # per-level multiplier for def
+SPD_LEVEL_GROWTH = 0.025      # per-level multiplier for spd
+SPD_ASCENSION_GROWTH = 0.05   # per-ascension multiplier for spd
+ASCENSION_STEP = 25          # levels unlocked per ascension tier
+PLAYER_EXP_BASE = 80         # base account EXP to next level
+PLAYER_EXP_PER_LEVEL = 60     # account EXP added per level
+HERO_EXP_BASE = 100          # base hero EXP to next level
+HERO_EXP_PER_LEVEL = 90       # hero EXP added per level
+HERO_EXP_QUADRATIC = 4        # quadratic hero EXP coefficient (level**2)
+HERO_MAX_LEVEL = 500
+BOSS_MAX_LEVEL = 1000
 
 
 # ---------------------------------------------------------------------------
@@ -877,11 +904,6 @@ def roll_drops(chapter: int, first_clear: bool) -> dict:
 # ---------------------------------------------------------------------------
 # Combat / progression helpers
 # ---------------------------------------------------------------------------
-HERO_MAX_LEVEL = 500
-BOSS_MAX_LEVEL = 1000
-ASCENSION_STEP = 25
-
-
 def level_cap(rarity: str, ascension: int) -> int:
     """Levels 1-100 need NO ascension. Each ascension then unlocks +25 more
     levels (asc1->125, asc2->150, asc3->175 ...), capped at 500 for all heroes."""
@@ -908,13 +930,13 @@ def max_level(rarity: str) -> int:
 def compute_stats(template_id: str, level: int, ascension: int = 0) -> dict:
     t = CATALOG_BY_ID[template_id]
     b = t["base_stats"]
-    gl = 1 + 0.09 * (level - 1)
-    ga = 1 + 0.12 * ascension
+    gl = 1 + STAT_LEVEL_GROWTH * (level - 1)
+    ga = 1 + STAT_ASCENSION_GROWTH * ascension
     return {
         "hp": round(b["hp"] * gl * ga),
         "atk": round(b["atk"] * gl * ga),
-        "def": round(b["def"] * (1 + 0.08 * (level - 1)) * ga),
-        "spd": round(b["spd"] * (1 + 0.025 * (level - 1)) * (1 + 0.05 * ascension)),
+        "def": round(b["def"] * (1 + DEF_LEVEL_GROWTH * (level - 1)) * ga),
+        "spd": round(b["spd"] * (1 + SPD_LEVEL_GROWTH * (level - 1)) * (1 + SPD_ASCENSION_GROWTH * ascension)),
         "chakra": b["chakra"],
     }
 
@@ -926,12 +948,12 @@ def ninja_power(template_id: str, level: int, ascension: int = 0) -> int:
 
 def exp_to_next(level: int) -> int:
     """Player account level curve."""
-    return 80 + (level - 1) * 60
+    return PLAYER_EXP_BASE + (level - 1) * PLAYER_EXP_PER_LEVEL
 
 
 def hero_exp_to_next(level: int) -> int:
     """Per-hero level curve — grows steadily so high levels feel earned."""
-    return round(100 + (level - 1) * 90 + (level ** 2) * 4)
+    return round(HERO_EXP_BASE + (level - 1) * HERO_EXP_PER_LEVEL + (level ** 2) * HERO_EXP_QUADRATIC)
 
 
 def ascension_cost(rarity: str, ascension: int) -> dict:
@@ -1000,6 +1022,12 @@ from datetime import datetime, timezone, timedelta
 ENERGY_MAX_DEFAULT = 100
 ENERGY_REGEN_SECONDS = 180  # +1 energy every 3 minutes -> full regen in 5h
 ENERGY_COST = {"campaign": 10, "spire": 0, "trial": 8, "tsukuyomi": 0}
+# Scalar mirrors of ENERGY_COST so the admin tuning panel can edit each
+# mode's cost individually (apply_tuning keeps the dict in sync).
+ENERGY_COST_CAMPAIGN = 10
+ENERGY_COST_SPIRE = 0
+ENERGY_COST_TRIAL = 8
+ENERGY_COST_TSUKUYOMI = 0
 
 
 def _parse_iso(ts: Optional[str]) -> datetime:
@@ -1119,8 +1147,19 @@ SPIRE_FLOOR_MILESTONE_GEMS_BASE = 15
 
 
 def first_clear_gems(chapter: int) -> int:
-    """Small, chapter-scaled Gem bonus for a Campaign stage's first clear."""
-    return min(60, 8 + max(1, chapter) * 3)
+    """Flat Gem bonus for a Campaign stage's first clear (beginner reward)."""
+    return 50
+
+
+# Beginner progression rewards.
+FIRST_CLEAR_GEMS = 50          # awarded on the first clear of any campaign stage / spire floor / trial
+CHAPTER_CLEAR_GEMS = 100       # awarded once for clearing every stage in a campaign chapter
+BEGINNER_GIFT_HERO = "freyja"  # gifted to new players as their squad leader / first card
+
+# Newbie Summon — a one-time free ×10 with up to N re-rolls before the
+# results are locked in (kept). Generous by design so new players start
+# with a hero they're happy with.
+NEWBIE_SUMMON_MAX_REROLLS = 10
 
 
 # 7-day repeating daily-login reward cycle. Consecutive calendar days (UTC)
@@ -1802,3 +1841,150 @@ def tsukuyomi_first_clear_bonus(boss: dict, difficulty: str) -> dict:
         items["summon_ticket"] = 1
         items["gear_ticket"] = 1
     return {"gems": gems, "items": items}
+
+
+# ===========================================================================
+# ADMIN OVERRIDE LAYER — live tunable parameters persisted by the admin
+# panel. Each apply_* helper mutates the in-memory game_data attributes so
+# every read-site (battle math, energy, summon, campaign, tsukuyomi) picks
+# up the new values instantly without a restart.
+# ===========================================================================
+
+# Scalar tuning knobs the admin "Game Tuning" panel edits.
+TUNING_FIELDS = {
+    "stat_level_growth": ("STAT_LEVEL_GROWTH", float),
+    "stat_ascension_growth": ("STAT_ASCENSION_GROWTH", float),
+    "def_level_growth": ("DEF_LEVEL_GROWTH", float),
+    "spd_level_growth": ("SPD_LEVEL_GROWTH", float),
+    "spd_ascension_growth": ("SPD_ASCENSION_GROWTH", float),
+    "ascension_step": ("ASCENSION_STEP", int),
+    "player_exp_base": ("PLAYER_EXP_BASE", int),
+    "player_exp_per_level": ("PLAYER_EXP_PER_LEVEL", int),
+    "hero_exp_base": ("HERO_EXP_BASE", int),
+    "hero_exp_per_level": ("HERO_EXP_PER_LEVEL", int),
+    "hero_exp_quadratic": ("HERO_EXP_QUADRATIC", int),
+    "energy_max": ("ENERGY_MAX_DEFAULT", int),
+    "energy_regen_seconds": ("ENERGY_REGEN_SECONDS", int),
+    "energy_cost_campaign": ("ENERGY_COST_CAMPAIGN", int),
+    "energy_cost_trial": ("ENERGY_COST_TRIAL", int),
+    "energy_cost_spire": ("ENERGY_COST_SPIRE", int),
+    "energy_cost_tsukuyomi": ("ENERGY_COST_TSUKUYOMI", int),
+}
+
+# Per-rarity summon weight knobs (gem + gold banners).
+SUMMON_WEIGHT_RARITIES = list(SUMMON_WEIGHTS.keys())
+
+
+def tuning_snapshot():
+    g = globals()
+    return {k: g[attr] for k, (attr, _) in TUNING_FIELDS.items()}
+
+
+def apply_tuning(overrides: dict):
+    """Apply admin scalar overrides live (mutates module globals)."""
+    g = globals()
+    for k, (attr, cast) in TUNING_FIELDS.items():
+        if k in overrides and overrides[k] is not None:
+            try:
+                g[attr] = cast(overrides[k])
+            except Exception:
+                pass
+    # mirror energy-cost scalars into the ENERGY_COST dict the engine reads
+    ENERGY_COST["campaign"] = g["ENERGY_COST_CAMPAIGN"]
+    ENERGY_COST["trial"] = g["ENERGY_COST_TRIAL"]
+    ENERGY_COST["spire"] = g["ENERGY_COST_SPIRE"]
+    ENERGY_COST["tsukuyomi"] = g["ENERGY_COST_TSUKUYOMI"]
+
+
+# --- Stage overrides (campaign) ------------------------------------------
+_STAGE_OVERRIDES = {}
+
+
+def apply_stage_overrides(overrides: dict):
+    global _STAGE_OVERRIDES
+    _STAGE_OVERRIDES = dict(overrides or {})
+    for sid, ov in _STAGE_OVERRIDES.items():
+        s = STAGES_BY_ID.get(sid)
+        if not s:
+            continue
+        if "enemies" in ov:
+            s["enemies"] = [
+                {"template_id": e.get("template_id"), "level": int(e.get("level", 1))}
+                for e in ov["enemies"] if e.get("template_id") in CATALOG_BY_ID
+            ] or s["enemies"]
+        if "rewards" in ov:
+            r = dict(s.get("rewards", {}))
+            r.update({k: int(v) for k, v in (ov["rewards"] or {}).items() if k in ("ryo", "exp")})
+            s["rewards"] = r
+        if "first_clear" in ov:
+            fc = dict(s.get("first_clear", {}))
+            fc.update({k: int(v) for k, v in (ov["first_clear"] or {}).items() if k in ("ryo",)})
+            if "ninja" in (ov["first_clear"] or {}):
+                fc["ninja"] = ov["first_clear"]["ninja"] if ov["first_clear"]["ninja"] in CATALOG_BY_ID else None
+            s["first_clear"] = fc
+        if "boss_mechanic" in ov and ov["boss_mechanic"] in BOSS_MECHANICS:
+            s["boss_mechanic"] = ov["boss_mechanic"]
+            s["is_boss"] = True
+
+
+def stage_overrides_snapshot():
+    return dict(_STAGE_OVERRIDES)
+
+
+# --- Tsukuyomi (goddess) boss overrides -----------------------------------
+_TSUKU_OVERRIDES = {}
+
+
+def apply_tsukuyomi_overrides(overrides: dict):
+    global _TSUKU_OVERRIDES
+    _TSUKU_OVERRIDES = dict(overrides or {})
+    for bid, ov in _TSUKU_OVERRIDES.items():
+        b = TSUKUYOMI_BY_ID.get(bid)
+        if not b:
+            continue
+        if "base_level" in ov:
+            b["base_level"] = max(1, int(ov["base_level"]))
+        if "rare_chance" in ov:
+            b["rare_chance"] = round(min(0.60, max(0.0, float(ov["rare_chance"]))), 4)
+        if "gear_set" in ov and ov["gear_set"] in GEAR_SETS:
+            b["gear_set"] = ov["gear_set"]
+            b["gear_set_name"] = GEAR_SETS[ov["gear_set"]]["name"]
+            b["gear_set_color"] = GEAR_SETS[ov["gear_set"]]["color"]
+
+
+def tsukuyomi_overrides_snapshot():
+    return dict(_TSUKU_OVERRIDES)
+
+
+# --- Hero base-stat overrides (any hero, static or custom) ---------------
+_STAT_OVERRIDES = {}
+
+
+def apply_stat_overrides(overrides: dict):
+    global _STAT_OVERRIDES
+    _STAT_OVERRIDES = dict(overrides or {})
+    for hid, stats in _STAT_OVERRIDES.items():
+        h = CATALOG_BY_ID.get(hid)
+        if not h:
+            continue
+        merged = dict(h.get("base_stats", {}))
+        for k in ("hp", "atk", "def", "spd", "chakra"):
+            if k in (stats or {}):
+                try:
+                    merged[k] = int(stats[k])
+                except (TypeError, ValueError):
+                    pass
+        h["base_stats"] = merged
+
+
+def set_stat_override(hid: str, stats: dict):
+    h = CATALOG_BY_ID.get(hid)
+    if not h:
+        return False
+    _STAT_OVERRIDES[hid] = stats
+    apply_stat_overrides(_STAT_OVERRIDES)
+    return True
+
+
+def stat_overrides_snapshot():
+    return dict(_STAT_OVERRIDES)

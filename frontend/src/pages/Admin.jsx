@@ -6,6 +6,9 @@ import { useGame } from "@/context/GameContext";
 import { NinjaCard } from "@/components/NinjaCard";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import Tuning from "@/components/admin/Tuning";
+import Campaign from "@/components/admin/Campaign";
+import Goddess from "@/components/admin/Goddess";
 
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
 const RARITIES = ["R", "SR", "SSR", "UR", "GR"];
@@ -58,8 +61,8 @@ export default function Admin() {
         <p className="text-slate-500">Generate heroes with AI, balance their stats, and manage portraits — changes go live instantly.</p>
       </div>
 
-      <div className="flex items-center gap-2 mb-6">
-        {[["generate", "AI Generator"], ["art", "Art Studio"], ["manage", `Manage Heroes (${catalog.length})`], ["players", "Players"], ["economy", "Economy"]].map(([id, lbl]) => (
+      <div className="flex items-center flex-wrap gap-2 mb-6">
+        {[["generate", "AI Generator"], ["art", "Art Studio"], ["manage", `Manage Heroes (${catalog.length})`], ["tuning", "Game Tuning"], ["campaign", "Campaign"], ["goddess", "Goddess Bosses"], ["players", "Players"], ["economy", "Economy"]].map(([id, lbl]) => (
           <button key={id} data-testid={`admin-tab-${id}`} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${tab === id ? "bg-chakra text-[#05050A]" : "text-slate-600 bg-black/[0.04] hover:bg-black/10"}`}>
             {lbl}
@@ -69,6 +72,9 @@ export default function Admin() {
 
       {tab === "generate" ? <Generator onSaved={refreshCatalog} />
         : tab === "art" ? <ArtStudio catalog={catalog} onApplied={refreshCatalog} />
+        : tab === "tuning" ? <Tuning />
+        : tab === "campaign" ? <Campaign catalog={catalog} />
+        : tab === "goddess" ? <Goddess />
         : tab === "players" ? <Players />
         : tab === "economy" ? <Economy />
         : <Manage catalog={catalog} banner={banner} onChanged={refreshCatalog} />}
@@ -558,6 +564,19 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
     }
   };
 
+  const saveStats = async () => {
+    setBusy(true);
+    try {
+      await api.post("/admin/hero/stats", { template_id: hero.id, base_stats: form.base_stats });
+      await onChanged();
+      toast.success(`${hero.name} stats updated live!`);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err?.response?.data?.detail) || "Save failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const remove = async () => {
     if (!window.confirm(`Delete ${hero.name}? This cannot be undone.`)) return;
     setBusy(true);
@@ -659,18 +678,22 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
             </button>
           </>
         ) : (
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-black/30">
-            <div className="grid grid-cols-5 gap-2 flex-1">
+          <>
+            <div className="grid grid-cols-5 gap-1.5">
               {STAT_KEYS.map(({ k, label, color }) => (
-                <div key={k} className="text-center">
-                  <span className="block text-[10px]" style={{ color }}>{label}</span>
-                  <span className="font-display text-base text-ink">{hero.base_stats[k]}</span>
+                <div key={k}>
+                  <span className="text-[10px] text-slate-500" style={{ color }}>{label}</span>
+                  <input className={`${sel} px-1 text-center`} type="number" data-testid={`mgr-stat-${k}`} value={form.base_stats[k]} onChange={(e) => setStat(k, e.target.value)} />
                 </div>
               ))}
             </div>
-          </div>
+            <button onClick={saveStats} disabled={busy} data-testid="mgr-save-stats"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold bg-emerald-500 text-[#05050A] disabled:opacity-60 hover:brightness-110 transition-all">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Override Stats
+            </button>
+          </>
         )}
-        {!hero.is_custom && <p className="text-[11px] text-slate-500 text-center">Original hero — you can replace its portrait. Stats are fixed for game balance.</p>}
+        {!hero.is_custom && <p className="text-[11px] text-slate-500 text-center">Original hero — override its base stats & portrait. Overrides persist across restarts.</p>}
       </div>
     </motion.div>
   );

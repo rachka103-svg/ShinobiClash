@@ -9,6 +9,7 @@ import {
   tickStatuses, applyBattleStartPassives, checkBossPhaseTransitions, makeEvent, spireEnemies,
 } from "@/lib/battle";
 import { ELEMENT, RARITY } from "@/lib/styles";
+import SkillBanner from "@/components/SkillBanner";
 import api from "@/lib/api";
 
 let _uid = 0;
@@ -98,6 +99,7 @@ export default function Battle() {
   const [events, setEvents] = useState([]); // structured combat event log (Phase 3B) — for future VFX/animation
   const [auto, setAutoState] = useState(() => { try { return localStorage.getItem("sc_battle_auto") === "1"; } catch { return false; } });
   const [speed, setSpeedState] = useState(() => { try { return Number(localStorage.getItem("sc_battle_speed")) || 1; } catch { return 1; } });
+  const [skillFx, setSkillFx] = useState(null); // active skill-use callout { jutsu, actorName, side, key }
 
   const combRef = useRef([]);
   const orderRef = useRef([]);
@@ -228,6 +230,10 @@ export default function Battle() {
     // pay / gain chakra
     act.chakra = Math.max(0, act.chakra - jutsu.chakra_cost + (jutsu.chakra_gain || 0));
     act.chakra = Math.min(act.maxChakra, act.chakra);
+
+    // Skill-use callout — show the jutsu name + effects for a beat.
+    setSkillFx({ jutsu, actorName: act.name, side: act.side, key: Date.now() });
+    setTimeout(() => setSkillFx(null), ms(1150));
 
     const newFloaters = [];
     const newEvents = [];
@@ -514,6 +520,9 @@ export default function Battle() {
         </div>
       </div>
 
+      {/* skill-use callout */}
+      <SkillBanner fx={skillFx} />
+
       {/* result overlay */}
       <AnimatePresence>
         {(phase === "win" || phase === "lose") && (
@@ -535,6 +544,14 @@ export default function Battle() {
                   <p className="flex items-center justify-center gap-2 font-semibold"><Coins className="w-4 h-4 text-amber-500" /> +{resultData.rewards.ryo} Ryo</p>
                   {resultData.rewards.gems > 0 && (
                     <p className="flex items-center justify-center gap-2 font-semibold" data-testid="reward-gems"><Gem className="w-4 h-4 text-jutsu" /> +{resultData.rewards.gems} Gems</p>
+                  )}
+                  {resultData.rewards.chapter_gems > 0 && (
+                    <div className="mt-2 rounded-xl bg-emerald-400/10 border border-emerald-400/40 px-3 py-2" data-testid="reward-chapter-clear">
+                      <p className="text-[11px] uppercase tracking-widest text-emerald-600 font-bold">Chapter {resultData.rewards.chapter_complete} Cleared!</p>
+                      <p className="text-sm text-ink font-semibold flex items-center justify-center gap-1.5 mt-0.5">
+                        <Gem className="w-3.5 h-3.5 text-jutsu" /> +{resultData.rewards.chapter_gems} Gems
+                      </p>
+                    </div>
                   )}
                   {resultData.rewards.exp != null && (
                     <p className="flex items-center justify-center gap-2 font-semibold"><Zap className="w-4 h-4 text-chakra" /> +{resultData.rewards.exp} Account EXP</p>
