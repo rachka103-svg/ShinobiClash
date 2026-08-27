@@ -6,6 +6,9 @@ import { useGame } from "@/context/GameContext";
 import { NinjaCard } from "@/components/NinjaCard";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import BalanceTab from "@/components/admin/BalanceTab";
+import HeroStatsTab from "@/components/admin/HeroStatsTab";
+import StagesTab from "@/components/admin/StagesTab";
 
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
 const RARITIES = ["R", "SR", "SSR", "UR", "GR"];
@@ -58,8 +61,8 @@ export default function Admin() {
         <p className="text-slate-500">Generate heroes with AI, balance their stats, and manage portraits — changes go live instantly.</p>
       </div>
 
-      <div className="flex items-center gap-2 mb-6">
-        {[["generate", "AI Generator"], ["art", "Art Studio"], ["manage", `Manage Heroes (${catalog.length})`], ["players", "Players"], ["economy", "Economy"]].map(([id, lbl]) => (
+      <div className="flex items-center gap-2 mb-6 flex-wrap">
+        {[["generate", "AI Generator"], ["art", "Art Studio"], ["manage", `Manage Heroes (${catalog.length})`], ["balance", "Balance"], ["herostats", "Hero Stats"], ["stages", "Stages & Bosses"], ["players", "Players"], ["economy", "Economy"]].map(([id, lbl]) => (
           <button key={id} data-testid={`admin-tab-${id}`} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${tab === id ? "bg-chakra text-[#05050A]" : "text-slate-600 bg-black/[0.04] hover:bg-black/10"}`}>
             {lbl}
@@ -69,6 +72,9 @@ export default function Admin() {
 
       {tab === "generate" ? <Generator onSaved={refreshCatalog} />
         : tab === "art" ? <ArtStudio catalog={catalog} onApplied={refreshCatalog} />
+        : tab === "balance" ? <BalanceTab />
+        : tab === "herostats" ? <HeroStatsTab />
+        : tab === "stages" ? <StagesTab />
         : tab === "players" ? <Players />
         : tab === "economy" ? <Economy />
         : <Manage catalog={catalog} banner={banner} onChanged={refreshCatalog} />}

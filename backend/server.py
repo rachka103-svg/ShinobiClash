@@ -27,6 +27,7 @@ from pydantic import BaseModel, EmailStr, Field
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 import game_data as gd
+import admin_config as ac
 
 # Cryptographically-secure RNG for all gameplay-affecting randomness (gacha
 # pulls, gear/loot drops, pity/5050 rolls). random.random()/random.choice()
@@ -2072,6 +2073,56 @@ async def admin_set_economy(body: dict = Body(...), _: dict = Depends(get_admin_
 
 
 # ---------------------------------------------------------------------------
+# ADMIN — Game Config (Balance, Heroes & Stats). Hybrid DB-backed overrides
+# applied live to game_data module attributes + persisted to Mongo.
+# ---------------------------------------------------------------------------
+@api_router.get("/admin/config")
+async def admin_get_config(_: dict = Depends(get_admin_user)):
+    return {"config": ac.config_by_category(), "all": ac.config_snapshot()}
+
+
+@api_router.post("/admin/config")
+async def admin_set_config(body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    try:
+        snap = await ac.save_game_config(db, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"config": snap, "summon_rates": gd.summon_rates("gems"), "summon_rates_ryo": gd.summon_rates("ryo")}
+
+
+# ---------------------------------------------------------------------------
+# ADMIN — Stage editor (enemies, rewards, first-clear, boss mechanic).
+# ---------------------------------------------------------------------------
+@api_router.get("/admin/stages-config")
+async def admin_get_stages_config(_: dict = Depends(get_admin_user)):
+    stages = [{**s, "recommended_power": sum(gd.ninja_power(e["template_id"], e["level"]) for e in s["enemies"])}
+              for s in gd.STAGES]
+    return {"stages": stages, "boss_mechanics": ac._json_safe(gd.BOSS_MECHANICS),
+            "hero_ids": sorted(gd.CATALOG_BY_ID.keys())}
+
+
+@api_router.put("/admin/stage/{stage_id}")
+async def admin_update_stage(stage_id: str, body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    try:
+        updated = await ac.save_stage_override(db, stage_id, body)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Stage not found")
+    return {"stage": updated}
+
+
+# ---------------------------------------------------------------------------
+# ADMIN — Boss mechanic editor (phases, multipliers, immunities, adds).
+# ---------------------------------------------------------------------------
+@api_router.put("/admin/boss-mechanic/{mech_id}")
+async def admin_update_boss_mechanic(mech_id: str, body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    try:
+        updated = await ac.save_boss_override(db, mech_id, body)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Boss mechanic not found")
+    return {"mechanic": updated}
+
+
+# ---------------------------------------------------------------------------
 # ADMIN — Player management. Search users and grant/set any currency, level,
 # energy, tickets or upgrade materials. "add" increments, "set" overwrites.
 # ---------------------------------------------------------------------------
@@ -2301,6 +2352,9 @@ async def startup():
     await load_catalog_config()
     await load_banner()
     await load_economy()
+    await ac.load_game_config(db)
+    await ac.load_stage_overrides(db)
+    await ac.load_boss_overrides(db)
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@shinobi.com").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
     existing = await db.users.find_one({"email": admin_email})
