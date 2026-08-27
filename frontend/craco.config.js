@@ -110,4 +110,36 @@ if (isDevServer) {
   }
 }
 
+// The visual-edits wrapper above may replace webpackConfig.devServer with its
+// own function, clobbering the /api proxy and allowedHosts set earlier. To
+// guarantee they survive, wrap whatever devServer function exists *after*
+// withVisualEdits — call it first to preserve its own modifications, then
+// force the proxy and allowedHosts on top.
+const _postVEDevServer = webpackConfig.devServer;
+webpackConfig.devServer = (devServerConfig) => {
+  if (typeof _postVEDevServer === "function") {
+    devServerConfig = _postVEDevServer(devServerConfig);
+  }
+  devServerConfig.proxy = {
+    "/api": {
+      target: "http://backend:8000",
+      changeOrigin: true,
+      secure: false,
+      // The visual-edits dev-server middleware parses JSON POST bodies into
+      // req.body, which consumes the raw request stream before the proxy can
+      // pipe it. Without this, POSTs with a JSON body hang (the backend waits
+      // for body bytes that never arrive). Re-inject the parsed body here.
+      onProxyReq: (proxyReq, req) => {
+        if (req.body) {
+          const bodyData = JSON.stringify(req.body);
+          proxyReq.setHeader("Content-Length", Buffer.byteLength(bodyData));
+          proxyReq.write(bodyData);
+        }
+      },
+    },
+  };
+  devServerConfig.allowedHosts = "all";
+  return devServerConfig;
+};
+
 module.exports = webpackConfig;
