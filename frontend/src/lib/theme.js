@@ -119,6 +119,14 @@ export const GOLD = {
   stroke: "rgba(255,202,40,0.55)",
 };
 
+/** GODLY — the pinnacle prestige treatment for GR. A prismatic, color-shifting
+ *  border with the GR mint-cyan as its glow anchor. Even more ornate than gold. */
+export const GODLY = {
+  base: "#64FFDA",
+  stroke: "rgba(100,255,218,0.7)",
+  hairline: "rgba(100,255,218,0.4)",
+};
+
 export const STROKE = {
   soft: "rgba(255,255,255,0.08)",
   base: "rgba(255,255,255,0.12)",
@@ -127,6 +135,8 @@ export const STROKE = {
 
 // Which rarities receive the gold prestige treatment on their frame.
 export const GOLD_RARITIES = ["UR", "GR"];
+// GR gets the Godly treatment (even more ornate than gold).
+export const GODLY_RARITIES = ["GR"];
 
 /**
  * rarityFrame(key) — resolves the ornate, rarity-scaled frame treatment.
@@ -145,15 +155,19 @@ export const GOLD_RARITIES = ["UR", "GR"];
 export const rarityFrame = (key) => {
   const r = RARITY[key] || RARITY.R;
   const t = r.tier;
+  const isGodly = GODLY_RARITIES.includes(key);
   const useGold = GOLD_RARITIES.includes(key);
-  const cornerLevel = t >= 4 ? 4 : t >= 3 ? 3 : t >= 2 ? 2 : t >= 1 ? 1 : 0;
+  // UR now gets the full gold ornamentation (cornerLevel 4) that GR used to
+  // have; GR gets a new Godly level (5) with even more corner studs.
+  const cornerLevel = t >= 4 ? 5 : t >= 3 ? 4 : t >= 2 ? 2 : t >= 1 ? 1 : 0;
   return {
     tier: t,
     rarityColor: r.color,
     useGold,
+    isGodly,
     cornerLevel,
-    strokeColor: useGold ? GOLD.stroke : `${r.color}66`,
-    strokeWidth: t >= 4 ? 2 : 1,
-    cornerColor: useGold ? GOLD.base : r.color,
+    strokeColor: isGodly ? GODLY.stroke : useGold ? GOLD.stroke : `${r.color}66`,
+    strokeWidth: isGodly ? 3 : t >= 3 ? 2 : 1,
+    cornerColor: isGodly ? GODLY.base : useGold ? GOLD.base : r.color,
   };
 };

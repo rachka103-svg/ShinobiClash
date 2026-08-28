@@ -7,7 +7,7 @@ export const RARITY_TIER = RARITY_TIER_MAP;
 // Returns the aura className for a rarity (animated glow for SSR+).
 export const auraClass = (rarity) => {
   const t = RARITY_TIER[rarity] ?? 0;
-  return t >= 4 ? "aura-4" : t >= 3 ? "aura-3" : t >= 2 ? "aura-2" : "";
+  return t >= 4 ? "aura-5" : t >= 3 ? "aura-4" : t >= 2 ? "aura-2" : "";
 };
 
 /**
@@ -30,6 +30,7 @@ export const DecoCorners = ({ rarity, level, color, size = 14 }) => {
       <i /><i /><i /><i />
       {lvl >= 3 && <><b /><b /></>}
       {lvl >= 4 && <><b /><b /></>}
+      {lvl >= 5 && <><b /><b /><b /><b /></>}
     </div>
   );
 };
@@ -40,6 +41,10 @@ export const RaritySparkles = ({ rarity }) => {
   if (t < 3) return null;
   const color = (RARITY[rarity] || RARITY.R).color;
   const dots = t >= 4 ? [
+    { left: "10%", delay: "0s" }, { left: "24%", delay: "0.5s" }, { left: "38%", delay: "0.2s" },
+    { left: "52%", delay: "0.8s" }, { left: "66%", delay: "0.3s" }, { left: "80%", delay: "1.0s" },
+    { left: "90%", delay: "0.6s" },
+  ] : t >= 3 ? [
     { left: "14%", delay: "0s" }, { left: "32%", delay: "0.7s" }, { left: "55%", delay: "0.3s" },
     { left: "72%", delay: "1.1s" }, { left: "88%", delay: "0.5s" },
   ] : [

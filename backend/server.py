@@ -1120,9 +1120,9 @@ def _roll_top_rarity_pity(pity: dict, currency: str, featured: Optional[str],
     (chosen_template_id_or_None, pity_note)."""
     if currency not in ("gems", "ticket"):
         return None, None
-    counter = pity.get("gr", pity.get("mythic", 0)) + 1
-    if rng.random() >= gd.gr_chance(counter):
-        pity["gr"] = counter
+    counter = pity.get("ur", pity.get("gr", pity.get("mythic", 0))) + 1
+    if rng.random() >= gd.pity_chance(counter):
+        pity["ur"] = counter
         return None, None
 
     chosen = None
@@ -1138,7 +1138,7 @@ def _roll_top_rarity_pity(pity: dict, currency: str, featured: Optional[str],
             chosen = rng.choice(others); pity["featured_guarantee"] = True; pity_note = "featured_5050_lost"
     else:
         chosen = rng.choice(tops) if tops else None
-    pity["gr"] = 0
+    pity["ur"] = 0
     if counter >= gd.MYTHIC_HARD_PITY:
         pity_note = pity_note or "hard_pity"
     return chosen, pity_note

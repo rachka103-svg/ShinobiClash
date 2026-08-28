@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { RARITY, ELEMENT } from "@/lib/styles";
-import { rarityFrame, GOLD } from "@/lib/theme";
+import { rarityFrame, GOLD, GODLY } from "@/lib/theme";
 import { auraClass, RaritySparkles, DecoCorners } from "@/components/RarityFx";
 
 export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid }) => {
@@ -11,12 +11,14 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
   const elite = tier >= 3; // SSR and above get an animated aura
   const aura = auraClass(ninja.rarity);
   const fr = rarityFrame(ninja.rarity);
-  const edge = fr.useGold ? GOLD.stroke : rarity.color;
+  const edge = fr.isGodly ? GODLY.stroke : fr.useGold ? GOLD.stroke : rarity.color;
   const frameStyle = selected
     ? { border: `2px solid ${edge}` }
-    : elite
-      ? { border: `2px solid ${edge}`, "--glow": fr.useGold ? GOLD.base : `${rarity.color}${tier >= 4 ? "cc" : tier >= 3 ? "aa" : "88"}` }
-      : { border: `1.5px solid ${rarity.color}`, boxShadow: `0 0 ${5 + tier * 4}px ${rarity.color}55, inset 0 0 14px ${rarity.color}1f` };
+    : fr.isGodly
+      ? { border: `3px solid ${GODLY.base}`, "--glow": GODLY.base }
+      : elite
+        ? { border: `2px solid ${edge}`, "--glow": fr.useGold ? GOLD.base : `${rarity.color}${tier >= 4 ? "cc" : tier >= 3 ? "aa" : "88"}` }
+        : { border: `1.5px solid ${rarity.color}`, boxShadow: `0 0 ${5 + tier * 4}px ${rarity.color}55, inset 0 0 14px ${rarity.color}1f` };
   return (
     <motion.button
       type="button"
@@ -26,7 +28,7 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
       disabled={disabled}
       data-testid={testid}
       className={`relative text-left rounded-lg overflow-hidden group transition-all bg-[#FFFFFF] ${
-        selected ? "ring-2 ring-cyan-400 glow-cyan" : elite ? aura : ""
+        selected ? "ring-2 ring-cyan-400 glow-cyan" : fr.isGodly ? `${aura} godly-border` : elite ? aura : ""
       } ${disabled ? "opacity-50 grayscale" : ""}`}
       style={frameStyle}
     >

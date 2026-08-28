@@ -18,7 +18,7 @@ export function GameProvider({ children }) {
   // --- Phase J expansion config (all data-driven from the backend) ---
   const [summonRates, setSummonRates] = useState({});
   const [summonRatesRyo, setSummonRatesRyo] = useState({});
-  const [pityConfig, setPityConfig] = useState({ soft_pity_start: 60, hard_pity: 90, featured_5050: 0.5, x10_guarantee_rarity: "SR", pity_rarity: "GR", pity_currencies: ["gems", "ticket"] });
+  const [pityConfig, setPityConfig] = useState({ soft_pity_start: 60, hard_pity: 90, featured_5050: 0.5, x10_guarantee_rarity: "SR", pity_rarity: "UR", pity_currencies: ["gems", "ticket"] });
   const [gearConfig, setGearConfig] = useState(null);
   const [craftRecipes, setCraftRecipes] = useState({});
   const [fusionRecipes, setFusionRecipes] = useState({});

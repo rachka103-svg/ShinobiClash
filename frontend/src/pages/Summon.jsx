@@ -124,12 +124,12 @@ export default function Summon() {
   const inv = user?.inventory || {};
   const tickets = inv.summon_ticket || 0;
   const gearTickets = inv.gear_ticket || 0;
-  const pity = user?.pity || { gr: 0, featured_guarantee: false, total_pulls: 0 };
+  const pity = user?.pity || { ur: 0, featured_guarantee: false, total_pulls: 0 };
   const hardPity = pityConfig.hard_pity || 90;
   const softPity = pityConfig.soft_pity_start || 60;
-  const pityRarity = pityConfig.pity_rarity || "GR";
-  const pityColor = (RARITY[pityRarity] || RARITY.GR).color;
-  const pityCount = pity.gr ?? pity.mythic ?? 0;
+  const pityRarity = pityConfig.pity_rarity || "UR";
+  const pityColor = (RARITY[pityRarity] || RARITY.UR).color;
+  const pityCount = pity.ur ?? pity.gr ?? pity.mythic ?? 0;
   const inSoftPity = pityCount + 1 >= softPity;
   const pullsToPity = Math.max(0, hardPity - pityCount);
 
@@ -305,7 +305,7 @@ export default function Summon() {
                     <Sparkles className="w-5 h-5" style={{ color: pityColor }} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[9px] uppercase tracking-widest text-slate-500 leading-none">GR Pity · Gems only</p>
+                    <p className="text-[9px] uppercase tracking-widest text-slate-500 leading-none">{pityRarity} Pity · Gems only</p>
                     <p className="font-display text-2xl leading-none mt-0.5" style={{ color: pityColor }} data-testid="summon-pity-count-text">
                       {pityCount}<span className="text-slate-500 text-base"> / {hardPity}</span>
                     </p>
@@ -445,7 +445,7 @@ export default function Summon() {
             </TableBody>
           </Table>
           <div className="text-xs text-slate-500 space-y-1.5 mt-1">
-            <p><span className="text-ink font-semibold">GR pity (Gem banner only):</span> normal rate for pulls 1-{softPity - 1}; the chance climbs every pull from {softPity} and a GR is guaranteed by pull {hardPity}. Pulling a GR naturally resets the counter.</p>
+            <p><span className="text-ink font-semibold">{pityRarity} pity (Gem banner only):</span> normal rate for pulls 1-{softPity - 1}; the chance climbs every pull from {softPity} and a {pityRarity} is guaranteed by pull {hardPity}. Pulling a {pityRarity} naturally resets the counter. GR has no pity — it's only obtainable through rare natural pulls.</p>
             <p><span className="text-ink font-semibold">Ryo banner:</span> pay with Ryo for far lower rare rates and <span className="text-ink">no pity system</span> — a budget option for volume pulls.</p>
             <p><span className="text-ink font-semibold">Featured 50/50:</span> when a featured GR banner is live, your first GR has a 50% chance to be the featured hero — lose it and your next GR is guaranteed featured.</p>
             <p><span className="text-ink font-semibold">×10 guarantee:</span> every ×10 contains at least one SR or better. Duplicates always convert to shards for Evolution.</p>

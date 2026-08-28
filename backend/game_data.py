@@ -208,15 +208,19 @@ NINJA_CATALOG = []
 # Legendary Heroes — adapted from world mythology, redesigned as anime-styled
 # fighters and merged into the playable roster.
 # ---------------------------------------------------------------------------
+# Wide progressive gaps: each tier is ~1.55x the previous, so it takes
+# 3-4 evolutions (stars) of a lower rarity to match the BASE of the next.
+# STAR_BONUS_PER_STAR = 0.18 → star 4 (3 evolutions) = 1.54x base, which
+# roughly equals the next tier's base — exactly the intended feel.
 RARITY_BASE = {
-    "N":      {"hp": 700,  "atk": 100, "def": 50,  "spd": 90,  "chakra": 100, "crit_rate": 5,  "crit_damage": 140, "accuracy": 85, "resistance": 5},
-    "R":      {"hp": 800,  "atk": 115, "def": 60,  "spd": 95,  "chakra": 100, "crit_rate": 6,  "crit_damage": 145, "accuracy": 87, "resistance": 7},
-    "SR":     {"hp": 980,  "atk": 150, "def": 78,  "spd": 105, "chakra": 110, "crit_rate": 8,  "crit_damage": 155, "accuracy": 89, "resistance": 10},
-    "SSR":    {"hp": 1080, "atk": 188, "def": 85,  "spd": 125, "chakra": 120, "crit_rate": 10, "crit_damage": 165, "accuracy": 91, "resistance": 14},
-    "UR":     {"hp": 1180, "atk": 215, "def": 92,  "spd": 140, "chakra": 130, "crit_rate": 12, "crit_damage": 175, "accuracy": 93, "resistance": 18},
-    "GR":     {"hp": 1260, "atk": 230, "def": 98,  "spd": 145, "chakra": 140, "crit_rate": 14, "crit_damage": 185, "accuracy": 94, "resistance": 22},
-    "LR":     {"hp": 1320, "atk": 245, "def": 105, "spd": 150, "chakra": 150, "crit_rate": 16, "crit_damage": 195, "accuracy": 95, "resistance": 26},
-    "MYTHIC": {"hp": 1450, "atk": 270, "def": 115, "spd": 160, "chakra": 165, "crit_rate": 18, "crit_damage": 210, "accuracy": 96, "resistance": 30},
+    "N":      {"hp": 500,  "atk": 75,   "def": 38,  "spd": 80,  "chakra": 95,  "crit_rate": 4,  "crit_damage": 135, "accuracy": 83, "resistance": 4},
+    "R":      {"hp": 800,  "atk": 115,  "def": 60,  "spd": 95,  "chakra": 100, "crit_rate": 6,  "crit_damage": 145, "accuracy": 87, "resistance": 7},
+    "SR":     {"hp": 1240, "atk": 178,  "def": 93,  "spd": 113, "chakra": 118, "crit_rate": 8,  "crit_damage": 155, "accuracy": 89, "resistance": 10},
+    "SSR":    {"hp": 1920, "atk": 276,  "def": 144, "spd": 132, "chakra": 138, "crit_rate": 11, "crit_damage": 170, "accuracy": 91, "resistance": 15},
+    "UR":     {"hp": 2980, "atk": 430,  "def": 224, "spd": 155, "chakra": 160, "crit_rate": 14, "crit_damage": 185, "accuracy": 93, "resistance": 20},
+    "GR":     {"hp": 4620, "atk": 665,  "def": 348, "spd": 180, "chakra": 185, "crit_rate": 18, "crit_damage": 210, "accuracy": 95, "resistance": 28},
+    "LR":     {"hp": 7160, "atk": 1030, "def": 540, "spd": 210, "chakra": 215, "crit_rate": 22, "crit_damage": 240, "accuracy": 96, "resistance": 36},
+    "MYTHIC": {"hp": 11100,"atk": 1600, "def": 837, "spd": 244, "chakra": 250, "crit_rate": 28, "crit_damage": 280, "accuracy": 98, "resistance": 48},
 }
 STAT_KEYS = ("hp", "atk", "def", "spd", "chakra", "crit_rate", "crit_damage", "accuracy", "resistance")
 ROLE_MOD = {
@@ -588,9 +592,9 @@ CATALOG_BY_ID = {n["id"]: n for n in NINJA_CATALOG}
 # ---------------------------------------------------------------------------
 # 5-TIER RARITY SYSTEM. The catalog was authored across 8 legacy tiers; we
 # collapse them into exactly 5 canonical tiers (R < SR < SSR < UR < GR) with
-# GR as the pinnacle (and the pity target). Legacy N drops to R; the old top
-# tiers (LR / MYTHIC) fold up into GR. Base stats keep their authored values
-# so no existing hero is nerfed.
+# GR as the pinnacle. UR is the pity target; GR has NO pity (super rare).
+# Legacy N drops to R; the old top tiers (LR / MYTHIC) fold up into GR.
+# Base stats keep their authored values so no existing hero is nerfed.
 # ---------------------------------------------------------------------------
 RARITY_REMAP = {"N": "R", "R": "R", "SR": "SR", "SSR": "SSR", "UR": "UR", "GR": "GR", "LR": "GR", "MYTHIC": "GR"}
 for _n in NINJA_CATALOG:
@@ -601,10 +605,10 @@ STARTER_NINJAS = ["blaze", "ripple", "zephyr"]
 
 # Weighted summon pool (per rarity). Lower rarity = higher chance.
 # GEM banner (premium) — the standard, pity-backed rates.
-SUMMON_WEIGHTS = {"R": 1000, "SR": 320, "SSR": 95, "UR": 20, "GR": 6}
+SUMMON_WEIGHTS = {"R": 1000, "SR": 320, "SSR": 95, "UR": 20, "GR": 2}
 # GOLD/RYO banner (budget) — SUPER low chance at rare heroes and NO pity.
 # Heavily floored to R/SR; UR/GR are vanishingly rare here.
-GOLD_SUMMON_WEIGHTS = {"R": 4000, "SR": 520, "SSR": 60, "UR": 4, "GR": 1}
+GOLD_SUMMON_WEIGHTS = {"R": 4000, "SR": 520, "SSR": 60, "UR": 4, "GR": 0.5}
 SUMMON_COST = 300
 
 # Shards gained when pulling a hero already owned (duplicate protection —
@@ -1522,9 +1526,9 @@ def dungeon_recommended_power(entry: dict) -> int:
 # ---------------------------------------------------------------------------
 MYTHIC_SOFT_PITY_START = 60
 MYTHIC_HARD_PITY = 90
-MYTHIC_SOFT_PITY_CEIL = 0.35     # ramped GR chance just before hard pity
+MYTHIC_SOFT_PITY_CEIL = 0.35     # ramped UR chance just before hard pity
 FEATURED_MYTHIC_5050 = 0.5
-TOP_RARITY = "GR"                # pinnacle tier + pity target
+TOP_RARITY = "UR"                # UR is the pity target; GR has NO pity (super rare)
 X10_GUARANTEE_RARITY = "SR"      # every x10 contains at least one SR or better
 GEAR_SUMMON_GEM_COST = 90
 GEAR_SUMMON_RATES = {"rare": 62, "epic": 30, "legendary": 8}
@@ -1545,9 +1549,10 @@ def summon_rates(currency: str = "gems") -> dict:
             for r, c in sorted(counts.items(), key=lambda kv: RARITY_ORDER[kv[0]])}
 
 
-def gr_chance(pull_number_since_last: int) -> float:
-    """Probability this GEM pull is GR (top tier) given the pity counter
-    (1-based pull number since the last GR)."""
+def pity_chance(pull_number_since_last: int) -> float:
+    """Probability this GEM pull is the pity target (UR) given the pity counter
+    (1-based pull number since the last UR). GR has no pity — it is only
+    obtainable through natural low-probability pulls from the summon pool."""
     base = (summon_rates("gems").get(TOP_RARITY, 0.05)) / 100
     n = pull_number_since_last
     if n >= MYTHIC_HARD_PITY:
@@ -1558,12 +1563,13 @@ def gr_chance(pull_number_since_last: int) -> float:
     return base
 
 
-# Backward-compatible alias
-mythic_chance = gr_chance
+# Backward-compatible aliases
+gr_chance = pity_chance
+mythic_chance = pity_chance
 
 
 def fresh_pity_state() -> dict:
-    return {"gr": 0, "featured_guarantee": False, "total_pulls": 0}
+    return {"ur": 0, "featured_guarantee": False, "total_pulls": 0}
 
 
 
