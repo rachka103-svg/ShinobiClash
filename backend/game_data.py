@@ -1151,6 +1151,7 @@ RARITIES = ["R", "SR", "SSR", "UR", "GR"]
 STATIC_CATALOG = [dict(n) for n in NINJA_CATALOG]
 _CUSTOM_HEROES = []
 _PORTRAIT_OVERRIDES = {}
+_HERO_OVERRIDES = {}
 
 
 def _rebuild_catalog():
@@ -1159,14 +1160,17 @@ def _rebuild_catalog():
     for n in merged:
         if n["id"] in _PORTRAIT_OVERRIDES:
             n["portrait"] = _PORTRAIT_OVERRIDES[n["id"]]
+        if n["id"] in _HERO_OVERRIDES:
+            n.update(_HERO_OVERRIDES[n["id"]])
     NINJA_CATALOG = merged
     CATALOG_BY_ID = {n["id"]: n for n in merged}
 
 
-def load_dynamic(custom_heroes, overrides):
-    global _CUSTOM_HEROES, _PORTRAIT_OVERRIDES
+def load_dynamic(custom_heroes, overrides, hero_overrides=None):
+    global _CUSTOM_HEROES, _PORTRAIT_OVERRIDES, _HERO_OVERRIDES
     _CUSTOM_HEROES = [dict(h) for h in (custom_heroes or [])]
     _PORTRAIT_OVERRIDES = dict(overrides or {})
+    _HERO_OVERRIDES = dict(hero_overrides or {})
     _rebuild_catalog()
 
 
@@ -1180,6 +1184,7 @@ def remove_custom_hero(hid):
     global _CUSTOM_HEROES
     _CUSTOM_HEROES = [h for h in _CUSTOM_HEROES if h["id"] != hid]
     _PORTRAIT_OVERRIDES.pop(hid, None)
+    _HERO_OVERRIDES.pop(hid, None)
     _rebuild_catalog()
 
 
@@ -1192,6 +1197,23 @@ def clear_portrait_override(template_id):
     """Remove a static hero's portrait override, restoring its original art."""
     if template_id in _PORTRAIT_OVERRIDES:
         _PORTRAIT_OVERRIDES.pop(template_id, None)
+        _rebuild_catalog()
+        return True
+    return False
+
+
+def set_hero_override(template_id, fields):
+    """Apply field-level overrides to a static hero (name, rarity, element,
+    role, jutsus, base_stats, etc). The override is merged on top of the
+    static catalog entry at rebuild time."""
+    _HERO_OVERRIDES[template_id] = {**_HERO_OVERRIDES.get(template_id, {}), **fields}
+    _rebuild_catalog()
+
+
+def clear_hero_override(template_id):
+    """Remove all overrides for a static hero, restoring its original values."""
+    if template_id in _HERO_OVERRIDES:
+        _HERO_OVERRIDES.pop(template_id, None)
         _rebuild_catalog()
         return True
     return False

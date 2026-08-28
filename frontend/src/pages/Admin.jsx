@@ -510,6 +510,11 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
   const [form, setForm] = useState({ ...hero });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setStat = (k, v) => setForm((f) => ({ ...f, base_stats: { ...f.base_stats, [k]: Number(v) || 0 } }));
+  const setJutsu = (i, k, v) => setForm((f) => {
+    const jutsus = [...(f.jutsus || [])];
+    jutsus[i] = { ...jutsus[i], [k]: v };
+    return { ...f, jutsus };
+  });
   const isFeatured = banner?.template_id === hero.id;
   const canFeature = RARITIES.indexOf(hero.rarity) >= 2; // SSR+
 
@@ -551,9 +556,10 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
   const saveEdits = async () => {
     setBusy(true);
     try {
-      await api.post("/admin/hero/save", {
+      await api.post("/admin/hero/edit", {
         id: hero.id, name: form.name, title: form.title, element: form.element,
-        rarity: form.rarity, role: form.role, lore: form.lore, base_stats: form.base_stats, portrait: hero.portrait,
+        rarity: form.rarity, role: form.role, lore: form.lore, base_stats: form.base_stats,
+        portrait: hero.portrait, jutsus: form.jutsus,
       });
       await onChanged();
       toast.success("Hero updated!");
@@ -624,59 +630,92 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
           </button>
         )}
 
-        {hero.is_custom ? (
-          <>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Name"><input className={sel} data-testid="mgr-name" value={form.name} onChange={(e) => set("name", e.target.value)} /></Field>
-              <Field label="Title"><input className={sel} data-testid="mgr-title" value={form.title} onChange={(e) => set("title", e.target.value)} /></Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Name"><input className={sel} data-testid="mgr-name" value={form.name} onChange={(e) => set("name", e.target.value)} /></Field>
+          <Field label="Title"><input className={sel} data-testid="mgr-title" value={form.title} onChange={(e) => set("title", e.target.value)} /></Field>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <Field label="Element">
+            <select className={sel} data-testid="mgr-element" value={form.element} onChange={(e) => set("element", e.target.value)}>
+              {ELEMENTS.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+          </Field>
+          <Field label="Rarity">
+            <select className={sel} data-testid="mgr-rarity" value={form.rarity} onChange={(e) => set("rarity", e.target.value)}>
+              {RARITIES.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+          </Field>
+          <Field label="Role">
+            <select className={sel} data-testid="mgr-role" value={form.role} onChange={(e) => set("role", e.target.value)}>
+              {ROLES.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+          </Field>
+        </div>
+        <Field label="Lore"><textarea className={sel} rows={2} data-testid="mgr-lore" value={form.lore || ""} onChange={(e) => set("lore", e.target.value)} /></Field>
+        <div className="grid grid-cols-5 gap-1.5">
+          {STAT_KEYS.map(({ k, label, color }) => (
+            <div key={k}>
+              <span className="text-[10px] text-slate-500" style={{ color }}>{label}</span>
+              <input className={`${sel} px-1 text-center`} type="number" data-testid={`mgr-stat-${k}`} value={form.base_stats?.[k] ?? 0} onChange={(e) => setStat(k, e.target.value)} />
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="Element">
-                <select className={sel} data-testid="mgr-element" value={form.element} onChange={(e) => set("element", e.target.value)}>
-                  {ELEMENTS.map((x) => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </Field>
-              <Field label="Rarity">
-                <select className={sel} data-testid="mgr-rarity" value={form.rarity} onChange={(e) => set("rarity", e.target.value)}>
-                  {RARITIES.map((x) => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </Field>
-              <Field label="Role">
-                <select className={sel} data-testid="mgr-role" value={form.role} onChange={(e) => set("role", e.target.value)}>
-                  {ROLES.map((x) => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </Field>
-            </div>
-            <div className="grid grid-cols-5 gap-1.5">
-              {STAT_KEYS.map(({ k, label, color }) => (
-                <div key={k}>
-                  <span className="text-[10px] text-slate-500" style={{ color }}>{label}</span>
-                  <input className={`${sel} px-1 text-center`} type="number" data-testid={`mgr-stat-${k}`} value={form.base_stats[k]} onChange={(e) => setStat(k, e.target.value)} />
+          ))}
+        </div>
+
+        {/* Jutsu / Skill Editor */}
+        <div>
+          <span className="text-xs uppercase tracking-widest text-slate-500">Jutsus / Skills</span>
+          <div className="space-y-2 mt-1 max-h-[40vh] overflow-y-auto scrollbar-none">
+            {(form.jutsus || []).map((j, i) => (
+              <div key={i} className="rounded-lg border border-black/10 p-2 space-y-1.5 bg-black/[0.02]" data-testid={`mgr-jutsu-${i}`}>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input className={`${sel} mt-0`} placeholder="Jutsu name" value={j.name || ""}
+                    onChange={(e) => setJutsu(i, "name", e.target.value)} data-testid={`mgr-jutsu-${i}-name`} />
+                  <select className={`${sel} mt-0`} value={j.type || "attack"}
+                    onChange={(e) => setJutsu(i, "type", e.target.value)} data-testid={`mgr-jutsu-${i}-type`}>
+                    {["attack", "aoe", "heal", "shield", "buff", "debuff"].map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
                 </div>
-              ))}
-            </div>
-            <button onClick={saveEdits} disabled={busy} data-testid="mgr-save"
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold bg-emerald-500 text-[#05050A] disabled:opacity-60 hover:brightness-110 transition-all">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes
-            </button>
-            <button onClick={remove} disabled={busy} data-testid="mgr-delete"
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-semibold bg-fox/10 text-fox border border-fox/30 hover:bg-fox/20 disabled:opacity-60 transition-all">
-              <Trash2 className="w-4 h-4" /> Delete Hero
-            </button>
-          </>
-        ) : (
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-black/30">
-            <div className="grid grid-cols-5 gap-2 flex-1">
-              {STAT_KEYS.map(({ k, label, color }) => (
-                <div key={k} className="text-center">
-                  <span className="block text-[10px]" style={{ color }}>{label}</span>
-                  <span className="font-display text-base text-ink">{hero.base_stats[k]}</span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  <label className="block">
+                    <span className="text-[9px] text-slate-500">Power</span>
+                    <input type="number" className={`${sel} mt-0 px-1 text-center`} value={j.power ?? 0}
+                      onChange={(e) => setJutsu(i, "power", Number(e.target.value))} data-testid={`mgr-jutsu-${i}-power`} />
+                  </label>
+                  <label className="block">
+                    <span className="text-[9px] text-slate-500">Chakra Cost</span>
+                    <input type="number" className={`${sel} mt-0 px-1 text-center`} value={j.chakra_cost ?? 0}
+                      onChange={(e) => setJutsu(i, "chakra_cost", Number(e.target.value))} data-testid={`mgr-jutsu-${i}-cost`} />
+                  </label>
+                  <label className="block">
+                    <span className="text-[9px] text-slate-500">Chakra Gain</span>
+                    <input type="number" className={`${sel} mt-0 px-1 text-center`} value={j.chakra_gain ?? 0}
+                      onChange={(e) => setJutsu(i, "chakra_gain", Number(e.target.value))} data-testid={`mgr-jutsu-${i}-gain`} />
+                  </label>
+                  <label className="block">
+                    <span className="text-[9px] text-slate-500">Element</span>
+                    <select className={`${sel} mt-0 px-1`} value={j.element || "Fire"}
+                      onChange={(e) => setJutsu(i, "element", e.target.value)} data-testid={`mgr-jutsu-${i}-element`}>
+                      {ELEMENTS.map((x) => <option key={x} value={x}>{x}</option>)}
+                    </select>
+                  </label>
                 </div>
-              ))}
-            </div>
+                <input className={`${sel} mt-0`} placeholder="Description" value={j.description || ""}
+                  onChange={(e) => setJutsu(i, "description", e.target.value)} data-testid={`mgr-jutsu-${i}-desc`} />
+              </div>
+            ))}
           </div>
+        </div>
+
+        <button onClick={saveEdits} disabled={busy} data-testid="mgr-save"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold bg-emerald-500 text-[#05050A] disabled:opacity-60 hover:brightness-110 transition-all">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes
+        </button>
+        {hero.is_custom && (
+          <button onClick={remove} disabled={busy} data-testid="mgr-delete"
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-semibold bg-fox/10 text-fox border border-fox/30 hover:bg-fox/20 disabled:opacity-60 transition-all">
+            <Trash2 className="w-4 h-4" /> Delete Hero
+          </button>
         )}
-        {!hero.is_custom && <p className="text-[11px] text-slate-500 text-center">Original hero — you can replace its portrait. Stats are fixed for game balance.</p>}
       </div>
     </motion.div>
   );

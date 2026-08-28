@@ -274,6 +274,7 @@ class HeroSaveIn(BaseModel):
     lore: str = Field(default="", max_length=400)
     base_stats: dict
     portrait: Optional[str] = None
+    jutsus: Optional[list] = None
 
 
 class PortraitUploadIn(BaseModel):
@@ -1758,12 +1759,13 @@ async def get_admin_user(user: dict = Depends(get_current_user)) -> dict:
 
 
 async def load_catalog_config():
-    """Load admin-created heroes + portrait overrides from Mongo into the live catalog."""
+    """Load admin-created heroes + portrait/hero overrides from Mongo into the live catalog."""
     try:
         cfg = await db.game_config.find_one({"_id": "catalog"})
         custom = (cfg or {}).get("custom_heroes", [])
         overrides = (cfg or {}).get("portrait_overrides", {})
-        gd.load_dynamic(custom, overrides)
+        hero_overrides = (cfg or {}).get("hero_overrides", {})
+        gd.load_dynamic(custom, overrides, hero_overrides)
     except Exception as e:
         logger.warning("Could not load dynamic catalog config (%s); using static catalog", e)
 
@@ -1771,7 +1773,8 @@ async def load_catalog_config():
 async def persist_catalog_config():
     await db.game_config.update_one(
         {"_id": "catalog"},
-        {"$set": {"custom_heroes": gd._CUSTOM_HEROES, "portrait_overrides": gd._PORTRAIT_OVERRIDES}},
+        {"$set": {"custom_heroes": gd._CUSTOM_HEROES, "portrait_overrides": gd._PORTRAIT_OVERRIDES,
+                  "hero_overrides": gd._HERO_OVERRIDES}},
         upsert=True,
     )
 
@@ -1940,6 +1943,44 @@ async def admin_save_hero(body: HeroSaveIn, _: dict = Depends(get_admin_user)):
         "jutsus": jutsus, "portrait": body.portrait or f"/custom/{hid}.png",
     }
     gd.upsert_custom_hero(hero)
+    await persist_catalog_config()
+    return {"hero": _hero_public(gd.CATALOG_BY_ID[hid])}
+
+
+@api_router.post("/admin/hero/edit")
+async def admin_edit_hero(body: HeroSaveIn, _: dict = Depends(get_admin_user)):
+    """Edit ANY hero (static or custom) — rarity, element, role, name, title,
+    lore, base_stats, jutsus. For custom heroes, upserts the full hero dict;
+    for static heroes, applies field-level overrides that merge on top of
+    the original catalog entry."""
+    if body.element not in gd.ELEMENTS or body.rarity not in gd.RARITIES or body.role not in gd.ROLES:
+        raise HTTPException(status_code=400, detail="Invalid element, rarity or role")
+    hid = body.id
+    if not hid or hid not in gd.CATALOG_BY_ID:
+        raise HTTPException(status_code=404, detail="Hero not found")
+
+    fields = {
+        "name": body.name.strip(),
+        "title": body.title.strip() or "Unknown Shinobi",
+        "element": body.element,
+        "rarity": body.rarity,
+        "role": body.role,
+        "lore": body.lore.strip(),
+        "base_stats": gd.clamp_stats(body.base_stats, body.rarity, body.role),
+    }
+    if body.jutsus is not None:
+        fields["jutsus"] = body.jutsus
+    if body.portrait:
+        fields["portrait"] = body.portrait
+
+    if gd.is_custom(hid):
+        # Custom hero — full upsert (keeps existing jutsus if not provided)
+        existing = gd.CATALOG_BY_ID[hid]
+        hero = {**existing, **fields}
+        gd.upsert_custom_hero(hero)
+    else:
+        # Static hero — field-level override
+        gd.set_hero_override(hid, fields)
     await persist_catalog_config()
     return {"hero": _hero_public(gd.CATALOG_BY_ID[hid])}
 
