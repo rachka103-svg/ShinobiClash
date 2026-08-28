@@ -9,6 +9,7 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import BalanceTab from "@/components/admin/BalanceTab";
 import HeroStatsTab from "@/components/admin/HeroStatsTab";
 import StagesTab from "@/components/admin/StagesTab";
+import DashboardTab from "@/components/admin/DashboardTab";
 
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
 const RARITIES = ["R", "SR", "SSR", "UR", "GR"];
@@ -50,7 +51,7 @@ const sel = "mt-1 w-full bg-black/40 border border-black/10 rounded px-3 py-2 te
 
 export default function Admin() {
   const { catalog, refreshCatalog, banner } = useGame();
-  const [tab, setTab] = useState("generate");
+  const [tab, setTab] = useState("dashboard");
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8" data-testid="admin-page">
@@ -62,7 +63,7 @@ export default function Admin() {
       </div>
 
       <div className="flex items-center gap-2 mb-6 flex-wrap">
-        {[["generate", "AI Generator"], ["art", "Art Studio"], ["manage", `Manage Heroes (${catalog.length})`], ["balance", "Balance"], ["herostats", "Hero Stats"], ["stages", "Stages & Bosses"], ["players", "Players"], ["economy", "Economy"]].map(([id, lbl]) => (
+        {[["dashboard", `Dashboard (${catalog.length})`], ["generate", "AI Generator"], ["art", "Art Studio"], ["manage", `Manage Heroes`], ["balance", "Balance"], ["herostats", "Hero Stats"], ["stages", "Stages & Bosses"], ["players", "Players"], ["economy", "Economy"]].map(([id, lbl]) => (
           <button key={id} data-testid={`admin-tab-${id}`} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${tab === id ? "bg-chakra text-[#05050A]" : "text-slate-600 bg-black/[0.04] hover:bg-black/10"}`}>
             {lbl}
@@ -70,7 +71,8 @@ export default function Admin() {
         ))}
       </div>
 
-      {tab === "generate" ? <Generator onSaved={refreshCatalog} />
+      {tab === "dashboard" ? <DashboardTab catalog={catalog} onChanged={refreshCatalog} />
+        : tab === "generate" ? <Generator onSaved={refreshCatalog} />
         : tab === "art" ? <ArtStudio catalog={catalog} onApplied={refreshCatalog} />
         : tab === "balance" ? <BalanceTab />
         : tab === "herostats" ? <HeroStatsTab />
