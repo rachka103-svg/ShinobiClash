@@ -515,6 +515,25 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
     jutsus[i] = { ...jutsus[i], [k]: v };
     return { ...f, jutsus };
   });
+  const setEffect = (ji, ei, k, v) => setForm((f) => {
+    const jutsus = [...(f.jutsus || [])];
+    const effects = [...(jutsus[ji].effects || [])];
+    effects[ei] = { ...effects[ei], [k]: v };
+    jutsus[ji] = { ...jutsus[ji], effects };
+    return { ...f, jutsus };
+  });
+  const addEffect = (ji) => setForm((f) => {
+    const jutsus = [...(f.jutsus || [])];
+    const effects = [...(jutsus[ji].effects || []), { type: "burn", chance: 100, duration: 3, value: 50 }];
+    jutsus[ji] = { ...jutsus[ji], effects };
+    return { ...f, jutsus };
+  });
+  const removeEffect = (ji, ei) => setForm((f) => {
+    const jutsus = [...(f.jutsus || [])];
+    const effects = (jutsus[ji].effects || []).filter((_, x) => x !== ei);
+    jutsus[ji] = { ...jutsus[ji], effects };
+    return { ...f, jutsus };
+  });
   const isFeatured = banner?.template_id === hero.id;
   const canFeature = RARITIES.indexOf(hero.rarity) >= 2; // SSR+
 
@@ -699,8 +718,35 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
                     </select>
                   </label>
                 </div>
-                <input className={`${sel} mt-0`} placeholder="Description" value={j.description || ""}
+                <input className={`${sel} mt-0`} placeholder="Description (e.g. 200% ATK damage to all enemies. 30% chance to Burn.)" value={j.description || ""}
                   onChange={(e) => setJutsu(i, "description", e.target.value)} data-testid={`mgr-jutsu-${i}-desc`} />
+                {/* Status effects editor */}
+                <div className="space-y-1">
+                  {(j.effects || []).map((eff, ei) => (
+                    <div key={ei} className="flex items-center gap-1.5 rounded bg-black/[0.03] p-1.5" data-testid={`mgr-effect-${i}-${ei}`}>
+                      <select className={`${sel} mt-0 w-auto py-1 text-[11px]`} value={eff.type || "burn"}
+                        onChange={(e) => setEffect(i, ei, "type", e.target.value)} data-testid={`mgr-effect-${i}-${ei}-type`}>
+                        {["burn", "poison", "bleed", "stun", "freeze", "atk_down", "def_down"].map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <label className="flex items-center gap-0.5 text-[9px] text-slate-500">CHC%
+                        <input type="number" className={`${sel} mt-0 w-12 px-1 py-0.5 text-[11px] text-center`} value={eff.chance ?? 100}
+                          onChange={(e) => setEffect(i, ei, "chance", Number(e.target.value))} data-testid={`mgr-effect-${i}-${ei}-chance`} />
+                      </label>
+                      <label className="flex items-center gap-0.5 text-[9px] text-slate-500">DUR
+                        <input type="number" className={`${sel} mt-0 w-10 px-1 py-0.5 text-[11px] text-center`} value={eff.duration ?? 2}
+                          onChange={(e) => setEffect(i, ei, "duration", Number(e.target.value))} data-testid={`mgr-effect-${i}-${ei}-dur`} />
+                      </label>
+                      <label className="flex items-center gap-0.5 text-[9px] text-slate-500">VAL%
+                        <input type="number" className={`${sel} mt-0 w-12 px-1 py-0.5 text-[11px] text-center`} value={eff.value ?? 0}
+                          onChange={(e) => setEffect(i, ei, "value", Number(e.target.value))} data-testid={`mgr-effect-${i}-${ei}-val`} />
+                      </label>
+                      <button onClick={() => removeEffect(i, ei)} data-testid={`mgr-effect-${i}-${ei}-del`}
+                        className="text-fox hover:text-fox/70 p-0.5"><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  ))}
+                  <button onClick={() => addEffect(i)} data-testid={`mgr-add-effect-${i}`}
+                    className="text-[10px] text-chakra hover:text-chakra/70 flex items-center gap-1">+ Add Effect</button>
+                </div>
               </div>
             ))}
           </div>

@@ -7,6 +7,7 @@ import { useGame } from "@/context/GameContext";
 import {
   buildCombatant, buildOrder, resolveDamage, resolveOnHitEffects, resolveDeath,
   tickStatuses, applyBattleStartPassives, checkBossPhaseTransitions, makeEvent, spireEnemies,
+  isStunned,
 } from "@/lib/battle";
 import { ELEMENT, RARITY } from "@/lib/styles";
 import api from "@/lib/api";
@@ -208,6 +209,17 @@ export default function Battle() {
 
     // chakra regen at start of turn
     actor.chakra = Math.min(actor.maxChakra, actor.chakra + 20);
+
+    // Stun / Freeze check — skip the actor's turn entirely
+    if (isStunned(actor)) {
+      const stunStatus = actor.statuses.find((s) => (s.effectType === "stun" || s.effectType === "freeze") && (s.duration ?? 0) > 0);
+      pushLog(`${actor.name} is ${stunStatus.effectType === "freeze" ? "frozen" : "stunned"} and cannot act!`);
+      pushEvents([makeEvent("DEBUFF_APPLIED", { targetUid: actor.uid, text: `${actor.name} is ${stunStatus.effectType === "freeze" ? "FROZEN" : "STUNNED"}!` })]);
+      setCombs(work);
+      setTimeout(() => beginTurnAt(p + 1, work, ord), ms(600));
+      return;
+    }
+
     setCombs(work);
     setActiveUid(actor.uid);
     setTargeting(null);
@@ -682,18 +694,30 @@ function Fighter({ c, active, shake, floaters, highlight, onClick, flip }) {
       <div className="w-full h-1.5 rounded bg-black/60 overflow-hidden mt-0.5">
         <div className="h-full ck-bar-fill rounded" style={{ width: `${ckPct}%`, background: "#00E5FF" }} />
       </div>
-      {/* Active statuses (marks / DoTs) — minimal readout, no VFX yet */}
+      {/* Active statuses (marks / DoTs / CC / debuffs) — minimal readout */}
       {c.statuses?.length > 0 && (
         <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center" data-testid={`statuses-${c.uid}`}>
-          {c.statuses.map((s) => (
-            <span
-              key={s.id}
-              title={s.effectType}
-              className="text-[7px] leading-none px-1 py-0.5 rounded bg-black/70 text-rose-300 border border-rose-400/30"
-            >
-              {s.effectType === "blood_mark" ? `MARK ${s.stacks}` : s.effectType === "curse_dot" ? "CURSE" : s.effectType}
-            </span>
-          ))}
+          {c.statuses.map((s) => {
+            const labelMap = {
+              blood_mark: `MARK ${s.stacks}`, curse_dot: "CURSE",
+              burn: "BURN", poison: "POISON", bleed: "BLEED",
+              stun: "STUN", freeze: "FREEZE",
+              atk_down: "ATK↓", def_down: "DEF↓",
+            };
+            const colorMap = {
+              burn: "#FF5722", poison: "#76FF03", bleed: "#FF1744",
+              stun: "#FFCA28", freeze: "#40C4FF",
+              atk_down: "#FF9100", def_down: "#FF9100",
+            };
+            const color = colorMap[s.effectType] || "#F48FB1";
+            return (
+              <span key={s.id} title={s.effectType}
+                className="text-[7px] leading-none px-1 py-0.5 rounded bg-black/70 border"
+                style={{ color, borderColor: `${color}55` }}>
+                {labelMap[s.effectType] || s.effectType}
+              </span>
+            );
+          })}
         </div>
       )}
     </div>
