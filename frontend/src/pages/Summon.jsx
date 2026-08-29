@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import {
   Sparkles, Coins, Gem, Loader2, Ticket, Star, Info, ChevronRight, Clock,
   History, Anvil, Flame, Droplet, Wind as WindIcon, Users2,
@@ -12,6 +13,7 @@ import { RARITY, ELEMENT } from "@/lib/styles";
 import { rarityFrame, GOLD, BG } from "@/lib/theme";
 import { auraClass, DecoCorners } from "@/components/RarityFx";
 import SummonRevealOverlay from "@/components/SummonRevealOverlay";
+import HeroInspectionOverlay from "@/components/HeroInspectionOverlay";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -103,6 +105,7 @@ export default function Summon() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [elementFilter, setElementFilter] = useState("ALL");
   const [rarityFilter, setRarityFilter] = useState("ALL");
+  const [inspectIndex, setInspectIndex] = useState(null);
   const [history, setHistory] = useState([]);
 
   const historyKey = `sc_summon_history_${user?.id || "me"}`;
@@ -507,22 +510,22 @@ export default function Summon() {
           <DialogTitle className="font-display text-2xl tracking-wide text-white">AVAILABLE HEROES</DialogTitle>
           <DialogDescription className="text-xs text-slate-400">Every hero currently obtainable from this banner. Owned heroes are marked.</DialogDescription>
           {/* Element filters */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none mt-2" data-testid="element-filters">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none mt-1.5" data-testid="element-filters">
             {elementFilters.map((el) => {
               const active = elementFilter === el;
               const Icon = el === "ALL" ? Sparkles : (ELEMENT_ICON[el] || Sparkles);
               const color = el === "ALL" ? "#00E5FF" : (ELEMENT[el]?.color || "#94a3b8");
               return (
                 <button key={el} onClick={() => setElementFilter(el)} data-testid={`element-filter-${el}`}
-                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all"
                   style={active ? { background: `${color}22`, color, border: `1px solid ${color}` } : { color: "rgba(148,163,184,0.8)", border: "1px solid rgba(255,255,255,0.1)" }}>
                   <Icon className="w-3.5 h-3.5" /> {el === "ALL" ? "All" : el}
                 </button>
               );
             })}
           </div>
-          {/* Rarity filters + count */}
-          <div className="flex items-center gap-1.5 flex-wrap mt-2" data-testid="rarity-filters">
+          {/* Rarity filters + prominent count */}
+          <div className="flex items-center gap-1.5 flex-wrap mt-1.5" data-testid="rarity-filters">
             {[
               { key: "ALL", label: "All Rarities" },
               { key: "GR", label: "GR" },
@@ -535,17 +538,22 @@ export default function Summon() {
               const color = rf.key === "ALL" ? "#00E5FF" : (RARITY[rf.key] || {}).color || "#94a3b8";
               return (
                 <button key={rf.key} onClick={() => setRarityFilter(rf.key)} data-testid={`rarity-filter-${rf.key}`}
-                  className="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all"
-                  style={active ? { background: `${color}22`, color, border: `1px solid ${color}` } : { color: "rgba(148,163,184,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  className="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all inline-flex items-center gap-1.5"
+                  style={active
+                    ? { background: `${color}22`, color, border: `1px solid ${color}`, boxShadow: `0 0 8px ${color}33` }
+                    : { color, border: `1px solid ${color}33`, background: `${color}08` }}>
+                  {rf.key !== "ALL" && <span className="w-2 h-2 rounded-full" style={{ background: color, opacity: active ? 1 : 0.5 }} />}
                   {rf.label}
                 </button>
               );
             })}
-            <span className="ml-auto text-[11px] font-semibold text-chakra" data-testid="available-hero-count">{availableHeroes.length} Heroes</span>
+            <span className="ml-auto inline-flex items-center gap-1.5 text-sm font-display tracking-wide text-chakra" data-testid="available-hero-count">
+              <span className="text-lg">{availableHeroes.length}</span> Heroes Available
+            </span>
           </div>
-          {/* Hero grid — 6 columns on desktop */}
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 mt-3" data-testid="available-heroes">
-            {availableHeroes.map((h) => {
+          {/* Hero grid — 6 columns on desktop, reduced card height */}
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-2" data-testid="available-heroes">
+            {availableHeroes.map((h, hIdx) => {
               const r = RARITY[h.rarity] || RARITY.R;
               const owned = (user?.ninjas || []).some((n) => n.template_id === h.id);
               const elColor = (ELEMENT[h.element] || {}).color || "#94a3b8";
@@ -557,8 +565,8 @@ export default function Summon() {
                         : r.tier >= 2 ? `0 0 5px ${r.color}33`
                         : "none";
               return (
-                <div key={h.id} className="relative rounded-lg overflow-hidden" style={{ border: `${borderW}px solid ${r.color}${r.tier >= 3 ? "cc" : "88"}`, boxShadow: glow }} data-testid={`available-hero-${h.id}`}>
-                  <div className="aspect-[3/4] bg-black/40">
+                <div key={h.id} onClick={() => setInspectIndex(hIdx)} className="relative rounded-lg overflow-hidden cursor-pointer hover:scale-[1.03] transition-transform" style={{ border: `${borderW}px solid ${r.color}${r.tier >= 3 ? "cc" : "88"}`, boxShadow: glow }} data-testid={`available-hero-${h.id}`}>
+                  <div className="aspect-[5/6] bg-black/40">
                     <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" loading="lazy" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
                   </div>
@@ -611,6 +619,15 @@ export default function Summon() {
       </Dialog>
 
       <SummonRevealOverlay open={!!reveal} results={reveal || []} onClose={() => setReveal(null)} />
+      <AnimatePresence>
+        {inspectIndex !== null && (
+          <HeroInspectionOverlay
+            heroes={availableHeroes}
+            initialIndex={inspectIndex}
+            onClose={() => setInspectIndex(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
