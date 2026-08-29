@@ -49,6 +49,7 @@ export default function HeroDetailModal({
   const [gearSlot, setGearSlot] = useState(null);
   const [busyLocal, setBusyLocal] = useState(false);
   const [immersive, setImmersive] = useState(false);
+  const [artRatio, setArtRatio] = useState(1.2);
 
   if (!template) return null;
   const rarity = RARITY[template.rarity] || RARITY.R;
@@ -152,8 +153,8 @@ export default function HeroDetailModal({
     <Dialog open={open} onOpenChange={(o) => !o && closeAll()}>
       <DialogContent
         data-testid="hero-detail-modal"
-        className="max-w-xl sm:max-w-2xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] overflow-y-auto bg-[#FFFFFF] border-0 rounded-2xl"
-        style={{ border: `${frame.strokeWidth}px solid ${frame.useGold ? GOLD.stroke : rarity.color + "66"}`, boxShadow: `0 0 60px ${(frame.useGold ? GOLD.base : rarity.color)}40` }}
+        className="dark max-w-xl sm:max-w-2xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] overflow-y-auto text-[var(--ink)] border-0 rounded-2xl"
+        style={{ backgroundColor: "var(--panel)", border: `${frame.strokeWidth}px solid ${frame.useGold ? GOLD.stroke : rarity.color + "66"}`, boxShadow: `0 0 60px ${(frame.useGold ? GOLD.base : rarity.color)}40` }}
       >
         <DialogTitle className="sr-only">{template.name}</DialogTitle>
         <DialogDescription className="sr-only">Details for {template.name}</DialogDescription>
@@ -200,10 +201,17 @@ export default function HeroDetailModal({
         ) : (
         <>
         {/* ---------- Portrait ---------- */}
-        <div className="relative h-[300px] sm:h-[400px] shrink-0">
-          <img src={template.portrait} alt={template.name} className="w-full h-full object-cover object-top" />
+        <div className="relative w-full shrink-0 overflow-hidden" style={{ aspectRatio: artRatio, maxHeight: "65vh" }}>
+          <img
+            src={template.portrait}
+            alt={template.name}
+            className="w-full h-full object-cover object-top"
+            onLoad={(e) => { const r = e.currentTarget.naturalWidth / e.currentTarget.naturalHeight; if (r && isFinite(r)) setArtRatio(Math.min(1.4, Math.max(0.7, r))); }}
+          />
           <div className="absolute inset-x-0 top-0 h-28 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${element.color}40, transparent)` }} />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#FFFFFF] via-transparent to-transparent pointer-events-none" />
+          {/* top-right scrim keeps the close button legible over bright art */}
+          <div className="absolute top-0 right-0 w-28 h-20 bg-gradient-to-bl from-black/50 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[var(--panel)] via-transparent to-transparent pointer-events-none" />
           {frame.useGold && <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />}
           {frame.cornerLevel >= 2 && <DecoCorners rarity={template.rarity} size={22} />}
           {owned && (
@@ -234,7 +242,7 @@ export default function HeroDetailModal({
               <span className="ml-auto font-display text-lg text-amber-300 flex items-center gap-1" data-testid="hero-power-label"><Zap className="w-4 h-4" />{instance.power} PWR</span>
             )}
           </div>
-          <h2 className="font-display text-4xl sm:text-6xl tracking-wide text-ink leading-none">{template.name}</h2>
+          <h2 className="font-display text-[2rem] sm:text-6xl tracking-wide text-ink leading-none break-words">{template.name}</h2>
           {template.title && <p className="text-sm sm:text-base text-chakra italic mt-1.5">{template.title}</p>}
           {template.lore && <p className="text-sm text-slate-500 italic mt-3">&ldquo;{template.lore}&rdquo;</p>}
 
