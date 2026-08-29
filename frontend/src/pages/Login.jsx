@@ -58,7 +58,7 @@ export default function Login() {
       <img
         src="/spire-assets/login-bg.png"
         alt=""
-        className="absolute inset-0 w-full h-full object-cover object-center"
+        className="absolute inset-0 w-full h-full object-contain object-center"
       />
       <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0f]/55 via-[#0a0a0f]/20 to-[#0a0a0f]/70" />
 
