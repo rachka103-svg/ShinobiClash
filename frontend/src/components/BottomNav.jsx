@@ -48,7 +48,7 @@ export default function BottomNav() {
       className="fixed bottom-0 inset-x-0 z-40 pb-[env(safe-area-inset-bottom)]"
       data-testid="bottom-nav"
     >
-      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#05050A] via-[#05050A]/85 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-[#05050A] via-[#05050A]/85 to-transparent pointer-events-none" />
       <div className="relative mx-auto max-w-lg px-3 pb-2">
         <div
           className="relative flex items-end justify-between rounded-2xl px-2 h-16 border border-black/10"

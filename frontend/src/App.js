@@ -78,7 +78,7 @@ function Shell({ children, bare }) {
       <CatalogErrorBanner />
       <GameHud />
       <main
-        className="fixed inset-x-0 top-0 bottom-0 z-10 overflow-y-auto pt-[calc(3.25rem+env(safe-area-inset-top))] pb-[calc(5.5rem+env(safe-area-inset-bottom))]"
+        className="fixed inset-x-0 top-0 bottom-0 z-10 overflow-y-auto pt-[calc(3.25rem+env(safe-area-inset-top))] pb-[calc(6.5rem+env(safe-area-inset-bottom))]"
         data-testid="app-main"
       >
         {children}

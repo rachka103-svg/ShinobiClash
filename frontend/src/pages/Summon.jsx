@@ -255,7 +255,7 @@ export default function Summon() {
               </div>
 
               {/* Rate-up hero — pinned toward the bottom, gold-accented separator */}
-              <div className="mt-auto pl-3 border-l-2" style={{ borderColor: `${GOLD.base}55` }}>
+              <div className="mt-auto">
                 <div className="flex items-center gap-2 mb-1">
                   <Stars rarity={featuredHero.rarity} className="w-3.5 h-3.5" />
                   <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400">Rate-Up Hero</p>
@@ -413,15 +413,23 @@ export default function Summon() {
                 const r = RARITY[h.rarity] || RARITY.R;
                 const fr = rarityFrame(h.rarity);
                 const isGR = h.rarity === "GR";
-                // Rarity-scaled glow: higher tiers get a stronger tinted glow
-                const glow = fr.tier >= 4 ? `0 0 10px ${r.color}77` : fr.tier >= 3 ? `0 0 7px ${r.color}55` : fr.tier >= 2 ? `0 0 4px ${r.color}44` : "none";
+                // Rarity-scaled glow + border: each tier visually distinct
+                const glow = isGR
+                  ? `0 0 12px ${r.color}88, 0 0 24px ${r.color}44`
+                  : fr.tier >= 3 ? `0 0 10px ${r.color}66, 0 0 20px ${r.color}22`
+                  : fr.tier >= 2 ? `0 0 6px ${r.color}55`
+                  : fr.tier >= 1 ? `0 0 3px ${r.color}33`
+                  : "none";
                 return (
                   <div key={h.id} className={`relative rounded-lg overflow-hidden ${isGR ? "godly-border" : ""}`} style={{ border: `${fr.strokeWidth}px solid ${fr.strokeColor}`, boxShadow: glow }}>
+                    {/* Rarity top accent strip */}
+                    <div className="absolute top-0 inset-x-0 h-0.5 z-20" style={{ background: r.color, opacity: fr.tier >= 2 ? 1 : 0.5 }} />
                     <div className="aspect-[3/4] bg-black/40">
                       <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" loading="lazy" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 to-transparent" />
                     </div>
-                    <span className="absolute top-0.5 right-0.5 text-[8px] font-display px-1 rounded" style={{ background: r.color, color: "#05050A" }}>{r.label}</span>
+                    {fr.cornerLevel >= 2 && <DecoCorners rarity={h.rarity} size={10} />}
+                    <span className="absolute top-1 right-1 z-20 text-[8px] font-display px-1 rounded" style={{ background: r.color, color: "#05050A" }}>{r.label}</span>
                     <p className="absolute bottom-0.5 inset-x-1 text-[9px] font-display text-white truncate">{h.name}</p>
                   </div>
                 );
@@ -580,13 +588,13 @@ const PullButton = ({ label, icon: Icon, amount, unit, color, ribbon, sub, prima
         : "flex-col items-center justify-center gap-1 py-3.5 px-2 rounded-2xl"
     } ${primary ? "shine-sweep" : ""}`}
     style={primary
-      ? { background: "linear-gradient(135deg,#3a2a08,#1a1406)", border: "1.5px solid #FFCA2866", boxShadow: "0 0 24px #FFCA2822" }
-      : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)" }}>
+      ? { background: "linear-gradient(135deg,#4a3408,#1a1406)", border: "2px solid #FFCA28aa", boxShadow: "0 0 32px #FFCA2844, 0 0 64px #FFCA2822, inset 0 0 16px rgba(255,202,40,0.08)" }
+      : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.10)" }}>
     {ribbon && (
       <span className="absolute top-0 right-0 text-[9px] font-extrabold tracking-wider px-1.5 py-0.5 rounded-bl-lg" style={{ background: "#FFCA28", color: "#05050A" }}>{ribbon}</span>
     )}
-    <span className="flex items-center gap-1.5 font-display text-base sm:text-lg tracking-wider text-white leading-none">
-      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" style={{ color: primary ? "#FFCA28" : color }} />}
+    <span className={`flex items-center gap-1.5 font-display tracking-wider text-white leading-none ${primary ? "text-lg sm:text-xl" : "text-base sm:text-lg"}`}>
+      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className={`w-4 h-4 ${primary ? "sm:w-5 sm:h-5" : ""}`} style={{ color: primary ? "#FFCA28" : color }} />}
       {label}
     </span>
     <span className="flex items-center gap-1 text-sm font-bold leading-none" style={{ color }}>
