@@ -5,7 +5,9 @@ import { ENERGY_COST } from "@/lib/energy";
 // Uploaded environmental background images, keyed by trial id. When an
 // image is present it replaces the vector placeholder (object-fit: cover).
 const BG_IMAGE = {
+  t_scroll: "/spire-assets/scroll-sanctum.png",
   t_crystal: "/spire-assets/crystal-cavern.png",
+  t_gold: "/spire-assets/gold-vault.png",
 };
 
 /**
