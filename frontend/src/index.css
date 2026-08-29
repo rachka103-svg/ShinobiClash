@@ -436,38 +436,3 @@ html, body {
 .dark [class~="text-slate-600"] { color: #94a3b8; }
 .dark [class~="text-slate-700"] { color: #cbd5e1; }
 .dark [class~="placeholder-slate-600"]::placeholder { color: #64748b; }
-
-/* ==========================================================================
-   COMMAND CENTER (Home) — CSS-only decoration. No image assets.
-   Faint grid, diagonal lines, floating particles, abstract energy rings.
-   All kept well under 10% opacity for atmosphere without distraction.
-   ========================================================================== */
-.cmd-grid {
-    background-image:
-        linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
-    background-size: 46px 46px;
-}
-.cmd-diag {
-    background-image: repeating-linear-gradient(135deg, rgba(125, 38, 205, 0.05) 0 1px, transparent 1px 16px);
-}
-.cmd-diag-orange {
-    background-image: repeating-linear-gradient(135deg, rgba(255, 87, 34, 0.05) 0 1px, transparent 1px 18px);
-}
-@keyframes cmdFloat {
-    0%   { transform: translateY(8px) scale(0.6); opacity: 0; }
-    40%  { opacity: 0.85; }
-    100% { transform: translateY(-46px) scale(1); opacity: 0; }
-}
-.cmd-particle {
-    position: absolute;
-    width: 3px; height: 3px;
-    border-radius: 9999px;
-    background: var(--p-color, #9d4eff);
-    box-shadow: 0 0 6px var(--p-color, #9d4eff);
-    animation: cmdFloat var(--p-dur, 7s) ease-in-out infinite;
-    animation-delay: var(--p-delay, 0s);
-}
-@keyframes cmdSpin { to { transform: rotate(360deg); } }
-.cmd-ring { animation: cmdSpin var(--ring-dur, 26s) linear infinite; }
-.cmd-ring-rev { animation: cmdSpin var(--ring-dur, 34s) linear infinite reverse; }
