@@ -10,6 +10,7 @@ import { useGame } from "@/context/GameContext";
 import { RARITY, ELEMENT, rarityFrame, GOLD } from "@/lib/theme";
 import { DecoCorners } from "@/components/RarityFx";
 import HeroDetailModal from "@/components/HeroDetailModal";
+import { useAudio } from "@/context/AudioContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
 const EL_ICON = { Fire: Flame, Water: Droplet, Wind: WindIcon, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: Sun };
@@ -32,6 +33,7 @@ const StarRow = ({ n = 1, max = 6 }) => (
 export default function TeamBuilder() {
   const { user, setUser } = useAuth();
   const { catalogById, items } = useGame();
+  const { playSfx } = useAudio();
   const [team, setTeam] = useState(user?.team || []);
   const [busy, setBusy] = useState(false);
   const [pBusy, setPBusy] = useState(false);
@@ -112,8 +114,10 @@ export default function TeamBuilder() {
     try {
       const { data } = await api.post("/game/hero/use-exp", { instance_id: detailId, item_id: itemId, qty: Math.max(1, qty) });
       setUser(data.profile);
+      playSfx(data.levels_gained > 0 ? "levelup" : "coin");
       toast.success(data.levels_gained > 0 ? `Leveled up +${data.levels_gained}!` : "EXP applied");
     } catch (err) {
+      playSfx("error");
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setPBusy(false); }
   };
@@ -122,8 +126,10 @@ export default function TeamBuilder() {
     try {
       const { data } = await api.post("/game/hero/ascend", { instance_id: detailId });
       setUser(data);
+      playSfx("levelup");
       toast.success("Ascended! Level cap raised.");
     } catch (err) {
+      playSfx("error");
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setPBusy(false); }
   };

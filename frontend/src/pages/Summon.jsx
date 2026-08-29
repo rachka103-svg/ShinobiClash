@@ -663,7 +663,7 @@ export default function Summon() {
 // Sub-components
 // --------------------------------------------------------------------------
 const PullButton = ({ label, icon: Icon, amount, unit, color, ribbon, sub, primary, slim, disabled, busy, onClick, testid }) => (
-  <button onClick={onClick} disabled={disabled} data-testid={testid}
+  <button onClick={onClick} disabled={disabled} data-testid={testid} data-sfx="summon"
     className={`relative flex overflow-hidden transition-all disabled:opacity-40 ${
       slim
         ? "items-center justify-center gap-2 py-2.5 px-3 rounded-xl flex-row w-full"

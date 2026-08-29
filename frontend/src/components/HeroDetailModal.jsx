@@ -13,6 +13,7 @@ import { RarityBadge } from "@/components/RarityBadge";
 import { ItemIcon } from "@/components/ItemIcon";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
+import { useAudio } from "@/context/AudioContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
 const Stat = ({ icon: Icon, label, value, color }) => (
@@ -44,6 +45,7 @@ export default function HeroDetailModal({
 }) {
   const { user, setUser } = useAuth();
   const { gearConfig, items, expTomeGoldCost, reforgeModifiers, reforgeMaxPerJutsu } = useGame();
+  const { playSfx } = useAudio();
   const [tab, setTab] = useState("train");
   const [qty, setQty] = useState(1);
   const [gearSlot, setGearSlot] = useState(null);
@@ -72,8 +74,10 @@ export default function HeroDetailModal({
     try {
       const { data } = await api.post("/game/hero/evolve", { instance_id: instance.instance_id });
       setUser(data.profile);
+      playSfx("levelup");
       toast.success(`Evolved to ${data.stars}\u2605! Permanent stat surge unlocked.`);
     } catch (err) {
+      playSfx("error");
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setBusyLocal(false); }
   };
@@ -88,8 +92,10 @@ export default function HeroDetailModal({
     try {
       const { data } = await api.post("/game/hero/skill-up", { instance_id: instance.instance_id });
       setUser(data.profile);
+      playSfx("levelup");
       toast.success(data.unlocked_passive ? "Passive Unlocked!" : `Skills raised to Rank ${data.skill_rank}!`);
     } catch (err) {
+      playSfx("error");
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setBusyLocal(false); }
   };
@@ -107,8 +113,10 @@ export default function HeroDetailModal({
     try {
       const { data } = await api.post("/game/hero/reforge", { instance_id: instance.instance_id, jutsu_id: jutsuId, modifier_id: modId });
       setUser(data.profile);
+      playSfx("success");
       toast.success(`${reforgeMods[modId]?.name || "Reforge"} applied!`);
     } catch (err) {
+      playSfx("error");
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setBusyLocal(false); }
   };

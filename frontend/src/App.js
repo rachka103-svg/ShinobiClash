@@ -6,7 +6,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { GameProvider, useGame } from "@/context/GameContext";
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import ServerGate from "@/components/ServerGate";
-import BgmPlayer from "@/components/BgmPlayer";
+import { AudioProvider } from "@/context/AudioContext";
 import GameHud from "@/components/GameHud";
 import BottomNav from "@/components/BottomNav";
 import Login from "@/pages/Login";
@@ -148,15 +148,16 @@ export default function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
-        <ServerGate>
-          <AuthProvider>
-            <GameProvider>
-              <AppRoutes />
-              <ThemedToaster />
-            </GameProvider>
-          </AuthProvider>
-        </ServerGate>
-        <BgmPlayer />
+        <AudioProvider>
+          <ServerGate>
+            <AuthProvider>
+              <GameProvider>
+                <AppRoutes />
+                <ThemedToaster />
+              </GameProvider>
+            </AuthProvider>
+          </ServerGate>
+        </AudioProvider>
       </ThemeProvider>
     </BrowserRouter>
   );

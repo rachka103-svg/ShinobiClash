@@ -12,6 +12,7 @@ import BattleUltimate from "@/components/cinematic/BattleUltimate";
 import BattleVictory from "@/components/cinematic/BattleVictory";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
+import { useAudio } from "@/context/AudioContext";
 import {
   buildCombatant, buildOrder, resolveDamage, resolveOnHitEffects, resolveDeath,
   tickStatuses, applyBattleStartPassives, checkBossPhaseTransitions, makeEvent, spireEnemies,
@@ -62,6 +63,7 @@ export default function Battle() {
   const navigate = useNavigate();
   const { user, setUser } = useAuth();
   const { catalogById, advantage, stages, items, trials, catalog, bossMechanics } = useGame();
+  const { playSfx } = useAudio();
 
   // Arena opponents are ephemeral (frozen snapshots) — stashed in
   // sessionStorage by the Arena page right before navigating in here, since
@@ -250,6 +252,7 @@ export default function Battle() {
   const applyAction = useCallback((actor, jutsu, targetUid) => {
     actionLockRef.current = true;
     setPhase("busy");
+    playSfx(jutsu.type === "heal" ? "heal" : jutsu.type === "shield" ? "shield" : "hit");
     // Cinematic: capture action info for attack FX
     actionCounterRef.current += 1;
     const isUltimate = jutsu.chakra_cost >= 70;
@@ -369,7 +372,7 @@ export default function Battle() {
     } else {
       advance(arr);
     }
-  }, [advantage, advance, bossMechanics, ms]);
+  }, [advantage, advance, bossMechanics, ms, playSfx]);
 
   // ---------- enemy AI ----------
   useEffect(() => {
@@ -403,6 +406,7 @@ export default function Battle() {
   useEffect(() => {
     if ((phase === "win" || phase === "lose") && !reportedRef.current) {
       reportedRef.current = true;
+      playSfx(phase === "win" ? "win" : "lose");
       pushEvents([makeEvent(phase === "win" ? "VICTORY" : "DEFEAT", {})]);
       const allyCombs = combRef.current.filter((c) => c.side === "ally");
       const participants = allyCombs.map((c) => c.instanceId).filter(Boolean);
@@ -423,7 +427,7 @@ export default function Battle() {
         })
         .catch(() => setResultData({ result: phase }));
     }
-  }, [phase]);
+  }, [phase, playSfx]);
 
   // ---------- player input ----------
   const onJutsuClick = (jutsu) => {
