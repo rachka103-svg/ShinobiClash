@@ -54,13 +54,13 @@ export default function Login() {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#0a0a0f]">
-      {/* Susanoo background */}
+      {/* single full-screen cinematic background */}
       <img
         src="/spire-assets/login-bg.png"
         alt=""
-        className="absolute inset-0 w-full h-full object-contain object-center"
+        className="absolute inset-0 w-full h-full object-cover object-center"
       />
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0f]/55 via-[#0a0a0f]/20 to-[#0a0a0f]/70" />
+      <div className="absolute inset-0 bg-[#0a0a0f]/35" />
 
       {/* top-left mini logo */}
       <div className="absolute top-5 left-6 z-20 flex flex-col items-center gap-1 select-none">
@@ -79,26 +79,26 @@ export default function Login() {
         {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       </button>
 
-      {/* login card */}
+      {/* login card — refined floating glass panel */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="relative z-10 w-full max-w-md rounded-2xl p-8 backdrop-blur-xl"
+        className="relative z-10 w-full max-w-[26rem] rounded-2xl p-7 backdrop-blur-md md:ml-10"
         style={{
-          background: "rgba(26,22,37,0.82)",
-          border: "1px solid rgba(125,38,205,0.35)",
-          boxShadow: "0 0 50px rgba(125,38,205,0.18)",
+          background: "rgba(18, 16, 30, 0.88)",
+          border: "1px solid rgba(157, 78, 255, 0.22)",
+          boxShadow: "0 8px 40px rgba(125, 38, 205, 0.12)",
         }}
         data-testid="auth-panel"
       >
         {/* header */}
-        <div className="flex flex-col items-center mb-7">
-          <Swords className="w-10 h-10 mb-2" style={{ color: PURPLE_LIGHT }} />
-          <h1 className="font-display text-4xl tracking-wider text-white">
+        <div className="flex flex-col items-center mb-8">
+          <Swords className="w-10 h-10 mb-3" style={{ color: PURPLE_LIGHT }} />
+          <h1 className="font-display text-4xl tracking-wider text-slate-200">
             SHINOBI<span style={{ color: PURPLE_LIGHT }}>CLASH</span>
           </h1>
-          <p className="text-slate-400 text-sm mt-1.5">Forge your squad. Conquer the shadow realm.</p>
+          <p className="text-slate-400 text-sm mt-2">Forge your squad. Conquer the shadow realm.</p>
         </div>
 
         {/* tabs */}
@@ -154,8 +154,8 @@ export default function Login() {
             type="submit"
             disabled={busy}
             data-testid="auth-submit-button"
-            className="w-full py-3 rounded-lg font-display text-lg tracking-wider text-white transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-            style={{ background: `linear-gradient(90deg, ${PURPLE}, ${PURPLE_LIGHT})`, boxShadow: `0 0 18px ${PURPLE}55` }}
+            className="w-full py-3 rounded-lg font-display text-lg tracking-wider text-white transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-[0_0_18px_rgba(125,38,205,0.3)] hover:shadow-[0_0_26px_rgba(168,85,247,0.5)]"
+            style={{ background: "linear-gradient(90deg, #5b21b6, #a855f7)" }}
           >
             {busy && <Loader2 className="w-5 h-5 animate-spin" />}
             {mode === "login" ? "ENTER THE VILLAGE" : "BEGIN YOUR JOURNEY"}
@@ -173,8 +173,8 @@ export default function Login() {
           onClick={quickLogin}
           disabled={busy}
           data-testid="quick-login-button"
-          className="w-full py-3 rounded-lg font-display text-lg tracking-wider transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-          style={{ background: "transparent", border: `1px solid ${PURPLE}88`, color: PURPLE_LIGHT }}
+          className="w-full py-3 rounded-lg font-display text-lg tracking-wider transition-all disabled:opacity-60 flex items-center justify-center gap-2 hover:shadow-[0_0_16px_rgba(125,38,205,0.35)]"
+          style={{ background: "rgba(10,10,15,0.55)", border: "1px solid rgba(139,92,246,0.45)", color: "#c4b5fd" }}
         >
           {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
           QUICK PLAY — DEMO
@@ -188,10 +188,10 @@ export default function Login() {
       </motion.div>
 
       {/* footer */}
-      <div className="absolute bottom-4 left-0 right-0 z-10 flex items-center justify-center gap-2 text-[11px] text-slate-500">
-        <span className="inline-block w-1.5 h-1.5 rotate-45 bg-purple-500/40" />
+      <div className="absolute bottom-4 left-0 right-0 z-10 flex items-center justify-center gap-2 text-[11px] text-slate-400">
+        <span className="inline-block w-1.5 h-1.5 rotate-45 bg-purple-400/60" />
         © 2025 SHINOBI CLASH. All Rights Reserved.
-        <span className="inline-block w-1.5 h-1.5 rotate-45 bg-purple-500/40" />
+        <span className="inline-block w-1.5 h-1.5 rotate-45 bg-purple-400/60" />
       </div>
     </div>
   );

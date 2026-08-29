@@ -268,44 +268,14 @@ html, body {
     box-shadow: 0 0 18px rgba(255, 202, 40, 0.18), inset 0 0 12px rgba(255, 202, 40, 0.10);
 }
 
-/* Art-Deco corner ornaments. Level + color driven by the rarity frame.
-   L-shaped stepped brackets (deco, not floral); higher tiers add diamond
-   studs. Kept tight so glows never merge across grid cells. */
+/* Rarity-scaled corner ornaments — rendered as SVG flourishes by DecoCorners
+   (one distinct design per level). This rule only positions the container. */
 .deco-corners {
     position: absolute;
     inset: 0;
     pointer-events: none;
     z-index: 12;
 }
-.deco-corners > i {
-    position: absolute;
-    width: var(--corner-size, 14px);
-    height: var(--corner-size, 14px);
-    border: 0 solid var(--corner-color, #fff);
-    filter: drop-shadow(0 0 4px var(--corner-color, #fff));
-    opacity: 0.92;
-}
-.deco-corners > i:nth-child(1) { top: 5px; left: 5px; border-top-width: 2px; border-left-width: 2px; border-top-left-radius: 4px; }
-.deco-corners > i:nth-child(2) { top: 5px; right: 5px; border-top-width: 2px; border-right-width: 2px; border-top-right-radius: 4px; }
-.deco-corners > i:nth-child(3) { bottom: 5px; left: 5px; border-bottom-width: 2px; border-left-width: 2px; border-bottom-left-radius: 4px; }
-.deco-corners > i:nth-child(4) { bottom: 5px; right: 5px; border-bottom-width: 2px; border-right-width: 2px; border-bottom-right-radius: 4px; }
-.deco-corners > b {
-    position: absolute;
-    width: 5px;
-    height: 5px;
-    background: var(--corner-color, #fff);
-    transform: rotate(45deg);
-    box-shadow: 0 0 6px var(--corner-color, #fff);
-}
-.deco-corners > b:nth-of-type(1) { top: 3px; left: calc(50% - 2.5px); }
-.deco-corners > b:nth-of-type(2) { bottom: 3px; left: calc(50% - 2.5px); }
-.deco-corners > b:nth-of-type(3) { left: 3px; top: calc(50% - 2.5px); }
-.deco-corners > b:nth-of-type(4) { right: 3px; top: calc(50% - 2.5px); }
-/* Level 5 (Godly / GR) — diagonal corner studs for extra ornamentation */
-.deco-corners > b:nth-of-type(5) { top: 8px; left: 8px; }
-.deco-corners > b:nth-of-type(6) { top: 8px; right: 8px; }
-.deco-corners > b:nth-of-type(7) { bottom: 8px; left: 8px; }
-.deco-corners > b:nth-of-type(8) { bottom: 8px; right: 8px; }
 
 .grain::before {
     content: "";

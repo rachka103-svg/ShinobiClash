@@ -16,10 +16,10 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
   const frameStyle = selected
     ? { border: `2px solid ${edge}` }
     : fr.isGodly
-      ? { border: `3px solid ${GODLY.base}`, "--glow": GODLY.base }
+      ? { border: `2px solid ${GODLY.base}`, "--glow": GODLY.base, boxShadow: "inset 0 0 0 1px rgba(100,255,218,0.28)" }
       : elite
         ? { border: `2px solid ${edge}`, "--glow": fr.useGold ? GOLD.base : `${rarity.color}${tier >= 4 ? "cc" : tier >= 3 ? "aa" : "88"}` }
-        : { border: `1.5px solid ${rarity.color}`, boxShadow: `0 0 ${5 + tier * 4}px ${rarity.color}55, inset 0 0 14px ${rarity.color}1f` };
+        : { border: `${tier >= 1 ? 1.5 : 1}px solid ${rarity.color}`, boxShadow: `0 0 ${5 + tier * 4}px ${rarity.color}55, inset 0 0 14px ${rarity.color}1f` };
   return (
     <motion.button
       type="button"
@@ -43,7 +43,7 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
         {!disabled && <RaritySparkles rarity={ninja.rarity} />}
         {tier >= 4 && !disabled && <span className="absolute inset-0 shine-sweep pointer-events-none" />}
-        {fr.cornerLevel >= 2 && !disabled && <DecoCorners rarity={ninja.rarity} size={16} />}
+        {fr.cornerLevel >= 1 && !disabled && <DecoCorners rarity={ninja.rarity} size={16} />}
         {ninja.level != null && (
           <span className="absolute bottom-1.5 right-1.5 font-display text-base text-white glow-text-cyan">Lv.{ninja.level}</span>
         )}
