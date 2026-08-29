@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Coins, Gem, Trophy, Skull, ArrowRight, Flame, Bot, Gauge, Settings } from "lucide-react";
+import { Zap, Trophy, ArrowRight, Bot, Gauge, Settings } from "lucide-react";
+import { CoinsIcon, GemsIcon, SkullIcon } from "@/components/GameIcons";
 import BattleFighter from "@/components/BattleFighter";
 import BattleCommandPanel from "@/components/BattleCommandPanel";
 import { BattleTurnOrder, BattleInfoPanel } from "@/components/BattleSidePanels";
@@ -524,16 +525,16 @@ export default function Battle() {
             <motion.div initial={{ scale: 0.7, y: 30 }} animate={{ scale: 1, y: 0 }} className="panel rounded-2xl p-8 text-center max-w-sm w-full">
               <div className="relative w-20 h-20 mx-auto mb-1 flex items-center justify-center rounded-full"
                 style={{ background: phase === "win" ? "radial-gradient(circle, rgba(255,202,40,0.22), transparent 70%)" : "radial-gradient(circle, rgba(255,87,34,0.18), transparent 70%)" }}>
-                {phase === "win" ? <Trophy className="w-14 h-14 text-amber-500" /> : <Skull className="w-14 h-14 text-fox" />}
+                {phase === "win" ? <Trophy className="w-14 h-14 text-amber-500" /> : <SkullIcon size={56} />}
               </div>
               <h2 className="font-display text-6xl tracking-wide mt-2" style={{ color: phase === "win" ? "#E0A106" : "#FF5722" }}>
                 {phase === "win" ? "VICTORY" : "DEFEAT"}
               </h2>
               {resultData?.rewards && phase === "win" && (
                 <div className="mt-4 space-y-1.5 text-ink" data-testid="battle-rewards">
-                  <p className="flex items-center justify-center gap-2 font-semibold"><Coins className="w-4 h-4 text-amber-500" /> +{resultData.rewards.ryo} Ryo</p>
+                  <p className="flex items-center justify-center gap-2 font-semibold"><CoinsIcon size={16} /> +{resultData.rewards.ryo} Ryo</p>
                   {resultData.rewards.gems > 0 && (
-                    <p className="flex items-center justify-center gap-2 font-semibold" data-testid="reward-gems"><Gem className="w-4 h-4 text-jutsu" /> +{resultData.rewards.gems} Gems</p>
+                    <p className="flex items-center justify-center gap-2 font-semibold" data-testid="reward-gems"><GemsIcon size={16} /> +{resultData.rewards.gems} Gems</p>
                   )}
                   {resultData.rewards.exp != null && (
                     <p className="flex items-center justify-center gap-2 font-semibold"><Zap className="w-4 h-4 text-chakra" /> +{resultData.rewards.exp} Account EXP</p>
@@ -571,7 +572,7 @@ export default function Battle() {
                     <div className="mt-2 rounded-xl bg-amber-400/10 border border-amber-400/40 px-3 py-2" data-testid="reward-first-clear">
                       <p className="text-[11px] uppercase tracking-widest text-amber-700 font-bold">First-Clear Bonus</p>
                       <p className="text-sm text-ink font-semibold flex items-center justify-center gap-2 mt-0.5 flex-wrap">
-                        {resultData.rewards.first_clear_bonus.gems > 0 && <span className="flex items-center gap-1"><Gem className="w-3.5 h-3.5 text-jutsu" />+{resultData.rewards.first_clear_bonus.gems}</span>}
+                        {resultData.rewards.first_clear_bonus.gems > 0 && <span className="flex items-center gap-1"><GemsIcon size={14} />+{resultData.rewards.first_clear_bonus.gems}</span>}
                         {Object.entries(resultData.rewards.first_clear_bonus.items || {}).map(([iid, q]) => (
                           <span key={iid} className="text-xs px-2 py-0.5 rounded-md bg-black/[0.05] border border-black/10">{items[iid]?.name || iid} ×{q}</span>
                         ))}

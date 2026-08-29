@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import { rarityFrame, GOLD, GODLY } from "@/lib/theme";
 import { auraClass, RaritySparkles, DecoCorners } from "@/components/RarityFx";
+import { ElementIcon } from "@/components/ElementIcons";
 
 export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid }) => {
   // ninja: a catalog template OR an owned instance merged with template fields
@@ -49,7 +50,10 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
         {badge}
       </div>
       <div className="px-2 py-1.5">
-        <p className="font-display text-base tracking-wide text-ink truncate leading-none">{ninja.name}</p>
+        <div className="flex items-center gap-1.5">
+          <ElementIcon element={ninja.element} size={14} />
+          <p className="font-display text-base tracking-wide text-ink truncate leading-none">{ninja.name}</p>
+        </div>
         <p className="text-[11px] text-slate-500 truncate">{ninja.role}</p>
       </div>
     </motion.button>

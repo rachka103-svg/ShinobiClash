@@ -1,7 +1,9 @@
-import { Zap, Star, Package, Sword, Heart, Shield, Sparkles, Bot } from "lucide-react";
+import { Zap, Bot } from "lucide-react";
 import { ELEMENT } from "@/lib/styles";
+import { ElementIcon } from "@/components/ElementIcons";
+import { SkillAttackIcon, SkillAoeIcon, SkillHealIcon, SkillShieldIcon, SummonIcon, ItemsIcon } from "@/components/GameIcons";
 
-const SKILL_ICON = { attack: Sword, aoe: Zap, heal: Heart, shield: Shield };
+const SKILL_ICON = { attack: SkillAttackIcon, aoe: SkillAoeIcon, heal: SkillHealIcon, shield: SkillShieldIcon };
 const TARGET_TYPE = { attack: "Single Enemy", aoe: "All Enemies", heal: "Single Ally", shield: "Single Ally" };
 
 /**
@@ -26,7 +28,10 @@ export default function BattleCommandPanel({ activeActor, phase, targeting, auto
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-display text-base text-white truncate leading-none">{activeActor.name}</p>
-              <p className="text-[9px] text-slate-400 mt-0.5">Lv.{activeActor.level} · {activeActor.element} · {activeActor.role}</p>
+              <div className="flex items-center gap-1 mt-0.5">
+                <ElementIcon element={activeActor.element} size={12} />
+                <p className="text-[9px] text-slate-400">Lv.{activeActor.level} · {activeActor.element} · {activeActor.role}</p>
+              </div>
               {/* HP bar */}
               <div className="flex items-center gap-1 mt-1">
                 <div className="flex-1 h-1.5 rounded bg-black/60 overflow-hidden">
@@ -53,7 +58,7 @@ export default function BattleCommandPanel({ activeActor, phase, targeting, auto
               {activeActor.jutsus.map((j) => {
                 const usable = j.chakra_cost <= activeActor.chakra;
                 const aimed = targeting?.id === j.id;
-                const SIcon = SKILL_ICON[j.type] || Sword;
+                const SIcon = SKILL_ICON[j.type] || SkillAttackIcon;
                 return (
                   <button
                     key={j.id}
@@ -82,11 +87,11 @@ export default function BattleCommandPanel({ activeActor, phase, targeting, auto
           {/* Right: Summon + Items */}
           <div className="hidden sm:flex flex-col gap-1.5 shrink-0 w-20">
             <button className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-lg border border-amber-500/30 bg-amber-500/8 text-amber-400 hover:bg-amber-500/15 transition-colors">
-              <Star className="w-4 h-4" />
+              <SummonIcon size={16} />
               <span className="text-[10px] font-display tracking-wide">SUMMON</span>
             </button>
             <button className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-lg border border-white/15 bg-white/[0.04] text-slate-300 hover:bg-white/10 transition-colors">
-              <Package className="w-4 h-4" />
+              <ItemsIcon size={16} />
               <span className="text-[10px] font-display tracking-wide">ITEMS</span>
             </button>
           </div>

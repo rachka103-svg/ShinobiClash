@@ -1,5 +1,6 @@
 import { Skull, Flame } from "lucide-react";
 import { ELEMENT, RARITY } from "@/lib/styles";
+import { ElementIcon } from "@/components/ElementIcons";
 
 /**
  * BattleFighter — redesigned combatant card for the battle screen.
@@ -67,7 +68,10 @@ export default function BattleFighter({ c, active, shake, floaters, highlight, o
       )}
 
       {/* Name */}
-      <p className="text-xs font-semibold mt-1.5 truncate w-full text-center" style={{ color: elColor }}>{c.name.split(" ")[0]}</p>
+      <div className="flex items-center justify-center gap-1 mt-1.5">
+        <ElementIcon element={c.element} size={14} />
+        <p className="text-xs font-semibold truncate" style={{ color: elColor }}>{c.name.split(" ")[0]}</p>
+      </div>
 
       {/* HP bar + value */}
       <div className="w-full mt-0.5">

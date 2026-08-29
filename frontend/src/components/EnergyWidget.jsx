@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Zap, Gem, Loader2 } from "lucide-react";
+import { Zap, Loader2 } from "lucide-react";
+import { GemsIcon } from "@/components/GameIcons";
 
 function fmt(s) {
   if (s <= 0) return "Full";

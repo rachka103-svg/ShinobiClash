@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Castle, ChevronUp, ChevronDown, Play, Crown, Coins, Gem, Ticket, BookOpen, Swords, Zap, Check, Lock } from "lucide-react";
+import { Castle, ChevronUp, ChevronDown, Play, Ticket, BookOpen, Zap } from "lucide-react";
+import { CrownIcon, CoinsIcon, GemsIcon, SwordsIcon, CheckIcon, LockIcon } from "@/components/GameIcons";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import { spireEnemies } from "@/lib/battle";
 import { RARITY } from "@/lib/styles";
 import { startBattle, ENERGY_COST } from "@/lib/energy";
 
-const TRIAL_ICONS = { "book-open": BookOpen, gem: Gem, coins: Coins };
+const TRIAL_ICONS = { "book-open": BookOpen, gem: GemsIcon, coins: CoinsIcon };
 const SNAKE = ["self-start", "self-center", "self-end", "self-center"]; // winding "dragon's back" path
 
 export default function Spire() {
@@ -81,7 +82,7 @@ export default function Spire() {
                       boxShadow: state === "locked" ? "none" : `0 0 16px ${color}88`,
                       ["--tw-ring-color"]: "#FFCA28",
                     }}>
-                    {state === "cleared" ? <Check className="w-5 h-5" /> : state === "locked" ? <Lock className="w-4 h-4" /> : (boss ? <Crown className="w-6 h-6" /> : f)}
+                    {state === "cleared" ? <CheckIcon size={20} /> : state === "locked" ? <LockIcon size={16} /> : (boss ? <CrownIcon size={24} /> : f)}
                     {boss && state !== "locked" && <span className="absolute -bottom-1 -right-1 text-[8px] font-extrabold px-1 rounded bg-fox text-[#05050A]">BOSS</span>}
                   </div>
                   <span className="text-sm font-semibold" style={{ color: selected ? "#FFCA28" : state === "locked" ? "#4b3a6b" : color }}>Floor {f}</span>
@@ -96,7 +97,7 @@ export default function Spire() {
         <div className="lg:col-span-7 panel rounded-3xl p-6" style={{ borderLeft: `3px solid ${isBoss ? "#FF2D78" : "#D500F9"}` }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              {isBoss && <Crown className="w-6 h-6 text-fox" />}
+              {isBoss && <CrownIcon size={24} />}
               <h2 className="font-display text-4xl tracking-wide text-ink">FLOOR {floor}</h2>
               {isBoss && <span className="text-xs font-bold px-2 py-1 rounded bg-fox/20 text-fox border border-fox/40">BOSS</span>}
             </div>
@@ -125,8 +126,8 @@ export default function Spire() {
 
           <div className="flex items-center gap-3 mb-5 text-sm">
             <span className="text-slate-500">Rewards:</span>
-            <span className="flex items-center gap-1 text-amber-300"><Coins className="w-4 h-4" />{ryoReward}</span>
-            {isBoss && <span className="flex items-center gap-1 text-chakra"><Gem className="w-4 h-4" />×2</span>}
+            <span className="flex items-center gap-1 text-amber-300"><CoinsIcon size={16} />{ryoReward}</span>
+            {isBoss && <span className="flex items-center gap-1 text-chakra"><GemsIcon size={16} />×2</span>}
             {isBoss && <span className="flex items-center gap-1 text-amber-400"><Ticket className="w-4 h-4" />×1</span>}
           </div>
 
@@ -145,13 +146,13 @@ export default function Spire() {
       {/* Trials */}
       <div className="mt-8">
         <div className="flex items-center gap-2 mb-3">
-          <Swords className="w-6 h-6 text-chakra" />
+          <SwordsIcon size={24} className="text-chakra" />
           <h2 className="font-display text-3xl tracking-wide text-ink">TRIAL DUNGEONS</h2>
         </div>
         <p className="text-slate-500 text-sm mb-4">Repeatable battles — farm the materials you need to level and ascend your heroes.</p>
         <div className="grid sm:grid-cols-3 gap-4">
           {trials.map((tr, i) => {
-            const Icon = TRIAL_ICONS[tr.icon] || Coins;
+            const Icon = TRIAL_ICONS[tr.icon] || CoinsIcon;
             return (
               <motion.div key={tr.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                 className="panel rounded-xl p-5 flex flex-col" style={{ borderTop: `3px solid ${tr.color}` }} data-testid={`trial-${tr.id}`}>
