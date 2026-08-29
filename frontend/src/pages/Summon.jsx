@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Sparkles, Coins, Gem, Loader2, Ticket, Star, Info, ChevronRight, Clock,
   History, Anvil, Flame, Droplet, Wind as WindIcon, Users2,
-  Mountain, Zap, Moon, Sun, ShieldCheck, Search,
+  Mountain, Zap, Moon, Sun, ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -227,6 +227,8 @@ export default function Summon() {
               <div className="absolute inset-0" style={{ background: `radial-gradient(120% 80% at 82% 22%, ${featElement.color || "#7C4DFF"}33, transparent 60%)` }} />
               {/* Bottom scrim for footer text */}
               <div className="absolute inset-x-0 bottom-0 h-32" style={{ background: `linear-gradient(to top, ${BG.void}f2 0%, transparent 100%)` }} />
+              {/* Targeted lower-left readability boost for Rate-Up Hero info */}
+              <div className="absolute bottom-0 left-0 w-3/4 h-2/5 pointer-events-none" style={{ background: `linear-gradient(to top right, ${BG.void}f5 0%, ${BG.void}cc 40%, transparent 100%)` }} />
             </div>
 
             <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />
@@ -244,6 +246,7 @@ export default function Summon() {
               </div>
 
               <div className="mt-3 max-w-[92%] sm:max-w-[70%]">
+                <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500 mb-1">Limited Summon Banner</p>
                 <h1 className="font-display leading-[0.86] tracking-wide">
                   <span className="block text-3xl sm:text-5xl text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(180deg, #fff, ${featRarity.color})` }}>{theme.name.split(" ")[0]}</span>
                   <span className="block text-2xl sm:text-4xl text-slate-200">{theme.name.split(" ").slice(1).join(" ")}</span>
@@ -251,8 +254,8 @@ export default function Summon() {
                 <p className="text-sm text-slate-400 mt-2 max-w-md">{theme.tagline}</p>
               </div>
 
-              {/* Rate-up hero — pinned toward the bottom */}
-              <div className="mt-auto">
+              {/* Rate-up hero — pinned toward the bottom, gold-accented separator */}
+              <div className="mt-auto pl-3 border-l-2" style={{ borderColor: `${GOLD.base}55` }}>
                 <div className="flex items-center gap-2 mb-1">
                   <Stars rarity={featuredHero.rarity} className="w-3.5 h-3.5" />
                   <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400">Rate-Up Hero</p>
@@ -273,15 +276,6 @@ export default function Summon() {
                     ))}
                   </div>
                 )}
-
-                {/* Details button */}
-                <button
-                  onClick={() => setFeaturedOpen(true)}
-                  className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-200 hover:text-white transition-colors"
-                  style={{ border: `1px solid ${GOLD.base}44`, background: `${GOLD.base}0d` }}
-                >
-                  <Search className="w-3.5 h-3.5" style={{ color: GOLD.base }} /> Details
-                </button>
 
                 {/* Featured mini-row */}
                 <div className="flex items-center gap-2 mt-3">
@@ -418,8 +412,11 @@ export default function Summon() {
               {featuredAll.map((h) => {
                 const r = RARITY[h.rarity] || RARITY.R;
                 const fr = rarityFrame(h.rarity);
+                const isGR = h.rarity === "GR";
+                // Rarity-scaled glow: higher tiers get a stronger tinted glow
+                const glow = fr.tier >= 4 ? `0 0 10px ${r.color}77` : fr.tier >= 3 ? `0 0 7px ${r.color}55` : fr.tier >= 2 ? `0 0 4px ${r.color}44` : "none";
                 return (
-                  <div key={h.id} className="relative rounded-lg overflow-hidden" style={{ border: `${fr.strokeWidth}px solid ${fr.strokeColor}` }}>
+                  <div key={h.id} className={`relative rounded-lg overflow-hidden ${isGR ? "godly-border" : ""}`} style={{ border: `${fr.strokeWidth}px solid ${fr.strokeColor}`, boxShadow: glow }}>
                     <div className="aspect-[3/4] bg-black/40">
                       <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" loading="lazy" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 to-transparent" />
