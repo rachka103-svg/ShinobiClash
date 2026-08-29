@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Sparkles, Coins, Gem, Loader2, Ticket, Star, Info, ChevronRight, Clock,
   History, Anvil, Flame, Droplet, Wind as WindIcon, Users2,
-  Mountain, Zap, Moon, Sun, ShieldCheck,
+  Mountain, Zap, Moon, Sun, ShieldCheck, Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -102,6 +102,7 @@ export default function Summon() {
   const [availableOpen, setAvailableOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [elementFilter, setElementFilter] = useState("ALL");
+  const [rarityFilter, setRarityFilter] = useState("ALL");
   const [history, setHistory] = useState([]);
 
   const historyKey = `sc_summon_history_${user?.id || "me"}`;
@@ -158,9 +159,9 @@ export default function Summon() {
   // ----- Available heroes (dialog) -----
   const availableHeroes = useMemo(() => {
     return [...catalog]
-      .filter((c) => elementFilter === "ALL" || c.element === elementFilter)
+      .filter((c) => (elementFilter === "ALL" || c.element === elementFilter) && (rarityFilter === "ALL" || c.rarity === rarityFilter))
       .sort((a, b) => RARITY_ORDER[b.rarity] - RARITY_ORDER[a.rarity] || a.name.localeCompare(b.name));
-  }, [catalog, elementFilter]);
+  }, [catalog, elementFilter, rarityFilter]);
   const elementFilters = ["ALL", ...Array.from(new Set(catalog.map((c) => c.element)))];
 
   const countdown = useCountdown(useMemo(nextWeeklyReset, []));
@@ -502,10 +503,11 @@ export default function Summon() {
       </Dialog>
 
       <Dialog open={availableOpen} onOpenChange={setAvailableOpen}>
-        <DialogContent className="max-w-2xl bg-[#0B0B14] border border-white/12 rounded-2xl max-h-[85vh] overflow-y-auto" data-testid="available-dialog">
+        <DialogContent className="max-w-6xl w-[75%] bg-[#0B0B14] border border-[#3e3626] rounded-2xl max-h-[85vh] overflow-y-auto" data-testid="available-dialog">
           <DialogTitle className="font-display text-2xl tracking-wide text-white">AVAILABLE HEROES</DialogTitle>
           <DialogDescription className="text-xs text-slate-400">Every hero currently obtainable from this banner. Owned heroes are marked.</DialogDescription>
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none" data-testid="element-filters">
+          {/* Element filters */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none mt-2" data-testid="element-filters">
             {elementFilters.map((el) => {
               const active = elementFilter === el;
               const Icon = el === "ALL" ? Sparkles : (ELEMENT_ICON[el] || Sparkles);
@@ -519,24 +521,60 @@ export default function Summon() {
               );
             })}
           </div>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5 mt-1" data-testid="available-heroes">
+          {/* Rarity filters + count */}
+          <div className="flex items-center gap-1.5 flex-wrap mt-2" data-testid="rarity-filters">
+            {[
+              { key: "ALL", label: "All Rarities" },
+              { key: "GR", label: "GR" },
+              { key: "UR", label: "Legendary" },
+              { key: "SSR", label: "Epic" },
+              { key: "SR", label: "Rare" },
+              { key: "R", label: "Common" },
+            ].map((rf) => {
+              const active = rarityFilter === rf.key;
+              const color = rf.key === "ALL" ? "#00E5FF" : (RARITY[rf.key] || {}).color || "#94a3b8";
+              return (
+                <button key={rf.key} onClick={() => setRarityFilter(rf.key)} data-testid={`rarity-filter-${rf.key}`}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all"
+                  style={active ? { background: `${color}22`, color, border: `1px solid ${color}` } : { color: "rgba(148,163,184,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  {rf.label}
+                </button>
+              );
+            })}
+            <span className="ml-auto text-[11px] font-semibold text-chakra" data-testid="available-hero-count">{availableHeroes.length} Heroes</span>
+          </div>
+          {/* Hero grid — 6 columns on desktop */}
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 mt-3" data-testid="available-heroes">
             {availableHeroes.map((h) => {
               const r = RARITY[h.rarity] || RARITY.R;
-              const fr = rarityFrame(h.rarity);
               const owned = (user?.ninjas || []).some((n) => n.template_id === h.id);
+              const elColor = (ELEMENT[h.element] || {}).color || "#94a3b8";
+              const EIcon = ELEMENT_ICON[h.element] || Sparkles;
+              // Rarity-specific border + glow (NOT all-gold)
+              const borderW = r.tier >= 3 ? 2 : 1.5;
+              const glow = r.tier >= 4 ? `0 0 10px ${r.color}66, 0 0 20px ${r.color}33`
+                        : r.tier >= 3 ? `0 0 8px ${r.color}55, 0 0 16px ${r.color}22`
+                        : r.tier >= 2 ? `0 0 5px ${r.color}33`
+                        : "none";
               return (
-                <div key={h.id} className={`relative rounded-lg overflow-hidden ${auraClass(h.rarity)}`} style={{ border: `${fr.strokeWidth}px solid ${fr.strokeColor}`, "--glow": fr.useGold ? GOLD.base : r.color }} data-testid={`available-hero-${h.id}`}>
-                  <span className="absolute top-1 right-1 z-10 text-[9px] font-display px-1 rounded" style={{ background: r.color, color: "#05050A" }}>{r.label}</span>
-                  {owned && <span className="absolute top-1 left-1 z-10 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center text-white"><ShieldCheck className="w-2.5 h-2.5" /></span>}
+                <div key={h.id} className="relative rounded-lg overflow-hidden" style={{ border: `${borderW}px solid ${r.color}${r.tier >= 3 ? "cc" : "88"}`, boxShadow: glow }} data-testid={`available-hero-${h.id}`}>
                   <div className="aspect-[3/4] bg-black/40">
                     <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" loading="lazy" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
                   </div>
-                  {fr.cornerLevel >= 2 && <DecoCorners rarity={h.rarity} size={11} />}
-                  <div className="absolute bottom-1 inset-x-1.5">
-                    <p className="text-[10px] font-display text-white truncate">{h.name}</p>
+                  {/* Rarity badge — top left */}
+                  <span className="absolute top-1 left-1 z-20 text-[9px] font-display px-1.5 py-0.5 rounded" style={{ color: r.color, background: `${r.color}22`, border: `1px solid ${r.color}55` }}>{r.label}</span>
+                  {/* Element icon — top right */}
+                  <span className="absolute top-1 right-1 z-20 w-5 h-5 rounded flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)" }}>
+                    <EIcon className="w-3 h-3" style={{ color: elColor }} />
+                  </span>
+                  {/* Name + stars — bottom left */}
+                  <div className="absolute bottom-1 left-1 right-6 z-20">
+                    <p className="text-[10px] font-display text-white truncate leading-tight">{h.name}</p>
                     <Stars rarity={h.rarity} className="w-2.5 h-2.5" />
                   </div>
+                  {/* Owned checkmark — bottom right */}
+                  {owned && <span className="absolute bottom-1 right-1 z-20 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "#00E5FF" }}><Check className="w-2.5 h-2.5 text-[#05050A]" /></span>}
                 </div>
               );
             })}
