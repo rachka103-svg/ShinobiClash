@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Trophy, ArrowRight, Bot, Gauge, Settings } from "lucide-react";
-import { CoinsIcon, GemsIcon, SkullIcon } from "@/components/GameIcons";
+import { Bot, Gauge, Settings } from "lucide-react";
 import BattleFighter from "@/components/BattleFighter";
 import BattleCommandPanel from "@/components/BattleCommandPanel";
 import { BattleTurnOrder, BattleInfoPanel } from "@/components/BattleSidePanels";
+import BattlefieldEnv from "@/components/cinematic/BattlefieldEnv";
+import BattleEntry from "@/components/cinematic/BattleEntry";
+import BattleTurnAnnounce from "@/components/cinematic/BattleTurnAnnounce";
+import BattleAttackFx from "@/components/cinematic/BattleAttackFx";
+import BattleUltimate from "@/components/cinematic/BattleUltimate";
+import BattleVictory from "@/components/cinematic/BattleVictory";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import {
@@ -103,6 +107,13 @@ export default function Battle() {
   const [events, setEvents] = useState([]); // structured combat event log (Phase 3B) — for future VFX/animation
   const [auto, setAutoState] = useState(() => { try { return localStorage.getItem("sc_battle_auto") === "1"; } catch { return false; } });
   const [speed, setSpeedState] = useState(() => { try { return Number(localStorage.getItem("sc_battle_speed")) || 1; } catch { return 1; } });
+
+  // --- Cinematic state ---
+  const [introDone, setIntroDone] = useState(false);
+  const [cinematicAction, setCinematicAction] = useState(null); // { key, jutsuName, element, isCrit, isAoe }
+  const [ultimateData, setUltimateData] = useState(null); // { key, actorName, jutsuName, element, portrait }
+  const [screenShake, setScreenShake] = useState(false);
+  const actionCounterRef = useRef(0);
 
   const combRef = useRef([]);
   const orderRef = useRef([]);
@@ -239,6 +250,15 @@ export default function Battle() {
   const applyAction = useCallback((actor, jutsu, targetUid) => {
     actionLockRef.current = true;
     setPhase("busy");
+    // Cinematic: capture action info for attack FX
+    actionCounterRef.current += 1;
+    const isUltimate = jutsu.chakra_cost >= 70;
+    setCinematicAction({
+      key: actionCounterRef.current,
+      jutsuName: jutsu.name,
+      element: actor.element,
+      isAoe: jutsu.type === "aoe",
+    });
     let arr = cloneArr(combRef.current);
     const act = arr.find((c) => c.uid === actor.uid);
     // pay / gain chakra
@@ -333,7 +353,22 @@ export default function Battle() {
     pushEvents(newEvents);
 
     setCombs(arr);
-    advance(arr);
+
+    // Cinematic: ultimate abilities trigger a mini-cinematic that delays the
+    // next turn so the letterbox/energy sequence has time to play.
+    if (isUltimate) {
+      setUltimateData({
+        key: actionCounterRef.current,
+        actorName: actor.name,
+        jutsuName: jutsu.name,
+        element: actor.element,
+        portrait: actor.portrait,
+      });
+      // Delay advance until the ultimate cinematic finishes (~2.5s)
+      setTimeout(() => advance(arr), ms(2500));
+    } else {
+      advance(arr);
+    }
   }, [advantage, advance, bossMechanics, ms]);
 
   // ---------- enemy AI ----------
@@ -422,10 +457,24 @@ export default function Battle() {
   const activeActor = combs.find((c) => c.uid === activeUid);
   const isValidTarget = (c) => targeting && !auto && phase === "select" && c.alive && ((targeting.type === "heal" || targeting.type === "shield") ? c.side === "ally" : c.side === "enemy");
 
+  const dominantElement = enemies[0]?.element || "Dark";
+
   return (
-    <div className="fixed inset-0 overflow-hidden" data-testid="battle-page">
-      <img src="/art/battle-bg.png" alt="" className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-[#05050A]/55" />
+    <div className={`fixed inset-0 overflow-hidden ${screenShake ? "screen-shake" : ""}`} data-testid="battle-page">
+      {/* Cinematic layered battlefield environment */}
+      <BattlefieldEnv element={dominantElement} />
+
+      {/* Cinematic battle entry transition */}
+      <BattleEntry title={title} chapter={mode === "campaign" ? `CHAPTER ${stage?.chapter || "I"}` : mode === "spire" ? `FLOOR ${floor}` : mode.toUpperCase()} onDone={() => setIntroDone(true)} />
+
+      {/* Cinematic turn announcement */}
+      <BattleTurnAnnounce activeUid={activeUid} actor={activeActor} phase={phase} round={round} />
+
+      {/* Cinematic attack effects */}
+      <BattleAttackFx action={cinematicAction} onShake={(strength) => { setScreenShake(true); setTimeout(() => setScreenShake(false), strength === "strong" ? 500 : 400); }} />
+
+      {/* Ultimate cinematic */}
+      <BattleUltimate data={ultimateData} onDone={() => setUltimateData(null)} />
 
       {/* Header: retreat + stage info + controls */}
       <div className="absolute top-0 left-0 right-0 z-20 glass border-b border-white/10 px-4 py-1.5 flex items-center justify-between">
@@ -514,120 +563,24 @@ export default function Battle() {
       {/* Bottom command panel */}
       <BattleCommandPanel activeActor={activeActor} phase={phase} targeting={targeting} auto={auto} onJutsuClick={onJutsuClick} />
 
-      {/* result overlay */}
-      <AnimatePresence>
-        {(phase === "win" || phase === "lose") && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-            data-testid="battle-result"
-          >
-            <motion.div initial={{ scale: 0.7, y: 30 }} animate={{ scale: 1, y: 0 }} className="panel rounded-2xl p-8 text-center max-w-sm w-full">
-              <div className="relative w-20 h-20 mx-auto mb-1 flex items-center justify-center rounded-full"
-                style={{ background: phase === "win" ? "radial-gradient(circle, rgba(255,202,40,0.22), transparent 70%)" : "radial-gradient(circle, rgba(255,87,34,0.18), transparent 70%)" }}>
-                {phase === "win" ? <Trophy className="w-14 h-14 text-amber-500" /> : <SkullIcon size={56} />}
-              </div>
-              <h2 className="font-display text-6xl tracking-wide mt-2" style={{ color: phase === "win" ? "#E0A106" : "#FF5722" }}>
-                {phase === "win" ? "VICTORY" : "DEFEAT"}
-              </h2>
-              {resultData?.rewards && phase === "win" && (
-                <div className="mt-4 space-y-1.5 text-ink" data-testid="battle-rewards">
-                  <p className="flex items-center justify-center gap-2 font-semibold"><CoinsIcon size={16} /> +{resultData.rewards.ryo} Ryo</p>
-                  {resultData.rewards.gems > 0 && (
-                    <p className="flex items-center justify-center gap-2 font-semibold" data-testid="reward-gems"><GemsIcon size={16} /> +{resultData.rewards.gems} Gems</p>
-                  )}
-                  {resultData.rewards.exp != null && (
-                    <p className="flex items-center justify-center gap-2 font-semibold"><Zap className="w-4 h-4 text-chakra" /> +{resultData.rewards.exp} Account EXP</p>
-                  )}
-                  {resultData.rewards.hero_exp?.length > 0 && (
-                    <div className="text-xs text-slate-600 pt-1" data-testid="reward-hero-exp">
-                      {resultData.rewards.hero_exp.map((h) => (
-                        <span key={h.instance_id} className="inline-block mx-1">
-                          {h.name.split(" ")[0]} +{h.exp}xp{h.levels > 0 && <span className="text-emerald-600 font-semibold"> (+{h.levels}Lv)</span>}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {resultData.rewards.items && Object.keys(resultData.rewards.items).length > 0 && (
-                    <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2" data-testid="reward-items">
-                      {Object.entries(resultData.rewards.items).map(([iid, qty]) => (
-                        <span key={iid} className="text-xs font-semibold px-2 py-1 rounded-md bg-black/[0.05] border border-black/10 text-ink">
-                          {items[iid]?.name || iid} ×{qty}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {resultData.rewards.ninja && (
-                    <p className="text-jutsu font-semibold mt-2" data-testid="reward-ninja">★ New ally recruited: {resultData.rewards.ninja.name}!</p>
-                  )}
-                  {resultData.rewards.gear && (
-                    <p className="font-semibold mt-2 flex items-center justify-center gap-2" data-testid="reward-gear" style={{ color: resultData.rewards.gear.color || "#E0A106" }}>
-                      ★ Rare Drop: {resultData.rewards.gear.set_name} {resultData.rewards.gear.slot} ({resultData.rewards.gear.rarity})
-                    </p>
-                  )}
-                  {mode === "tsukuyomi" && resultData.rewards.rare_hit === false && resultData.rewards.gear_set_name && (
-                    <p className="text-[11px] text-slate-500 mt-1" data-testid="reward-no-rare">No {resultData.rewards.gear_set_name} gear this time — the nightmare keeps its treasures.</p>
-                  )}
-                  {resultData.rewards.first_clear_bonus && (
-                    <div className="mt-2 rounded-xl bg-amber-400/10 border border-amber-400/40 px-3 py-2" data-testid="reward-first-clear">
-                      <p className="text-[11px] uppercase tracking-widest text-amber-700 font-bold">First-Clear Bonus</p>
-                      <p className="text-sm text-ink font-semibold flex items-center justify-center gap-2 mt-0.5 flex-wrap">
-                        {resultData.rewards.first_clear_bonus.gems > 0 && <span className="flex items-center gap-1"><GemsIcon size={14} />+{resultData.rewards.first_clear_bonus.gems}</span>}
-                        {Object.entries(resultData.rewards.first_clear_bonus.items || {}).map(([iid, q]) => (
-                          <span key={iid} className="text-xs px-2 py-0.5 rounded-md bg-black/[0.05] border border-black/10">{items[iid]?.name || iid} ×{q}</span>
-                        ))}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-              {phase === "win" && mode === "spire" && resultData?.advancing && (
-                <p className="text-amber-700 font-semibold mt-2" data-testid="spire-advance">▲ Floor {floor} cleared — new height reached!</p>
-              )}
-              {phase === "win" && mode === "arena" && (
-                <p className="text-emerald-600 font-semibold mt-2" data-testid="arena-rating-gain">+20 Arena Rating</p>
-              )}
-              {phase === "lose" && mode === "arena" && (
-                <p className="text-slate-600 mt-3" data-testid="arena-rating-loss">-12 Arena Rating. Train harder and try again.</p>
-              )}
-              {phase === "lose" && mode !== "arena" && <p className="text-slate-600 mt-3">Your squad was wiped out. Train harder and try again.</p>}
-              <div className="flex gap-2 mt-6">
-                <button onClick={() => navigate(backTo)} data-testid="result-back-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-black/[0.05] border border-black/10 text-ink hover:bg-black/10 transition-colors">
-
-                  {mode === "campaign" ? "CAMPAIGN" : mode === "arena" ? "ARENA" : "BACK"}
-                </button>
-                {phase === "win" ? (
-                  mode === "spire" ? (
-                    <button onClick={() => window.location.assign(`/battle/spire/${floor + 1}`)} data-testid="result-next-floor-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-chakra text-[#05050A] hover:bg-cyan-300 transition-colors flex items-center justify-center gap-1">
-                      NEXT FLOOR <ArrowRight className="w-4 h-4" />
-                    </button>
-                  ) : mode === "trial" ? (
-                    <button onClick={() => window.location.reload()} data-testid="result-again-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-chakra text-[#05050A] hover:bg-cyan-300 transition-colors">
-                      FARM AGAIN
-                    </button>
-                  ) : mode === "arena" ? (
-                    <button onClick={() => navigate("/arena")} data-testid="result-find-opponent-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-chakra text-[#05050A] hover:bg-cyan-300 transition-colors flex items-center justify-center gap-1">
-                      FIND OPPONENT <ArrowRight className="w-4 h-4" />
-                    </button>
-                  ) : mode === "tsukuyomi" ? (
-                    <button onClick={() => navigate("/tsukuyomi")} data-testid="result-tsukuyomi-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-chakra text-[#05050A] hover:bg-cyan-300 transition-colors flex items-center justify-center gap-1">
-                      NIGHTMARES <ArrowRight className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button onClick={() => navigate("/")} data-testid="result-lobby-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-chakra text-[#05050A] hover:bg-cyan-300 transition-colors flex items-center justify-center gap-1">
-                      LOBBY <ArrowRight className="w-4 h-4" />
-                    </button>
-                  )
-                ) : (
-                  <button onClick={() => window.location.reload()} data-testid="result-retry-btn" className="flex-1 py-3 rounded-lg font-display text-lg tracking-wide bg-fox text-ink hover:bg-orange-600 transition-colors">
-                    RETRY
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Cinematic victory/defeat sequence */}
+      <BattleVictory
+        open={phase === "win" || phase === "lose"}
+        result={resultData}
+        mode={mode}
+        floor={floor}
+        isWin={phase === "win"}
+        onBack={() => navigate(backTo)}
+        onNext={
+          mode === "spire" ? () => window.location.assign(`/battle/spire/${floor + 1}`)
+          : mode === "trial" ? () => window.location.reload()
+          : mode === "arena" ? () => navigate("/arena")
+          : mode === "tsukuyomi" ? () => navigate("/tsukuyomi")
+          : () => navigate("/")
+        }
+        onLobby={() => navigate("/")}
+        onRetry={() => window.location.reload()}
+      />
     </div>
   );
 }

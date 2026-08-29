@@ -12,7 +12,8 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import { rarityFrame, GOLD, BG } from "@/lib/theme";
 import { auraClass, DecoCorners } from "@/components/RarityFx";
-import SummonRevealOverlay from "@/components/SummonRevealOverlay";
+import SummonCinematic from "@/components/cinematic/SummonCinematic";
+import SummonCircle from "@/components/cinematic/SummonCircle";
 import HeroInspectionOverlay from "@/components/HeroInspectionOverlay";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -211,10 +212,36 @@ export default function Summon() {
   return (
     <div
       data-testid="summon-page"
-      className="h-full max-w-6xl mx-auto px-3 sm:px-5 py-2.5 sm:py-3 flex flex-col overflow-y-auto lg:overflow-hidden min-w-0"
+      className="h-full max-w-6xl mx-auto px-3 sm:px-5 py-2.5 sm:py-3 flex flex-col overflow-y-auto lg:overflow-hidden min-w-0 relative"
     >
+      {/* Sacred summoning chamber atmosphere — rotating circle + particles */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+        {/* Dark temple gradient */}
+        <div className="absolute inset-0" style={{ background: "radial-gradient(120% 80% at 50% 50%, rgba(124,77,255,0.06) 0%, transparent 60%)" }} />
+        {/* Summoning circle — centered, slowly rotating */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.12] sm:opacity-20 origin-center scale-100 sm:scale-[1.43]">
+          <SummonCircle color="#7C4DFF" size={280} />
+        </div>
+        {/* Floating particles */}
+        {Array.from({ length: 12 }).map((_, i) => (
+          <span
+            key={i}
+            className="battle-particle el-particle-dark"
+            style={{
+              left: `${(i * 8 + 5) % 100}%`,
+              bottom: "5%",
+              width: 3,
+              height: 3,
+              animationDuration: `${10 + (i % 5)}s`,
+              animationDelay: `${i * 0.7}s`,
+              "--drift": `${(i % 3 - 1) * 20}px`,
+            }}
+          />
+        ))}
+      </div>
+
       {/* ===================== Two-column body ===================== */}
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 lg:gap-4">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 lg:gap-4 relative z-10">
         {/* -------- LEFT: cinematic featured banner -------- */}
         {featuredHero ? (
           <div
@@ -618,7 +645,7 @@ export default function Summon() {
         </DialogContent>
       </Dialog>
 
-      <SummonRevealOverlay open={!!reveal} results={reveal || []} onClose={() => setReveal(null)} />
+      <SummonCinematic open={!!reveal} results={reveal || []} onClose={() => setReveal(null)} />
       <AnimatePresence>
         {inspectIndex !== null && (
           <HeroInspectionOverlay

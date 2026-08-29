@@ -24,6 +24,18 @@ export default function BattleFighter({ c, active, shake, floaters, highlight, o
         ))}
       </div>
 
+      {/* Elemental aura behind card (when active) */}
+      {active && c.alive && (
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 aura-element pointer-events-none rounded-xl"
+          style={{
+            width: 130,
+            height: 160,
+            background: `radial-gradient(ellipse at center, ${elColor}33 0%, transparent 70%)`,
+          }}
+        />
+      )}
+
       {/* Card */}
       <button
         onClick={onClick}
@@ -31,7 +43,7 @@ export default function BattleFighter({ c, active, shake, floaters, highlight, o
         data-testid={`fighter-${c.uid}`}
         className={`relative rounded-xl overflow-hidden border-2 transition-all ${shake ? "shake" : ""} ${
           highlight ? "cursor-crosshair ring-2 ring-fox animate-pulse" : ""
-        } ${!c.alive ? "grayscale opacity-40" : ""} ${active ? "active-turn" : ""}`}
+        } ${!c.alive ? "grayscale opacity-40" : ""} ${active ? "active-turn" : ""} ${c.alive && !active ? "idle-breath" : ""}`}
         style={{
           width: 112,
           height: 146,
@@ -62,9 +74,14 @@ export default function BattleFighter({ c, active, shake, floaters, highlight, o
         )}
       </button>
 
+      {/* Ground shadow (always visible while alive) */}
+      {c.alive && (
+        <div className="absolute top-[140px] left-1/2 -translate-x-1/2 w-20 h-3 rounded-full pointer-events-none ground-shadow" style={{ background: `radial-gradient(ellipse, rgba(0,0,0,0.5) 0%, transparent 70%)` }} />
+      )}
+
       {/* Active ground glow */}
       {active && c.alive && (
-        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3/4 h-2 rounded-full pointer-events-none" style={{ background: `radial-gradient(ellipse, ${elColor}88, transparent 70%)` }} />
+        <div className="absolute top-[138px] left-1/2 -translate-x-1/2 w-3/4 h-2 rounded-full pointer-events-none" style={{ background: `radial-gradient(ellipse, ${elColor}88, transparent 70%)` }} />
       )}
 
       {/* Name */}
