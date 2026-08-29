@@ -2,10 +2,16 @@ import { motion } from "framer-motion";
 import { Play, Zap } from "lucide-react";
 import { ENERGY_COST } from "@/lib/energy";
 
+// Uploaded environmental background images, keyed by trial id. When an
+// image is present it replaces the vector placeholder (object-fit: cover).
+const BG_IMAGE = {
+  t_crystal: "/spire-assets/crystal-cavern.png",
+};
+
 /**
- * TrialDungeonCard — a cinematic dungeon card with environmental artwork
- * rendered via CSS gradients (no external image asset available). Accent
- * border + glow follow the trial's theme color.
+ * TrialDungeonCard — a cinematic dungeon card with environmental artwork.
+ * Uses an uploaded background image when available, otherwise a vector
+ * placeholder. Accent border + glow follow the trial's theme color.
  */
 function DungeonArtwork({ color, theme }) {
   // Three distinct environmental backdrops keyed to the trial id.
@@ -96,7 +102,11 @@ export default function TrialDungeonCard({ trial, catalogById, onFarm, index }) 
       style={{ border: `1px solid ${trial.color}55`, boxShadow: `0 0 18px ${trial.color}22` }}
       data-testid={`trial-${trial.id}`}
     >
-      <DungeonArtwork color={trial.color} theme={trial.id} />
+      {BG_IMAGE[trial.id] ? (
+        <img src={BG_IMAGE[trial.id]} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      ) : (
+        <DungeonArtwork color={trial.color} theme={trial.id} />
+      )}
       {/* readability scrim */}
       <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(6,8,17,0.1) 0%, rgba(6,8,17,0.55) 55%, rgba(6,8,17,0.92) 100%)" }} />
 
