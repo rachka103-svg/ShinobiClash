@@ -424,16 +424,25 @@ def _hero_jutsus(hid, name, element, rarity, role):
     first = name.split(" ")[0]
     el = element.lower()
     kit = _ROLE_KIT_BUILDERS.get(role, _kit_default)(hid, element, el, first, ri)
-    # UR and above unlock a 4th, ultimate-tier ability — high chakra cost,
-    # highest impact. This is what makes top-rarity kits feel meaningfully
-    # deeper/more strategic than a common hero's straightforward kit.
-    if ri >= RARITY_ORDER["UR"]:
-        ult_type = "heal" if role in ("Support", "Healer") else "aoe"
+    # 4th skill — a UNIQUE signature ability (passive) for every hero. This
+    # is the hero's identity-defining mechanic (from MECHANIC_LIBRARY / role
+    # generic), surfaced as a visible skill rather than a hidden field.
+    sig = _passive_for(hid, role)
+    kit.append({
+        "id": f"{hid}_passive", "name": sig["name"], "type": "passive",
+        "power": 0, "chakra_cost": 0, "chakra_gain": 0, "element": element,
+        "description": sig["description"], "signature": True,
+    })
+    # 5th skill — GR heroes carry an additional Ascendant active ability,
+    # a powerful unique surge that only the pinnacle rarity wields.
+    if ri >= RARITY_ORDER["GR"]:
+        asc_type = "heal" if role in ("Support", "Healer") else "aoe"
         kit.append({
-            "id": f"{hid}_ult", "name": f"{first}'s Ultimate — {element} Reckoning", "type": ult_type,
-            "power": (170 + ri * 24) if ult_type == "heal" else (185 + ri * 22),
-            "chakra_cost": 95 + ri * 3, "chakra_gain": 0, "element": element, "ultimate": True,
-            "description": f"An overwhelming release of {el} power — this hero's signature finishing move.",
+            "id": f"{hid}_asc", "name": f"{first}'s Ascension", "type": asc_type,
+            "power": (195 + ri * 26) if asc_type == "aoe" else (205 + ri * 30),
+            "chakra_cost": 100 + ri * 3, "chakra_gain": 0, "element": element,
+            "ascendant": True,
+            "description": f"An ascendant {el} surge — {first}'s ultimate expression of power, unique to GR heroes.",
         })
     return kit
 
@@ -471,16 +480,14 @@ _HERO_DEFS = [
 # Backfill the original 12 heroes with extended base_stats and ultimate abilities
 for _h in _ORIGINAL_12:
     _h["base_stats"] = _hero_stats(_h["rarity"], _h["role"])
-    if RARITY_ORDER[_h["rarity"]] >= RARITY_ORDER["UR"]:
-        # Add ultimate ability for UR+ heroes
-        _ri = RARITY_ORDER[_h["rarity"]]
-        _ult_type = "heal" if _h["role"] in ("Support", "Healer") else "aoe"
-        _h["jutsus"].append({
-            "id": f"{_h['id']}_ult", "name": f"{_h['name'].split()[0]}'s Ultimate — {_h['element']} Reckoning", "type": _ult_type,
-            "power": (170 + _ri * 24) if _ult_type == "heal" else (185 + _ri * 22),
-            "chakra_cost": 95 + _ri * 3, "chakra_gain": 0, "element": _h["element"], "ultimate": True,
-            "description": f"An overwhelming release of {_h['element'].lower()} power — this hero's signature finishing move.",
-        })
+    # 4th skill — unique signature passive for every original hero (none of
+    # the original 12 are GR, so no 5th Ascendant here).
+    _sig = _passive_for(_h["id"], _h["role"])
+    _h["jutsus"].append({
+        "id": f"{_h['id']}_passive", "name": _sig["name"], "type": "passive",
+        "power": 0, "chakra_cost": 0, "chakra_gain": 0, "element": _h["element"],
+        "description": _sig["description"], "signature": True,
+    })
     NINJA_CATALOG.append(_h)
 
 for _hid, _name, _title, _el, _rar, _role, _lore in _HERO_DEFS:
@@ -1158,6 +1165,37 @@ _PORTRAIT_OVERRIDES = {}
 _HERO_OVERRIDES = {}
 
 
+def _finalize_kit(n):
+    """Ensure every hero carries a unique signature ability (4th skill) and
+    that GR heroes carry an Ascendant (5th). Idempotent — only appends what is
+    missing, so static heroes (already finalized at module load) are untouched
+    while custom/legacy heroes are brought up to the same kit standard."""
+    jutsus = n.get("jutsus")
+    if not jutsus or not n.get("id"):
+        return
+    role = n.get("role", "Attacker")
+    element = n.get("element", "Fire")
+    if not any(j.get("signature") for j in jutsus):
+        sig = _passive_for(n["id"], role)
+        jutsus.append({
+            "id": f"{n['id']}_passive", "name": sig["name"], "type": "passive",
+            "power": 0, "chakra_cost": 0, "chakra_gain": 0, "element": element,
+            "description": sig["description"], "signature": True,
+        })
+    if n.get("rarity") == "GR" and not any(j.get("ascendant") for j in jutsus):
+        first = n.get("name", "Hero").split(" ")[0]
+        asc_type = "heal" if role in ("Support", "Healer") else "aoe"
+        jutsus.append({
+            "id": f"{n['id']}_asc", "name": f"{first}'s Ascension", "type": asc_type,
+            "power": 260 if asc_type == "aoe" else 270,
+            "chakra_cost": 115, "chakra_gain": 0, "element": element,
+            "ascendant": True,
+            "description": f"An ascendant {element.lower()} surge — {first}'s ultimate expression of power, unique to GR heroes.",
+        })
+    if "passive" not in n:
+        n["passive"] = _passive_for(n["id"], role)
+
+
 def _rebuild_catalog():
     global NINJA_CATALOG, CATALOG_BY_ID
     merged = [dict(n) for n in STATIC_CATALOG] + [dict(n) for n in _CUSTOM_HEROES]
@@ -1166,6 +1204,7 @@ def _rebuild_catalog():
             n["portrait"] = _PORTRAIT_OVERRIDES[n["id"]]
         if n["id"] in _HERO_OVERRIDES:
             n.update(_HERO_OVERRIDES[n["id"]])
+        _finalize_kit(n)
     NINJA_CATALOG = merged
     CATALOG_BY_ID = {n["id"]: n for n in merged}
 
@@ -1783,6 +1822,40 @@ def skill_public(rarity: str, rank: int) -> dict:
         "passive_unlocked": rank >= PASSIVE_UNLOCK_RANK,
         "next_cost": skill_rank_cost(rarity, rank) if rank < SKILL_RANK_MAX else None,
     }
+
+
+# ===========================================================================
+# REFORGE — spend duplicate hero shards to refine a hero's active jutsus,
+# unlocking combat modifiers (burn, stun, extra damage, etc.). A reforge
+# adds an entry to a jutsu's `effects` array (consumed by the combat engine's
+# applyJutsuEffects) or a flat power bonus — so reforged skills fight
+# measurably differently without any new battle code paths.
+# ===========================================================================
+REFORGE_MAX_PER_JUTSU = 2
+
+REFORGE_MODIFIERS = {
+    "burn":         {"id": "burn",    "name": "Ember Reforge",     "desc": "Chance to inflict Burn (fire DoT).",     "effect": {"type": "burn", "chance": 30, "duration": 3, "value": 40}},
+    "poison":       {"id": "poison",  "name": "Venom Reforge",     "desc": "Chance to inflict Poison (DoT).",      "effect": {"type": "poison", "chance": 30, "duration": 3, "value": 35}},
+    "bleed":        {"id": "bleed",   "name": "Razor Reforge",     "desc": "Chance to inflict Bleed (DoT).",        "effect": {"type": "bleed", "chance": 30, "duration": 3, "value": 38}},
+    "stun":         {"id": "stun",    "name": "Static Reforge",    "desc": "Chance to Stun (skip target's turn).",  "effect": {"type": "stun", "chance": 18, "duration": 1}},
+    "freeze":       {"id": "freeze",  "name": "Frost Reforge",     "desc": "Chance to Freeze (skip target's turn).","effect": {"type": "freeze", "chance": 18, "duration": 1}},
+    "atk_down":     {"id": "atk_down", "name": "Demoralize Reforge", "desc": "Chance to lower target ATK.",        "effect": {"type": "atk_down", "chance": 35, "duration": 2, "value": 20}},
+    "def_down":     {"id": "def_down", "name": "Piercing Reforge",  "desc": "Chance to lower target DEF.",        "effect": {"type": "def_down", "chance": 35, "duration": 2, "value": 20}},
+    "extra_damage": {"id": "extra_damage", "name": "Power Reforge", "desc": "+12% jutsu damage.",                  "bonus_power_pct": 12},
+}
+
+
+def reforge_cost(rarity: str, total_reforges: int) -> dict:
+    """Shard + Ryo cost to apply the NEXT reforge to a hero (scales with how
+    many reforges the hero already has, so each one is a bigger investment)."""
+    ri = RARITY_ORDER.get(rarity, 1)
+    shards = round((45 + ri * 15) * (1 + 0.5 * total_reforges))
+    ryo = 900 + total_reforges * 700 + ri * 200
+    return {"shards": shards, "ryo": ryo}
+
+
+def reforge_total(inst_reforge: dict) -> int:
+    return sum(len(v) for v in (inst_reforge or {}).values())
 
 
 # ===========================================================================

@@ -43,7 +43,7 @@ export default function HeroDetailModal({
   open, onClose, template, instance = null, owned = false, obtain = null, progression = null, squad = null,
 }) {
   const { user, setUser } = useAuth();
-  const { gearConfig, items, expTomeGoldCost } = useGame();
+  const { gearConfig, items, expTomeGoldCost, reforgeModifiers, reforgeMaxPerJutsu } = useGame();
   const [tab, setTab] = useState("train");
   const [qty, setQty] = useState(1);
   const [gearSlot, setGearSlot] = useState(null);
@@ -88,6 +88,25 @@ export default function HeroDetailModal({
       const { data } = await api.post("/game/hero/skill-up", { instance_id: instance.instance_id });
       setUser(data.profile);
       toast.success(data.unlocked_passive ? "Passive Unlocked!" : `Skills raised to Rank ${data.skill_rank}!`);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setBusyLocal(false); }
+  };
+
+  // ---------- Reforge derived state ----------
+  const reforgeMods = reforgeModifiers || {};
+  const maxPerJutsu = reforgeMaxPerJutsu || 2;
+  const instReforge = instance?.reforge || {};
+  const reforgeNextCost = instance?.reforge_next_cost || null;
+  const reforgeAffordable = reforgeNextCost && shardsOwned >= reforgeNextCost.shards && (user?.ryo || 0) >= reforgeNextCost.ryo;
+  const activeJutsus = (template.jutsus || []).filter((j) => ["attack", "aoe", "heal"].includes(j.type));
+
+  const doReforge = async (jutsuId, modId) => {
+    setBusyLocal(true);
+    try {
+      const { data } = await api.post("/game/hero/reforge", { instance_id: instance.instance_id, jutsu_id: jutsuId, modifier_id: modId });
+      setUser(data.profile);
+      toast.success(`${reforgeMods[modId]?.name || "Reforge"} applied!`);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setBusyLocal(false); }
@@ -443,6 +462,76 @@ export default function HeroDetailModal({
                         <Sparkles className="w-4 h-4" /> SKILLS MASTERED — RANK {skill.rank_max}
                       </div>
                     )}
+
+                    {/* ---------- REFORGE ---------- */}
+                    <div className="rounded-xl border p-3 mt-4" style={{ borderColor: "rgba(255,202,40,0.3)", background: "rgba(255,202,40,0.04)" }} data-testid="hero-reforge-panel">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Anvil className="w-4 h-4 text-amber-300" />
+                        <p className="font-display text-lg tracking-wide text-ink">REFORGE</p>
+                        <span className="ml-auto text-[10px] text-slate-500">Refine jutsus with hero shards</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mb-3 leading-snug">Spend {template.name} shards to permanently add combat modifiers — burn, stun, extra damage and more — to a jutsu.</p>
+
+                      <div className="space-y-2.5">
+                        {activeJutsus.map((j) => {
+                          const applied = instReforge[j.id] || [];
+                          const atCap = applied.length >= maxPerJutsu;
+                          return (
+                            <div key={j.id} className="rounded-lg bg-black/[0.04] border border-black/10 p-2.5">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <span className="text-xs font-bold text-ink truncate flex-1">{j.name}</span>
+                                {applied.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {applied.map((mid) => (
+                                      <span key={mid} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                                        {reforgeMods[mid]?.name || mid}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              {!atCap && reforgeNextCost && (
+                                <div className="flex flex-wrap gap-1">
+                                  {Object.values(reforgeMods).map((m) => {
+                                    const has = applied.includes(m.id);
+                                    return (
+                                      <button
+                                        key={m.id}
+                                        onClick={() => doReforge(j.id, m.id)}
+                                        disabled={busy || has || !reforgeAffordable}
+                                        title={m.desc}
+                                        data-testid={`reforge-${j.id}-${m.id}`}
+                                        className="text-[10px] px-2 py-1 rounded-md border transition-colors disabled:opacity-40"
+                                        style={{
+                                          color: has ? "#64748b" : "#FFCA28",
+                                          borderColor: has ? "rgba(255,255,255,0.1)" : "rgba(255,202,40,0.35)",
+                                          background: has ? "transparent" : "rgba(255,202,40,0.08)",
+                                        }}
+                                      >
+                                        {has ? "✓ " : "+ "}{m.name.replace(" Reforge", "")}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                              {atCap && <p className="text-[10px] text-slate-500">Reforge slots full.</p>}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {reforgeNextCost && (
+                        <div className="flex items-center gap-3 mt-3 pt-2 border-t border-black/10">
+                          <span className="text-[10px] uppercase tracking-widest text-slate-500">Next Reforge</span>
+                          <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: shardsOwned >= reforgeNextCost.shards ? "#FFCA28" : "#FF5722" }}>
+                            <Star className="w-3 h-3" />{shardsOwned}/{reforgeNextCost.shards}
+                          </span>
+                          <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: (user?.ryo || 0) >= reforgeNextCost.ryo ? "#FFCA28" : "#FF5722" }}>
+                            <Coins className="w-3 h-3" />{(user?.ryo || 0)}/{reforgeNextCost.ryo}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <p className="text-center text-slate-500 py-8 text-sm">Skills unlock once you own this hero.</p>
@@ -575,7 +664,11 @@ export default function HeroDetailModal({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-ink text-sm">{j.name}</span>
-                    {j.chakra_cost > 0 ? <span className="text-[10px] font-bold text-chakra">{j.chakra_cost} CK</span> : <span className="text-[10px] text-slate-500">Basic</span>}
+                    {j.signature && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-jutsu/15 text-jutsu border border-jutsu/30">SIGNATURE</span>}
+                    {j.ascendant && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300 border border-amber-400/30">ASCENDANT</span>}
+                    {j.type === "passive" ? <span className="text-[10px] text-slate-500">Passive</span>
+                      : j.chakra_cost > 0 ? <span className="text-[10px] font-bold text-chakra">{j.chakra_cost} CK</span>
+                      : <span className="text-[10px] text-slate-500">Basic</span>}
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">{j.description}</p>
                 </div>

@@ -213,6 +213,12 @@ class StarUpIn(BaseModel):
     instance_id: str
 
 
+class ReforgeIn(BaseModel):
+    instance_id: str
+    jutsu_id: str
+    modifier_id: str
+
+
 class SpireCompleteIn(BaseModel):
     floor: int
     result: str
@@ -524,6 +530,10 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, user: dict) -> None:
     inst["passive"] = tmpl.get("passive") if sk["passive_unlocked"] else None
     inst["passive_locked"] = not sk["passive_unlocked"]
     inst["shards"] = user.get("hero_shards", {}).get(inst["template_id"], 0)
+    # Reforge — per-jutsu unlocked combat modifiers (burn/stun/extra dmg/etc.)
+    inst_reforge = inst.get("reforge", {}) or {}
+    inst["reforge"] = inst_reforge
+    inst["reforge_next_cost"] = gd.reforge_cost(rarity, gd.reforge_total(inst_reforge))
 
 
 def public_user(user: dict) -> dict:
@@ -728,6 +738,8 @@ async def catalog():
             "craft_recipes": gd.CRAFT_RECIPES,
             "fusion_recipes": gd.FUSION_RECIPES,
             "exp_tome_gold_cost": gd.EXP_TOME_GOLD_COST,
+            "reforge_modifiers": gd.REFORGE_MODIFIERS,
+            "reforge_max_per_jutsu": gd.REFORGE_MAX_PER_JUTSU,
             "dungeons": [
                 {**d, "tiers": [
                     {"id": t["id"], "tier": t["tier"], "name": t["name"], "enemies": t["enemies"],
@@ -1374,6 +1386,51 @@ async def skill_up(body: StarUpIn, user: dict = Depends(get_current_user)):
         "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"]}})
     return {"profile": public_user(user), "instance_id": inst["instance_id"],
             "skill_rank": inst["skill_rank"], "unlocked_passive": unlocked_passive}
+
+
+@api_router.post("/game/hero/reforge")
+async def reforge_skill(body: ReforgeIn, user: dict = Depends(get_current_user)):
+    """Refine one of a hero's active jutsus with a combat modifier (burn,
+    stun, extra damage, etc.) by spending duplicate hero shards + Ryo. Each
+    reforge permanently adds the modifier to that jutsu; the combat engine
+    merges it into the jutsu's `effects`/power at battle-build time."""
+    inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == body.instance_id), None)
+    if not inst:
+        raise HTTPException(status_code=404, detail="Hero not found")
+    tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Hero template not found")
+    jutsu = next((j for j in tmpl["jutsus"] if j["id"] == body.jutsu_id), None)
+    if not jutsu:
+        raise HTTPException(status_code=400, detail="Jutsu not found on this hero")
+    if jutsu["type"] not in ("attack", "aoe", "heal"):
+        raise HTTPException(status_code=400, detail="Only active jutsus can be reforged")
+    mod = gd.REFORGE_MODIFIERS.get(body.modifier_id)
+    if not mod:
+        raise HTTPException(status_code=400, detail="Unknown reforge modifier")
+
+    reforge = inst.setdefault("reforge", {})
+    jmods = reforge.setdefault(body.jutsu_id, [])
+    if body.modifier_id in jmods:
+        raise HTTPException(status_code=400, detail="Modifier already applied to this jutsu")
+    if len(jmods) >= gd.REFORGE_MAX_PER_JUTSU:
+        raise HTTPException(status_code=400, detail="This jutsu has reached its reforge capacity")
+
+    cost = gd.reforge_cost(tmpl["rarity"], gd.reforge_total(reforge))
+    hero_shards = user.setdefault("hero_shards", {})
+    have = hero_shards.get(inst["template_id"], 0)
+    if have < cost["shards"]:
+        raise HTTPException(status_code=400, detail=f"Not enough shards ({have}/{cost['shards']})")
+    if user.get("ryo", 0) < cost["ryo"]:
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost['ryo']}")
+
+    hero_shards[inst["template_id"]] = have - cost["shards"]
+    user["ryo"] = user.get("ryo", 0) - cost["ryo"]
+    jmods.append(body.modifier_id)
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"]}})
+    return {"profile": public_user(user), "instance_id": inst["instance_id"],
+            "jutsu_id": body.jutsu_id, "modifier_id": body.modifier_id}
 
 
 # ---------------------------------------------------------------------------

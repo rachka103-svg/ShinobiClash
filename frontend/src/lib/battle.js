@@ -46,7 +46,21 @@ export function rollDamage(actor, target, jutsu, advantage) {
   return { dmg, crit, mult };
 }
 
-export function buildCombatant(uid, side, template, level, ascension = 0, instanceId = null, statsOverride = null, skillRank = 1, passiveUnlocked = true) {
+// Reforge modifier definitions — mirror of backend gd.REFORGE_MODIFIERS.
+// Each reforge either appends a status `effect` to a jutsu (consumed by
+// applyJutsuEffects) or adds a flat bonus-power %. Applied in buildCombatant.
+export const REFORGE_MODIFIERS = {
+  burn:         { effect: { type: "burn", chance: 30, duration: 3, value: 40 } },
+  poison:       { effect: { type: "poison", chance: 30, duration: 3, value: 35 } },
+  bleed:        { effect: { type: "bleed", chance: 30, duration: 3, value: 38 } },
+  stun:         { effect: { type: "stun", chance: 18, duration: 1 } },
+  freeze:       { effect: { type: "freeze", chance: 18, duration: 1 } },
+  atk_down:     { effect: { type: "atk_down", chance: 35, duration: 2, value: 20 } },
+  def_down:     { effect: { type: "def_down", chance: 35, duration: 2, value: 20 } },
+  extra_damage: { bonus_power_pct: 12 },
+};
+
+export function buildCombatant(uid, side, template, level, ascension = 0, instanceId = null, statsOverride = null, skillRank = 1, passiveUnlocked = true, reforge = null) {
   // `statsOverride` lets allies use the server-computed stats (which include
   // evolution stars + equipped gear + set bonuses) so combat always matches
   // the profile; enemies fall back to the base formula.
@@ -54,10 +68,28 @@ export function buildCombatant(uid, side, template, level, ascension = 0, instan
   // Skill Rank scales all active jutsu power (+8% per rank beyond the 1st);
   // the signature passive only applies once unlocked (skill rank >= 3).
   const skillMult = 1 + Math.max(0, (skillRank || 1) - 1) * 0.08;
-  const jutsus = (template.jutsus || []).map((j) =>
-    (j.type === "attack" || j.type === "aoe" || j.type === "heal")
+  const reforgeMap = reforge || {};
+  const jutsus = (template.jutsus || []).map((j) => {
+    let jj = (j.type === "attack" || j.type === "aoe" || j.type === "heal")
       ? { ...j, power: Math.round((j.power || 0) * skillMult) }
-      : { ...j });
+      : { ...j };
+    // Reforge: merge unlocked combat modifiers into the jutsu (extra status
+    // effects + bonus power). Only active jutsus are reforgable.
+    const mods = reforgeMap[j.id];
+    if (mods && mods.length) {
+      const effects = [...(jj.effects || [])];
+      let bonusPct = 0;
+      for (const mid of mods) {
+        const m = REFORGE_MODIFIERS[mid];
+        if (!m) continue;
+        if (m.effect) effects.push({ ...m.effect });
+        if (m.bonus_power_pct) bonusPct += m.bonus_power_pct;
+      }
+      if (effects.length) jj.effects = effects;
+      if (bonusPct && jj.power) jj.power = Math.round(jj.power * (1 + bonusPct / 100));
+    }
+    return jj;
+  });
   return {
     uid,
     instanceId,

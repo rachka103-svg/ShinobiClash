@@ -136,7 +136,7 @@ export default function Battle() {
     const allies = (user.team || [])
       .map((tid) => user.ninjas.find((n) => n.instance_id === tid))
       .filter(Boolean)
-      .map((inst) => buildCombatant(nextUid(), "ally", catalogById[inst.template_id], inst.level, inst.ascension || 0, inst.instance_id, inst.stats || null, inst.skill_rank || 1, !(inst.passive_locked)));
+      .map((inst) => buildCombatant(nextUid(), "ally", catalogById[inst.template_id], inst.level, inst.ascension || 0, inst.instance_id, inst.stats || null, inst.skill_rank || 1, !(inst.passive_locked), inst.reforge || null));
     const enemies = enemiesDef.map((e) => buildCombatant(nextUid(), "enemy", catalogById[e.template_id], e.level, e.ascension || 0));
     // Wire the boss-mechanic framework onto the boss stage's single enemy
     // (only real Campaign boss stages set stage.boss_mechanic — Spire and
