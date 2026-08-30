@@ -31,7 +31,7 @@ function SetEditor({ setId, set, onChanged }) {
   });
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setBonus = (which, k, v) => setForm((f) => ({ ...f, [which]: { ...f[which], [k]: v } }));
 
   const save = async () => {
@@ -86,13 +86,13 @@ function SetEditor({ setId, set, onChanged }) {
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
           <span className="text-xs uppercase tracking-widest text-slate-500">Name</span>
-          <input className={sel} value={form.name} onChange={(e) => set("name", e.target.value)} data-testid={`gear-name-${setId}`} />
+          <input className={sel} value={form.name} onChange={(e) => setField("name", e.target.value)} data-testid={`gear-name-${setId}`} />
         </label>
         <label className="block">
           <span className="text-xs uppercase tracking-widest text-slate-500">Color</span>
           <div className="flex items-center gap-2 mt-1">
-            <input type="color" value={form.color} onChange={(e) => set("color", e.target.value)} className="w-10 h-9 rounded border border-black/10 bg-transparent" data-testid={`gear-color-${setId}`} />
-            <input className={`${sel} flex-1`} value={form.color} onChange={(e) => set("color", e.target.value)} />
+            <input type="color" value={form.color} onChange={(e) => setField("color", e.target.value)} className="w-10 h-9 rounded border border-black/10 bg-transparent" data-testid={`gear-color-${setId}`} />
+            <input className={`${sel} flex-1`} value={form.color} onChange={(e) => setField("color", e.target.value)} />
           </div>
         </label>
       </div>
