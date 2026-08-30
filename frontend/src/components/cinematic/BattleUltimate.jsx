@@ -17,10 +17,12 @@ export default function BattleUltimate({ data, onDone }) {
   useEffect(() => {
     if (!data) return;
     setActive(true);
+    // Brief by design — the portrait flashes and clears as the attack lands,
+    // instead of lingering over the whole damage window.
     const t = setTimeout(() => {
       setActive(false);
       onDone?.();
-    }, 2500);
+    }, 1200);
     return () => clearTimeout(t);
   }, [data?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -129,7 +131,7 @@ export default function BattleUltimate({ data, onDone }) {
         className="absolute inset-0"
         style={{
           background: `radial-gradient(circle at center, ${elColor}66 0%, transparent 60%)`,
-          animation: "ultEnergyFill 0.8s ease-out 2s forwards",
+          animation: "ultEnergyFill 0.5s ease-out 0.7s forwards",
         }}
       />
     </div>

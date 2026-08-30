@@ -1903,3 +1903,111 @@ def tsukuyomi_first_clear_bonus(boss: dict, difficulty: str) -> dict:
         items["summon_ticket"] = 1
         items["gear_ticket"] = 1
     return {"gems": gems, "items": items}
+
+
+# ===========================================================================
+# BEGINNER SUMMON — a one-time ×10 newbie banner. The player can re-roll the
+# ×10 up to BEGINNER_MAX_REROLLS times, pinning up to BEGINNER_MAX_LOCKS cards
+# so they survive re-rolls; claiming grants the shown 10 and ends it forever.
+# Draws from EVERY catalog hero (standard weights, no pity / no featured).
+# ===========================================================================
+BEGINNER_MAX_REROLLS = 10
+BEGINNER_MAX_LOCKS = 3
+BEGINNER_PULL_COUNT = 10
+
+
+def beginner_pool():
+    """Weighted (template_id, weight) list over ALL catalog heroes."""
+    out = []
+    for tid, t in CATALOG_BY_ID.items():
+        out.append((tid, SUMMON_WEIGHTS.get(t["rarity"], 1)))
+    return out
+
+
+def fresh_beginner_state() -> dict:
+    return {"finished": False, "rolls_used": 0, "current": [], "locked": []}
+
+
+# ===========================================================================
+# FREE DAILY SUMMONS — 1 free Gem-banner pull + 3 free Ryo-banner pulls per
+# UTC day, reset on the same cycle as daily missions.
+# ===========================================================================
+FREE_GEM_SUMMONS_PER_DAY = 1
+FREE_COIN_SUMMONS_PER_DAY = 3
+
+
+def fresh_free_summon_state() -> dict:
+    return {"cycle": daily_cycle_utc(), "gem_used": 0, "coin_used": 0}
+
+
+# ===========================================================================
+# ACHIEVEMENTS — long-term goals granting currency + stat-boost items.
+# `event` achievements accumulate progress from gameplay events; `metric`
+# achievements derive progress live from the user's state (heroes/level/etc).
+# The "beginner" category doubles as the new-player mission track.
+# ===========================================================================
+ACHIEVEMENTS = [
+    # --- Beginner (onboarding missions) ---
+    {"id": "a_first_summon", "category": "beginner", "name": "First Summon", "desc": "Perform your first summon.",
+     "event": "summon", "target": 1, "reward": {"ryo": 0, "gems": 20, "items": {"summon_ticket": 1}}},
+    {"id": "a_first_clear", "category": "beginner", "name": "First Victory", "desc": "Clear your first Campaign stage.",
+     "event": "campaign_win", "target": 1, "reward": {"ryo": 300, "gems": 10, "items": {}}},
+    {"id": "a_team3", "category": "beginner", "name": "Form a Squad", "desc": "Set a battle team of 3 heroes.",
+     "metric": "team", "target": 3, "reward": {"ryo": 0, "gems": 15, "items": {}}},
+    {"id": "a_heroes5", "category": "beginner", "name": "Assemble Heroes", "desc": "Own 5 heroes.",
+     "metric": "heroes", "target": 5, "reward": {"ryo": 500, "gems": 0, "items": {"exp_tome_greater": 1}}},
+    {"id": "a_level5", "category": "beginner", "name": "Reach Level 5", "desc": "Reach player level 5.",
+     "metric": "level", "target": 5, "reward": {"ryo": 0, "gems": 20, "items": {}}},
+    {"id": "a_equip", "category": "beginner", "name": "Equip Gear", "desc": "Equip a piece of gear on a hero.",
+     "event": "equip_gear", "target": 1, "reward": {"ryo": 200, "gems": 0, "items": {}}},
+    {"id": "a_spire5", "category": "beginner", "name": "Spire Climber", "desc": "Reach Spire floor 5.",
+     "metric": "spire", "target": 5, "reward": {"ryo": 0, "gems": 30, "items": {}}},
+    {"id": "a_beginner_claim", "category": "beginner", "name": "Beginner Summon", "desc": "Claim your beginner summon rewards.",
+     "event": "beginner_claim", "target": 1, "reward": {"ryo": 0, "gems": 50, "items": {"summon_ticket": 2}}},
+    # --- Combat ---
+    {"id": "a_wins10", "category": "combat", "name": "Veteran", "desc": "Win 10 battles.",
+     "event": "any_win", "target": 10, "reward": {"ryo": 0, "gems": 20, "items": {}}},
+    {"id": "a_wins50", "category": "combat", "name": "Champion", "desc": "Win 50 battles.",
+     "event": "any_win", "target": 50, "reward": {"ryo": 0, "gems": 50, "items": {"ascension_crystal": 3}}},
+    {"id": "a_wins100", "category": "combat", "name": "Legend", "desc": "Win 100 battles.",
+     "event": "any_win", "target": 100, "reward": {"ryo": 0, "gems": 100, "items": {"exp_tome_ancient": 1}}},
+    {"id": "a_arena5", "category": "combat", "name": "Arena Duelist", "desc": "Win 5 Arena battles.",
+     "event": "arena_win", "target": 5, "reward": {"ryo": 0, "gems": 25, "items": {}}},
+    # --- Collection ---
+    {"id": "a_summon10", "category": "collection", "name": "Summoner", "desc": "Perform 10 summons.",
+     "event": "summon", "target": 10, "reward": {"ryo": 0, "gems": 15, "items": {}}},
+    {"id": "a_summon50", "category": "collection", "name": "Master Summoner", "desc": "Perform 50 summons.",
+     "event": "summon", "target": 50, "reward": {"ryo": 0, "gems": 40, "items": {"summon_ticket": 3}}},
+    {"id": "a_heroes10", "category": "collection", "name": "Collector", "desc": "Own 10 heroes.",
+     "metric": "heroes", "target": 10, "reward": {"ryo": 0, "gems": 30, "items": {}}},
+    {"id": "a_heroes20", "category": "collection", "name": "Master Collector", "desc": "Own 20 heroes.",
+     "metric": "heroes", "target": 20, "reward": {"ryo": 0, "gems": 60, "items": {"exp_tome_ancient": 1}}},
+    # --- Progression ---
+    {"id": "a_level20", "category": "progression", "name": "Rising Shinobi", "desc": "Reach player level 20.",
+     "metric": "level", "target": 20, "reward": {"ryo": 0, "gems": 50, "items": {}}},
+    {"id": "a_level50", "category": "progression", "name": "Elite Shinobi", "desc": "Reach player level 50.",
+     "metric": "level", "target": 50, "reward": {"ryo": 0, "gems": 120, "items": {}}},
+    {"id": "a_spire20", "category": "progression", "name": "Tower Conqueror", "desc": "Reach Spire floor 20.",
+     "metric": "spire", "target": 20, "reward": {"ryo": 0, "gems": 80, "items": {}}},
+    {"id": "a_evolve1", "category": "progression", "name": "Evolution", "desc": "Evolve a hero for the first time.",
+     "event": "evolve", "target": 1, "reward": {"ryo": 0, "gems": 20, "items": {}}},
+    {"id": "a_ascend1", "category": "progression", "name": "Ascension", "desc": "Ascend a hero for the first time.",
+     "event": "ascend", "target": 1, "reward": {"ryo": 0, "gems": 25, "items": {}}},
+]
+ACHIEVEMENTS_BY_ID = {a["id"]: a for a in ACHIEVEMENTS}
+
+
+def achievement_metric(user: dict, key: str) -> int:
+    if key == "team":
+        return len(user.get("team", []))
+    if key == "heroes":
+        return len(user.get("ninjas", []))
+    if key == "level":
+        return user.get("level", 1)
+    if key == "spire":
+        return user.get("spire_floor", 0)
+    return 0
+
+
+def fresh_achievements_state() -> dict:
+    return {a["id"]: {"progress": 0, "claimed": False} for a in ACHIEVEMENTS}

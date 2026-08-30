@@ -119,12 +119,17 @@ async def _sync_lazy_daily_state(user: dict) -> None:
     changed_d = ensure_daily_state(user)
     changed_a = ensure_arena_state(user)
     changed_l = ensure_login_state(user)
-    if changed_e or changed_d or changed_a or changed_l:
+    changed_fs = ensure_free_summon_state(user)
+    changed_bg = ensure_beginner_state(user)
+    changed_ac = ensure_achievements_state(user)
+    if changed_e or changed_d or changed_a or changed_l or changed_fs or changed_bg or changed_ac:
         await db.users.update_one({"_id": user["_id"]}, {"$set": {
             "energy": user["energy"], "daily": user["daily"],
             "arena_rating": user["arena_rating"], "arena_wins": user["arena_wins"],
             "arena_losses": user["arena_losses"], "arena_daily": user["arena_daily"],
             "login": user["login"],
+            "free_summons": user.get("free_summons"), "beginner": user.get("beginner"),
+            "achievements": user.get("achievements"),
         }})
 
 
@@ -352,6 +357,71 @@ def bump_mission(user: dict, event: str, amount: int = 1):
         prog = daily["missions"].setdefault(m["id"], {"progress": 0, "claimed": False})
         if not prog["claimed"]:
             prog["progress"] = min(m["target"], prog.get("progress", 0) + amount)
+    bump_achievement(user, event, amount)
+
+
+def bump_achievement(user: dict, event: str, amount: int = 1):
+    """Increment progress for any event-based achievement tracking this event
+    (capped at target). Metric-based achievements are derived live in
+    achievements_public, so they need no bumping here."""
+    ensure_achievements_state(user)
+    ach = user["achievements"]
+    for a in gd.ACHIEVEMENTS:
+        if a.get("event") != event:
+            continue
+        prog = ach.setdefault(a["id"], {"progress": 0, "claimed": False})
+        if not prog["claimed"]:
+            prog["progress"] = min(a["target"], prog.get("progress", 0) + amount)
+
+
+def achievements_public(user: dict) -> list:
+    ensure_achievements_state(user)
+    ach = user["achievements"]
+    out = []
+    for a in gd.ACHIEVEMENTS:
+        st = ach.get(a["id"], {"progress": 0, "claimed": False})
+        if "metric" in a:
+            progress = min(a["target"], gd.achievement_metric(user, a["metric"]))
+        else:
+            progress = min(a["target"], st.get("progress", 0))
+        out.append({
+            "id": a["id"], "category": a["category"], "name": a["name"], "desc": a["desc"],
+            "target": a["target"], "reward": a["reward"],
+            "progress": progress, "complete": progress >= a["target"], "claimed": st.get("claimed", False),
+        })
+    return out
+
+
+def beginner_public(user: dict) -> dict:
+    b = user.get("beginner") or gd.fresh_beginner_state()
+    locked = b.get("locked", [])
+    current = b.get("current", [])
+    # hydrate current template_ids into display dicts
+    results = []
+    for i, tid in enumerate(current):
+        t = gd.CATALOG_BY_ID.get(tid)
+        if not t:
+            continue
+        results.append({"index": i, "template_id": tid, "name": t["name"], "rarity": t["rarity"],
+                        "element": t["element"], "role": t["role"], "portrait": t["portrait"],
+                        "locked": i in locked})
+    return {
+        "finished": b.get("finished", False),
+        "rolls_used": b.get("rolls_used", 0),
+        "rolls_max": gd.BEGINNER_MAX_REROLLS,
+        "locks_used": len(locked),
+        "locks_max": gd.BEGINNER_MAX_LOCKS,
+        "results": results,
+    }
+
+
+def free_summons_public(user: dict) -> dict:
+    fs = user.get("free_summons") or gd.fresh_free_summon_state()
+    return {
+        "gem_used": fs.get("gem_used", 0), "gem_max": gd.FREE_GEM_SUMMONS_PER_DAY,
+        "coin_used": fs.get("coin_used", 0), "coin_max": gd.FREE_COIN_SUMMONS_PER_DAY,
+        "cycle": fs.get("cycle"),
+    }
 
 
 def missions_public(daily: dict) -> list:
@@ -371,6 +441,38 @@ def ensure_login_state(user: dict) -> bool:
         user["login"] = gd.fresh_login_state()
         return True
     return False
+
+
+def ensure_free_summon_state(user: dict) -> bool:
+    """Seeds + UTC-daily-resets the free daily summon counters (1 Gem, 3 Ryo)."""
+    fs = user.get("free_summons")
+    today = gd.daily_cycle_utc()
+    if not fs or fs.get("cycle") != today:
+        user["free_summons"] = gd.fresh_free_summon_state()
+        return True
+    return False
+
+
+def ensure_beginner_state(user: dict) -> bool:
+    """Seeds the one-time beginner summon session for users who lack it."""
+    if "beginner" not in user:
+        user["beginner"] = gd.fresh_beginner_state()
+        return True
+    return False
+
+
+def ensure_achievements_state(user: dict) -> bool:
+    """Seeds + backfills the achievements progress tracker."""
+    ach = user.get("achievements")
+    if not ach:
+        user["achievements"] = gd.fresh_achievements_state()
+        return True
+    added = False
+    for a in gd.ACHIEVEMENTS:
+        if a["id"] not in ach:
+            ach[a["id"]] = {"progress": 0, "claimed": False}
+            added = True
+    return added
 
 
 def ensure_arena_state(user: dict) -> bool:
@@ -575,6 +677,9 @@ def public_user(user: dict) -> dict:
         "missions": missions_public(user.get("daily") or gd.fresh_daily_state()),
         "arena": arena_public(user),
         "login": login_public(user),
+        "beginner": beginner_public(user),
+        "free_summons": free_summons_public(user),
+        "achievements": achievements_public(user),
     }
 
 
@@ -973,10 +1078,12 @@ async def arena_battle_complete(body: ArenaBattleCompleteIn, user: dict = Depend
             user, body.participants or list(user.get("team", [])), body.survivors, gd.ARENA_WIN_REWARDS["hero_exp_base"]
         )
         await grant_player_exp(user, gd.ARENA_WIN_REWARDS["hero_exp_base"])
+        bump_mission(user, "any_win")
+        bump_mission(user, "arena_win")
         await db.users.update_one({"_id": user["_id"]}, {"$set": {
             "arena_rating": user["arena_rating"], "arena_wins": user["arena_wins"],
             "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"],
-            "level": user["level"], "exp": user["exp"],
+            "level": user["level"], "exp": user["exp"], "daily": user["daily"], "achievements": user.get("achievements"),
         }})
         return {"profile": public_user(user), "result": "win",
                 "rewards": {"ryo": gd.ARENA_WIN_REWARDS["ryo"], "gems": gems_gained, "hero_exp": hero_exp}}
@@ -1246,6 +1353,169 @@ async def summon(body: SummonIn, user: dict = Depends(get_current_user)):
             "summoned": results[0] if count == 1 else None}
 
 
+# ---------------------------------------------------------------------------
+# Beginner Summon — one-time ×10 newbie banner. Re-roll up to
+# BEGINNER_MAX_REROLLS times, pin up to BEGINNER_MAX_LOCKS cards (survive
+# rerolls), claim to grant the shown 10 and end it forever.
+# ---------------------------------------------------------------------------
+class BeginnerLockIn(BaseModel):
+    index: int
+
+
+def _beginner_pull_once() -> str:
+    pool = gd.beginner_pool()
+    tids = [p[0] for p in pool]
+    weights = [p[1] for p in pool]
+    return rng.choices(tids, weights=weights, k=1)[0]
+
+
+@api_router.post("/game/beginner/summon")
+async def beginner_summon(user: dict = Depends(get_current_user)):
+    ensure_beginner_state(user)
+    b = user["beginner"]
+    if b.get("finished"):
+        raise HTTPException(status_code=400, detail="Beginner summon already completed")
+    if b.get("rolls_used", 0) >= gd.BEGINNER_MAX_REROLLS:
+        raise HTTPException(status_code=400, detail="No rerolls remaining — claim your results")
+    locked = list(b.get("locked", []))
+    current = list(b.get("current", []))
+    if len(current) < gd.BEGINNER_PULL_COUNT:
+        current = current + [None] * (gd.BEGINNER_PULL_COUNT - len(current))
+    new_current = []
+    for i in range(gd.BEGINNER_PULL_COUNT):
+        if i in locked and current[i] is not None:
+            new_current.append(current[i])
+        else:
+            new_current.append(_beginner_pull_once())
+    b["current"] = new_current
+    b["locked"] = [i for i in locked if i < gd.BEGINNER_PULL_COUNT]
+    b["rolls_used"] = b.get("rolls_used", 0) + 1
+    user["beginner"] = b
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"beginner": b}})
+    return {"profile": public_user(user), "beginner": beginner_public(user)}
+
+
+@api_router.post("/game/beginner/lock")
+async def beginner_lock(body: BeginnerLockIn, user: dict = Depends(get_current_user)):
+    ensure_beginner_state(user)
+    b = user["beginner"]
+    if b.get("finished"):
+        raise HTTPException(status_code=400, detail="Beginner summon already completed")
+    current = b.get("current", [])
+    if not current:
+        raise HTTPException(status_code=400, detail="Summon first before locking")
+    if body.index < 0 or body.index >= len(current):
+        raise HTTPException(status_code=400, detail="Invalid card index")
+    locked = list(b.get("locked", []))
+    if body.index in locked:
+        locked = [i for i in locked if i != body.index]
+    else:
+        if len(locked) >= gd.BEGINNER_MAX_LOCKS:
+            raise HTTPException(status_code=400, detail=f"Maximum {gd.BEGINNER_MAX_LOCKS} locks reached")
+        locked.append(body.index)
+    b["locked"] = locked
+    user["beginner"] = b
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"beginner": b}})
+    return {"profile": public_user(user), "beginner": beginner_public(user)}
+
+
+@api_router.post("/game/beginner/claim")
+async def beginner_claim(user: dict = Depends(get_current_user)):
+    ensure_beginner_state(user)
+    b = user["beginner"]
+    if b.get("finished"):
+        raise HTTPException(status_code=400, detail="Beginner summon already completed")
+    current = b.get("current", [])
+    if len(current) < gd.BEGINNER_PULL_COUNT:
+        raise HTTPException(status_code=400, detail="Summon first before claiming")
+    results = []
+    for tid in current:
+        tmpl, is_dup, shards = _grant_summoned_hero(user, tid)
+        results.append({"template_id": tid, "name": tmpl["name"], "rarity": tmpl["rarity"],
+                        "element": tmpl["element"], "role": tmpl["role"], "portrait": tmpl["portrait"],
+                        "duplicate": is_dup, "shards_gained": shards})
+    b["finished"] = True
+    b["current"] = []
+    b["locked"] = []
+    user["beginner"] = b
+    bump_mission(user, "summon", gd.BEGINNER_PULL_COUNT)
+    bump_achievement(user, "beginner_claim", 1)
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ninjas": user["ninjas"], "hero_shards": user.get("hero_shards", {}),
+        "beginner": b, "daily": user["daily"], "achievements": user.get("achievements")}})
+    return {"profile": public_user(user), "results": results}
+
+
+# ---------------------------------------------------------------------------
+# Free Daily Summons — 1 free Gem-banner pull + 3 free Ryo-banner pulls/day.
+# ---------------------------------------------------------------------------
+class FreeSummonIn(BaseModel):
+    currency: str  # "gem" | "coin"
+
+
+@api_router.post("/game/summon/free")
+async def free_summon(body: FreeSummonIn, user: dict = Depends(get_current_user)):
+    ensure_free_summon_state(user)
+    fs = user["free_summons"]
+    currency = "gems" if body.currency == "gem" else "ryo"
+    if currency == "gems":
+        if fs.get("gem_used", 0) >= gd.FREE_GEM_SUMMONS_PER_DAY:
+            raise HTTPException(status_code=400, detail="No free Gem summon left today")
+        fs["gem_used"] = fs.get("gem_used", 0) + 1
+    else:
+        if fs.get("coin_used", 0) >= gd.FREE_COIN_SUMMONS_PER_DAY:
+            raise HTTPException(status_code=400, detail="No free Ryo summons left today")
+        fs["coin_used"] = fs.get("coin_used", 0) + 1
+    pity = user.get("pity") or gd.fresh_pity_state()
+    result = _pull_once(user, pity, currency=currency)
+    user["pity"] = pity
+    bump_mission(user, "summon", 1)
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ninjas": user["ninjas"], "hero_shards": user.get("hero_shards", {}), "pity": pity,
+        "free_summons": fs, "daily": user["daily"], "achievements": user.get("achievements")}})
+    return {"profile": public_user(user), "result": result}
+
+
+# ---------------------------------------------------------------------------
+# Achievements — long-term goals granting currency + stat-boost items.
+# ---------------------------------------------------------------------------
+@api_router.get("/game/achievements")
+async def get_achievements(user: dict = Depends(get_current_user)):
+    return {"achievements": achievements_public(user)}
+
+
+@api_router.post("/game/achievements/claim/{achievement_id}")
+async def claim_achievement(achievement_id: str, user: dict = Depends(get_current_user)):
+    a = gd.ACHIEVEMENTS_BY_ID.get(achievement_id)
+    if not a:
+        raise HTTPException(status_code=404, detail="Achievement not found")
+    ensure_achievements_state(user)
+    ach = user["achievements"]
+    st = ach.get(achievement_id, {"progress": 0, "claimed": False})
+    if st.get("claimed"):
+        raise HTTPException(status_code=400, detail="Reward already claimed")
+    if "metric" in a:
+        progress = min(a["target"], gd.achievement_metric(user, a["metric"]))
+    else:
+        progress = min(a["target"], st.get("progress", 0))
+    if progress < a["target"]:
+        raise HTTPException(status_code=400, detail="Achievement not complete yet")
+    reward = a["reward"]
+    user["ryo"] = user.get("ryo", 0) + reward.get("ryo", 0)
+    user["gems"] = user.get("gems", 0) + reward.get("gems", 0)
+    inventory = user.get("inventory", {})
+    for iid, qty in reward.get("items", {}).items():
+        inventory[iid] = inventory.get(iid, 0) + qty
+    user["inventory"] = inventory
+    st["claimed"] = True
+    if "metric" not in a:
+        st["progress"] = progress
+    ach[achievement_id] = st
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ryo": user["ryo"], "gems": user["gems"], "inventory": inventory, "achievements": ach}})
+    return {"profile": public_user(user), "reward": reward}
+
+
 async def _do_evolve(instance_id: str, user: dict) -> dict:
     """Evolution (star breakthrough) — the ONLY way to raise stars. Early
     stars burn duplicate shards + ryo; stars 4-6 additionally require rare
@@ -1277,8 +1547,10 @@ async def _do_evolve(instance_id: str, user: dict) -> dict:
         inventory[iid] -= qty
     inst["stars"] = stars + 1
     user["inventory"] = inventory
+    bump_mission(user, "evolve")
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
-        "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"], "inventory": inventory}})
+        "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"], "inventory": inventory,
+        "daily": user["daily"], "achievements": user.get("achievements")}})
     return {"profile": public_user(user), "instance_id": inst["instance_id"], "stars": inst["stars"]}
 
 
@@ -1353,7 +1625,8 @@ async def ascend_hero(body: AscendIn, user: dict = Depends(get_current_user)):
     user["ryo"] -= cost["ryo"]
     inst["ascension"] = asc + 1
     user["inventory"] = inventory
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"ninjas": user["ninjas"], "inventory": inventory, "ryo": user["ryo"]}})
+    bump_mission(user, "ascend")
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"ninjas": user["ninjas"], "inventory": inventory, "ryo": user["ryo"], "daily": user["daily"], "achievements": user.get("achievements")}})
     return public_user(user)
 
 
@@ -1457,7 +1730,8 @@ async def gear_equip(body: GearEquipIn, user: dict = Depends(get_current_user)):
         if other.get("equipped_by") == body.instance_id and other["slot"] == g["slot"] and other["gear_id"] != g["gear_id"]:
             other["equipped_by"] = None
     g["equipped_by"] = body.instance_id
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"gear": user["gear"]}})
+    bump_mission(user, "equip_gear")
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"gear": user["gear"], "daily": user["daily"], "achievements": user.get("achievements")}})
     return {"profile": public_user(user), "equipped": g["gear_id"]}
 
 
@@ -2112,6 +2386,105 @@ async def admin_clear_banner(_: dict = Depends(get_admin_user)):
 
 
 # ---------------------------------------------------------------------------
+# ADMIN — Gear/Equipment editor (set bonuses, rarity meta, set icons).
+# Overrides are merged onto the static GEAR_SETS / GEAR_RARITY_META dicts and
+# persisted to Mongo so they survive restarts.
+# ---------------------------------------------------------------------------
+async def load_gear_config():
+    doc = await db.game_config.find_one({"_id": "gear_config"}) or {}
+    sets = doc.get("sets")
+    if isinstance(sets, dict):
+        for sid, fields in sets.items():
+            if sid in gd.GEAR_SETS and isinstance(fields, dict):
+                gd.GEAR_SETS[sid].update(fields)
+    rmeta = doc.get("rarity_meta")
+    if isinstance(rmeta, dict):
+        for r, fields in rmeta.items():
+            if r in gd.GEAR_RARITY_META and isinstance(fields, dict):
+                gd.GEAR_RARITY_META[r].update(fields)
+
+
+async def persist_gear_config():
+    await db.game_config.update_one(
+        {"_id": "gear_config"},
+        {"$set": {"sets": gd.GEAR_SETS, "rarity_meta": gd.GEAR_RARITY_META}},
+        upsert=True,
+    )
+
+
+class ImageUploadIn(BaseModel):
+    image: str  # base64 (optionally a data URL)
+
+
+class GearSetIn(BaseModel):
+    name: Optional[str] = None
+    color: Optional[str] = None
+    bonus2: Optional[dict] = None
+    bonus4: Optional[dict] = None
+
+
+class GearRarityIn(BaseModel):
+    name: Optional[str] = None
+    color: Optional[str] = None
+    mult: Optional[float] = None
+    subs: Optional[int] = None
+    tier: Optional[int] = None
+
+
+@api_router.get("/admin/gear-config")
+async def admin_get_gear_config(_: dict = Depends(get_admin_user)):
+    return {"sets": gd.GEAR_SETS, "rarities": gd.GEAR_RARITIES, "rarity_meta": gd.GEAR_RARITY_META,
+            "slots": gd.GEAR_SLOTS, "slot_meta": gd.GEAR_SLOT_META,
+            "substat_pool": gd.GEAR_SUBSTAT_POOL}
+
+
+@api_router.put("/admin/gear-set/{set_id}")
+async def admin_update_gear_set(set_id: str, body: GearSetIn, _: dict = Depends(get_admin_user)):
+    if set_id not in gd.GEAR_SETS:
+        raise HTTPException(status_code=404, detail="Gear set not found")
+    s = gd.GEAR_SETS[set_id]
+    if body.name is not None:
+        s["name"] = body.name[:40]
+    if body.color is not None:
+        s["color"] = body.color
+    if body.bonus2 is not None:
+        s["bonus2"] = body.bonus2
+    if body.bonus4 is not None:
+        s["bonus4"] = body.bonus4
+    await persist_gear_config()
+    return {"set": gd.GEAR_SETS[set_id]}
+
+
+@api_router.post("/admin/gear-set/{set_id}/icon")
+async def admin_upload_gear_icon(set_id: str, body: ImageUploadIn, _: dict = Depends(get_admin_user)):
+    if set_id not in gd.GEAR_SETS:
+        raise HTTPException(status_code=404, detail="Gear set not found")
+    icon = _save_portrait_png(f"gear_{set_id}", body.image)
+    gd.GEAR_SETS[set_id]["icon"] = icon
+    await persist_gear_config()
+    return {"set": gd.GEAR_SETS[set_id]}
+
+
+@api_router.put("/admin/gear-rarity/{rarity}")
+async def admin_update_gear_rarity(rarity: str, body: GearRarityIn, _: dict = Depends(get_admin_user)):
+    if rarity not in gd.GEAR_RARITY_META:
+        raise HTTPException(status_code=404, detail="Rarity not found")
+    m = gd.GEAR_RARITY_META[rarity]
+    if body.name is not None:
+        m["name"] = body.name[:40]
+    if body.color is not None:
+        m["color"] = body.color
+    if body.mult is not None:
+        m["mult"] = float(body.mult)
+    if body.subs is not None:
+        m["subs"] = max(0, int(body.subs))
+    if body.tier is not None:
+        m["tier"] = max(1, int(body.tier))
+    await persist_gear_config()
+    return {"rarity_meta": gd.GEAR_RARITY_META[rarity]}
+
+
+# ---------------------------------------------------------------------------
 # ADMIN — Economy / global game knobs. These mutate live game_data attributes
 # so every read-site picks them up instantly, and persist to Mongo so they
 # survive restarts (re-applied in load_economy on startup).
@@ -2450,6 +2823,7 @@ async def startup():
     await load_catalog_config()
     await load_banner()
     await load_economy()
+    await load_gear_config()
     await ac.load_game_config(db)
     await ac.load_stage_overrides(db)
     await ac.load_boss_overrides(db)

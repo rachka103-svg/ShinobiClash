@@ -367,8 +367,8 @@ export default function Battle() {
         element: actor.element,
         portrait: actor.portrait,
       });
-      // Delay advance until the ultimate cinematic finishes (~2.5s)
-      setTimeout(() => advance(arr), ms(2500));
+      // Delay advance until the (brief) ultimate cinematic finishes
+      setTimeout(() => advance(arr), ms(1200));
     } else {
       advance(arr);
     }

@@ -14,6 +14,7 @@ import { rarityFrame, GOLD, BG } from "@/lib/theme";
 import { auraClass, DecoCorners } from "@/components/RarityFx";
 import SummonCinematic from "@/components/cinematic/SummonCinematic";
 import SummonCircle from "@/components/cinematic/SummonCircle";
+import BeginnerSummon from "@/components/BeginnerSummon";
 import HeroInspectionOverlay from "@/components/HeroInspectionOverlay";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -199,6 +200,22 @@ export default function Summon() {
     } finally { setBusy(false); setBusyKind(null); }
   };
 
+  // Free daily summons (1 Gem + 3 Ryo per UTC day)
+  const freeSummons = user?.free_summons || { gem_used: 0, gem_max: 1, coin_used: 0, coin_max: 3 };
+  const freeGemLeft = (freeSummons.gem_max || 1) - (freeSummons.gem_used || 0);
+  const freeCoinLeft = (freeSummons.coin_max || 3) - (freeSummons.coin_used || 0);
+
+  const doFreeSummon = async (currency) => {
+    setBusy(true); setBusyKind(`free-${currency}`);
+    try {
+      const { data } = await api.post("/game/summon/free", { currency });
+      setUser(data.profile);
+      setReveal([data.result]);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setBusy(false); setBusyKind(null); }
+  };
+
   // Hero pull costs
   const gemX1 = gemCosts.summon;
   const ryoX1 = summonCost;
@@ -240,7 +257,18 @@ export default function Summon() {
         ))}
       </div>
 
+      {/* Mode tabs */}
+      <div className="flex items-center gap-2 mb-2 shrink-0 relative z-10" data-testid="summon-tabs">
+        {[["hero", "Hero Altar"], ["beginner", "Beginner"]].map(([id, lbl]) => (
+          <button key={id} onClick={() => setMode(id)} data-testid={`summon-tab-${id}`}
+            className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all ${mode === id ? "bg-chakra text-[#05050A]" : "bg-white/[0.04] text-slate-400 hover:text-white border border-white/10"}`}>
+            {lbl}
+          </button>
+        ))}
+      </div>
+
       {/* ===================== Two-column body ===================== */}
+      {mode === "beginner" ? <BeginnerSummon /> : (
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 lg:gap-4 relative z-10">
         {/* -------- LEFT: cinematic featured banner -------- */}
         {featuredHero ? (
@@ -425,6 +453,30 @@ export default function Summon() {
             testid="summon-ticket-button"
             sub={`Have ${tickets} ticket${tickets === 1 ? "" : "s"}`}
           />
+
+          {/* Free daily summons — 1 Gem + 3 Ryo per day */}
+          <div className="grid grid-cols-2 gap-2 shrink-0" data-testid="free-summon-bar">
+            <button
+              onClick={() => doFreeSummon("gem")}
+              disabled={busy || freeGemLeft <= 0}
+              data-testid="free-gem-summon"
+              className="flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl disabled:opacity-40 transition-all"
+              style={{ background: "rgba(213,0,249,0.10)", border: "1px solid #D500F955" }}
+            >
+              <span className="flex items-center gap-1 text-xs font-bold text-jutsu"><Gem className="w-3.5 h-3.5" /> FREE GEM ×1</span>
+              <span className="text-[10px] text-slate-400">{freeGemLeft > 0 ? `${freeGemLeft} left today` : "Come back tomorrow"}</span>
+            </button>
+            <button
+              onClick={() => doFreeSummon("coin")}
+              disabled={busy || freeCoinLeft <= 0}
+              data-testid="free-coin-summon"
+              className="flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl disabled:opacity-40 transition-all"
+              style={{ background: "rgba(255,202,40,0.10)", border: "1px solid #FFCA2855" }}
+            >
+              <span className="flex items-center gap-1 text-xs font-bold text-amber-300"><Coins className="w-3.5 h-3.5" /> FREE RYO ×1</span>
+              <span className="text-[10px] text-slate-400">{freeCoinLeft > 0 ? `${freeCoinLeft} left today` : "Come back tomorrow"}</span>
+            </button>
+          </div>
           {heroHave < heroX1 && (
             <p className="text-[11px] text-fox text-center shrink-0" data-testid="summon-insufficient-text">
               Not enough {payMode === "gems" ? "Gems" : "Ryo"} — win battles &amp; missions to earn more.
@@ -475,7 +527,7 @@ export default function Summon() {
             <QuickBtn icon={History} color="#D500F9" label="History" onClick={() => setHistoryOpen(true)} testid="open-history-card" />
           </div>
         </div>
-      </div>
+      </div>)}
 
       {/* ===================== Dialogs & overlay ===================== */}
       <Dialog open={ratesOpen} onOpenChange={setRatesOpen}>
