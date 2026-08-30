@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Heart, Sword, Shield, Wind, Star, ChevronsUp, Gem, Coins, Sparkles, Check,
-  Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2,
+  Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2, RotateCcw,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -49,6 +49,7 @@ export default function HeroDetailModal({
   const [gearSlot, setGearSlot] = useState(null);
   const [busyLocal, setBusyLocal] = useState(false);
   const [immersive, setImmersive] = useState(false);
+  const [showRevertConfirm, setShowRevertConfirm] = useState(false);
 
   if (!template) return null;
   const rarity = RARITY[template.rarity] || RARITY.R;
@@ -107,6 +108,21 @@ export default function HeroDetailModal({
       const { data } = await api.post("/game/hero/reforge", { instance_id: instance.instance_id, jutsu_id: jutsuId, modifier_id: modId });
       setUser(data.profile);
       toast.success(`${reforgeMods[modId]?.name || "Reforge"} applied!`);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setBusyLocal(false); }
+  };
+
+  // ---------- Revert to base ----------
+  const isAtBase = instance?.level === 1 && (instance?.exp || 0) === 0 && (instance?.ascension || 0) === 0 && (instance?.stars || 1) === 1 && (instance?.skill_rank || 1) === 1 && !Object.keys(instance?.reforge || {}).length;
+
+  const doRevert = async () => {
+    setBusyLocal(true);
+    try {
+      const { data } = await api.post("/game/hero/revert", { instance_id: instance.instance_id });
+      setUser(data.profile);
+      toast.success("Hero reverted to Lv.1 — all materials refunded!");
+      setShowRevertConfirm(false);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setBusyLocal(false); }
@@ -184,9 +200,6 @@ export default function HeroDetailModal({
             <div className="absolute inset-x-0 bottom-0 z-10 p-5 sm:p-7">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-white/15 text-white">{template.role}</span>
-                {instance && (
-                  <span className="ml-auto font-display text-lg text-amber-300 flex items-center gap-1"><Zap className="w-4 h-4" />{instance.power} PWR</span>
-                )}
               </div>
               <h2 className="font-display text-4xl sm:text-6xl tracking-wide text-white leading-none">{template.name}</h2>
               {template.title && <p className="text-sm sm:text-base text-chakra italic mt-1.5">{template.title}</p>}
@@ -352,6 +365,40 @@ export default function HeroDetailModal({
                 ) : (
                   <div className="w-full py-3 mt-4 mb-2 rounded-xl text-center font-display text-base tracking-wide text-amber-300 bg-amber-400/10 flex items-center justify-center gap-2" data-testid="fully-ascended-label">
                     <Sparkles className="w-4 h-4" /> FULLY ASCENDED
+                  </div>
+                )}
+
+                {/* Revert to base — refunds all invested materials */}
+                {!isAtBase && !showRevertConfirm && (
+                  <button
+                    onClick={() => setShowRevertConfirm(true)}
+                    disabled={busy}
+                    data-testid="revert-button"
+                    className="w-full py-2.5 mt-2 rounded-xl font-display text-sm tracking-wide text-fox border border-fox/30 bg-fox/5 hover:bg-fox/10 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" /> REVERT TO BASE
+                  </button>
+                )}
+                {showRevertConfirm && (
+                  <div className="mt-2 rounded-xl border border-fox/30 bg-fox/5 p-3" data-testid="revert-confirm">
+                    <p className="text-xs text-slate-600 mb-3 text-center">Reset to Lv.1 and refund all EXP tomes, Ryo, shards, ascension crystals &amp; materials?</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={doRevert}
+                        disabled={busy}
+                        data-testid="revert-confirm-yes"
+                        className="flex-1 py-2.5 rounded-xl font-display text-sm tracking-wide bg-fox text-white hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2"
+                      >
+                        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />} CONFIRM REVERT
+                      </button>
+                      <button
+                        onClick={() => setShowRevertConfirm(false)}
+                        disabled={busy}
+                        className="flex-1 py-2.5 rounded-xl font-display text-sm tracking-wide text-slate-600 border border-black/10 hover:bg-black/5 transition-colors disabled:opacity-40"
+                      >
+                        CANCEL
+                      </button>
+                    </div>
                   </div>
                 )}
               </TabsContent>

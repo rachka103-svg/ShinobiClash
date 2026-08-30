@@ -224,6 +224,10 @@ class ReforgeIn(BaseModel):
     modifier_id: str
 
 
+class RevertIn(BaseModel):
+    instance_id: str
+
+
 class SpireCompleteIn(BaseModel):
     floor: int
     result: str
@@ -1704,6 +1708,111 @@ async def reforge_skill(body: ReforgeIn, user: dict = Depends(get_current_user))
         "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"]}})
     return {"profile": public_user(user), "instance_id": inst["instance_id"],
             "jutsu_id": body.jutsu_id, "modifier_id": body.modifier_id}
+
+
+@api_router.post("/game/hero/revert")
+async def revert_hero(body: RevertIn, user: dict = Depends(get_current_user)):
+    """Revert a hero back to Lv.1 base form, refunding ALL materials invested:
+    EXP tomes (+ their Ryo gold cost), ascension crystals/items/Ryo, evolution
+    shards/items/Ryo, skill-rank shards/Ryo, and reforge shards/Ryo."""
+    inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == body.instance_id), None)
+    if not inst:
+        raise HTTPException(status_code=404, detail="Hero not found")
+    tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Hero template not found")
+    rarity = tmpl["rarity"]
+
+    if (inst.get("level", 1) == 1 and inst.get("exp", 0) == 0 and
+            inst.get("ascension", 0) == 0 and inst.get("stars", 1) == 1 and
+            inst.get("skill_rank", 1) == 1 and not gd.reforge_total(inst.get("reforge", {}))):
+        raise HTTPException(status_code=400, detail="Hero is already at base level")
+
+    inventory = user.get("inventory", {})
+    hero_shards = user.setdefault("hero_shards", {})
+    ryo_refund = 0
+    shards_refund = 0
+
+    # 1) EXP invested → refund as tomes (largest first) + their gold cost
+    total_exp = inst.get("exp", 0)
+    for lv in range(1, inst["level"]):
+        total_exp += gd.hero_exp_to_next(lv)
+    ancient = total_exp // 6000
+    rem = total_exp % 6000
+    greater = rem // 1200
+    rem = rem % 1200
+    minor = rem // 250
+    if rem % 250:
+        minor += 1
+    if ancient:
+        inventory["exp_tome_ancient"] = inventory.get("exp_tome_ancient", 0) + ancient
+        ryo_refund += ancient * gd.EXP_TOME_GOLD_COST["exp_tome_ancient"]
+    if greater:
+        inventory["exp_tome_greater"] = inventory.get("exp_tome_greater", 0) + greater
+        ryo_refund += greater * gd.EXP_TOME_GOLD_COST["exp_tome_greater"]
+    if minor:
+        inventory["exp_tome_minor"] = inventory.get("exp_tome_minor", 0) + minor
+        ryo_refund += minor * gd.EXP_TOME_GOLD_COST["exp_tome_minor"]
+
+    # 2) Ascension costs → refund crystals, items, Ryo
+    asc = inst.get("ascension", 0)
+    for i in range(asc):
+        cost = gd.ascension_cost(rarity, i)
+        inventory["ascension_crystal"] = inventory.get("ascension_crystal", 0) + cost["ascension_crystal"]
+        ryo_refund += cost["ryo"]
+        for iid, qty in cost.get("items", {}).items():
+            inventory[iid] = inventory.get(iid, 0) + qty
+
+    # 3) Evolution costs → refund shards, items, Ryo
+    stars = inst.get("stars", 1)
+    for i in range(stars - 1):
+        cost = gd.evolution_cost(rarity, i)
+        shards_refund += cost["shards"]
+        ryo_refund += cost["ryo"]
+        for iid, qty in cost["items"].items():
+            inventory[iid] = inventory.get(iid, 0) + qty
+
+    # 4) Skill-up costs → refund shards, Ryo
+    skill_rank = inst.get("skill_rank", 1)
+    for i in range(skill_rank - 1):
+        cost = gd.skill_rank_cost(rarity, i)
+        shards_refund += cost["shards"]
+        ryo_refund += cost["ryo"]
+
+    # 5) Reforge costs → refund shards, Ryo
+    total_reforges = gd.reforge_total(inst.get("reforge", {}))
+    for i in range(total_reforges):
+        cost = gd.reforge_cost(rarity, i)
+        shards_refund += cost["shards"]
+        ryo_refund += cost["ryo"]
+
+    if shards_refund:
+        hero_shards[inst["template_id"]] = hero_shards.get(inst["template_id"], 0) + shards_refund
+    user["ryo"] = user.get("ryo", 0) + ryo_refund
+
+    # Reset hero to base
+    inst["level"] = 1
+    inst["exp"] = 0
+    inst["ascension"] = 0
+    inst["stars"] = 1
+    inst["skill_rank"] = 1
+    inst["reforge"] = {}
+    user["inventory"] = inventory
+
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ninjas": user["ninjas"], "inventory": inventory, "ryo": user["ryo"],
+        "hero_shards": hero_shards,
+    }})
+    await upsert_arena_snapshot(user)
+
+    return {
+        "profile": public_user(user),
+        "refunded": {
+            "exp_tome_ancient": ancient, "exp_tome_greater": greater, "exp_tome_minor": minor,
+            "ascension_crystal": sum(gd.ascension_cost(rarity, i)["ascension_crystal"] for i in range(asc)),
+            "shards": shards_refund, "ryo": ryo_refund,
+        },
+    }
 
 
 # ---------------------------------------------------------------------------
