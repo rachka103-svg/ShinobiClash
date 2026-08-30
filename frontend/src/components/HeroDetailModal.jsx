@@ -2,8 +2,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Heart, Sword, Shield, Wind, Star, ChevronsUp, Gem, Coins, Sparkles, Check,
-  Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2, X,
-  ChevronLeft,
+  Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -11,19 +10,15 @@ import { RARITY, ELEMENT } from "@/lib/styles";
 import { rarityFrame, GOLD } from "@/lib/theme";
 import { DecoCorners } from "@/components/RarityFx";
 import { RarityBadge } from "@/components/RarityBadge";
-import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { ItemIcon } from "@/components/ItemIcon";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
-import { useAudio } from "@/context/AudioContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
 const Stat = ({ icon: Icon, label, value, color }) => (
-  <div className="flex flex-col items-center gap-1 min-w-0 py-1">
-    <div className="flex items-center gap-1.5 sm:flex-col sm:gap-1">
-      <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color }} />
-      <span className="font-display text-lg sm:text-2xl text-ink leading-none">{value}</span>
-    </div>
+  <div className="flex flex-col items-center gap-1 flex-1 min-w-0 py-1">
+    <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color }} />
+    <span className="font-display text-xl sm:text-2xl text-ink leading-none">{value}</span>
     <span className="text-[10px] uppercase tracking-widest text-slate-500">{label}</span>
   </div>
 );
@@ -49,7 +44,6 @@ export default function HeroDetailModal({
 }) {
   const { user, setUser } = useAuth();
   const { gearConfig, items, expTomeGoldCost, reforgeModifiers, reforgeMaxPerJutsu } = useGame();
-  const { playSfx } = useAudio();
   const [tab, setTab] = useState("train");
   const [qty, setQty] = useState(1);
   const [gearSlot, setGearSlot] = useState(null);
@@ -77,10 +71,8 @@ export default function HeroDetailModal({
     try {
       const { data } = await api.post("/game/hero/evolve", { instance_id: instance.instance_id });
       setUser(data.profile);
-      playSfx("levelup");
       toast.success(`Evolved to ${data.stars}\u2605! Permanent stat surge unlocked.`);
     } catch (err) {
-      playSfx("error");
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setBusyLocal(false); }
   };
@@ -95,10 +87,8 @@ export default function HeroDetailModal({
     try {
       const { data } = await api.post("/game/hero/skill-up", { instance_id: instance.instance_id });
       setUser(data.profile);
-      playSfx("levelup");
       toast.success(data.unlocked_passive ? "Passive Unlocked!" : `Skills raised to Rank ${data.skill_rank}!`);
     } catch (err) {
-      playSfx("error");
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setBusyLocal(false); }
   };
@@ -116,10 +106,8 @@ export default function HeroDetailModal({
     try {
       const { data } = await api.post("/game/hero/reforge", { instance_id: instance.instance_id, jutsu_id: jutsuId, modifier_id: modId });
       setUser(data.profile);
-      playSfx("success");
       toast.success(`${reforgeMods[modId]?.name || "Reforge"} applied!`);
     } catch (err) {
-      playSfx("error");
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setBusyLocal(false); }
   };
@@ -164,9 +152,8 @@ export default function HeroDetailModal({
     <Dialog open={open} onOpenChange={(o) => !o && closeAll()}>
       <DialogContent
         data-testid="hero-detail-modal"
-        hideClose
-        className="dark max-w-[760px] w-[calc(100vw-32px)] p-0 gap-0 overflow-hidden max-h-[calc(100dvh-32px)] overflow-y-auto text-[var(--ink)] border-0 rounded-2xl"
-        style={{ backgroundColor: "var(--panel)", border: `${frame.strokeWidth}px solid ${frame.useGold ? GOLD.stroke : rarity.color + "66"}`, boxShadow: `0 0 60px ${(frame.useGold ? GOLD.base : rarity.color)}40` }}
+        className="max-w-xl sm:max-w-2xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] overflow-y-auto bg-[#FFFFFF] border-0 rounded-2xl"
+        style={{ border: `${frame.strokeWidth}px solid ${frame.useGold ? GOLD.stroke : rarity.color + "66"}`, boxShadow: `0 0 60px ${(frame.useGold ? GOLD.base : rarity.color)}40` }}
       >
         <DialogTitle className="sr-only">{template.name}</DialogTitle>
         <DialogDescription className="sr-only">Details for {template.name}</DialogDescription>
@@ -193,15 +180,6 @@ export default function HeroDetailModal({
               <Minimize2 className="w-3.5 h-3.5" /> Show Info
             </button>
 
-            {/* close modal */}
-            <button
-              onClick={closeAll}
-              data-testid="hero-immersive-close"
-              className="absolute top-4 right-4 z-10 flex items-center justify-center w-8 h-8 rounded-lg bg-black/55 backdrop-blur border border-white/10 text-white hover:bg-black/75 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
             {/* minimal caption */}
             <div className="absolute inset-x-0 bottom-0 z-10 p-5 sm:p-7">
               <div className="flex items-center gap-2 mb-2">
@@ -221,75 +199,44 @@ export default function HeroDetailModal({
           </div>
         ) : (
         <>
-        {/* ---------- Header ---------- */}
-        <div className="flex items-center justify-between px-3 sm:px-4 h-12 sm:h-14 shrink-0">
-          <button
-            onClick={closeAll}
-            data-testid="hero-close-button"
-            className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-white/5 transition-colors text-slate-400"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <span className="font-display tracking-widest text-xs sm:text-sm text-slate-400">HERO DETAILS</span>
-          <button
-            onClick={() => setImmersive(true)}
-            data-testid="hero-fullscreen-toggle"
-            className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-white/5 transition-colors text-slate-400"
-          >
-            <Maximize2 className="w-4 h-4" />
-          </button>
-        </div>
-
         {/* ---------- Portrait ---------- */}
-        <div className="relative w-full shrink-0 overflow-hidden aspect-[4/3] md:aspect-[16/8] lg:aspect-[16/7]">
-          <img
-            src={template.portrait}
-            alt={template.name}
-            className="w-full h-full object-cover object-top"
-          />
+        <div className="relative h-[300px] sm:h-[400px] shrink-0">
+          <img src={template.portrait} alt={template.name} className="w-full h-full object-cover object-top" />
           <div className="absolute inset-x-0 top-0 h-28 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${element.color}40, transparent)` }} />
-          <div className="absolute inset-0 bg-gradient-to-t from-[var(--panel)] via-transparent to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#FFFFFF] via-transparent to-transparent pointer-events-none" />
           {frame.useGold && <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />}
           {frame.cornerLevel >= 2 && <DecoCorners rarity={template.rarity} size={22} />}
           {owned && (
-            <span className="absolute bottom-4 left-4 z-10 flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/90 text-ink text-xs font-bold" data-testid="detail-owned-badge">
+            <span className="absolute top-4 left-4 z-10 flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/90 text-ink text-xs font-bold" data-testid="detail-owned-badge">
               <Check className="w-3.5 h-3.5" /> OWNED
             </span>
           )}
           {instance && (
-            <div className="absolute bottom-4 right-4 z-10">
+            <div className="absolute bottom-3 left-4 z-10">
               <EvoStars count={instance.stars || 1} max={instance.stars_max || 6} size="w-5 h-5" testid="hero-evolution-stars" />
             </div>
           )}
-        </div>
-
-        {/* ---------- Stats ---------- */}
-        <div className="px-3 sm:px-4 lg:px-6 mt-4">
-          <div className="glass-panel rounded-xl p-4">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-0 sm:divide-x sm:divide-white/10">
-              <Stat icon={Heart} label="HP" value={stats.hp} color="#FF1744" />
-              <Stat icon={Sword} label="ATK" value={stats.atk} color="#FF5722" />
-              <Stat icon={Shield} label="DEF" value={stats.def} color="#29B6F6" />
-              <Stat icon={Wind} label="SPD" value={stats.spd} color="#00E676" />
-            </div>
-          </div>
+          {/* View full art — hides info panels */}
+          <button
+            onClick={() => setImmersive(true)}
+            data-testid="hero-fullscreen-toggle"
+            className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/50 backdrop-blur border border-black/12 text-slate-700 text-xs font-semibold hover:bg-black/70 transition-colors"
+          >
+            <Maximize2 className="w-3.5 h-3.5" /> View Art
+          </button>
         </div>
 
         {/* ---------- Profile content ---------- */}
-        <div className="px-3 sm:px-4 lg:px-6 pt-5 pb-6">
+        <div className="p-5 sm:p-7">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-black/[0.06] text-slate-700">{template.role}</span>
             {instance && (
               <span className="ml-auto font-display text-lg text-amber-300 flex items-center gap-1" data-testid="hero-power-label"><Zap className="w-4 h-4" />{instance.power} PWR</span>
             )}
           </div>
-          <h2 className="font-display text-[2rem] sm:text-6xl tracking-wide text-ink leading-none break-words">{template.name}</h2>
+          <h2 className="font-display text-4xl sm:text-6xl tracking-wide text-ink leading-none">{template.name}</h2>
           {template.title && <p className="text-sm sm:text-base text-chakra italic mt-1.5">{template.title}</p>}
-          {template.lore && (
-            <CollapsibleSection title="Hero Lore" className="mt-4">
-              <p className="text-sm text-slate-500 italic">&ldquo;{template.lore}&rdquo;</p>
-            </CollapsibleSection>
-          )}
+          {template.lore && <p className="text-sm text-slate-500 italic mt-3">&ldquo;{template.lore}&rdquo;</p>}
 
           {/* Add to / remove from squad (unified Heroes & Squad hub) */}
           {squad && instance && (
@@ -305,6 +252,16 @@ export default function HeroDetailModal({
               {squad.inSquad ? <><Check className="w-5 h-5" /> IN SQUAD · TAP TO REMOVE</> : <><Plus className="w-5 h-5" /> {squad.canAdd ? "ADD TO SQUAD" : "SQUAD FULL"}</>}
             </button>
           )}
+
+          {/* Stats */}
+          <div className="glass-panel mt-5 p-3 sm:p-4">
+            <div className="flex items-stretch divide-x divide-white/10 relative z-10">
+              <Stat icon={Heart} label="HP" value={stats.hp} color="#FF1744" />
+              <Stat icon={Sword} label="ATK" value={stats.atk} color="#FF5722" />
+              <Stat icon={Shield} label="DEF" value={stats.def} color="#29B6F6" />
+              <Stat icon={Wind} label="SPD" value={stats.spd} color="#00E676" />
+            </div>
+          </div>
 
           {progression && instance ? (
             <Tabs value={tab} onValueChange={setTab} className="mt-6" data-testid="hero-detail-tabs">
@@ -688,36 +645,36 @@ export default function HeroDetailModal({
               </TabsContent>
             </Tabs>
           ) : (
-            <CollapsibleSection title="How to Obtain" className="mt-6">
+            <div className="mt-6">
+              <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">How to Obtain</p>
               <div className="flex flex-wrap gap-2">
                 <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-jutsu/15 text-jutsu border border-jutsu/30"><Sparkles className="w-3.5 h-3.5" /> Summon</span>
                 {obtain?.campaignChapter != null && (
                   <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-fox/15 text-fox border border-fox/30"><Scroll className="w-3.5 h-3.5" /> Campaign Ch.{obtain.campaignChapter} first clear</span>
                 )}
               </div>
-            </CollapsibleSection>
+            </div>
           )}
 
           {/* Jutsu */}
-          <CollapsibleSection title="Jutsu" className="mt-6" defaultOpen>
-            <div className="space-y-2.5">
-              {template.jutsus.map((j) => (
-                <div key={j.id} className="flex items-start gap-3 p-4 rounded-xl bg-black/[0.04] border border-white/5">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-ink text-sm">{j.name}</span>
-                      {j.signature && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-jutsu/15 text-jutsu border border-jutsu/30">SIGNATURE</span>}
-                      {j.ascendant && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300 border border-amber-400/30">ASCENDANT</span>}
-                      {j.type === "passive" ? <span className="text-[10px] text-slate-500">Passive</span>
-                        : j.chakra_cost > 0 ? <span className="text-[10px] font-bold text-chakra">{j.chakra_cost} CK</span>
-                        : <span className="text-[10px] text-slate-500">Basic</span>}
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">{j.description}</p>
+          <p className="text-xs uppercase tracking-widest text-slate-500 mt-6 mb-2">Jutsu</p>
+          <div className="space-y-2">
+            {template.jutsus.map((j) => (
+              <div key={j.id} className="flex items-start gap-3 p-3 rounded-xl bg-black/[0.04] border border-white/5">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-ink text-sm">{j.name}</span>
+                    {j.signature && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-jutsu/15 text-jutsu border border-jutsu/30">SIGNATURE</span>}
+                    {j.ascendant && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300 border border-amber-400/30">ASCENDANT</span>}
+                    {j.type === "passive" ? <span className="text-[10px] text-slate-500">Passive</span>
+                      : j.chakra_cost > 0 ? <span className="text-[10px] font-bold text-chakra">{j.chakra_cost} CK</span>
+                      : <span className="text-[10px] text-slate-500">Basic</span>}
                   </div>
+                  <p className="text-xs text-slate-500 mt-0.5">{j.description}</p>
                 </div>
-              ))}
-            </div>
-          </CollapsibleSection>
+              </div>
+            ))}
+          </div>
         </div>
         </>
         )}
