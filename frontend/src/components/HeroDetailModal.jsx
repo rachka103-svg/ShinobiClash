@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Heart, Sword, Shield, Wind, Star, ChevronsUp, Gem, Coins, Sparkles, Check,
-  Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2,
+  Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2, X,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -51,7 +51,6 @@ export default function HeroDetailModal({
   const [gearSlot, setGearSlot] = useState(null);
   const [busyLocal, setBusyLocal] = useState(false);
   const [immersive, setImmersive] = useState(false);
-  const [artRatio, setArtRatio] = useState(1.2);
 
   if (!template) return null;
   const rarity = RARITY[template.rarity] || RARITY.R;
@@ -161,7 +160,8 @@ export default function HeroDetailModal({
     <Dialog open={open} onOpenChange={(o) => !o && closeAll()}>
       <DialogContent
         data-testid="hero-detail-modal"
-        className="dark max-w-xl sm:max-w-2xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] overflow-y-auto text-[var(--ink)] border-0 rounded-2xl"
+        hideClose
+        className="dark max-w-[760px] w-[calc(100vw-32px)] p-0 gap-0 overflow-hidden max-h-[calc(100dvh-32px)] overflow-y-auto text-[var(--ink)] border-0 rounded-2xl"
         style={{ backgroundColor: "var(--panel)", border: `${frame.strokeWidth}px solid ${frame.useGold ? GOLD.stroke : rarity.color + "66"}`, boxShadow: `0 0 60px ${(frame.useGold ? GOLD.base : rarity.color)}40` }}
       >
         <DialogTitle className="sr-only">{template.name}</DialogTitle>
@@ -189,6 +189,15 @@ export default function HeroDetailModal({
               <Minimize2 className="w-3.5 h-3.5" /> Show Info
             </button>
 
+            {/* close modal */}
+            <button
+              onClick={closeAll}
+              data-testid="hero-immersive-close"
+              className="absolute top-4 right-4 z-10 flex items-center justify-center w-8 h-8 rounded-lg bg-black/55 backdrop-blur border border-white/10 text-white hover:bg-black/75 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
             {/* minimal caption */}
             <div className="absolute inset-x-0 bottom-0 z-10 p-5 sm:p-7">
               <div className="flex items-center gap-2 mb-2">
@@ -209,12 +218,11 @@ export default function HeroDetailModal({
         ) : (
         <>
         {/* ---------- Portrait ---------- */}
-        <div className="relative w-full shrink-0 overflow-hidden" style={{ aspectRatio: artRatio, maxHeight: "65vh" }}>
+        <div className="relative w-full shrink-0 overflow-hidden" style={{ height: "clamp(380px, 55vh, 520px)" }}>
           <img
             src={template.portrait}
             alt={template.name}
             className="w-full h-full object-cover object-top"
-            onLoad={(e) => { const r = e.currentTarget.naturalWidth / e.currentTarget.naturalHeight; if (r && isFinite(r)) setArtRatio(Math.min(1.4, Math.max(0.7, r))); }}
           />
           <div className="absolute inset-x-0 top-0 h-28 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${element.color}40, transparent)` }} />
           {/* top-right scrim keeps the close button legible over bright art */}
@@ -227,6 +235,13 @@ export default function HeroDetailModal({
               <Check className="w-3.5 h-3.5" /> OWNED
             </span>
           )}
+          <button
+            onClick={closeAll}
+            data-testid="hero-close-button"
+            className="absolute top-4 right-4 z-10 flex items-center justify-center w-8 h-8 rounded-lg bg-black/50 backdrop-blur border border-white/10 text-white hover:bg-black/70 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
           {instance && (
             <div className="absolute bottom-3 left-4 z-10">
               <EvoStars count={instance.stars || 1} max={instance.stars_max || 6} size="w-5 h-5" testid="hero-evolution-stars" />
@@ -242,8 +257,18 @@ export default function HeroDetailModal({
           </button>
         </div>
 
+        {/* ---------- Stats panel (overlaps portrait bottom) ---------- */}
+        <div className="relative z-20 -mt-8 mx-4 sm:mx-6 glass-panel rounded-xl p-4 sm:px-5">
+          <div className="grid grid-cols-4 divide-x divide-white/10">
+            <Stat icon={Heart} label="HP" value={stats.hp} color="#FF1744" />
+            <Stat icon={Sword} label="ATK" value={stats.atk} color="#FF5722" />
+            <Stat icon={Shield} label="DEF" value={stats.def} color="#29B6F6" />
+            <Stat icon={Wind} label="SPD" value={stats.spd} color="#00E676" />
+          </div>
+        </div>
+
         {/* ---------- Profile content ---------- */}
-        <div className="p-5 sm:p-7">
+        <div className="px-5 sm:px-7 pt-5 sm:pt-6 pb-6">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-black/[0.06] text-slate-700">{template.role}</span>
             {instance && (
@@ -268,16 +293,6 @@ export default function HeroDetailModal({
               {squad.inSquad ? <><Check className="w-5 h-5" /> IN SQUAD · TAP TO REMOVE</> : <><Plus className="w-5 h-5" /> {squad.canAdd ? "ADD TO SQUAD" : "SQUAD FULL"}</>}
             </button>
           )}
-
-          {/* Stats */}
-          <div className="glass-panel mt-5 p-3 sm:p-4">
-            <div className="flex items-stretch divide-x divide-white/10 relative z-10">
-              <Stat icon={Heart} label="HP" value={stats.hp} color="#FF1744" />
-              <Stat icon={Sword} label="ATK" value={stats.atk} color="#FF5722" />
-              <Stat icon={Shield} label="DEF" value={stats.def} color="#29B6F6" />
-              <Stat icon={Wind} label="SPD" value={stats.spd} color="#00E676" />
-            </div>
-          </div>
 
           {progression && instance ? (
             <Tabs value={tab} onValueChange={setTab} className="mt-6" data-testid="hero-detail-tabs">
@@ -673,10 +688,10 @@ export default function HeroDetailModal({
           )}
 
           {/* Jutsu */}
-          <p className="text-xs uppercase tracking-widest text-slate-500 mt-6 mb-2">Jutsu</p>
-          <div className="space-y-2">
+          <p className="text-xs uppercase tracking-widest text-slate-500 mt-6 mb-3">Jutsu</p>
+          <div className="space-y-2.5">
             {template.jutsus.map((j) => (
-              <div key={j.id} className="flex items-start gap-3 p-3 rounded-xl bg-black/[0.04] border border-white/5">
+              <div key={j.id} className="flex items-start gap-3 p-4 rounded-xl bg-black/[0.04] border border-white/5">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-ink text-sm">{j.name}</span>
