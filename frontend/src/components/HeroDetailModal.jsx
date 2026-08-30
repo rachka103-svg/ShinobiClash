@@ -16,7 +16,7 @@ import { useGame } from "@/context/GameContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
 const Stat = ({ icon: Icon, label, value, color }) => (
-  <div className="flex flex-col items-center gap-1 flex-1 min-w-0 py-1">
+  <div className="flex flex-col items-center gap-1 min-w-0 py-1">
     <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color }} />
     <span className="font-display text-xl sm:text-2xl text-ink leading-none">{value}</span>
     <span className="text-[10px] uppercase tracking-widest text-slate-500">{label}</span>
@@ -227,7 +227,7 @@ export default function HeroDetailModal({
         </div>
 
         {/* ---------- Profile content ---------- */}
-        <div className="p-5 sm:p-7">
+        <div className="p-4 sm:p-7 overflow-x-hidden min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-black/[0.06] text-slate-700">{template.role}</span>
             {instance && (
@@ -255,7 +255,7 @@ export default function HeroDetailModal({
 
           {/* Stats */}
           <div className="glass-panel mt-5 p-3 sm:p-4">
-            <div className="flex items-stretch divide-x divide-white/10 relative z-10">
+            <div className="grid grid-cols-4 divide-x divide-white/10">
               <Stat icon={Heart} label="HP" value={stats.hp} color="#FF1744" />
               <Stat icon={Sword} label="ATK" value={stats.atk} color="#FF5722" />
               <Stat icon={Shield} label="DEF" value={stats.def} color="#29B6F6" />
@@ -264,17 +264,17 @@ export default function HeroDetailModal({
           </div>
 
           {progression && instance ? (
-            <Tabs value={tab} onValueChange={setTab} className="mt-6" data-testid="hero-detail-tabs">
+            <Tabs value={tab} onValueChange={setTab} className="mt-6 min-w-0" data-testid="hero-detail-tabs">
               <TabsList className="grid grid-cols-4 w-full bg-black/[0.04] border border-black/10 rounded-xl h-11">
-                <TabsTrigger value="train" data-testid="hero-train-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-chakra/15 data-[state=active]:text-chakra rounded-lg">TRAIN</TabsTrigger>
-                <TabsTrigger value="evolve" data-testid="hero-evolve-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-amber-400/15 data-[state=active]:text-amber-300 rounded-lg">EVOLVE</TabsTrigger>
-                <TabsTrigger value="skills" data-testid="hero-skills-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">SKILLS</TabsTrigger>
-                <TabsTrigger value="gear" data-testid="hero-gear-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-fox/15 data-[state=active]:text-fox rounded-lg">GEAR</TabsTrigger>
+                <TabsTrigger value="train" data-testid="hero-train-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-chakra/15 data-[state=active]:text-chakra rounded-lg">TRAIN</TabsTrigger>
+                <TabsTrigger value="evolve" data-testid="hero-evolve-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-amber-400/15 data-[state=active]:text-amber-300 rounded-lg">EVOLVE</TabsTrigger>
+                <TabsTrigger value="skills" data-testid="hero-skills-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">SKILLS</TabsTrigger>
+                <TabsTrigger value="gear" data-testid="hero-gear-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-fox/15 data-[state=active]:text-fox rounded-lg">GEAR</TabsTrigger>
               </TabsList>
 
               {/* ================= TRAIN ================= */}
-              <TabsContent value="train" className="mt-4" data-testid="hero-progression-section">
-                <div className="rounded-xl bg-black/[0.04] border border-black/10 p-3 mb-4">
+              <TabsContent value="train" className="mt-4 w-full min-w-0" data-testid="hero-progression-section">
+                <div className="rounded-xl bg-black/[0.04] border border-black/10 p-3 mb-4 overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-display text-xl text-ink">Lv.{instance.level}<span className="text-slate-500 text-sm">/{instance.level_cap}</span></span>
                   <div className="flex gap-0.5" data-testid="ascension-stars">
@@ -292,8 +292,8 @@ export default function HeroDetailModal({
                 </div>
                 </div>
 
-                <div className="rounded-xl bg-black/[0.04] border border-black/10 p-3">
-                <div className="flex items-center justify-between mb-3">
+                <div className="rounded-xl bg-black/[0.04] border border-black/10 p-3 overflow-hidden">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                   <p className="text-xs uppercase tracking-widest text-slate-500">Train with EXP Tomes</p>
                   <div className="flex gap-1" data-testid="train-qty-selector">
                     {[1, 5, 25].map((q) => (
@@ -301,14 +301,14 @@ export default function HeroDetailModal({
                         key={q}
                         onClick={() => setQty(q)}
                         data-testid={`train-qty-${q}`}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${qty === q ? "bg-chakra/20 text-chakra border border-chakra/40" : "text-slate-500 border border-black/10"}`}
+                        className={`px-2 sm:px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${qty === q ? "bg-chakra/20 text-chakra border border-chakra/40" : "text-slate-500 border border-black/10"}`}
                       >
                         x{q}
                       </button>
                     ))}
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 mb-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2 w-full min-w-0 overflow-hidden">
                   {["exp_tome_minor", "exp_tome_greater", "exp_tome_ancient"].map((tid) => {
                     const count = inv[tid] || 0;
                     const meta = items[tid];
