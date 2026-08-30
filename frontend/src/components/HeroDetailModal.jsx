@@ -274,7 +274,8 @@ export default function HeroDetailModal({
 
               {/* ================= TRAIN ================= */}
               <TabsContent value="train" className="mt-4" data-testid="hero-progression-section">
-                <div className="flex items-center justify-between mb-1.5">
+                <div className="rounded-xl bg-black/[0.04] border border-black/10 p-3 mb-4">
+                <div className="flex items-center justify-between mb-2">
                   <span className="font-display text-xl text-ink">Lv.{instance.level}<span className="text-slate-500 text-sm">/{instance.level_cap}</span></span>
                   <div className="flex gap-0.5" data-testid="ascension-stars">
                     {Array.from({ length: instance.ascension_max }).map((_, i) => (
@@ -286,11 +287,13 @@ export default function HeroDetailModal({
                   <span>EXP</span>
                   <span data-testid="hero-exp-label">{progression.atCap ? "MAX — ascend to continue" : `${instance.exp} / ${instance.exp_to_next}`}</span>
                 </div>
-                <div className="h-2 rounded bg-black/50 overflow-hidden mb-4">
+                <div className="h-2 rounded bg-black/50 overflow-hidden">
                   <div className="h-full rounded" style={{ width: `${expPct}%`, background: "linear-gradient(90deg,#00E5FF,#76FF03)" }} />
                 </div>
+                </div>
 
-                <div className="flex items-center justify-between mb-2">
+                <div className="rounded-xl bg-black/[0.04] border border-black/10 p-3">
+                <div className="flex items-center justify-between mb-3">
                   <p className="text-xs uppercase tracking-widest text-slate-500">Train with EXP Tomes</p>
                   <div className="flex gap-1" data-testid="train-qty-selector">
                     {[1, 5, 25].map((q) => (
@@ -305,7 +308,7 @@ export default function HeroDetailModal({
                     ))}
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 mb-1">
+                <div className="grid grid-cols-3 gap-2 mb-2">
                   {["exp_tome_minor", "exp_tome_greater", "exp_tome_ancient"].map((tid) => {
                     const count = inv[tid] || 0;
                     const meta = items[tid];
@@ -327,14 +330,15 @@ export default function HeroDetailModal({
                     );
                   })}
                 </div>
-                <p className="text-[10px] text-slate-500 mb-4">Training consumes tomes + Ryo. Farm both in the Resource Dungeons.</p>
+                <p className="text-[10px] text-slate-500">Training consumes tomes + Ryo. Farm both in the Resource Dungeons.</p>
+                </div>
 
                 {!progression.fullyAscended ? (
                   <button
                     onClick={progression.onAscend}
                     disabled={busy || !progression.canAscend}
                     data-testid="ascend-button"
-                    className="w-full py-3 mb-1 rounded-xl font-display text-base sm:text-lg tracking-wide bg-amber-400 text-[#05050A] hover:bg-amber-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 flex-wrap"
+                    className="w-full py-3 mt-4 mb-2 rounded-xl font-display text-base sm:text-lg tracking-wide bg-amber-400 text-[#05050A] hover:bg-amber-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 flex-wrap"
                   >
                     {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <ChevronsUp className="w-5 h-5" />}
                     {progression.atCap ? "ASCEND" : "REACH LV.CAP TO ASCEND"}
@@ -346,7 +350,7 @@ export default function HeroDetailModal({
                     )}
                   </button>
                 ) : (
-                  <div className="w-full py-3 mb-1 rounded-xl text-center font-display text-base tracking-wide text-amber-300 bg-amber-400/10 flex items-center justify-center gap-2" data-testid="fully-ascended-label">
+                  <div className="w-full py-3 mt-4 mb-2 rounded-xl text-center font-display text-base tracking-wide text-amber-300 bg-amber-400/10 flex items-center justify-center gap-2" data-testid="fully-ascended-label">
                     <Sparkles className="w-4 h-4" /> FULLY ASCENDED
                   </div>
                 )}
