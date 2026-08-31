@@ -103,25 +103,28 @@ export function rollDamage(
     advantage
   );
 
+  // Defense subtracts more meaningfully so battles last a few actions
+  // longer without turning enemies into HP sponges — strategy and status
+  // effects get room to matter.
   let raw =
     base * mult -
-    def * 0.5;
+    def * 0.6;
 
   raw = Math.max(
     raw,
-    base * 0.18
+    base * 0.15
   );
 
   const variance =
     0.9 + Math.random() * 0.2;
 
   const crit =
-    Math.random() < 0.16;
+    Math.random() < 0.14;
 
   const dmg = Math.round(
     raw *
       variance *
-      (crit ? 1.65 : 1)
+      (crit ? 1.5 : 1)
   );
 
   return {
@@ -194,6 +197,15 @@ export const REFORGE_MODIFIERS = {
       chance: 35,
       duration: 2,
       value: 20,
+    },
+  },
+
+  shock: {
+    effect: {
+      type: "shock",
+      chance: 25,
+      duration: 2,
+      value: 50,
     },
   },
 
@@ -1199,6 +1211,35 @@ export function applyJutsuEffects(
           )
         );
       }
+    } else if (et === "shock") {
+      if (
+        !target.statuses.find(
+          (s) =>
+            s.effectType ===
+            "shock"
+        )
+      ) {
+        target.statuses.push({
+          id: `shock_${target.uid}_${Date.now()}`,
+          effectType: "shock",
+          source: actor.uid,
+          duration: dur,
+          value: val || 50,
+        });
+
+        events.push(
+          makeEvent(
+            "DEBUFF_APPLIED",
+            {
+              actorUid:
+                actor.uid,
+              targetUid:
+                target.uid,
+              text: "Shock!",
+            }
+          )
+        );
+      }
     }
   }
 
@@ -1304,7 +1345,8 @@ export function tickStatuses(
       ) ||
       DEBUFF_TYPES.has(
         s.effectType
-      )
+      ) ||
+      s.effectType === "shock"
     ) {
       s.duration -= 1;
 

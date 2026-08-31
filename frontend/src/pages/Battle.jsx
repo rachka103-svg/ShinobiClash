@@ -39,25 +39,40 @@ function pickAiAction(actor, arr) {
   const affordable = actor.jutsus.filter((j) =>
         j.type !== "passive" && j.chakra_cost <= actor.chakra
       );
-  const healJ = affordable.find((j) => j.type === "heal");
-  const woundedAlly = allies.find((a) => a.hp / a.maxHp < 0.45);
 
-  let jutsu, targetUid = null;
-  if (healJ && woundedAlly) {
-    jutsu = healJ; targetUid = woundedAlly.uid;
-  } else {
-    const offensive = affordable.filter((j) => j.type === "attack" || j.type === "aoe");
-    const aoe = offensive.find((j) => j.type === "aoe");
-    if (aoe && enemies.length >= 2 && Math.random() < 0.6) {
-      jutsu = aoe;
-    } else {
-      const atks = offensive.filter((j) => j.type === "attack");
-      jutsu = atks.sort((a, b) => b.power - a.power)[0] || actor.jutsus[0];
-      targetUid = [...enemies].sort((a, b) => a.hp - b.hp)[0]?.uid;
-    }
-    if (jutsu.type === "aoe") targetUid = null;
+  // 1. Heal a genuinely threatened ally (< 35% HP)
+  const healJ = affordable.find((j) => j.type === "heal");
+  const threatenedAlly = allies.find((a) => a.hp / a.maxHp < 0.35);
+  if (healJ && threatenedAlly) {
+    return { jutsu: healJ, targetUid: threatenedAlly.uid };
   }
-  return { jutsu, targetUid };
+
+  // 2. Shield a vulnerable ally when no heal is needed/available
+  const shieldJ = affordable.find((j) => j.type === "shield");
+  const vulnerableAlly = allies.find((a) => a.hp / a.maxHp < 0.5 && a.shield === 0);
+  if (shieldJ && vulnerableAlly && !healJ) {
+    return { jutsu: shieldJ, targetUid: vulnerableAlly.uid };
+  }
+
+  const offensive = affordable.filter((j) => j.type === "attack" || j.type === "aoe");
+  const singleAtks = offensive.filter((j) => j.type === "attack");
+  const aoe = offensive.find((j) => j.type === "aoe");
+  const lowestEnemy = [...enemies].sort((a, b) => a.hp - b.hp)[0];
+
+  // 3. Finish a nearly-dead enemy with the cheapest attack (don't waste AoE)
+  if (lowestEnemy && lowestEnemy.hp / lowestEnemy.maxHp < 0.25 && singleAtks.length) {
+    const finisher = singleAtks.sort((a, b) => a.chakra_cost - b.chakra_cost)[0];
+    return { jutsu: finisher, targetUid: lowestEnemy.uid };
+  }
+
+  // 4. Use AoE when multiple enemies are alive and none is about to die
+  if (aoe && enemies.length >= 2) {
+    return { jutsu: aoe, targetUid: null };
+  }
+
+  // 5. Default: strongest single attack on the lowest-HP enemy
+  const jutsu = singleAtks.sort((a, b) => b.power - a.power)[0] || offensive[0] || actor.jutsus[0];
+  return { jutsu, targetUid: lowestEnemy?.uid || null };
 }
 
 export default function Battle() {
@@ -118,6 +133,7 @@ export default function Battle() {
   const [cinematicAction, setCinematicAction] = useState(null); // { key, jutsuName, element, isCrit, isAoe }
   const [ultimateData, setUltimateData] = useState(null); // { key, actorName, jutsuName, element, portrait }
   const [screenShake, setScreenShake] = useState(false);
+  const [attackingUid, setAttackingUid] = useState(null);
   const actionCounterRef = useRef(0);
 
   const combRef = useRef([]);
@@ -197,8 +213,8 @@ export default function Battle() {
   const aliveSide = (arr, side) => arr.some((c) => c.side === side && c.alive);
 
   const beginTurnAt = useCallback((ptr, arr, order) => {
-    if (!aliveSide(arr, "ally")) { setPhase("lose"); return; }
-    if (!aliveSide(arr, "enemy")) { setPhase("win"); return; }
+    if (!aliveSide(arr, "ally")) { setTimeout(() => setPhase("lose"), ms(900)); return; }
+    if (!aliveSide(arr, "enemy")) { setTimeout(() => setPhase("win"), ms(900)); return; }
 
     const work = cloneArr(arr);
     let p = ptr;
@@ -221,6 +237,9 @@ export default function Battle() {
     if (dotDmg > 0 && actor.alive) {
       actor.hp = Math.max(0, actor.hp - dotDmg);
       pushLog(`${actor.name} suffers ${dotDmg} from a lingering curse.`);
+      const dotId = `dot-${actor.uid}-${Date.now()}-${Math.random()}`;
+      setFloaters((f) => [...f, { id: dotId, uid: actor.uid, text: `-${dotDmg}`, color: "#76FF03" }]);
+      setTimeout(() => setFloaters((f) => f.filter((x) => x.id !== dotId)), ms(750));
       evs.push(makeEvent("DOT_TRIGGERED", { targetUid: actor.uid, value: dotDmg }));
       if (actor.hp === 0) {
         const revived = resolveDeath(actor, evs);
@@ -242,6 +261,14 @@ export default function Battle() {
 
     // chakra regen at start of turn
     actor.chakra = Math.min(actor.maxChakra, actor.chakra + 20);
+
+    // Shock disrupts chakra generation — reduces the turn's chakra gain
+    const shock = actor.statuses?.find((s) => s.effectType === "shock" && (s.duration ?? 0) > 0);
+    if (shock) {
+      const reduction = Math.round(20 * (shock.value || 50) / 100);
+      actor.chakra = Math.max(0, actor.chakra - reduction);
+      pushLog(`${actor.name} loses ${reduction} chakra to Shock!`);
+    }
 
     // Stun / Freeze check — skip the actor's turn entirely
     if (isStunned(actor)) {
@@ -268,6 +295,8 @@ export default function Battle() {
   const applyAction = useCallback((actor, jutsu, targetUid) => {
     actionLockRef.current = true;
     setPhase("busy");
+    setAttackingUid(actor.uid);
+    setTimeout(() => setAttackingUid(null), ms(500));
     playSfx(jutsu.type === "heal" ? "heal" : jutsu.type === "shield" ? "shield" : "hit");
     // Cinematic: capture action info for attack FX
     actionCounterRef.current += 1;
@@ -286,7 +315,7 @@ export default function Battle() {
 
     const newFloaters = [];
     const newEvents = [];
-    const addFloat = (uid, text, color) => newFloaters.push({ id: `${Date.now()}-${uid}-${Math.random()}`, uid, text, color });
+    const addFloat = (uid, text, color, isCrit = false) => newFloaters.push({ id: `${Date.now()}-${uid}-${Math.random()}`, uid, text, color, isCrit });
 
     const applyDamage = (target) => {
       const { dmg, crit, mult, notes } = resolveDamage(act, target, jutsu, advantage);
@@ -312,7 +341,7 @@ export default function Battle() {
       }
 
       const color = notes.includes("execute") ? "#E040FB" : mult > 1 ? "#FFCA28" : mult < 1 ? "#94A3B8" : "#FF1744";
-      addFloat(target.uid, `${crit ? "CRIT " : ""}${notes.includes("execute") ? "EXECUTE " : ""}-${dmg}`, color);
+      addFloat(target.uid, `${crit ? "CRIT " : ""}${notes.includes("execute") ? "EXECUTE " : ""}-${dmg}`, color, crit);
       newEvents.push(makeEvent(crit ? "CRITICAL" : "DAMAGE", { actorUid: act.uid, targetUid: target.uid, value: dmg }));
       setShakeUid(target.uid);
       setTimeout(() => setShakeUid(null), ms(300));
@@ -482,7 +511,7 @@ export default function Battle() {
   return (
     <div className={`fixed inset-0 overflow-hidden ${screenShake ? "screen-shake" : ""}`} data-testid="battle-page">
       {/* Cinematic layered battlefield environment */}
-      <BattlefieldEnv element={dominantElement} />
+      <BattlefieldEnv element={dominantElement} region={mode === "campaign" ? stage?.region : null} />
 
       {/* Cinematic battle entry transition */}
       {cinema && <BattleEntry title={title} chapter={mode === "campaign" ? `CHAPTER ${stage?.chapter || "I"}` : mode === "spire" ? `FLOOR ${floor}` : mode.toUpperCase()} onDone={() => setIntroDone(true)} />}
@@ -545,7 +574,7 @@ export default function Battle() {
           {/* Enemies */}
           <div className="flex justify-center gap-3 sm:gap-5 px-4 mb-3">
             {enemies.map((c) => (
-              <BattleFighter key={c.uid} c={c} active={c.uid === activeUid} shake={shakeUid === c.uid}
+              <BattleFighter key={c.uid} c={c} active={c.uid === activeUid} attacking={c.uid === attackingUid} shake={shakeUid === c.uid}
                 floaters={floaters.filter((f) => f.uid === c.uid)} highlight={isValidTarget(c)}
                 onClick={() => onTargetClick(c)} flip subdued />
             ))}
@@ -573,7 +602,7 @@ export default function Battle() {
           {/* Allies */}
           <div className="flex justify-center gap-3 sm:gap-5 px-4 mt-3">
             {allies.map((c) => (
-              <BattleFighter key={c.uid} c={c} active={c.uid === activeUid} shake={shakeUid === c.uid}
+              <BattleFighter key={c.uid} c={c} active={c.uid === activeUid} attacking={c.uid === attackingUid} shake={shakeUid === c.uid}
                 floaters={floaters.filter((f) => f.uid === c.uid)} highlight={isValidTarget(c)}
                 onClick={() => onTargetClick(c)} />
             ))}
