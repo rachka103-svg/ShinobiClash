@@ -437,6 +437,20 @@ const WIRED_EFFECTS = new Set([
   "escalating_dot",
   "team_shield",
   "revive_once",
+
+  // New passive mechanics
+  "lifesteal",
+  "counterattack",
+  "crit_boost",
+  "speed_boost",
+  "damage_reduction",
+  "first_strike",
+  "heal_on_kill",
+  "chakra_on_hit",
+  "berserk_low_hp",
+  "poison_mastery",
+  "burn_mastery",
+  "shield_on_low_hp",
 ]);
 
 export function hasWiredPassive(c) {
