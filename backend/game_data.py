@@ -341,74 +341,371 @@ def _hero_stats(rarity, role):
     return out
 
 
+# ============================================================
+# HERO COMBAT KIT ARCHITECTURE
+# ============================================================
+# Each role has a deliberately different combat identity.
+#
+# Attacker  = burst damage + elemental pressure
+# Tank      = shields + stun + defensive control
+# Assassin  = bleed + marks + execution pressure
+# Mage      = burn/poison DOT + explosive AOE
+# Healer    = powerful healing + regeneration/support
+# Control   = stun/freeze + ATK/DEF disruption
+# Bruiser   = bleed + sustained frontline damage
+# Support   = healing + shielding + team utility
+#
+# Rarity increases power and kit complexity. Higher rarities
+# receive an additional Ascendant skill through _hero_jutsus.
+# ============================================================
+
+
+def _effect(effect_type, chance=100, duration=2, value=0):
+    """Small helper to keep combat-effect definitions consistent."""
+    effect = {
+        "type": effect_type,
+        "chance": chance,
+        "duration": duration,
+    }
+    if value:
+        effect["value"] = value
+    return effect
+
+
 def _kit_support(hid, element, el, first, ri):
     return [
-        {"id": f"{hid}_b", "name": f"{element} Bolt", "type": "attack", "power": 95, "chakra_cost": 0, "chakra_gain": 30, "element": element, "description": f"A bolt of {el} energy. Builds chakra."},
-        {"id": f"{hid}_heal", "name": "Divine Blessing", "type": "heal", "power": 200 + ri * 38, "chakra_cost": 55 + ri * 2, "chakra_gain": 0, "element": element, "description": "Restores a large amount of an ally's HP."},
-        {"id": f"{hid}_aoe", "name": f"{element} Radiance", "type": "aoe", "power": 125 + ri * 16, "chakra_cost": 70 + ri * 3, "chakra_gain": 0, "element": element, "description": f"Unleashes {el} energy on all enemies."},
+        {
+            "id": f"{hid}_b",
+            "name": f"{element} Guidance",
+            "type": "attack",
+            "power": 82 + ri * 3,
+            "chakra_cost": 0,
+            "chakra_gain": 34,
+            "element": element,
+            "description": f"A focused pulse of {el} energy that builds chakra.",
+        },
+        {
+            "id": f"{hid}_blessing",
+            "name": "Divine Blessing",
+            "type": "heal",
+            "power": 185 + ri * 42,
+            "chakra_cost": 50 + ri * 2,
+            "chakra_gain": 0,
+            "element": element,
+            "description": "Restores a significant amount of an ally's HP.",
+        },
+        {
+            "id": f"{hid}_ward",
+            "name": f"{first}'s Ward",
+            "type": "shield",
+            "power": 110 + ri * 20,
+            "chakra_cost": 68 + ri * 2,
+            "chakra_gain": 0,
+            "element": element,
+            "description": "Creates a protective ward around an ally.",
+        },
     ]
 
 
 def _kit_tank(hid, element, el, first, ri):
     return [
-        {"id": f"{hid}_b", "name": f"{element} Smash", "type": "attack", "power": 95, "chakra_cost": 0, "chakra_gain": 28, "element": element, "description": "A heavy blow. Builds chakra."},
-        {"id": f"{hid}_sig", "name": f"{first}'s Wrath", "type": "attack", "power": 160 + ri * 18, "chakra_cost": 45 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A crushing {el} strike on one foe."},
-        {"id": f"{hid}_guard", "name": "Aegis Ward", "type": "shield", "power": 0, "chakra_cost": 50 + ri * 2, "chakra_gain": 0, "element": element, "description": "Grants a powerful damage shield to an ally."},
+        {
+            "id": f"{hid}_b",
+            "name": f"{element} Smash",
+            "type": "attack",
+            "power": 100 + ri * 3,
+            "chakra_cost": 0,
+            "chakra_gain": 30,
+            "element": element,
+            "description": "A crushing frontline strike that builds chakra.",
+        },
+        {
+            "id": f"{hid}_crush",
+            "name": f"{first}'s Crushing Blow",
+            "type": "attack",
+            "power": 145 + ri * 18,
+            "chakra_cost": 42 + ri * 2,
+            "chakra_gain": 0,
+            "element": element,
+            "effects": [
+                _effect("stun", chance=22 + min(ri * 2, 18), duration=1),
+            ],
+            "description": "A devastating blow with a chance to stun the target.",
+        },
+        {
+            "id": f"{hid}_guard",
+            "name": "Aegis Ward",
+            "type": "shield",
+            "power": 150 + ri * 24,
+            "chakra_cost": 60 + ri * 2,
+            "chakra_gain": 0,
+            "element": element,
+            "description": "Raises a powerful protective shield around an ally.",
+        },
     ]
 
 
 def _kit_assassin(hid, element, el, first, ri):
     return [
-        {"id": f"{hid}_b", "name": f"{element} Slash", "type": "attack", "power": 110, "chakra_cost": 0, "chakra_gain": 32, "element": element, "description": "A quick strike. Builds chakra."},
-        {"id": f"{hid}_sig", "name": f"{first}'s Execution", "type": "attack", "power": 200 + ri * 24, "chakra_cost": 50 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A merciless {el} blow to one enemy."},
-        {"id": f"{hid}_aoe", "name": f"{element} Eclipse", "type": "aoe", "power": 155 + ri * 14, "chakra_cost": 80 + ri * 2, "chakra_gain": 0, "element": element, "description": f"{element} energy ravages all foes."},
+        {
+            "id": f"{hid}_b",
+            "name": f"{element} Slash",
+            "type": "attack",
+            "power": 112 + ri * 4,
+            "chakra_cost": 0,
+            "chakra_gain": 34,
+            "element": element,
+            "description": "A swift precision strike that builds chakra.",
+        },
+        {
+            "id": f"{hid}_bleed",
+            "name": "Severing Shadow",
+            "type": "attack",
+            "power": 145 + ri * 17,
+            "chakra_cost": 42 + ri * 2,
+            "chakra_gain": 0,
+            "element": element,
+            "effects": [
+                _effect(
+                    "bleed",
+                    chance=70 + min(ri * 3, 25),
+                    duration=3,
+                    value=24 + ri * 2,
+                ),
+            ],
+            "description": "A vicious strike that leaves the enemy bleeding.",
+        },
+        {
+            "id": f"{hid}_execution",
+            "name": f"{first}'s Execution",
+            "type": "attack",
+            "power": 215 + ri * 25,
+            "chakra_cost": 75 + ri * 3,
+            "chakra_gain": 0,
+            "element": element,
+            "description": "A lethal finishing strike designed to destroy weakened enemies.",
+        },
     ]
 
 
 def _kit_mage(hid, element, el, first, ri):
     return [
-        {"id": f"{hid}_b", "name": f"{element} Spark", "type": "attack", "power": 105, "chakra_cost": 0, "chakra_gain": 30, "element": element, "description": f"A crackling burst of {el} energy. Builds chakra."},
-        {"id": f"{hid}_sig", "name": f"{first}'s Arcanum", "type": "attack", "power": 210 + ri * 26, "chakra_cost": 50 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A concentrated blast of pure {el} magic."},
-        {"id": f"{hid}_aoe", "name": f"{element} Nova", "type": "aoe", "power": 160 + ri * 18, "chakra_cost": 80 + ri * 3, "chakra_gain": 0, "element": element, "description": f"A detonation of {el} magic engulfs every enemy."},
+        {
+            "id": f"{hid}_b",
+            "name": f"{element} Spark",
+            "type": "attack",
+            "power": 95 + ri * 4,
+            "chakra_cost": 0,
+            "chakra_gain": 31,
+            "element": element,
+            "description": f"A concentrated spark of {el} magic that builds chakra.",
+        },
+        {
+            "id": f"{hid}_curse",
+            "name": "Arcane Affliction",
+            "type": "attack",
+            "power": 125 + ri * 15,
+            "chakra_cost": 45 + ri * 2,
+            "chakra_gain": 0,
+            "element": element,
+            "effects": [
+                _effect(
+                    "burn" if element in ("Fire", "Light") else "poison",
+                    chance=75 + min(ri * 2, 20),
+                    duration=3,
+                    value=22 + ri * 2,
+                ),
+            ],
+            "description": "Inflicts a lingering elemental affliction on the target.",
+        },
+        {
+            "id": f"{hid}_nova",
+            "name": f"{element} Nova",
+            "type": "aoe",
+            "power": 175 + ri * 21,
+            "chakra_cost": 78 + ri * 3,
+            "chakra_gain": 0,
+            "element": element,
+            "description": f"A catastrophic eruption of {el} magic strikes every enemy.",
+        },
     ]
 
 
 def _kit_healer(hid, element, el, first, ri):
     return [
-        {"id": f"{hid}_b", "name": f"{element} Mend", "type": "attack", "power": 90, "chakra_cost": 0, "chakra_gain": 30, "element": element, "description": "A modest strike. Builds chakra."},
-        {"id": f"{hid}_heal", "name": f"{first}'s Renewal", "type": "heal", "power": 230 + ri * 42, "chakra_cost": 55 + ri * 2, "chakra_gain": 0, "element": element, "description": "A potent restoration that mends an ally's deepest wounds."},
-        {"id": f"{hid}_aoe", "name": f"{element} Sanctuary", "type": "heal", "power": 140 + ri * 22, "chakra_cost": 75 + ri * 3, "chakra_gain": 0, "element": element, "description": "A wave of restorative energy washes over the whole team."},
+        {
+            "id": f"{hid}_b",
+            "name": f"{element} Mend",
+            "type": "attack",
+            "power": 78 + ri * 3,
+            "chakra_cost": 0,
+            "chakra_gain": 33,
+            "element": element,
+            "description": "A modest elemental strike that builds chakra.",
+        },
+        {
+            "id": f"{hid}_renewal",
+            "name": f"{first}'s Renewal",
+            "type": "heal",
+            "power": 240 + ri * 45,
+            "chakra_cost": 52 + ri * 2,
+            "chakra_gain": 0,
+            "element": element,
+            "description": "Restores a massive amount of HP to a wounded ally.",
+        },
+        {
+            "id": f"{hid}_sanctuary",
+            "name": "Sacred Sanctuary",
+            "type": "shield",
+            "power": 130 + ri * 23,
+            "chakra_cost": 72 + ri * 3,
+            "chakra_gain": 0,
+            "element": element,
+            "description": "Places a powerful protective barrier on an endangered ally.",
+        },
     ]
 
 
 def _kit_control(hid, element, el, first, ri):
+    control_effect = "freeze" if element in ("Water", "Wind") else "stun"
+
     return [
-        {"id": f"{hid}_b", "name": f"{element} Snare", "type": "attack", "power": 100, "chakra_cost": 0, "chakra_gain": 30, "element": element, "description": f"A binding lash of {el} energy. Builds chakra."},
-        {"id": f"{hid}_sig", "name": f"{first}'s Grasp", "type": "attack", "power": 175 + ri * 20, "chakra_cost": 45 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A disabling {el} strike that disrupts the target."},
-        {"id": f"{hid}_aoe", "name": f"{element} Lockdown", "type": "aoe", "power": 135 + ri * 15, "chakra_cost": 75 + ri * 3, "chakra_gain": 0, "element": element, "description": f"{element} energy binds every enemy at once."},
+        {
+            "id": f"{hid}_b",
+            "name": f"{element} Snare",
+            "type": "attack",
+            "power": 88 + ri * 3,
+            "chakra_cost": 0,
+            "chakra_gain": 32,
+            "element": element,
+            "description": f"A binding lash of {el} energy that builds chakra.",
+        },
+        {
+            "id": f"{hid}_disable",
+            "name": f"{first}'s Grasp",
+            "type": "attack",
+            "power": 130 + ri * 16,
+            "chakra_cost": 45 + ri * 2,
+            "chakra_gain": 0,
+            "element": element,
+            "effects": [
+                _effect(
+                    control_effect,
+                    chance=55 + min(ri * 3, 25),
+                    duration=1,
+                ),
+            ],
+            "description": "Disrupts the enemy and may prevent their next action.",
+        },
+        {
+            "id": f"{hid}_weakness",
+            "name": "Shattering Curse",
+            "type": "aoe",
+            "power": 115 + ri * 15,
+            "chakra_cost": 72 + ri * 3,
+            "chakra_gain": 0,
+            "element": element,
+            "effects": [
+                _effect(
+                    "def_down",
+                    chance=75,
+                    duration=2,
+                    value=18 + ri * 2,
+                ),
+            ],
+            "description": "Damages all enemies and weakens their defenses.",
+        },
     ]
 
 
 def _kit_bruiser(hid, element, el, first, ri):
     return [
-        {"id": f"{hid}_b", "name": f"{element} Haymaker", "type": "attack", "power": 105, "chakra_cost": 0, "chakra_gain": 27, "element": element, "description": "A heavy-handed blow. Builds chakra."},
-        {"id": f"{hid}_sig", "name": f"{first}'s Reckoning", "type": "attack", "power": 195 + ri * 21, "chakra_cost": 45 + ri * 2, "chakra_gain": 0, "element": element, "description": f"A brutal {el}-charged haymaker on one foe."},
-        {"id": f"{hid}_aoe", "name": f"{element} Rampage", "type": "aoe", "power": 145 + ri * 17, "chakra_cost": 75 + ri * 3, "chakra_gain": 0, "element": element, "description": f"A wide {el} rampage crashing into all enemies."},
+        {
+            "id": f"{hid}_b",
+            "name": f"{element} Haymaker",
+            "type": "attack",
+            "power": 108 + ri * 4,
+            "chakra_cost": 0,
+            "chakra_gain": 29,
+            "element": element,
+            "description": "A brutal frontline blow that builds chakra.",
+        },
+        {
+            "id": f"{hid}_maul",
+            "name": "Relentless Maul",
+            "type": "attack",
+            "power": 165 + ri * 19,
+            "chakra_cost": 44 + ri * 2,
+            "chakra_gain": 0,
+            "element": element,
+            "effects": [
+                _effect(
+                    "bleed",
+                    chance=60 + min(ri * 3, 25),
+                    duration=3,
+                    value=20 + ri * 2,
+                ),
+            ],
+            "description": "A savage attack that leaves the target bleeding.",
+        },
+        {
+            "id": f"{hid}_rampage",
+            "name": f"{element} Rampage",
+            "type": "aoe",
+            "power": 155 + ri * 19,
+            "chakra_cost": 76 + ri * 3,
+            "chakra_gain": 0,
+            "element": element,
+            "description": f"A violent {el} rampage crashes into every enemy.",
+        },
+    ]
+
+
+def _kit_attacker(hid, element, el, first, ri):
+    return [
+        {
+            "id": f"{hid}_b",
+            "name": f"{element} Strike",
+            "type": "attack",
+            "power": 110 + ri * 4,
+            "chakra_cost": 0,
+            "chakra_gain": 31,
+            "element": element,
+            "description": f"A direct strike infused with {el} energy.",
+        },
+        {
+            "id": f"{hid}_burst",
+            "name": f"{first}'s Onslaught",
+            "type": "attack",
+            "power": 205 + ri * 24,
+            "chakra_cost": 48 + ri * 2,
+            "chakra_gain": 0,
+            "element": element,
+            "description": "An overwhelming burst of concentrated power.",
+        },
+        {
+            "id": f"{hid}_cataclysm",
+            "name": f"{element} Cataclysm",
+            "type": "aoe",
+            "power": 160 + ri * 20,
+            "chakra_cost": 78 + ri * 3,
+            "chakra_gain": 0,
+            "element": element,
+            "description": f"A destructive wave of {el} energy devastates all enemies.",
+        },
     ]
 
 
 def _kit_default(hid, element, el, first, ri):
-    return [
-        {"id": f"{hid}_b", "name": f"{element} Strike", "type": "attack", "power": 100, "chakra_cost": 0, "chakra_gain": 25, "element": element, "description": "An elemental strike. Builds chakra."},
-        {"id": f"{hid}_sig", "name": f"{first}'s Onslaught", "type": "attack", "power": 180 + ri * 22, "chakra_cost": 40 + ri * 3, "chakra_gain": 0, "element": element, "description": f"A devastating {el} blow on one enemy."},
-        {"id": f"{hid}_aoe", "name": f"{element} Cataclysm", "type": "aoe", "power": 130 + ri * 16, "chakra_cost": 70 + ri * 4, "chakra_gain": 0, "element": element, "description": f"Erupts with {el} energy hitting all enemies."},
-    ]
+    return _kit_attacker(hid, element, el, first, ri)
 
 
-# Role -> kit-builder lookup (replaces an 8-branch if/elif chain). Every
-# builder shares the exact same signature so _hero_jutsus can stay a single
-# dict lookup regardless of how many roles get added later.
+# ============================================================
+# ROLE -> KIT BUILDER
+# ============================================================
+
 _ROLE_KIT_BUILDERS = {
+    "Attacker": _kit_attacker,
     "Support": _kit_support,
     "Tank": _kit_tank,
     "Assassin": _kit_assassin,
@@ -419,22 +716,165 @@ _ROLE_KIT_BUILDERS = {
 }
 
 
+def _add_ascendant_skill(kit, hid, name, element, el, role, ri):
+    """Adds a genuinely role-specific ultimate for high-rarity heroes."""
+
+    first = name.split(" ")[0]
+
+    if role == "Tank":
+        skill = {
+            "id": f"{hid}_asc",
+            "name": f"{first}'s Fortress",
+            "type": "shield",
+            "power": 230 + ri * 30,
+            "chakra_cost": 105,
+            "chakra_gain": 0,
+            "element": element,
+            "ascendant": True,
+            "description": "An ascendant defensive technique that creates an immense protective barrier.",
+        }
+
+    elif role == "Assassin":
+        skill = {
+            "id": f"{hid}_asc",
+            "name": f"{first}'s Final Execution",
+            "type": "attack",
+            "power": 300 + ri * 32,
+            "chakra_cost": 110,
+            "chakra_gain": 0,
+            "element": element,
+            "ascendant": True,
+            "description": "An ultimate assassination technique capable of obliterating weakened targets.",
+        }
+
+    elif role == "Mage":
+        skill = {
+            "id": f"{hid}_asc",
+            "name": f"{element} Apocalypse",
+            "type": "aoe",
+            "power": 245 + ri * 30,
+            "chakra_cost": 110,
+            "chakra_gain": 0,
+            "element": element,
+            "ascendant": True,
+            "effects": [
+                _effect(
+                    "burn" if element in ("Fire", "Light") else "poison",
+                    chance=100,
+                    duration=3,
+                    value=28 + ri * 2,
+                ),
+            ],
+            "description": f"An apocalyptic eruption of {el} magic engulfs the battlefield.",
+        }
+
+    elif role == "Healer":
+        skill = {
+            "id": f"{hid}_asc",
+            "name": f"{first}'s Miracle",
+            "type": "heal",
+            "power": 300 + ri * 45,
+            "chakra_cost": 105,
+            "chakra_gain": 0,
+            "element": element,
+            "ascendant": True,
+            "description": "An ascendant restoration capable of saving an ally from near defeat.",
+        }
+
+    elif role == "Support":
+        skill = {
+            "id": f"{hid}_asc",
+            "name": "Celestial Intervention",
+            "type": "heal",
+            "power": 250 + ri * 38,
+            "chakra_cost": 105,
+            "chakra_gain": 0,
+            "element": element,
+            "ascendant": True,
+            "description": "A divine intervention that restores a massive amount of vitality.",
+        }
+
+    elif role == "Control":
+        skill = {
+            "id": f"{hid}_asc",
+            "name": "Absolute Dominion",
+            "type": "aoe",
+            "power": 185 + ri * 24,
+            "chakra_cost": 110,
+            "chakra_gain": 0,
+            "element": element,
+            "ascendant": True,
+            "effects": [
+                _effect("stun", chance=45 + min(ri * 2, 25), duration=1),
+            ],
+            "description": "A battlefield-wide domination technique that can disable multiple enemies.",
+        }
+
+    elif role == "Bruiser":
+        skill = {
+            "id": f"{hid}_asc",
+            "name": f"{first}'s Berserker Rampage",
+            "type": "aoe",
+            "power": 230 + ri * 28,
+            "chakra_cost": 110,
+            "chakra_gain": 0,
+            "element": element,
+            "ascendant": True,
+            "effects": [
+                _effect(
+                    "bleed",
+                    chance=85,
+                    duration=3,
+                    value=25 + ri * 2,
+                ),
+            ],
+            "description": "An unstoppable rampage that tears through every enemy.",
+        }
+
+    else:
+        skill = {
+            "id": f"{hid}_asc",
+            "name": f"{first}'s Ascension",
+            "type": "aoe",
+            "power": 260 + ri * 30,
+            "chakra_cost": 110,
+            "chakra_gain": 0,
+            "element": element,
+            "ascendant": True,
+            "description": f"The ultimate ascendant manifestation of {first}'s {el} power.",
+        }
+
+    kit.append(skill)
+
+
 def _hero_jutsus(hid, name, element, rarity, role):
     ri = RARITY_ORDER[rarity]
     first = name.split(" ")[0]
     el = element.lower()
-    kit = _ROLE_KIT_BUILDERS.get(role, _kit_default)(hid, element, el, first, ri)
-    # 5th skill — GR heroes carry an additional Ascendant active ability,
-    # a powerful unique surge that only the pinnacle rarity wields.
+
+    # Build the role-specific core kit.
+    kit_builder = _ROLE_KIT_BUILDERS.get(role, _kit_default)
+    kit = kit_builder(hid, element, el, first, ri)
+
+    # ========================================================
+    # HIGH-RARITY HEROES
+    #
+    # GR and above receive a fourth active Ascendant ability.
+    # This makes elite rarities mechanically different rather
+    # than simply increasing their stats.
+    # ========================================================
+
     if ri >= RARITY_ORDER["GR"]:
-        asc_type = "heal" if role in ("Support", "Healer") else "aoe"
-        kit.append({
-            "id": f"{hid}_asc", "name": f"{first}'s Ascension", "type": asc_type,
-            "power": (195 + ri * 26) if asc_type == "aoe" else (205 + ri * 30),
-            "chakra_cost": 100 + ri * 3, "chakra_gain": 0, "element": element,
-            "ascendant": True,
-            "description": f"An ascendant {el} surge — {first}'s ultimate expression of power, unique to GR heroes.",
-        })
+        _add_ascendant_skill(
+            kit,
+            hid,
+            name,
+            element,
+            el,
+            role,
+            ri,
+        )
+
     return kit
 
 
