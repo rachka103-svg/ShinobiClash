@@ -195,8 +195,9 @@ CRYSTAL_SUBSTAT_POOL = [
 
 # Crystals drop at a fraction of the Tsukuyomi boss's gear rare-drop chance
 # (which already scales with boss index + difficulty), keeping them super
-# rare — roughly half the rate of a signature gear piece.
-CRYSTAL_DROP_FRACTION = 0.5
+# rare. At the hardest content (nightmare, highest boss = 14% gear rate) the
+# crystal drop caps at ~2.5%.
+CRYSTAL_DROP_FRACTION = 0.18
 
 
 def roll_crystal(difficulty: str = "normal") -> dict:
