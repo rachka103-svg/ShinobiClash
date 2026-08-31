@@ -1658,7 +1658,7 @@ async def skill_up(body: StarUpIn, user: dict = Depends(get_current_user)):
     hero_shards[inst["template_id"]] = have - cost["shards"]
     user["ryo"] -= cost["ryo"]
     inst["skill_rank"] = rank + 1
-    unlocked_passive = (rank + 1) == gd.PASSIVE_UNLOCK_RANK
+    unlocked_passive = (rank + 1) == gd.passive_unlock_rank(tmpl["rarity"])
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"]}})
     return {"profile": public_user(user), "instance_id": inst["instance_id"],

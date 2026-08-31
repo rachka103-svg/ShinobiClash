@@ -581,6 +581,52 @@ for _n in NINJA_CATALOG:
     _n.setdefault("is_placeholder_art", False)
     _n.setdefault("star_level_default", 1)
 
+# ---------------------------------------------------------------------------
+# HERO IDENTITY OVERHAUL — every hero receives combat personality beyond raw
+# damage. Existing manually-authored heroes and generated heroes are enriched
+# here so the entire roster uses the same combat language. Effects are attached
+# deterministically from hero identity/role/element and scale upward by rarity.
+# ---------------------------------------------------------------------------
+_ROLE_EFFECTS = {
+    "Attacker": [("burn", 38, 3, 28), ("bleed", 38, 3, 30), ("def_down", 45, 2, 18)],
+    "Tank": [("stun", 24, 1, 0), ("def_down", 55, 2, 20), ("atk_down", 55, 2, 18)],
+    "Support": [("atk_down", 45, 2, 15), ("def_down", 45, 2, 15), ("burn", 30, 2, 20)],
+    "Assassin": [("bleed", 55, 3, 34), ("poison", 42, 3, 26), ("def_down", 50, 2, 22)],
+    "Mage": [("burn", 52, 3, 34), ("poison", 48, 3, 30), ("def_down", 55, 2, 20)],
+    "Healer": [("atk_down", 40, 2, 16), ("freeze", 20, 1, 0), ("def_down", 42, 2, 15)],
+    "Control": [("stun", 40, 1, 0), ("freeze", 40, 1, 0), ("atk_down", 60, 2, 22)],
+    "Bruiser": [("bleed", 48, 3, 30), ("stun", 28, 1, 0), ("def_down", 50, 2, 18)],
+}
+
+def _identity_effect(hero, slot):
+    pool = _ROLE_EFFECTS.get(hero.get("role"), _ROLE_EFFECTS["Attacker"])
+    seed = sum(ord(c) for c in hero["id"]) + slot * 7
+    et, chance, duration, value = pool[seed % len(pool)]
+    rarity_bonus = {"R": 0, "SR": 3, "SSR": 7, "UR": 11, "GR": 16}.get(hero.get("rarity"), 0)
+    effect = {"type": et, "chance": min(85, chance + rarity_bonus), "duration": duration}
+    if value:
+        effect["value"] = value + rarity_bonus // 2
+    return effect
+
+def _enrich_hero_identity(hero):
+    rarity = hero.get("rarity", "R")
+    rank = RARITY_ORDER.get(rarity, 1)
+    active_index = 0
+    for j in hero.get("jutsus", []):
+        if j.get("type") not in ("attack", "aoe"):
+            continue
+        # Basic attacks stay simple at low rarity, but higher rarity heroes
+        # increasingly bring secondary mechanics into battle.
+        if active_index > 0 or rank >= RARITY_ORDER.get("SSR", 3):
+            j.setdefault("effects", [])
+            if not j["effects"]:
+                j["effects"].append(_identity_effect(hero, active_index))
+        active_index += 1
+    hero["identity_rank"] = rarity
+
+for _n in NINJA_CATALOG:
+    _enrich_hero_identity(_n)
+
 # Portrait paths: original ninjas live in /ninjas, imported legends in
 # /heroes; roster-expansion heroes without finished art use a clearly
 # marked temporary placeholder (never presented as final artwork).
@@ -633,349 +679,88 @@ def star_up_cost(rarity: str, current_star: int) -> int:
 # ---------------------------------------------------------------------------
 # Campaign stages
 # ---------------------------------------------------------------------------
-# BEGINNER-FRIENDLY CAMPAIGN BALANCE
-#
-# Design goal:
-# - A new player should naturally reach Chapter 10 / Stage 50 before grinding
-#   becomes necessary.
-# - Chapters 1-10 contain exactly 5 stages each.
-# - Every 5th stage is a boss.
-# - Early difficulty rises gradually through levels and enemy composition,
-#   not sudden stat walls.
-# - Bosses are memorable checkpoints, but should not require replaying old
-#   stages if the player has used the rewards earned along the way.
-# ---------------------------------------------------------------------------
-
-BEGINNER_CHAPTERS = [
-    {
-        "chapter": 1,
-        "region": "Leaf Outskirts",
-        "start_level": 1,
-        "name": "Leaf Outskirts",
-        "lore": "Bandits threaten the village border. Your first steps as a shinobi begin here.",
-        "stages": [
-            "Bandits at the Gate",
-            "The Stolen Scroll",
-            "Forest Ambush",
-            "Path of the Shinobi",
-            "Bandit Captain",
-        ],
-        "enemies": ["blaze", "ripple", "boulder", "spark"],
-        "boss": "boulder",
-    },
-    {
-        "chapter": 2,
-        "region": "Misty Woods",
-        "start_level": 4,
-        "name": "Misty Woods",
-        "lore": "A dense forest hides rogue shinobi and the first real test of your squad.",
-        "stages": [
-            "Into the Mist",
-            "River of Blades",
-            "Hidden Footsteps",
-            "The Rogue Medic",
-            "Guardian of the Woods",
-        ],
-        "enemies": ["ripple", "frost", "ember", "zephyr"],
-        "boss": "frost",
-    },
-    {
-        "chapter": 3,
-        "region": "Rocky Pass",
-        "start_level": 7,
-        "name": "Rocky Pass",
-        "lore": "The mountain road teaches the importance of balanced teams and elemental choices.",
-        "stages": [
-            "Thunder on the Ridge",
-            "Stone Sentinels",
-            "Broken Mountain Trail",
-            "Echoes of Battle",
-            "The Mountain Guardian",
-        ],
-        "enemies": ["boulder", "terra", "spark", "raijin"],
-        "boss": "terra",
-    },
-    {
-        "chapter": 4,
-        "region": "Howling Cliffs",
-        "start_level": 10,
-        "name": "Howling Cliffs",
-        "lore": "Violent winds and lightning storms introduce stronger enemy combinations.",
-        "stages": [
-            "Eye of the Storm",
-            "Cliffside Ambush",
-            "Winds of Chaos",
-            "Storm Herald's Guard",
-            "The Storm Herald",
-        ],
-        "enemies": ["zephyr", "gale", "spark", "raijin"],
-        "boss": "gale",
-    },
-    {
-        "chapter": 5,
-        "region": "Forsaken Shrine",
-        "start_level": 13,
-        "name": "Forsaken Shrine",
-        "lore": "Ancient guardians stir as light and shadow begin to clash.",
-        "stages": [
-            "Shadows Gather",
-            "Light Against Dark",
-            "The Hollow Path",
-            "Whispers in the Shrine",
-            "The Hollow Blade",
-        ],
-        "enemies": ["shade", "lumina", "gale", "ember"],
-        "boss": "shade",
-    },
-    {
-        "chapter": 6,
-        "region": "Ashfall Wastes",
-        "start_level": 17,
-        "name": "Ashfall Wastes",
-        "lore": "The scorched frontier marks the transition from tutorial to true adventure.",
-        "stages": [
-            "Ashen Footsteps",
-            "Burning Horizon",
-            "Scorched Earth",
-            "Flames of the Fallen",
-            "Lord of Ash",
-        ],
-        "enemies": ["blaze", "ember", "terra", "boulder"],
-        "boss": "ember",
-    },
-    {
-        "chapter": 7,
-        "region": "Drowned Coral Reach",
-        "start_level": 21,
-        "name": "Drowned Coral Reach",
-        "lore": "Sunken ruins beneath the tides force your squad to adapt to unfamiliar threats.",
-        "stages": [
-            "Tides of Conflict",
-            "Sunken Ruins",
-            "Coral Guardians",
-            "Depths Below",
-            "The Abyss Watcher",
-        ],
-        "enemies": ["ripple", "frost", "zephyr", "shade"],
-        "boss": "frost",
-    },
-    {
-        "chapter": 8,
-        "region": "Skyshard Peaks",
-        "start_level": 25,
-        "name": "Skyshard Peaks",
-        "lore": "The climb grows harsher as storm shinobi defend the shattered summit.",
-        "stages": [
-            "Broken Sky",
-            "Cloudstep Path",
-            "Lightning Above",
-            "The Peak Guardians",
-            "Master of the Summit",
-        ],
-        "enemies": ["spark", "raijin", "zephyr", "gale"],
-        "boss": "raijin",
-    },
-    {
-        "chapter": 9,
-        "region": "Thundercrag Basin",
-        "start_level": 29,
-        "name": "Thundercrag Basin",
-        "lore": "Squad composition and elemental matchups now matter as much as raw levels.",
-        "stages": [
-            "Thundercrag",
-            "Electric Divide",
-            "Stormbound Warriors",
-            "The Gathering Tempest",
-            "Heart of the Storm",
-        ],
-        "enemies": ["spark", "raijin", "terra", "gale"],
-        "boss": "raijin",
-    },
-    {
-        "chapter": 10,
-        "region": "Sunspire Sanctum",
-        "start_level": 33,
-        "name": "Sunspire Sanctum",
-        "lore": "Your first major campaign milestone tests everything learned during the opening journey.",
-        "stages": [
-            "The Golden Gate",
-            "Sanctum Defenders",
-            "Trial of Light",
-            "The Final Threshold",
-            "Guardian of Sunspire",
-        ],
-        "enemies": ["lumina", "shade", "ember", "gale"],
-        "boss": "lumina",
-    },
+STAGES = [
+    {"id": "s1", "chapter": 1, "name": "Bandits at the Gate", "region": "Leaf Outskirts",
+     "enemies": [{"template_id": "blaze", "level": 1}, {"template_id": "boulder", "level": 1}],
+     "rewards": {"ryo": 150, "exp": 40}, "first_clear": {"ryo": 200, "ninja": None}},
+    {"id": "s2", "chapter": 1, "name": "The Stolen Scroll", "region": "Leaf Outskirts",
+     "enemies": [{"template_id": "ripple", "level": 2}, {"template_id": "spark", "level": 2}],
+     "rewards": {"ryo": 170, "exp": 50}, "first_clear": {"ryo": 250, "ninja": None}},
+    {"id": "s3", "chapter": 1, "name": "Forest Ambush", "region": "Misty Woods",
+     "enemies": [{"template_id": "zephyr", "level": 3}, {"template_id": "boulder", "level": 3}, {"template_id": "spark", "level": 2}],
+     "rewards": {"ryo": 200, "exp": 65}, "first_clear": {"ryo": 300, "ninja": "ember"}},
+    {"id": "s4", "chapter": 2, "name": "River of Blades", "region": "Misty Woods",
+     "enemies": [{"template_id": "ripple", "level": 5}, {"template_id": "frost", "level": 4}],
+     "rewards": {"ryo": 230, "exp": 80}, "first_clear": {"ryo": 350, "ninja": None}},
+    {"id": "s5", "chapter": 2, "name": "The Rogue Medic", "region": "Misty Woods",
+     "enemies": [{"template_id": "frost", "level": 6}, {"template_id": "ripple", "level": 5}, {"template_id": "ember", "level": 5}],
+     "rewards": {"ryo": 260, "exp": 95}, "first_clear": {"ryo": 400, "ninja": "frost"}},
+    {"id": "s6", "chapter": 2, "name": "Stone Sentinels", "region": "Rocky Pass",
+     "enemies": [{"template_id": "terra", "level": 7}, {"template_id": "boulder", "level": 7}],
+     "rewards": {"ryo": 300, "exp": 115}, "first_clear": {"ryo": 450, "ninja": None}},
+    {"id": "s7", "chapter": 3, "name": "Thunder on the Ridge", "region": "Rocky Pass",
+     "enemies": [{"template_id": "spark", "level": 9}, {"template_id": "raijin", "level": 8}],
+     "rewards": {"ryo": 340, "exp": 135}, "first_clear": {"ryo": 500, "ninja": "terra"}},
+    {"id": "s8", "chapter": 3, "name": "Eye of the Storm", "region": "Howling Cliffs",
+     "enemies": [{"template_id": "gale", "level": 10}, {"template_id": "zephyr", "level": 9}, {"template_id": "spark", "level": 9}],
+     "rewards": {"ryo": 380, "exp": 160}, "first_clear": {"ryo": 600, "ninja": None}},
+    {"id": "s9", "chapter": 3, "name": "The Storm Herald", "region": "Howling Cliffs",
+     "enemies": [{"template_id": "gale", "level": 13}, {"template_id": "raijin", "level": 12}],
+     "rewards": {"ryo": 430, "exp": 185}, "first_clear": {"ryo": 700, "ninja": "gale"}},
+    {"id": "s10", "chapter": 4, "name": "Shadows Gather", "region": "Forsaken Shrine",
+     "enemies": [{"template_id": "shade", "level": 14}, {"template_id": "raijin", "level": 13}, {"template_id": "ember", "level": 13}],
+     "rewards": {"ryo": 500, "exp": 220}, "first_clear": {"ryo": 800, "ninja": None}},
+    {"id": "s11", "chapter": 4, "name": "Light Against Dark", "region": "Forsaken Shrine",
+     "enemies": [{"template_id": "lumina", "level": 16}, {"template_id": "shade", "level": 15}],
+     "rewards": {"ryo": 600, "exp": 260}, "first_clear": {"ryo": 900, "ninja": "lumina"}},
+    {"id": "s12", "chapter": 4, "name": "The Hollow Blade", "region": "Forsaken Shrine",
+     "enemies": [{"template_id": "shade", "level": 18}, {"template_id": "lumina", "level": 17}, {"template_id": "gale", "level": 16}],
+     "rewards": {"ryo": 800, "exp": 320}, "first_clear": {"ryo": 1500, "ninja": "shade"}},
 ]
 
-# Important progression rewards are front-loaded so a player can improve the
-# starting squad naturally instead of hitting an artificial early grind wall.
-BEGINNER_MILESTONE_REWARDS = {
-    5:  {"items": {"summon_ticket": 1, "exp_tome_minor": 3}},
-    10: {"items": {"summon_ticket": 1, "exp_tome_greater": 2}},
-    15: {"items": {"exp_tome_minor": 5, "ascension_crystal": 3}},
-    20: {"items": {"summon_ticket": 1, "exp_tome_greater": 2}},
-    25: {"items": {"summon_ticket": 2, "ascension_crystal": 5}},
-    30: {"items": {"exp_tome_ancient": 1, "exp_tome_greater": 3}},
-    35: {"items": {"summon_ticket": 1, "ascension_crystal": 5}},
-    40: {"items": {"summon_ticket": 2, "exp_tome_greater": 4}},
-    45: {"items": {"exp_tome_ancient": 1, "ascension_crystal": 8}},
-    50: {"items": {"summon_ticket": 3, "exp_tome_ancient": 2, "ascension_crystal": 10}},
-}
-
-
-def _beginner_stage_first_clear(stage_number: int, chapter: int, stage_index: int) -> dict:
-    """Return first-clear rewards without breaking older reward handlers."""
-    reward = {
-        "ryo": 220 + chapter * 85 + stage_index * 35,
-        "ninja": None,
-    }
-    milestone = BEGINNER_MILESTONE_REWARDS.get(stage_number)
-    if milestone:
-        reward.update(milestone)
-    return reward
-
-
-def build_beginner_campaign() -> list:
-    """Build the curated 50-stage beginner campaign for Chapters 1-10."""
-    stages = []
-    stage_number = 1
-
-    for data in BEGINNER_CHAPTERS:
-        chapter = data["chapter"]
-        start_level = data["start_level"]
-
-        for i, stage_name in enumerate(data["stages"], start=1):
-            is_boss = i == 5
-            base_level = start_level + (i - 1)
-
-            if is_boss:
-                # A boss is stronger, but early bosses should be checkpoints,
-                # not progression walls.
-                boss_bonus = 1 if chapter <= 5 else 2
-                enemies = [{
-                    "template_id": data["boss"],
-                    "level": base_level + boss_bonus,
-                }]
-            else:
-                # Keep the opening simple. Three-enemy fights are introduced
-                # gradually after the player understands the combat system.
-                if chapter <= 2:
-                    enemy_count = 2
-                elif chapter <= 5:
-                    enemy_count = 2 if i <= 3 else 3
-                else:
-                    enemy_count = 2 if i <= 2 else 3
-
-                enemies = []
-                for enemy_index in range(enemy_count):
-                    tid = data["enemies"][
-                        (i - 1 + enemy_index) % len(data["enemies"])
-                    ]
-                    enemies.append({
-                        "template_id": tid,
-                        "level": max(
-                            1,
-                            base_level + (1 if enemy_index == 2 else 0),
-                        ),
-                    })
-
-            rewards = {
-                "ryo": 140 + chapter * 55 + i * 20,
-                "exp": 55 + chapter * 28 + i * 8,
-            }
-
-            if is_boss:
-                rewards["ryo"] = round(rewards["ryo"] * 1.35)
-                rewards["exp"] = round(rewards["exp"] * 1.35)
-
-            stage = {
-                "id": f"s{stage_number}",
-                "chapter": chapter,
-                "name": stage_name,
-                "region": data["region"],
-                "enemies": enemies,
-                "is_boss": is_boss,
-                "rewards": rewards,
-                "first_clear": _beginner_stage_first_clear(
-                    stage_number,
-                    chapter,
-                    i,
-                ),
-            }
-
-            if is_boss:
-                # Explicitly present for compatibility with the battle API.
-                stage["boss_mechanic"] = None
-
-            stages.append(stage)
-            stage_number += 1
-
-    return stages
-
+STAGES_BY_ID = {s["id"]: s for s in STAGES}
 
 # ---------------------------------------------------------------------------
-# Scalable campaign architecture - Chapter 11 onward
+# Scalable stage architecture — s1-s12 above are the curated Chapters 1-4.
+# Everything from Chapter 5 onward is procedurally generated by
+# `generate_campaign_stages`, which can be called with ANY chapter range
+# (including chapter 100+, thousands of stages) without hand-authoring UI
+# or data for each one — this is what makes the campaign "endless-ready."
+# Enemy difficulty bands scale with chapter and reuse the full expanded
+# catalog, so newly added heroes automatically populate future content.
 # ---------------------------------------------------------------------------
-
 _CHAPTER_REGIONS = [
-    "Ashfall Wastes",
-    "Drowned Coral Reach",
-    "Skyshard Peaks",
-    "Thundercrag Basin",
-    "Withering Hollow",
-    "Sunspire Sanctum",
-    "Frozen Reliquary",
-    "Voidglass Expanse",
-    "Verdant Undercroft",
-    "Obsidian Bastion",
+    "Ashfall Wastes", "Drowned Coral Reach", "Skyshard Peaks", "Thundercrag Basin",
+    "Withering Hollow", "Sunspire Sanctum", "Frozen Reliquary", "Voidglass Expanse",
+    "Verdant Undercroft", "Obsidian Bastion",
 ]
 
 
 def _rarity_band_for_chapter(chapter: int) -> list:
-    """Return enemy rarity bands with deliberately slow escalation."""
-    if chapter <= 15:
-        return ["R", "SR"]
-    if chapter <= 25:
-        return ["R", "SR", "SSR"]
-    if chapter <= 40:
-        return ["SR", "SSR", "UR"]
-    if chapter <= 60:
-        return ["SSR", "UR", "GR"]
-    return ["UR", "GR"]
+    """Which rarity tiers a chapter's regular (non-boss) enemies are drawn from."""
+    order = ["N", "R", "SR", "SSR", "UR", "GR", "LR", "MYTHIC"]
+    # every 2 chapters, the band creeps up one tier; caps at GR for regular mobs
+    lo = min(5, max(0, (chapter - 1) // 2))
+    hi = min(6, lo + 2)
+    return order[lo:hi + 1]
 
 
 def _boss_rarity_for_chapter(chapter: int) -> list:
-    """Bosses lead the normal roster by roughly one rarity band."""
-    if chapter <= 15:
-        return ["SR", "SSR"]
-    if chapter <= 25:
-        return ["SSR", "UR"]
-    if chapter <= 40:
-        return ["UR", "GR"]
-    return ["GR"]
+    order = ["SSR", "UR", "GR", "LR", "MYTHIC"]
+    idx = min(len(order) - 1, max(0, (chapter - 4) // 2))
+    return order[idx:idx + 2] or [order[-1]]
 
 
-# Reusable boss mechanics begin after onboarding. Early chapters rely on
-# straightforward combat so players learn the core systems first.
+# Reusable boss-phase framework — a mega boss is never just a bigger HP bar.
+# Each entry is data the (client) battle engine can progressively read to
+# drive multi-phase fights: shield windows, enrage thresholds, and adds.
 BOSS_MECHANICS = {
     "sealed_titan": {
         "name": "Sealed Titan Protocol",
         "phases": [
             {"hp_above": 60, "behavior": "normal"},
-            {
-                "hp_between": [30, 60],
-                "behavior": "shielded",
-                "shield_pct": 25,
-                "break_condition": "aoe_hit_3_times",
-            },
-            {
-                "hp_below": 30,
-                "behavior": "enraged",
-                "atk_mult": 1.6,
-                "spd_mult": 1.3,
-            },
+            {"hp_between": [30, 60], "behavior": "shielded", "shield_pct": 25, "break_condition": "aoe_hit_3_times"},
+            {"hp_below": 30, "behavior": "enraged", "atk_mult": 1.6, "spd_mult": 1.3},
         ],
         "summons_adds_at_pct": 50,
         "immune_to": [],
@@ -984,17 +769,8 @@ BOSS_MECHANICS = {
         "name": "Abyssal Warden Protocol",
         "phases": [
             {"hp_above": 70, "behavior": "normal"},
-            {
-                "hp_between": [35, 70],
-                "behavior": "elemental_shift",
-                "shift_to": "Water",
-            },
-            {
-                "hp_below": 35,
-                "behavior": "enraged",
-                "atk_mult": 1.5,
-                "reflects_crit": True,
-            },
+            {"hp_between": [35, 70], "behavior": "elemental_shift", "shift_to": "Water"},
+            {"hp_below": 35, "behavior": "enraged", "atk_mult": 1.5, "reflects_crit": True},
         ],
         "summons_adds_at_pct": 40,
         "immune_to": ["poison"],
@@ -1002,201 +778,94 @@ BOSS_MECHANICS = {
 }
 
 
-def _build_boss_stage(
-    sid,
-    chapter,
-    region,
-    base_level,
-    candidates,
-    pool_by_rarity,
-    stage_rng,
-) -> dict:
+def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rarity, stage_rng) -> dict:
     boss_band = _boss_rarity_for_chapter(chapter)
-    boss_candidates = [
-        tid
-        for rarity in boss_band
-        for tid in pool_by_rarity.get(rarity, [])
-    ] or candidates
-
+    boss_candidates = [tid for r in boss_band for tid in pool_by_rarity.get(r, [])] or candidates
     boss_tid = stage_rng.choice(boss_candidates)
     mech_id = "sealed_titan" if chapter % 2 == 0 else "abyssal_warden"
-
-    # Difficulty increases in controlled bands rather than through a sudden
-    # exponential spike.
-    if chapter <= 20:
-        multiplier = 1.15
-    elif chapter <= 50:
-        multiplier = 1.28
-    else:
-        multiplier = 1.42
-
+    enemies = [{"template_id": boss_tid, "level": round(base_level * 1.6)}]
     return {
-        "id": sid,
-        "chapter": chapter,
-        "name": f"{CATALOG_BY_ID[boss_tid]['name']}'s Last Stand",
-        "region": region,
-        "enemies": [{
-            "template_id": boss_tid,
-            "level": round(base_level * multiplier),
-        }],
-        "is_boss": True,
+        "id": sid, "chapter": chapter, "name": f"{CATALOG_BY_ID[boss_tid]['name']}'s Last Stand",
+        "region": region, "enemies": enemies, "is_boss": True,
         "boss_mechanic": mech_id,
-        "rewards": {
-            "ryo": 500 + chapter * 105,
-            "exp": 180 + chapter * 38,
-        },
-        "first_clear": {
-            "ryo": 1100 + chapter * 180,
-            "ninja": None,
-        },
+        "rewards": {"ryo": 400 + chapter * 120, "exp": 150 + chapter * 45},
+        "first_clear": {"ryo": 900 + chapter * 200, "ninja": None},
     }
 
 
-def _build_normal_stage(
-    sid,
-    chapter,
-    i,
-    region,
-    base_level,
-    candidates,
-    stage_rng,
-) -> dict:
-    # The procedural game also ramps enemy count gradually.
-    if chapter <= 15:
-        count = 2
-    elif chapter <= 35:
-        count = 2 if i <= 3 else 3
-    else:
-        count = 3
-
-    enemies = []
-    for _ in range(count):
-        enemies.append({
-            "template_id": stage_rng.choice(candidates),
-            "level": base_level + stage_rng.randint(0, 2),
-        })
-
+def _build_normal_stage(sid, chapter, i, region, base_level, candidates, stage_rng) -> dict:
+    count = min(3, 2 + i // 3)
+    enemies = [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
     return {
-        "id": sid,
-        "chapter": chapter,
-        "name": f"{region} Skirmish {i}",
-        "region": region,
-        "enemies": enemies,
-        "is_boss": False,
-        "rewards": {
-            "ryo": 240 + chapter * 52,
-            "exp": 90 + chapter * 22,
-        },
-        "first_clear": {
-            "ryo": 450 + chapter * 90,
-            "ninja": None,
-        },
+        "id": sid, "chapter": chapter, "name": f"{region} Skirmish {i}",
+        "region": region, "enemies": enemies, "is_boss": False,
+        "rewards": {"ryo": 220 + chapter * 60, "exp": 80 + chapter * 25},
+        "first_clear": {"ryo": 400 + chapter * 100, "ninja": None},
     }
 
 
-def _procedural_base_level(chapter: int, stage_index: int) -> int:
-    """Continue smoothly from Chapter 10 without a sudden level jump."""
-    chapters_after_beginner = max(0, chapter - 10)
-
-    # Chapter 10 ends around level 37. Chapter 11 begins around level 41.
-    if chapter <= 25:
-        return 36 + chapters_after_beginner * 4 + stage_index
-
-    # Midgame progression remains meaningful without forcing constant grinding.
-    if chapter <= 60:
-        return 96 + (chapter - 25) * 5 + stage_index
-
-    # Endgame scaling is capped to avoid runaway enemy levels.
-    return min(470, 271 + (chapter - 60) * 6 + stage_index)
-
-
-def generate_campaign_stages(
-    start_chapter: int,
-    end_chapter: int,
-    stages_per_chapter: int = 6,
-) -> list:
-    """Generate scalable campaign content with stable deterministic stage data."""
+def generate_campaign_stages(start_chapter: int, end_chapter: int, stages_per_chapter: int = 6) -> list:
+    """Procedurally builds stage definitions for any chapter range. Designed
+    to scale to hundreds/thousands of stages without hand-authored data or
+    UI changes — Campaign/Roster already render whatever this returns."""
     out = []
     pool_by_rarity = {}
-
-    for tid, hero in CATALOG_BY_ID.items():
-        pool_by_rarity.setdefault(hero["rarity"], []).append(tid)
-
-    # IDs continue immediately after the 50 curated beginner stages.
-    first_stage_number = 50 + (start_chapter - 11) * stages_per_chapter + 1
+    for tid, t in CATALOG_BY_ID.items():
+        pool_by_rarity.setdefault(t["rarity"], []).append(tid)
 
     for chapter in range(start_chapter, end_chapter + 1):
-        region = _CHAPTER_REGIONS[
-            (chapter - 11) % len(_CHAPTER_REGIONS)
-        ]
+        region = _CHAPTER_REGIONS[(chapter - 1) % len(_CHAPTER_REGIONS)]
         band = _rarity_band_for_chapter(chapter)
-        candidates = [
-            tid
-            for rarity in band
-            for tid in pool_by_rarity.get(rarity, [])
-        ]
-
-        if not candidates:
-            candidates = list(CATALOG_BY_ID.keys())
-
+        candidates = [tid for r in band for tid in pool_by_rarity.get(r, [])] or list(CATALOG_BY_ID.keys())
         for i in range(1, stages_per_chapter + 1):
-            stage_number = (
-                first_stage_number
-                + (chapter - start_chapter) * stages_per_chapter
-                + (i - 1)
-            )
-            sid = f"s{stage_number}"
-            base_level = _procedural_base_level(chapter, i)
-            stage_rng = random.Random(chapter * 1000 + i)
-
-            if i == stages_per_chapter:
-                stage = _build_boss_stage(
-                    sid,
-                    chapter,
-                    region,
-                    base_level,
-                    candidates,
-                    pool_by_rarity,
-                    stage_rng,
-                )
+            is_boss = i == stages_per_chapter
+            sid = f"s{12 + (chapter - start_chapter) * stages_per_chapter + i}" if start_chapter > 4 else f"c{chapter}_{i}"
+            base_level = chapter * 5 + i
+            stage_rng = random.Random((chapter * 1000 + i))
+            if is_boss:
+                stage = _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rarity, stage_rng)
             else:
-                stage = _build_normal_stage(
-                    sid,
-                    chapter,
-                    i,
-                    region,
-                    base_level,
-                    candidates,
-                    stage_rng,
-                )
-
+                stage = _build_normal_stage(sid, chapter, i, region, base_level, candidates, stage_rng)
             out.append(stage)
-
     return out
 
 
-# Complete campaign:
-# Chapters 1-10 = 50 curated beginner stages.
-# Chapters 11-100 = 540 procedural stages (6 each).
-# Total = 590 stages.
-STAGES = build_beginner_campaign()
-STAGES.extend(generate_campaign_stages(11, 100, stages_per_chapter=6))
-STAGES_BY_ID = {stage["id"]: stage for stage in STAGES}
+# Currently generate Chapters 5-8 (24 more stages) as the next content slice.
+# Calling generate_campaign_stages(9, 100) later scales the campaign further
+# with zero additional hand-authored data or UI work.
+STAGES.extend(generate_campaign_stages(5, 100, stages_per_chapter=6))
+STAGES_BY_ID = {s["id"]: s for s in STAGES}
 
 
 # ---------------------------------------------------------------------------
-# Chapter presentation metadata
+# Chapter presentation metadata — purely descriptive (name + one-line lore)
+# for the World Map. Adds zero new gameplay data; chapters 1-4 get hand
+# -written lore matching their curated stage names, chapters 5+ (procedural)
+# derive a short line from their assigned region so the map never shows a
+# blank/missing chapter card as new content slices are appended.
 # ---------------------------------------------------------------------------
 CHAPTER_LORE = {
-    data["chapter"]: {"name": data["name"], "lore": data["lore"]}
-    for data in BEGINNER_CHAPTERS
+    1: {"name": "Leaf Outskirts", "lore": "Bandits prowl the borderlands — your journey as a shinobi begins here."},
+    2: {"name": "Misty Woods & Rocky Pass", "lore": "A rogue medic and stone sentinels guard the deep woods and mountain trail."},
+    3: {"name": "Howling Cliffs", "lore": "Storms rage over the cliffs where a rebel Herald commands the winds."},
+    4: {"name": "Forsaken Shrine", "lore": "Shadows gather at the old shrine — light and dark collide."},
 }
 
-# Real chapter environment art can be added later without changing gameplay.
+# Real, art-directed backdrops land here per chapter number once produced
+# (e.g. 1: "/art/campaign/ch1_leaf_outskirts.png"). Left empty for now — the
+# frontend falls back to a tasteful CSS atmosphere (existing accent token +
+# the shared battle backdrop) rather than any generated placeholder art, and
+# picks up real art automatically the moment a path is added here, with no
+# UI changes required.
+# Real chapter environment art, served from the frontend's public folder.
+# To swap a chapter's artwork later, just replace the file at the mapped
+# path (or point the entry at a new file) — no frontend changes required.
 CHAPTER_BACKGROUNDS = {
     1: "/art/chapters/chapter-1-leaf-outskirts.webp",
 }
 
+# Cycles through colors already in the existing design-token system (no new
+# palette) so each chapter's temporary atmosphere still feels distinct.
 _CHAPTER_ACCENTS = ["#FF5722", "#00E5FF", "#D500F9", "#FFCA28", "#00E676"]
 
 
@@ -1204,11 +873,8 @@ def chapter_meta(chapter: int) -> dict:
     if chapter in CHAPTER_LORE:
         meta = CHAPTER_LORE[chapter]
     else:
-        region = _CHAPTER_REGIONS[(chapter - 11) % len(_CHAPTER_REGIONS)]
-        meta = {
-            "name": region,
-            "lore": f"An increasingly dangerous stretch of the shadow realm lies beyond the {region}.",
-        }
+        region = _CHAPTER_REGIONS[(chapter - 1) % len(_CHAPTER_REGIONS)]
+        meta = {"name": region, "lore": f"An uncharted stretch of the shadow realm — few shinobi return from the {region} unscathed."}
     return {
         **meta,
         "accent": _CHAPTER_ACCENTS[(chapter - 1) % len(_CHAPTER_ACCENTS)],
@@ -1321,8 +987,14 @@ def exp_to_next(level: int) -> int:
 
 
 def hero_exp_to_next(level: int) -> int:
-    """Per-hero level curve — grows steadily so high levels feel earned."""
-    return round(100 + (level - 1) * 90 + (level ** 2) * 4)
+    """Beginner-friendly hero EXP curve. Early experimentation is cheap;
+    investment becomes meaningful only after the player has had time to build
+    a roster."""
+    if level < 20:
+        return round(55 + (level - 1) * 32 + (level ** 2) * 1.5)
+    if level < 50:
+        return round(420 + (level - 20) * 72 + (level ** 2) * 2.2)
+    return round(1450 + (level - 50) * 110 + (level ** 2) * 3.5)
 
 
 def ascension_cost(rarity: str, ascension: int) -> dict:
@@ -1692,7 +1364,7 @@ DROP_TABLE.extend([
 # Leveling — EXP tomes now also consume Ryo (gold) per use, standard for the
 # genre: gold + tomes are the dual cost of raw levels.
 # ---------------------------------------------------------------------------
-EXP_TOME_GOLD_COST = {"exp_tome_minor": 60, "exp_tome_greater": 260, "exp_tome_ancient": 1150}
+EXP_TOME_GOLD_COST = {"exp_tome_minor": 25, "exp_tome_greater": 110, "exp_tome_ancient": 500}
 
 # ---------------------------------------------------------------------------
 # Evolution (star breakthrough) — stars are gained ONLY through evolution.
@@ -2177,6 +1849,7 @@ SHOP_BY_ID = {s["id"]: s for s in SHOP_ITEMS}
 # ===========================================================================
 SKILL_RANK_MAX = 10
 PASSIVE_UNLOCK_RANK = 3
+RARITY_PASSIVE_UNLOCK_RANK = {"R": 5, "SR": 4, "SSR": 3, "UR": 2, "GR": 2}
 SKILL_POWER_PER_RANK = 0.08  # +8% jutsu power per rank beyond the 1st
 
 
@@ -2192,14 +1865,18 @@ def skill_rank_cost(rarity: str, rank: int) -> dict:
     return {"shards": shards, "ryo": ryo}
 
 
+def passive_unlock_rank(rarity: str) -> int:
+    return RARITY_PASSIVE_UNLOCK_RANK.get(rarity, PASSIVE_UNLOCK_RANK)
+
 def skill_public(rarity: str, rank: int) -> dict:
     rank = max(1, rank or 1)
+    unlock_rank = passive_unlock_rank(rarity)
     return {
         "rank": rank,
         "rank_max": SKILL_RANK_MAX,
         "power_mult": skill_power_mult(rank),
-        "passive_unlock_rank": PASSIVE_UNLOCK_RANK,
-        "passive_unlocked": rank >= PASSIVE_UNLOCK_RANK,
+        "passive_unlock_rank": unlock_rank,
+        "passive_unlocked": rank >= unlock_rank,
         "next_cost": skill_rank_cost(rarity, rank) if rank < SKILL_RANK_MAX else None,
     }
 
