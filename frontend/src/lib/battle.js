@@ -4,10 +4,15 @@ export function computeStats(template, level, ascension = 0) {
   const b = template.base_stats;
   const gl = 1 + 0.09 * (level - 1);
   const ga = 1 + 0.12 * ascension;
+
   return {
     hp: Math.round(b.hp * gl * ga),
     atk: Math.round(b.atk * gl * ga),
-    def: Math.round(b.def * (1 + 0.08 * (level - 1)) * ga),
+    def: Math.round(
+      b.def *
+        (1 + 0.08 * (level - 1)) *
+        ga
+    ),
     spd: Math.round(
       b.spd *
         (1 + 0.025 * (level - 1)) *
@@ -17,64 +22,117 @@ export function computeStats(template, level, ascension = 0) {
   };
 }
 
-export function elementMultiplier(attEl, defEl, advantage) {
+export function elementMultiplier(
+  attEl,
+  defEl,
+  advantage
+) {
   if (advantage[attEl] === defEl) return 1.3;
   if (advantage[defEl] === attEl) return 0.75;
   return 1.0;
 }
 
-// --- Stat debuff helpers (atk_down / def_down from jutsu effects) ---
+// ============================================================
+// STAT DEBUFF HELPERS
+// ============================================================
+
 export function effectiveAtk(actor) {
   let atk = actor.atk;
-  const debuff = actor.statuses?.find(
-    (s) => s.effectType === "atk_down" && (s.duration ?? 0) > 0
-  );
+
+  const debuff =
+    actor.statuses?.find(
+      (s) =>
+        s.effectType === "atk_down" &&
+        (s.duration ?? 0) > 0
+    );
+
   if (debuff) {
     atk = Math.round(
-      atk * (1 - (debuff.value || 0) / 100)
+      atk *
+        (1 -
+          (debuff.value || 0) / 100)
     );
   }
+
   return atk;
 }
 
 export function effectiveDef(actor) {
   let def = actor.def;
-  const debuff = actor.statuses?.find(
-    (s) => s.effectType === "def_down" && (s.duration ?? 0) > 0
-  );
+
+  const debuff =
+    actor.statuses?.find(
+      (s) =>
+        s.effectType === "def_down" &&
+        (s.duration ?? 0) > 0
+    );
+
   if (debuff) {
     def = Math.round(
-      def * (1 - (debuff.value || 0) / 100)
+      def *
+        (1 -
+          (debuff.value || 0) / 100)
     );
   }
+
   return def;
 }
 
-export function rollDamage(actor, target, jutsu, advantage) {
+// ============================================================
+// BASE DAMAGE
+// ============================================================
+
+export function rollDamage(
+  actor,
+  target,
+  jutsu,
+  advantage
+) {
   const atk = effectiveAtk(actor);
   const def = effectiveDef(target);
 
-  const base = (jutsu.power / 100) * atk;
+  const base =
+    ((jutsu.power || 0) / 100) *
+    atk;
+
   const mult = elementMultiplier(
     jutsu.element,
     target.element,
     advantage
   );
 
-  let raw = base * mult - def * 0.5;
-  raw = Math.max(raw, base * 0.18);
+  let raw =
+    base * mult -
+    def * 0.5;
 
-  const variance = 0.9 + Math.random() * 0.2;
-  const crit = Math.random() < 0.16;
-
-  const dmg = Math.round(
-    raw * variance * (crit ? 1.65 : 1)
+  raw = Math.max(
+    raw,
+    base * 0.18
   );
 
-  return { dmg, crit, mult };
+  const variance =
+    0.9 + Math.random() * 0.2;
+
+  const crit =
+    Math.random() < 0.16;
+
+  const dmg = Math.round(
+    raw *
+      variance *
+      (crit ? 1.65 : 1)
+  );
+
+  return {
+    dmg,
+    crit,
+    mult,
+  };
 }
 
-// Reforge modifier definitions — mirror of backend gd.REFORGE_MODIFIERS.
+// ============================================================
+// REFORGE MODIFIERS
+// ============================================================
+
 export const REFORGE_MODIFIERS = {
   burn: {
     effect: {
@@ -142,6 +200,10 @@ export const REFORGE_MODIFIERS = {
   },
 };
 
+// ============================================================
+// BUILD COMBATANT
+// ============================================================
+
 export function buildCombatant(
   uid,
   side,
@@ -156,7 +218,11 @@ export function buildCombatant(
 ) {
   const s =
     statsOverride ||
-    computeStats(template, level, ascension);
+    computeStats(
+      template,
+      level,
+      ascension
+    );
 
   const skillMult =
     1 +
@@ -166,72 +232,90 @@ export function buildCombatant(
     ) *
       0.08;
 
-  const reforgeMap = reforge || {};
+  const reforgeMap =
+    reforge || {};
 
+  // ============================================================
   // PASSIVE FILTER
-  // A passive must NEVER become a selectable battle command.
+  // Passives must NEVER become selectable battle commands.
+  // ============================================================
+
   const isPassiveSkill = (j) =>
     j?.type === "passive" ||
     j?.signature === true ||
     j?.passive === true ||
-    String(j?.id || "").endsWith("_passive");
+    String(j?.id || "").endsWith(
+      "_passive"
+    );
 
-  // Only ACTIVE abilities enter the combat jutsu list.
-  const jutsus = (template.jutsus || [])
-    .filter((j) => !isPassiveSkill(j))
-    .map((j) => {
-      let jj =
-        j.type === "attack" ||
-        j.type === "aoe" ||
-        j.type === "heal"
-          ? {
-              ...j,
-              power: Math.round(
-                (j.power || 0) * skillMult
-              ),
+  const jutsus =
+    (template.jutsus || [])
+      .filter(
+        (j) => !isPassiveSkill(j)
+      )
+      .map((j) => {
+        let jj =
+          j.type === "attack" ||
+          j.type === "aoe" ||
+          j.type === "heal"
+            ? {
+                ...j,
+                power: Math.round(
+                  (j.power || 0) *
+                    skillMult
+                ),
+              }
+            : { ...j };
+
+        const mods =
+          reforgeMap[j.id];
+
+        if (
+          mods &&
+          mods.length
+        ) {
+          const effects = [
+            ...(jj.effects || []),
+          ];
+
+          let bonusPct = 0;
+
+          for (const mid of mods) {
+            const m =
+              REFORGE_MODIFIERS[mid];
+
+            if (!m) continue;
+
+            if (m.effect) {
+              effects.push({
+                ...m.effect,
+              });
             }
-          : { ...j };
 
-      const mods = reforgeMap[j.id];
-
-      if (mods && mods.length) {
-        const effects = [
-          ...(jj.effects || []),
-        ];
-
-        let bonusPct = 0;
-
-        for (const mid of mods) {
-          const m = REFORGE_MODIFIERS[mid];
-
-          if (!m) continue;
-
-          if (m.effect) {
-            effects.push({
-              ...m.effect,
-            });
+            if (m.bonus_power_pct) {
+              bonusPct +=
+                m.bonus_power_pct;
+            }
           }
 
-          if (m.bonus_power_pct) {
-            bonusPct +=
-              m.bonus_power_pct;
+          if (effects.length) {
+            jj.effects = effects;
+          }
+
+          if (
+            bonusPct &&
+            jj.power
+          ) {
+            jj.power = Math.round(
+              jj.power *
+                (1 +
+                  bonusPct / 100)
+            );
           }
         }
 
-        if (effects.length) {
-          jj.effects = effects;
-        }
-
-        if (bonusPct && jj.power) {
-          jj.power = Math.round(
-            jj.power *
-              (1 + bonusPct / 100)
-          );
-        }
-      }
-
-      return jj;
-    });
+        return jj;
+      });
 
   return {
     uid,
@@ -245,12 +329,13 @@ export function buildCombatant(
     rarity: template.rarity,
     role: template.role,
 
-    // Passives live separately and trigger automatically.
+    // Passives are stored separately.
     passive: passiveUnlocked
       ? template.passive || null
       : null,
 
-    skillRank: skillRank || 1,
+    skillRank:
+      skillRank || 1,
 
     level,
     ascension,
@@ -263,7 +348,9 @@ export function buildCombatant(
     chakra:
       side === "ally"
         ? s.chakra
-        : Math.round(s.chakra * 0.5),
+        : Math.round(
+            s.chakra * 0.5
+          ),
 
     atk: s.atk,
     def: s.def,
@@ -279,6 +366,7 @@ export function buildCombatant(
     statuses: [],
 
     revivalUsed: false,
+    lowHpShieldUsed: false,
 
     bossMechanicId: null,
     bossPhaseIndex: -1,
@@ -289,7 +377,13 @@ export function buildCombatant(
   };
 }
 
-export function buildOrder(combatants) {
+// ============================================================
+// TURN ORDER
+// ============================================================
+
+export function buildOrder(
+  combatants
+) {
   return combatants
     .filter((c) => c.alive)
     .sort(
@@ -300,11 +394,15 @@ export function buildOrder(combatants) {
     .map((c) => c.uid);
 }
 
-// Deterministic PRNG so a given Spire floor always has the same enemies.
+// ============================================================
+// SPIRE ENEMY GENERATOR
+// ============================================================
+
 function mulberry32(a) {
   return function () {
     a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
+    a =
+      (a + 0x6d2b79f5) | 0;
 
     let t = Math.imul(
       a ^ (a >>> 15),
@@ -326,7 +424,6 @@ function mulberry32(a) {
   };
 }
 
-/** Generate the enemy line-up for an Endless Spire floor. */
 export function spireEnemies(
   floor,
   catalog
@@ -335,7 +432,8 @@ export function spireEnemies(
     (floor * 2654435761) >>> 0
   );
 
-  const boss = floor % 5 === 0;
+  const boss =
+    floor % 5 === 0;
 
   const lvl =
     2 + floor * 2;
@@ -365,14 +463,17 @@ export function spireEnemies(
     const b =
       bossPool[
         Math.floor(
-          rng() * bossPool.length
+          rng() *
+            bossPool.length
         )
       ] || catalog[0];
 
     return [
       {
         template_id: b.id,
-        level: Math.round(lvl * 1.5),
+        level: Math.round(
+          lvl * 1.5
+        ),
       },
     ];
   }
@@ -387,34 +488,45 @@ export function spireEnemies(
       ? pool
       : catalog;
 
-  const count = Math.min(
-    3,
-    2 + Math.floor((floor - 1) / 5)
-  );
+  const count =
+    Math.min(
+      3,
+      2 +
+        Math.floor(
+          (floor - 1) / 5
+        )
+    );
 
   const out = [];
 
-  for (let i = 0; i < count; i++) {
+  for (
+    let i = 0;
+    i < count;
+    i++
+  ) {
     out.push({
       template_id:
         src[
           Math.floor(
-            rng() * src.length
+            rng() *
+              src.length
           )
         ].id,
 
       level:
         lvl +
-        Math.floor(rng() * 3),
+        Math.floor(
+          rng() * 3
+        ),
     });
   }
 
   return out;
 }
 
-// ===========================================================================
-// Central Ability Resolution Layer + Status-Effect Framework
-// ===========================================================================
+// ============================================================
+// EVENT SYSTEM
+// ============================================================
 
 let _eventId = 0;
 
@@ -429,6 +541,10 @@ export function makeEvent(
     ...payload,
   };
 }
+
+// ============================================================
+// WIRED PASSIVE TYPES
+// ============================================================
 
 const WIRED_EFFECTS = new Set([
   "hp_scaling_power",
@@ -462,29 +578,80 @@ export function hasWiredPassive(c) {
   );
 }
 
+// ============================================================
+// DAMAGE RESOLUTION + PASSIVE DAMAGE MODIFIERS
+// ============================================================
+
 export function resolveDamage(
   actor,
   target,
   jutsu,
   advantage
 ) {
-  const base = rollDamage(
-    actor,
-    target,
-    jutsu,
-    advantage
-  );
+  const base =
+    rollDamage(
+      actor,
+      target,
+      jutsu,
+      advantage
+    );
 
   let dmg = base.dmg;
+
   const notes = [];
 
-  // Berserker scaling.
+  // ============================================================
+  // PASSIVE: Berserk at low HP
+  // ============================================================
+
+  if (
+    actor.passive?.effect_type ===
+    "berserk_low_hp"
+  ) {
+    const hpPercent =
+      actor.hp /
+      actor.maxHp;
+
+    if (hpPercent <= 0.4) {
+      dmg = Math.round(
+        dmg * 1.35
+      );
+
+      notes.push("berserk");
+    }
+  }
+
+  // ============================================================
+  // PASSIVE: Crit Boost
+  // ============================================================
+
+  if (
+    actor.passive?.effect_type ===
+    "crit_boost"
+  ) {
+    if (Math.random() < 0.2) {
+      dmg = Math.round(
+        dmg * 1.25
+      );
+
+      notes.push(
+        "critical_passive"
+      );
+    }
+  }
+
+  // ============================================================
+  // PASSIVE: Berserker scaling
+  // ============================================================
+
   if (
     actor.passive?.effect_type ===
     "hp_scaling_power"
   ) {
     const missingPct =
-      1 - actor.hp / actor.maxHp;
+      1 -
+      actor.hp /
+        actor.maxHp;
 
     if (missingPct > 0.01) {
       dmg = Math.round(
@@ -497,11 +664,16 @@ export function resolveDamage(
     }
   }
 
-  // Execute bonus.
+  // ============================================================
+  // PASSIVE: Execute bonus
+  // ============================================================
+
   if (
     actor.passive?.effect_type ===
       "execute_low_hp" &&
-    target.hp / target.maxHp <= 0.3
+    target.hp /
+      target.maxHp <=
+      0.3
   ) {
     dmg = Math.round(
       dmg * 1.5
@@ -510,7 +682,10 @@ export function resolveDamage(
     notes.push("execute");
   }
 
-  // Boss enrage.
+  // ============================================================
+  // BOSS ENRAGE
+  // ============================================================
+
   if (actor.enraged) {
     dmg = Math.round(
       dmg * 1.2
@@ -524,17 +699,22 @@ export function resolveDamage(
   };
 }
 
-/**
- * Resolves automatic passive effects
- * after a successful hit.
- */
+// ============================================================
+// ON-HIT PASSIVE EFFECTS
+// ============================================================
+
 export function resolveOnHitEffects(
   actor,
   target,
   jutsu
 ) {
   const events = [];
+
   let burstDamage = 0;
+
+  // ============================================================
+  // PASSIVE: Blood Mark stacking
+  // ============================================================
 
   if (
     actor.passive?.effect_type ===
@@ -551,28 +731,35 @@ export function resolveOnHitEffects(
     if (!mark) {
       mark = {
         id: `mark_${actor.uid}_${target.uid}_${Date.now()}`,
-        effectType: "blood_mark",
+        effectType:
+          "blood_mark",
         source: actor.uid,
         stacks: 1,
         duration: 3,
       };
 
-      target.statuses.push(mark);
+      target.statuses.push(
+        mark
+      );
 
       events.push(
         makeEvent(
           "DEBUFF_APPLIED",
           {
+            actorUid: actor.uid,
             targetUid:
               target.uid,
-            text: "Blood Mark",
+            text:
+              "Blood Mark",
           }
         )
       );
     } else {
       mark.stacks += 1;
 
-      if (mark.stacks >= 3) {
+      if (
+        mark.stacks >= 3
+      ) {
         burstDamage =
           Math.round(
             actor.atk * 0.8
@@ -585,12 +772,16 @@ export function resolveOnHitEffects(
 
         events.push(
           makeEvent(
-            "DEBUFF_APPLIED",
+            "PASSIVE_TRIGGER",
             {
+              actorUid:
+                actor.uid,
               targetUid:
                 target.uid,
               text:
                 "Blood Mark Detonates!",
+              value:
+                burstDamage,
             }
           )
         );
@@ -599,6 +790,8 @@ export function resolveOnHitEffects(
           makeEvent(
             "DEBUFF_APPLIED",
             {
+              actorUid:
+                actor.uid,
               targetUid:
                 target.uid,
               text:
@@ -610,7 +803,10 @@ export function resolveOnHitEffects(
     }
   }
 
-  // Withering Curse.
+  // ============================================================
+  // PASSIVE: Withering Curse / Escalating DOT
+  // ============================================================
+
   if (
     actor.passive?.effect_type ===
     "escalating_dot"
@@ -642,7 +838,9 @@ export function resolveOnHitEffects(
         stacks: 1,
       };
 
-      target.statuses.push(dot);
+      target.statuses.push(
+        dot
+      );
     } else {
       dot.duration = 4;
 
@@ -654,18 +852,22 @@ export function resolveOnHitEffects(
 
     events.push(
       makeEvent(
-        "DEBUFF_APPLIED",
+        "PASSIVE_TRIGGER",
         {
+          actorUid: actor.uid,
           targetUid:
             target.uid,
           text:
-            "Withering Curse",
+            `${actor.passive.name}: Curse Applied!`,
         }
       )
     );
   }
 
-  // Jutsu status effects.
+  // ============================================================
+  // JUTSU STATUS EFFECTS
+  // ============================================================
+
   const effEvents =
     applyJutsuEffects(
       actor,
@@ -677,27 +879,209 @@ export function resolveOnHitEffects(
     ...effEvents
   );
 
+  // ============================================================
+  // PASSIVE: Lifesteal
+  // ============================================================
+
+  if (
+    actor.passive?.effect_type ===
+      "lifesteal" &&
+    actor.alive
+  ) {
+    const healAmount =
+      Math.round(
+        actor.maxHp * 0.08
+      );
+
+    const oldHp =
+      actor.hp;
+
+    actor.hp = Math.min(
+      actor.maxHp,
+      actor.hp + healAmount
+    );
+
+    const actualHeal =
+      actor.hp - oldHp;
+
+    if (actualHeal > 0) {
+      events.push(
+        makeEvent(
+          "PASSIVE_TRIGGER",
+          {
+            actorUid:
+              actor.uid,
+            targetUid:
+              actor.uid,
+            text:
+              `${actor.passive.name}: +${actualHeal} HP`,
+            value:
+              actualHeal,
+          }
+        )
+      );
+    }
+  }
+
+  // ============================================================
+  // PASSIVE: Chakra on Hit
+  // ============================================================
+
+  if (
+    actor.passive?.effect_type ===
+    "chakra_on_hit"
+  ) {
+    const gain = 10;
+
+    const oldChakra =
+      actor.chakra;
+
+    actor.chakra = Math.min(
+      actor.maxChakra,
+      actor.chakra + gain
+    );
+
+    const actualGain =
+      actor.chakra -
+      oldChakra;
+
+    if (actualGain > 0) {
+      events.push(
+        makeEvent(
+          "PASSIVE_TRIGGER",
+          {
+            actorUid:
+              actor.uid,
+            targetUid:
+              actor.uid,
+            text:
+              `${actor.passive.name}: +${actualGain} Chakra`,
+            value:
+              actualGain,
+          }
+        )
+      );
+    }
+  }
+
+  // ============================================================
+  // PASSIVE: Poison Mastery
+  // ============================================================
+
+  if (
+    actor.passive?.effect_type ===
+    "poison_mastery"
+  ) {
+    const poisoned =
+      target.statuses?.some(
+        (s) =>
+          s.effectType ===
+          "poison"
+      );
+
+    if (poisoned) {
+      const bonusDamage =
+        Math.round(
+          actor.atk * 0.15
+        );
+
+      target.hp = Math.max(
+        0,
+        target.hp -
+          bonusDamage
+      );
+
+      events.push(
+        makeEvent(
+          "PASSIVE_TRIGGER",
+          {
+            actorUid:
+              actor.uid,
+            targetUid:
+              target.uid,
+            text:
+              `${actor.passive.name}: Poison Bonus!`,
+            value:
+              bonusDamage,
+          }
+        )
+      );
+    }
+  }
+
+  // ============================================================
+  // PASSIVE: Burn Mastery
+  // ============================================================
+
+  if (
+    actor.passive?.effect_type ===
+    "burn_mastery"
+  ) {
+    const burning =
+      target.statuses?.some(
+        (s) =>
+          s.effectType ===
+          "burn"
+      );
+
+    if (burning) {
+      const bonusDamage =
+        Math.round(
+          actor.atk * 0.15
+        );
+
+      target.hp = Math.max(
+        0,
+        target.hp -
+          bonusDamage
+      );
+
+      events.push(
+        makeEvent(
+          "PASSIVE_TRIGGER",
+          {
+            actorUid:
+              actor.uid,
+            targetUid:
+              target.uid,
+            text:
+              `${actor.passive.name}: Burning Fury!`,
+            value:
+              bonusDamage,
+          }
+        )
+      );
+    }
+  }
+
   return {
     burstDamage,
     events,
   };
 }
 
-const DOT_TYPES = new Set([
-  "burn",
-  "poison",
-  "bleed",
-]);
+// ============================================================
+// STATUS EFFECT SYSTEM
+// ============================================================
 
-const CC_TYPES = new Set([
-  "stun",
-  "freeze",
-]);
+const DOT_TYPES =
+  new Set([
+    "burn",
+    "poison",
+    "bleed",
+  ]);
 
-const DEBUFF_TYPES = new Set([
-  "atk_down",
-  "def_down",
-]);
+const CC_TYPES =
+  new Set([
+    "stun",
+    "freeze",
+  ]);
+
+const DEBUFF_TYPES =
+  new Set([
+    "atk_down",
+    "def_down",
+  ]);
 
 export function applyJutsuEffects(
   actor,
@@ -716,7 +1100,9 @@ export function applyJutsuEffects(
   target.statuses =
     target.statuses || [];
 
-  for (const eff of jutsu.effects) {
+  for (
+    const eff of jutsu.effects
+  ) {
     if (
       eff.chance != null &&
       eff.chance < 100 &&
@@ -726,21 +1112,26 @@ export function applyJutsuEffects(
       continue;
     }
 
-    const et = eff.type;
+    const et =
+      eff.type;
+
     const dur =
       eff.duration || 2;
 
     const val =
       eff.value || 0;
 
-    if (DOT_TYPES.has(et)) {
-      const mag = Math.max(
-        1,
-        Math.round(
-          effectiveAtk(actor) *
-            (val / 100)
-        )
-      );
+    if (
+      DOT_TYPES.has(et)
+    ) {
+      const mag =
+        Math.max(
+          1,
+          Math.round(
+            effectiveAtk(actor) *
+              (val / 100)
+          )
+        );
 
       let existing =
         target.statuses.find(
@@ -750,7 +1141,8 @@ export function applyJutsuEffects(
         );
 
       if (existing) {
-        existing.duration = dur;
+        existing.duration =
+          dur;
 
         existing.magnitude =
           Math.max(
@@ -771,6 +1163,8 @@ export function applyJutsuEffects(
         makeEvent(
           "DEBUFF_APPLIED",
           {
+            actorUid:
+              actor.uid,
             targetUid:
               target.uid,
             text: `${et
@@ -801,6 +1195,8 @@ export function applyJutsuEffects(
           makeEvent(
             "DEBUFF_APPLIED",
             {
+              actorUid:
+                actor.uid,
               targetUid:
                 target.uid,
               text: `${et
@@ -822,7 +1218,8 @@ export function applyJutsuEffects(
         );
 
       if (existing) {
-        existing.duration = dur;
+        existing.duration =
+          dur;
       } else {
         target.statuses.push({
           id: `${et}_${target.uid}_${Date.now()}`,
@@ -836,11 +1233,14 @@ export function applyJutsuEffects(
           makeEvent(
             "DEBUFF_APPLIED",
             {
+              actorUid:
+                actor.uid,
               targetUid:
                 target.uid,
               text:
                 `${
-                  et === "atk_down"
+                  et ===
+                  "atk_down"
                     ? "ATK"
                     : "DEF"
                 } Down!`,
@@ -854,7 +1254,13 @@ export function applyJutsuEffects(
   return events;
 }
 
-export function isStunned(actor) {
+// ============================================================
+// CROWD CONTROL CHECK
+// ============================================================
+
+export function isStunned(
+  actor
+) {
   return !!actor.statuses?.some(
     (s) =>
       CC_TYPES.has(
@@ -864,11 +1270,20 @@ export function isStunned(actor) {
   );
 }
 
-export function tickStatuses(actor) {
+// ============================================================
+// STATUS TICKING
+// ============================================================
+
+export function tickStatuses(
+  actor
+) {
   const events = [];
+
   let dmg = 0;
 
-  if (!actor.statuses?.length) {
+  if (
+    !actor.statuses?.length
+  ) {
     return {
       dmg,
       events,
@@ -950,13 +1365,18 @@ export function tickStatuses(actor) {
     }
   }
 
-  actor.statuses = keep;
+  actor.statuses =
+    keep;
 
   return {
     dmg,
     events,
   };
 }
+
+// ============================================================
+// DEATH / REVIVAL
+// ============================================================
 
 export function resolveDeath(
   target,
@@ -967,16 +1387,19 @@ export function resolveDeath(
       "revive_once" &&
     !target.revivalUsed
   ) {
-    target.revivalUsed = true;
+    target.revivalUsed =
+      true;
 
-    target.hp = Math.max(
-      1,
-      Math.round(
-        target.maxHp * 0.4
-      )
-    );
+    target.hp =
+      Math.max(
+        1,
+        Math.round(
+          target.maxHp * 0.4
+        )
+      );
 
-    target.alive = true;
+    target.alive =
+      true;
 
     events.push(
       makeEvent(
@@ -1009,12 +1432,20 @@ export function resolveDeath(
   return false;
 }
 
+// ============================================================
+// BATTLE START PASSIVES
+// ============================================================
+
 export function applyBattleStartPassives(
   arr
 ) {
   const events = [];
 
   arr.forEach((c) => {
+    // ==========================================================
+    // PASSIVE: Team Shield
+    // ==========================================================
+
     if (
       c.alive &&
       c.passive?.effect_type ===
@@ -1030,15 +1461,19 @@ export function applyBattleStartPassives(
           (ally) => {
             const amt =
               Math.round(
-                ally.maxHp * 0.15
+                ally.maxHp *
+                  0.15
               );
 
-            ally.shield += amt;
+            ally.shield +=
+              amt;
 
             events.push(
               makeEvent(
                 "SHIELD_APPLIED",
                 {
+                  actorUid:
+                    c.uid,
                   targetUid:
                     ally.uid,
                   value: amt,
@@ -1050,20 +1485,92 @@ export function applyBattleStartPassives(
           }
         );
     }
+
+    // ==========================================================
+    // PASSIVE: Speed Boost
+    // ==========================================================
+
+    if (
+      c.alive &&
+      c.passive?.effect_type ===
+        "speed_boost"
+    ) {
+      const bonus =
+        Math.round(
+          c.spd * 0.15
+        );
+
+      c.spd += bonus;
+
+      events.push(
+        makeEvent(
+          "PASSIVE_TRIGGER",
+          {
+            actorUid: c.uid,
+            targetUid: c.uid,
+            text:
+              `${c.passive.name}: Speed increased!`,
+            value: bonus,
+          }
+        )
+      );
+    }
+
+    // ==========================================================
+    // PASSIVE: First Strike
+    // ==========================================================
+
+    if (
+      c.alive &&
+      c.passive?.effect_type ===
+        "first_strike"
+    ) {
+      const bonus = 20;
+
+      const oldChakra =
+        c.chakra;
+
+      c.chakra =
+        Math.min(
+          c.maxChakra,
+          c.chakra +
+            bonus
+        );
+
+      const actualGain =
+        c.chakra -
+        oldChakra;
+
+      events.push(
+        makeEvent(
+          "PASSIVE_TRIGGER",
+          {
+            actorUid: c.uid,
+            targetUid: c.uid,
+            text:
+              `${c.passive.name}: +${actualGain} Chakra`,
+            value:
+              actualGain,
+          }
+        )
+      );
+    }
   });
 
   return events;
 }
 
-// ---------------------------------------------------------------------------
-// Boss mechanic runtime
-// ---------------------------------------------------------------------------
+// ============================================================
+// BOSS MECHANICS
+// ============================================================
 
 export function evaluateBossPhase(
   boss,
   mechanicDef
 ) {
-  if (!mechanicDef?.phases) {
+  if (
+    !mechanicDef?.phases
+  ) {
     return -1;
   }
 
@@ -1104,7 +1611,8 @@ export function enterBossPhase(
   events
 ) {
   boss.enraged = false;
-  boss.shieldPhaseActive = false;
+  boss.shieldPhaseActive =
+    false;
 
   if (
     phase.behavior ===
@@ -1121,7 +1629,9 @@ export function enterBossPhase(
     boss.shield += amt;
 
     boss.aoeHitsTaken = 0;
-    boss.shieldPhaseActive = true;
+
+    boss.shieldPhaseActive =
+      true;
 
     events.push(
       makeEvent(
@@ -1153,7 +1663,8 @@ export function enterBossPhase(
             1)
       );
 
-    boss.enraged = true;
+    boss.enraged =
+      true;
 
     events.push(
       makeEvent(
