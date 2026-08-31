@@ -298,10 +298,6 @@ class PortraitUploadIn(BaseModel):
     image: str  # base64 (optionally a data URL)
 
 
-class StepupClaimIn(BaseModel):
-    milestone: int
-
-
 class TranscendIn(BaseModel):
     instance_id: str
 
@@ -446,22 +442,34 @@ def free_summons_public(user: dict) -> dict:
     }
 
 
-def stepup_public(user: dict) -> dict:
-    """Step-up summon ladder: every milestone the player has reached, marked
-    claimed/unclaimed, plus the boosted (3x SSR+) rates for display."""
-    level = user.get("level", 1)
+def _stepup_used(user: dict) -> int:
+    """Resolves the step-up summons used counter, migrating from the legacy
+    stepup_claimed milestone list if the new field doesn't exist yet."""
+    used = user.get("step_up_summons_used")
+    if used is not None:
+        return used
+    # Legacy migration: old system tracked claimed milestones as a list.
+    # The level-1 milestone was a freebie that doesn't exist in the new
+    # floor(level/10) system, so exclude it from the count.
     claimed = user.get("stepup_claimed") or []
-    reached = ex.stepup_milestones(level)
-    avail = ex.stepup_available(level, claimed)
+    return len([m for m in claimed if m != 1])
+
+
+def stepup_public(user: dict) -> dict:
+    """Step-up summon status: earned vs used vs available, calculated
+    deterministically from the player's current level."""
+    level = user.get("level", 1)
+    used = _stepup_used(user)
+    total_earned = ex.stepup_total_earned(level)
+    available = max(0, total_earned - used)
     return {
-        "milestones": [
-            {"level": m, "claimed": m in claimed, "available": m in avail}
-            for m in reached
-        ],
-        "next_milestone": ex.stepup_milestones(level)[-1] + ex.STEPUP_EVERY if reached else ex.STEPUP_FIRST,
-        "available_count": len(avail),
+        "total_earned": total_earned,
+        "used": used,
+        "available": available,
+        "level": level,
+        "next_milestone": ex.stepup_next_milestone(level),
+        "progress_to_next": level % ex.STEPUP_EVERY,
         "pull_count": ex.STEPUP_PULL_COUNT,
-        "boost_mult": ex.STEPUP_BOOST_MULT,
         "rates": ex.stepup_rates(),
     }
 
@@ -1549,13 +1557,12 @@ async def stepup_status(user: dict = Depends(get_current_user)):
 
 
 @api_router.post("/game/summon/stepup")
-async def stepup_claim(body: StepupClaimIn, user: dict = Depends(get_current_user)):
+async def stepup_claim(user: dict = Depends(get_current_user)):
     level = user.get("level", 1)
-    claimed = list(user.get("stepup_claimed") or [])
-    if body.milestone in claimed:
-        raise HTTPException(status_code=400, detail="This step-up reward is already claimed")
-    if body.milestone not in ex.stepup_milestones(level):
-        raise HTTPException(status_code=400, detail="You have not reached this milestone yet")
+    used = _stepup_used(user)
+    available = ex.stepup_available_count(level, used)
+    if available <= 0:
+        raise HTTPException(status_code=400, detail=f"No Step-Up summons available — reach level {ex.stepup_next_milestone(level)} for your next free x10")
 
     pity = user.get("pity") or gd.fresh_pity_state()
     pool = ex.stepup_pool(featured_id=FEATURED_BANNER.get("template_id"))
@@ -1577,15 +1584,21 @@ async def stepup_claim(body: StepupClaimIn, user: dict = Depends(get_current_use
                         "duplicate": is_dup, "shards_gained": shards})
         pity["total_pulls"] = pity.get("total_pulls", 0) + 1
 
-    claimed.append(body.milestone)
-    user["stepup_claimed"] = claimed
+    user["step_up_summons_used"] = used + 1
     user["pity"] = pity
     bump_mission(user, "summon", ex.STEPUP_PULL_COUNT)
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+    update_doc = {
         "ninjas": user["ninjas"], "hero_shards": user.get("hero_shards", {}),
-        "pity": pity, "stepup_claimed": claimed,
-        "daily": user["daily"], "achievements": user.get("achievements")}})
-    return {"profile": public_user(user), "results": results, "milestone": body.milestone}
+        "pity": pity, "step_up_summons_used": used + 1,
+        "daily": user["daily"], "achievements": user.get("achievements"),
+    }
+    # Clean up legacy stepup_claimed list if it still exists
+    if "stepup_claimed" in user:
+        user.pop("stepup_claimed", None)
+        await db.users.update_one({"_id": user["_id"]}, {"$set": update_doc, "$unset": {"stepup_claimed": ""}})
+    else:
+        await db.users.update_one({"_id": user["_id"]}, {"$set": update_doc})
+    return {"profile": public_user(user), "results": results}
 
 
 # ---------------------------------------------------------------------------
@@ -2143,9 +2156,13 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     r = gd.spire_rewards(floor, advancing)
     user["ryo"] = user.get("ryo", 0) + r["ryo"]
     gems_gained = 0
-    if advancing and floor % gd.SPIRE_FLOOR_MILESTONE_EVERY == 0:
-        gems_gained = gd.SPIRE_FLOOR_MILESTONE_GEMS_BASE + floor
-        user["gems"] = user.get("gems", 0) + gems_gained
+    if advancing:
+        if r.get("milestone"):
+            gems_gained = gd.SPIRE_MILESTONE_GEMS_BASE + floor
+            user["gems"] = user.get("gems", 0) + gems_gained
+        elif r.get("boss"):
+            gems_gained = gd.SPIRE_BOSS_GEMS_BASE + floor // 5
+            user["gems"] = user.get("gems", 0) + gems_gained
     hero_exp = distribute_hero_exp(user, body.participants or list(user.get("team", [])), body.survivors, r["hero_exp_base"])
     inventory = user.get("inventory", {})
     for iid, qty in r["items"].items():
@@ -2161,7 +2178,8 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"], "inventory": inventory,
         "spire_floor": user.get("spire_floor", current), "daily": user["daily"]}})
-    rewards = {"ryo": r["ryo"], "gems": gems_gained, "items": r["items"], "hero_exp": hero_exp, "boss": r["boss"], "advancing": advancing}
+    rewards = {"ryo": r["ryo"], "gems": gems_gained, "items": r["items"], "hero_exp": hero_exp,
+               "boss": r["boss"], "milestone": r.get("milestone", False), "advancing": advancing}
     return {"profile": public_user(user), "rewards": rewards, "result": "win", "floor": floor, "advancing": advancing}
 
 

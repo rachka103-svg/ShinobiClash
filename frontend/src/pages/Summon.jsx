@@ -15,6 +15,7 @@ import { auraClass, DecoCorners } from "@/components/RarityFx";
 import SummonRevealOverlay from "@/components/SummonRevealOverlay";
 import SummonCircle from "@/components/cinematic/SummonCircle";
 import BeginnerSummon from "@/components/BeginnerSummon";
+import StepUpSummon from "@/components/StepUpSummon";
 import HeroInspectionOverlay from "@/components/HeroInspectionOverlay";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -259,7 +260,7 @@ export default function Summon() {
 
       {/* Mode tabs */}
       <div className="flex items-center gap-2 mb-2 shrink-0 relative z-10" data-testid="summon-tabs">
-        {[["hero", "Hero Altar"], ["beginner", "Beginner"]].map(([id, lbl]) => (
+        {[["hero", "Hero Altar"], ["stepup", "Step-Up"], ["beginner", "Beginner"]].map(([id, lbl]) => (
           <button key={id} onClick={() => setMode(id)} data-testid={`summon-tab-${id}`}
             className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all ${mode === id ? "bg-chakra text-[#05050A]" : "bg-white/[0.04] text-slate-400 hover:text-white border border-white/10"}`}>
             {lbl}
@@ -268,7 +269,7 @@ export default function Summon() {
       </div>
 
       {/* ===================== Two-column body ===================== */}
-      {mode === "beginner" ? <BeginnerSummon /> : (
+      {mode === "beginner" ? <BeginnerSummon /> : mode === "stepup" ? <StepUpSummon /> : (
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 lg:gap-4 relative z-10">
         {/* -------- LEFT: cinematic featured banner -------- */}
         {featuredHero ? (

@@ -2,9 +2,11 @@
 
 Three long-term progression systems added on top of the core game:
 
-1. STEP-UP SUMMON — a free x10 pull unlocked every 10 player levels (1, 10,
-   20, 30 ...) with tripled (3x) base rates for SSR and above. One claim per
-   milestone, tracked on the user document.
+1. STEP-UP SUMMON — a free x10 pull earned every 10 player levels (10, 20,
+   30 ...) with a dedicated improved rate table. Rewards are calculated
+   deterministically from floor(level / 10) and tracked via a simple used
+   counter, so they accumulate safely across migrations and offline
+   level-ups.
 
 2. RARITY TRANSCENDENCE — any hero, even an R, can be raised one rarity tier
    at a time (up to GR) by spending shards + ryo + a new transcendence
@@ -54,42 +56,37 @@ def effective_rarity(inst: dict, tmpl: dict) -> str:
 # ===========================================================================
 # 1. STEP-UP SUMMON
 # ===========================================================================
-STEPUP_FIRST = 1            # the level-1 milestone
-STEPUP_EVERY = 10           # then every 10 levels (10, 20, 30 ...)
+# A free x10 summon earned every 10 player levels. Rewards are calculated
+# deterministically from the player's current level (floor(level / 10)),
+# so they accumulate safely across offline level-ups, migrations, and old
+# accounts — no reliance on detecting the exact moment of leveling.
+STEPUP_EVERY = 10           # one free x10 every 10 levels (10, 20, 30 ...)
 STEPUP_PULL_COUNT = 10      # each claim is a free x10
-STEPUP_BOOST_MULT = 3       # 3x base rates for SSR+
-STEPUP_BOOST_FLOOR = "SSR"  # rarities at/above this are boosted
+
+# Dedicated Step-Up rate table — more rewarding than the standard Gem banner.
+# R is reduced, SR/SSR boosted, UR has a meaningful chance, GR is extremely
+# rare but possible. Tunable as a single config block.
+STEPUP_WEIGHTS = {"R": 550, "SR": 480, "SSR": 220, "UR": 70, "GR": 6}
 
 
-def stepup_milestones(level: int) -> list:
-    """All milestone levels the player has reached by `level` (ascending)."""
-    out = [STEPUP_FIRST]
-    n = STEPUP_EVERY
-    while n <= level:
-        out.append(n)
-        n += STEPUP_EVERY
-    return out
+def stepup_total_earned(level: int) -> int:
+    """Total Step-Up x10 summons earned by reaching this level."""
+    return level // STEPUP_EVERY
 
 
-def stepup_available(level: int, claimed: list) -> list:
-    """Milestones reached but not yet claimed."""
-    reached = set(stepup_milestones(level))
-    return sorted(reached - set(claimed or []))
+def stepup_available_count(level: int, used: int) -> int:
+    """Unclaimed Step-Up summons = earned minus used (never below 0)."""
+    return max(0, stepup_total_earned(level) - (used or 0))
 
 
-def _stepup_weights() -> dict:
-    """A copy of the Gem-banner weight table with SSR+ weights tripled."""
-    w = dict(gd.SUMMON_WEIGHTS)
-    floor = gd.RARITY_ORDER[STEPUP_BOOST_FLOOR]
-    for r, weight in w.items():
-        if gd.RARITY_ORDER.get(r, 0) >= floor:
-            w[r] = weight * STEPUP_BOOST_MULT
-    return w
+def stepup_next_milestone(level: int) -> int:
+    """The next level that grants a new Step-Up summon."""
+    return ((level // STEPUP_EVERY) + 1) * STEPUP_EVERY
 
 
 def stepup_rates() -> dict:
-    """Advertised per-rarity rates (%) for the step-up banner (SSR+ tripled)."""
-    weights = _stepup_weights()
+    """Advertised per-rarity rates (%) for the Step-Up banner."""
+    weights = STEPUP_WEIGHTS
     counts = {}
     for t in gd.CATALOG_BY_ID.values():
         counts[t["rarity"]] = counts.get(t["rarity"], 0) + 1
@@ -101,8 +98,8 @@ def stepup_rates() -> dict:
 
 
 def stepup_pool(featured_id: Optional[str] = None) -> list:
-    """Weighted (template_id, weight) pool using the boosted weight table."""
-    weights = _stepup_weights()
+    """Weighted (template_id, weight) pool using the Step-Up rate table."""
+    weights = STEPUP_WEIGHTS
     out = []
     for tid, t in gd.CATALOG_BY_ID.items():
         w = weights.get(t["rarity"], 0)

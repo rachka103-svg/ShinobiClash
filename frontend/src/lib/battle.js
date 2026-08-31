@@ -1,5 +1,7 @@
 // Client-side turn-based combat helpers (mirrors backend stat formulas).
 
+import { spireFloorConfig, pickRarity } from "./spireConfig";
+
 export function computeStats(template, level, ascension = 0) {
   const b = template.base_stats;
   const gl = 1 + 0.09 * (level - 1);
@@ -432,92 +434,41 @@ export function spireEnemies(
     (floor * 2654435761) >>> 0
   );
 
-  const boss =
-    floor % 5 === 0;
+  const cfg = spireFloorConfig(floor);
+  const lvl = cfg.enemyLevel;
+  const probs = cfg.rarityProbs;
 
-  const lvl =
-    2 + floor * 2;
-
-  let bands;
-
-  if (floor <= 3) {
-    bands = ["R"];
-  } else if (floor <= 6) {
-    bands = ["R", "SR"];
-  } else if (floor <= 10) {
-    bands = ["SR", "SSR"];
-  } else if (floor <= 15) {
-    bands = ["SSR", "UR"];
-  } else {
-    bands = ["UR", "GR"];
-  }
-
-  if (boss) {
-    const bossPool =
-      catalog.filter((c) =>
-        ["SSR", "UR", "GR"].includes(
-          c.rarity
-        )
-      );
-
-    const b =
-      bossPool[
-        Math.floor(
-          rng() *
-            bossPool.length
-        )
-      ] || catalog[0];
-
+  // Boss floor: a single high-rarity enemy with boosted level.
+  if (cfg.isBoss) {
+    // Boss rarity is at least SSR, weighted toward the floor's top rarities.
+    const bossRoll = 0.3 + rng() * 0.7; // skew toward rarer
+    let bossRarity = pickRarity(probs, bossRoll);
+    if (bossRarity === "R" || bossRarity === "SR") bossRarity = "SSR";
+    const bossPool = catalog.filter((c) => c.rarity === bossRarity);
+    const pool = bossPool.length
+      ? bossPool
+      : catalog.filter((c) => ["SSR", "UR", "GR"].includes(c.rarity));
+    const src = pool.length ? pool : catalog;
+    const b = src[Math.floor(rng() * src.length)] || catalog[0];
     return [
       {
         template_id: b.id,
-        level: Math.round(
-          lvl * 1.5
-        ),
+        level: Math.round(lvl * 1.5),
       },
     ];
   }
 
-  const pool =
-    catalog.filter((c) =>
-      bands.includes(c.rarity)
-    );
-
-  const src =
-    pool.length
-      ? pool
-      : catalog;
-
-  const count =
-    Math.min(
-      3,
-      2 +
-        Math.floor(
-          (floor - 1) / 5
-        )
-    );
-
+  const count = cfg.teamSize;
   const out = [];
 
-  for (
-    let i = 0;
-    i < count;
-    i++
-  ) {
+  for (let i = 0; i < count; i++) {
+    const rarity = pickRarity(probs, rng());
+    let pool = catalog.filter((c) => c.rarity === rarity);
+    if (!pool.length) pool = catalog; // fallback if no heroes of that rarity
+    const src = pool;
     out.push({
-      template_id:
-        src[
-          Math.floor(
-            rng() *
-              src.length
-          )
-        ].id,
-
-      level:
-        lvl +
-        Math.floor(
-          rng() * 3
-        ),
+      template_id: src[Math.floor(rng() * src.length)].id,
+      level: lvl + Math.floor(rng() * 3),
     });
   }
 

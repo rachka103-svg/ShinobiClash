@@ -1605,14 +1605,113 @@ def ascension_cost(rarity: str, ascension: int) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Endless Spire (ascending tower) — scales forever, farmable on replay.
+# Endless Spire (ascending tower) — 1000 floors with phased progression.
 # ---------------------------------------------------------------------------
+SPIRE_MAX_FLOOR = 1000
+
+# Six progression phases. Each defines the enemy level band and stat
+# multiplier band for its floor range; the actual values are linearly
+# interpolated within the phase so transitions are smooth (no sudden walls).
+SPIRE_PHASES = [
+    # name,              min,  max,  lvl_s, lvl_e, mult_s, mult_e, reward_mult
+    ("Onboarding",         1,   50,     2,    30,    1.0,    1.3,   1.0),
+    ("Early Progression", 51,  150,    30,    70,    1.3,    1.8,   1.5),
+    ("Midgame",          151,  350,    70,   140,    1.8,    2.8,   2.5),
+    ("Advanced",         351,  600,   140,   220,    2.8,    4.5,   4.0),
+    ("Endgame",          601,  850,   220,   300,    4.5,    7.0,   6.0),
+    ("Ascendant",        851, 1000,   300,   380,    7.0,   10.0,   9.0),
+]
+
+# Gradual rarity probability per phase (sums to 1.0). Higher phases shift
+# toward rarer enemies — but never jumps all-at-once; the interpolation
+# between phases blends the probabilities smoothly.
+SPIRE_RARITY_PROBS = [
+    {"R": 0.70, "SR": 0.25, "SSR": 0.05, "UR": 0.00, "GR": 0.00},  # 1 Onboarding
+    {"R": 0.35, "SR": 0.40, "SSR": 0.20, "UR": 0.05, "GR": 0.00},  # 2 Early
+    {"R": 0.10, "SR": 0.25, "SSR": 0.35, "UR": 0.25, "GR": 0.05},  # 3 Midgame
+    {"R": 0.00, "SR": 0.10, "SSR": 0.25, "UR": 0.40, "GR": 0.25},  # 4 Advanced
+    {"R": 0.00, "SR": 0.00, "SSR": 0.15, "UR": 0.35, "GR": 0.50},  # 5 Endgame
+    {"R": 0.00, "SR": 0.00, "SSR": 0.05, "UR": 0.25, "GR": 0.70},  # 6 Ascendant
+]
+
+# Boss floors: 10, 25, 50, 75, 100, then every 50 up to 1000.
+SPIRE_BOSS_FLOORS = frozenset(
+    {10, 25, 50, 75, 100} | {f for f in range(150, 1001, 50)}
+)
+# Major milestone floors with special rewards.
+SPIRE_MILESTONE_FLOORS = frozenset({100, 250, 500, 750, 1000})
+
+
+def _spire_phase_for(floor: int) -> int:
+    """Returns the 0-based phase index for a floor (clamped to 0-5)."""
+    for i, (_, lo, hi, *_rest) in enumerate(SPIRE_PHASES):
+        if lo <= floor <= hi:
+            return i
+    return len(SPIRE_PHASES) - 1
+
+
+def _spire_lerp(floor: int, phase_idx: int, start: float, end: float) -> float:
+    """Linear interpolation of a value within a phase, based on floor."""
+    _, lo, hi, *_ = SPIRE_PHASES[phase_idx]
+    t = (floor - lo) / max(1, hi - lo)
+    return start + t * (end - start)
+
+
+def spire_floor_config(floor: int) -> dict:
+    """Deterministic procedural config for a single Spire floor. All tuning
+    constants are centralized above so the curve can be adjusted in one place."""
+    floor = max(1, min(floor, SPIRE_MAX_FLOOR))
+    pi = _spire_phase_for(floor)
+    name, lo, hi, lvl_s, lvl_e, mult_s, mult_e, reward_mult = SPIRE_PHASES[pi]
+
+    enemy_level = round(_spire_lerp(floor, pi, lvl_s, lvl_e))
+    stat_mult = round(_spire_lerp(floor, pi, mult_s, mult_e), 3)
+    is_boss = floor in SPIRE_BOSS_FLOORS
+    is_milestone = floor in SPIRE_MILESTONE_FLOORS
+    team_size = 3 if floor >= 10 else 2
+
+    # Blend rarity probabilities between the current and next phase for a
+    # smooth transition (weighted by how far through the phase we are).
+    _, plo, phi, *_ = SPIRE_PHASES[pi]
+    t = (floor - plo) / max(1, phi - plo)
+    probs_here = SPIRE_RARITY_PROBS[pi]
+    probs_next = SPIRE_RARITY_PROBS[min(pi + 1, len(SPIRE_RARITY_PROBS) - 1)]
+    rarity_probs = {r: round(probs_here[r] * (1 - t) + probs_next[r] * t, 4)
+                    for r in probs_here}
+
+    return {
+        "floor": floor,
+        "phase": name,
+        "phase_idx": pi + 1,
+        "enemy_level": enemy_level,
+        "stat_mult": stat_mult,
+        "rarity_probs": rarity_probs,
+        "team_size": team_size,
+        "is_boss": is_boss,
+        "is_milestone": is_milestone,
+        "reward_mult": reward_mult,
+    }
+
+
 def spire_rewards(floor: int, advancing: bool) -> dict:
-    boss = floor % 5 == 0
-    ryo = 120 + floor * 35
-    hero_exp = 40 + floor * 12
+    cfg = spire_floor_config(floor)
+    base_ryo = 100 + floor * 25
+    base_exp = 30 + floor * 10
+    rm = cfg["reward_mult"]
+    boss = cfg["is_boss"]
+    milestone = cfg["is_milestone"]
+
+    ryo = round(base_ryo * rm)
+    hero_exp = round(base_exp * rm)
+    if boss:
+        ryo = round(ryo * 1.5)
+        hero_exp = round(hero_exp * 1.5)
+
     if advancing:
-        if boss:
+        if milestone:
+            items = {"ascension_crystal": 5, "summon_ticket": 3,
+                     "exp_tome_greater": 3, "lunar_essence": 1}
+        elif boss:
             items = {"ascension_crystal": 2, "summon_ticket": 1, "exp_tome_greater": 1}
         else:
             items = {"exp_tome_minor": 2}
@@ -1622,7 +1721,8 @@ def spire_rewards(floor: int, advancing: bool) -> dict:
         ryo = round(ryo * 0.4)
         hero_exp = round(hero_exp * 0.4)
         items = {"exp_tome_minor": 1}
-    return {"ryo": ryo, "hero_exp_base": hero_exp, "items": items, "boss": boss}
+    return {"ryo": ryo, "hero_exp_base": hero_exp, "items": items,
+            "boss": boss, "milestone": milestone}
 
 
 # ---------------------------------------------------------------------------
@@ -1769,8 +1869,9 @@ GEM_ENERGY_REFILL_MIN_COST = 15
 ARENA_WIN_MILESTONE_EVERY = 5      # every 5th Arena win
 ARENA_WIN_MILESTONE_GEMS = 20
 
-SPIRE_FLOOR_MILESTONE_EVERY = 5    # every 5th floor actually advanced
-SPIRE_FLOOR_MILESTONE_GEMS_BASE = 15
+# Spire gem rewards: boss floors give gems; major milestones give big bonuses.
+SPIRE_BOSS_GEMS_BASE = 30
+SPIRE_MILESTONE_GEMS_BASE = 200
 
 
 def first_clear_gems(chapter: int) -> int:
