@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Play, Lock, Check, Crown, Swords, Zap, ChevronDown, Scroll } from "lucide-react";
+import { Play, Zap, ChevronDown, Scroll } from "lucide-react";
+import { LockIcon, CheckIcon, CrownIcon, SwordsIcon } from "@/components/GameIcons";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
@@ -128,7 +129,7 @@ export default function Campaign() {
               {/* index / state */}
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-display text-lg"
                 style={{ background: state === "completed" ? "rgba(0,230,118,0.15)" : isBoss ? "rgba(255,87,34,0.18)" : "rgba(255,255,255,0.05)", color: state === "completed" ? "#00E676" : isBoss ? "#FF5722" : "#94a3b8" }}>
-                {locked ? <Lock className="w-4 h-4" /> : state === "completed" ? <Check className="w-5 h-5" /> : isBoss ? <Crown className="w-5 h-5" /> : i + 1}
+                {locked ? <LockIcon size={16} /> : state === "completed" ? <CheckIcon size={20} /> : isBoss ? <CrownIcon size={20} /> : i + 1}
               </div>
 
               {/* name + region + enemies */}
@@ -149,7 +150,7 @@ export default function Campaign() {
                       );
                     })}
                   </div>
-                  <span className="text-[11px] text-slate-500 flex items-center gap-1"><Swords className="w-3 h-3" /> Pow {(stage.recommended_power || 0).toLocaleString()}</span>
+                  <span className="text-[11px] text-slate-500 flex items-center gap-1"><SwordsIcon size={12} /> Pow {(stage.recommended_power || 0).toLocaleString()}</span>
                 </div>
               </div>
 

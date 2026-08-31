@@ -18,12 +18,14 @@ export function GameProvider({ children }) {
   // --- Phase J expansion config (all data-driven from the backend) ---
   const [summonRates, setSummonRates] = useState({});
   const [summonRatesRyo, setSummonRatesRyo] = useState({});
-  const [pityConfig, setPityConfig] = useState({ soft_pity_start: 60, hard_pity: 90, featured_5050: 0.5, x10_guarantee_rarity: "SR", pity_rarity: "GR", pity_currencies: ["gems", "ticket"] });
+  const [pityConfig, setPityConfig] = useState({ soft_pity_start: 60, hard_pity: 90, featured_5050: 0.5, x10_guarantee_rarity: "SR", pity_rarity: "UR", pity_currencies: ["gems", "ticket"] });
   const [gearConfig, setGearConfig] = useState(null);
   const [craftRecipes, setCraftRecipes] = useState({});
   const [fusionRecipes, setFusionRecipes] = useState({});
   const [expTomeGoldCost, setExpTomeGoldCost] = useState({});
   const [dungeons, setDungeons] = useState([]);
+  const [reforgeModifiers, setReforgeModifiers] = useState({});
+  const [reforgeMaxPerJutsu, setReforgeMaxPerJutsu] = useState(2);
   const [loading, setLoading] = useState(true);
   const [catalogError, setCatalogError] = useState(null);
 
@@ -43,6 +45,8 @@ export function GameProvider({ children }) {
     setFusionRecipes(data.fusion_recipes || {});
     setExpTomeGoldCost(data.exp_tome_gold_cost || {});
     setDungeons(data.dungeons || []);
+    setReforgeModifiers(data.reforge_modifiers || {});
+    setReforgeMaxPerJutsu(data.reforge_max_per_jutsu || 2);
     const map = {};
     data.ninjas.forEach((n) => { map[n.id] = n; });
     setCatalogById(map);
@@ -80,6 +84,7 @@ export function GameProvider({ children }) {
     <GameContext.Provider value={{
       catalog, catalogById, advantage, stages, chapters, bossMechanics, items, trials, summonCost, gemCosts, banner,
       summonRates, summonRatesRyo, pityConfig, gearConfig, craftRecipes, fusionRecipes, expTomeGoldCost, dungeons,
+      reforgeModifiers, reforgeMaxPerJutsu,
       loading, catalogError, retryCatalog: loadInitialData, refreshCatalog,
     }}>
       {children}

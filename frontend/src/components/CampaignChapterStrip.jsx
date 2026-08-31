@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Lock, Skull } from "lucide-react";
+import { LockIcon, SkullIcon } from "@/components/GameIcons";
 
 /**
  * Horizontal chapter navigator — "regions" of the World Map. Lets the
@@ -61,9 +61,9 @@ export default function CampaignChapterStrip({ chapters, stages, cleared, select
                 <h3 className="font-display text-lg text-ink leading-tight truncate">{ch.name}</h3>
               </div>
               {!unlocked ? (
-                <Lock className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                <LockIcon size={16} className="shrink-0 mt-0.5" />
               ) : bossStage && (
-                <Skull className={`w-4 h-4 shrink-0 mt-0.5 ${bossDefeated ? "text-amber-400" : "text-slate-600"}`} />
+                <SkullIcon size={16} className={`shrink-0 mt-0.5 ${bossDefeated ? "opacity-100" : "opacity-50"}`} />
               )}
             </div>
             <p className="text-[11px] text-slate-500 truncate mt-1">{ch.lore}</p>

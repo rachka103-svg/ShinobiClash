@@ -6,6 +6,11 @@ import { useGame } from "@/context/GameContext";
 import { NinjaCard } from "@/components/NinjaCard";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import BalanceTab from "@/components/admin/BalanceTab";
+import HeroStatsTab from "@/components/admin/HeroStatsTab";
+import StagesTab from "@/components/admin/StagesTab";
+import DashboardTab from "@/components/admin/DashboardTab";
+import GearTab from "@/components/admin/GearTab";
 
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
 const RARITIES = ["R", "SR", "SSR", "UR", "GR"];
@@ -47,7 +52,7 @@ const sel = "mt-1 w-full bg-black/40 border border-black/10 rounded px-3 py-2 te
 
 export default function Admin() {
   const { catalog, refreshCatalog, banner } = useGame();
-  const [tab, setTab] = useState("generate");
+  const [tab, setTab] = useState("dashboard");
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8" data-testid="admin-page">
@@ -58,8 +63,8 @@ export default function Admin() {
         <p className="text-slate-500">Generate heroes with AI, balance their stats, and manage portraits — changes go live instantly.</p>
       </div>
 
-      <div className="flex items-center gap-2 mb-6">
-        {[["generate", "AI Generator"], ["art", "Art Studio"], ["manage", `Manage Heroes (${catalog.length})`], ["players", "Players"], ["economy", "Economy"]].map(([id, lbl]) => (
+      <div className="flex items-center gap-2 mb-6 flex-wrap">
+        {[["dashboard", `Dashboard (${catalog.length})`], ["generate", "AI Generator"], ["art", "Art Studio"], ["manage", `Manage Heroes`], ["balance", "Balance"], ["herostats", "Hero Stats"], ["stages", "Stages & Bosses"], ["gear", "Gear"], ["players", "Players"], ["economy", "Economy"]].map(([id, lbl]) => (
           <button key={id} data-testid={`admin-tab-${id}`} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${tab === id ? "bg-chakra text-[#05050A]" : "text-slate-600 bg-black/[0.04] hover:bg-black/10"}`}>
             {lbl}
@@ -67,8 +72,12 @@ export default function Admin() {
         ))}
       </div>
 
-      {tab === "generate" ? <Generator onSaved={refreshCatalog} />
+      {tab === "dashboard" ? <DashboardTab catalog={catalog} onChanged={refreshCatalog} />
+        : tab === "generate" ? <Generator onSaved={refreshCatalog} />
         : tab === "art" ? <ArtStudio catalog={catalog} onApplied={refreshCatalog} />
+        : tab === "balance" ? <BalanceTab />
+        : tab === "herostats" ? <HeroStatsTab />
+        : tab === "stages" ? <StagesTab />
         : tab === "players" ? <Players />
         : tab === "economy" ? <Economy />
         : <Manage catalog={catalog} banner={banner} onChanged={refreshCatalog} />}
@@ -504,6 +513,30 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
   const [form, setForm] = useState({ ...hero });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setStat = (k, v) => setForm((f) => ({ ...f, base_stats: { ...f.base_stats, [k]: Number(v) || 0 } }));
+  const setJutsu = (i, k, v) => setForm((f) => {
+    const jutsus = [...(f.jutsus || [])];
+    jutsus[i] = { ...jutsus[i], [k]: v };
+    return { ...f, jutsus };
+  });
+  const setEffect = (ji, ei, k, v) => setForm((f) => {
+    const jutsus = [...(f.jutsus || [])];
+    const effects = [...(jutsus[ji].effects || [])];
+    effects[ei] = { ...effects[ei], [k]: v };
+    jutsus[ji] = { ...jutsus[ji], effects };
+    return { ...f, jutsus };
+  });
+  const addEffect = (ji) => setForm((f) => {
+    const jutsus = [...(f.jutsus || [])];
+    const effects = [...(jutsus[ji].effects || []), { type: "burn", chance: 100, duration: 3, value: 50 }];
+    jutsus[ji] = { ...jutsus[ji], effects };
+    return { ...f, jutsus };
+  });
+  const removeEffect = (ji, ei) => setForm((f) => {
+    const jutsus = [...(f.jutsus || [])];
+    const effects = (jutsus[ji].effects || []).filter((_, x) => x !== ei);
+    jutsus[ji] = { ...jutsus[ji], effects };
+    return { ...f, jutsus };
+  });
   const isFeatured = banner?.template_id === hero.id;
   const canFeature = RARITIES.indexOf(hero.rarity) >= 2; // SSR+
 
@@ -545,9 +578,10 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
   const saveEdits = async () => {
     setBusy(true);
     try {
-      await api.post("/admin/hero/save", {
+      await api.post("/admin/hero/edit", {
         id: hero.id, name: form.name, title: form.title, element: form.element,
-        rarity: form.rarity, role: form.role, lore: form.lore, base_stats: form.base_stats, portrait: hero.portrait,
+        rarity: form.rarity, role: form.role, lore: form.lore, base_stats: form.base_stats,
+        portrait: hero.portrait, jutsus: form.jutsus,
       });
       await onChanged();
       toast.success("Hero updated!");
@@ -618,59 +652,119 @@ function HeroManager({ hero, banner, onChanged, onDeleted }) {
           </button>
         )}
 
-        {hero.is_custom ? (
-          <>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Name"><input className={sel} data-testid="mgr-name" value={form.name} onChange={(e) => set("name", e.target.value)} /></Field>
-              <Field label="Title"><input className={sel} data-testid="mgr-title" value={form.title} onChange={(e) => set("title", e.target.value)} /></Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Name"><input className={sel} data-testid="mgr-name" value={form.name} onChange={(e) => set("name", e.target.value)} /></Field>
+          <Field label="Title"><input className={sel} data-testid="mgr-title" value={form.title} onChange={(e) => set("title", e.target.value)} /></Field>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <Field label="Element">
+            <select className={sel} data-testid="mgr-element" value={form.element} onChange={(e) => set("element", e.target.value)}>
+              {ELEMENTS.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+          </Field>
+          <Field label="Rarity">
+            <select className={sel} data-testid="mgr-rarity" value={form.rarity} onChange={(e) => set("rarity", e.target.value)}>
+              {RARITIES.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+          </Field>
+          <Field label="Role">
+            <select className={sel} data-testid="mgr-role" value={form.role} onChange={(e) => set("role", e.target.value)}>
+              {ROLES.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+          </Field>
+        </div>
+        <Field label="Lore"><textarea className={sel} rows={2} data-testid="mgr-lore" value={form.lore || ""} onChange={(e) => set("lore", e.target.value)} /></Field>
+        <div className="grid grid-cols-5 gap-1.5">
+          {STAT_KEYS.map(({ k, label, color }) => (
+            <div key={k}>
+              <span className="text-[10px] text-slate-500" style={{ color }}>{label}</span>
+              <input className={`${sel} px-1 text-center`} type="number" data-testid={`mgr-stat-${k}`} value={form.base_stats?.[k] ?? 0} onChange={(e) => setStat(k, e.target.value)} />
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="Element">
-                <select className={sel} data-testid="mgr-element" value={form.element} onChange={(e) => set("element", e.target.value)}>
-                  {ELEMENTS.map((x) => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </Field>
-              <Field label="Rarity">
-                <select className={sel} data-testid="mgr-rarity" value={form.rarity} onChange={(e) => set("rarity", e.target.value)}>
-                  {RARITIES.map((x) => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </Field>
-              <Field label="Role">
-                <select className={sel} data-testid="mgr-role" value={form.role} onChange={(e) => set("role", e.target.value)}>
-                  {ROLES.map((x) => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </Field>
-            </div>
-            <div className="grid grid-cols-5 gap-1.5">
-              {STAT_KEYS.map(({ k, label, color }) => (
-                <div key={k}>
-                  <span className="text-[10px] text-slate-500" style={{ color }}>{label}</span>
-                  <input className={`${sel} px-1 text-center`} type="number" data-testid={`mgr-stat-${k}`} value={form.base_stats[k]} onChange={(e) => setStat(k, e.target.value)} />
+          ))}
+        </div>
+
+        {/* Jutsu / Skill Editor */}
+        <div>
+          <span className="text-xs uppercase tracking-widest text-slate-500">Jutsus / Skills</span>
+          <div className="space-y-2 mt-1 max-h-[40vh] overflow-y-auto scrollbar-none">
+            {(form.jutsus || []).map((j, i) => (
+              <div key={i} className="rounded-lg border border-black/10 p-2 space-y-1.5 bg-black/[0.02]" data-testid={`mgr-jutsu-${i}`}>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input className={`${sel} mt-0`} placeholder="Jutsu name" value={j.name || ""}
+                    onChange={(e) => setJutsu(i, "name", e.target.value)} data-testid={`mgr-jutsu-${i}-name`} />
+                  <select className={`${sel} mt-0`} value={j.type || "attack"}
+                    onChange={(e) => setJutsu(i, "type", e.target.value)} data-testid={`mgr-jutsu-${i}-type`}>
+                    {["attack", "aoe", "heal", "shield", "buff", "debuff"].map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
                 </div>
-              ))}
-            </div>
-            <button onClick={saveEdits} disabled={busy} data-testid="mgr-save"
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold bg-emerald-500 text-[#05050A] disabled:opacity-60 hover:brightness-110 transition-all">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes
-            </button>
-            <button onClick={remove} disabled={busy} data-testid="mgr-delete"
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-semibold bg-fox/10 text-fox border border-fox/30 hover:bg-fox/20 disabled:opacity-60 transition-all">
-              <Trash2 className="w-4 h-4" /> Delete Hero
-            </button>
-          </>
-        ) : (
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-black/30">
-            <div className="grid grid-cols-5 gap-2 flex-1">
-              {STAT_KEYS.map(({ k, label, color }) => (
-                <div key={k} className="text-center">
-                  <span className="block text-[10px]" style={{ color }}>{label}</span>
-                  <span className="font-display text-base text-ink">{hero.base_stats[k]}</span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  <label className="block">
+                    <span className="text-[9px] text-slate-500">Power</span>
+                    <input type="number" className={`${sel} mt-0 px-1 text-center`} value={j.power ?? 0}
+                      onChange={(e) => setJutsu(i, "power", Number(e.target.value))} data-testid={`mgr-jutsu-${i}-power`} />
+                  </label>
+                  <label className="block">
+                    <span className="text-[9px] text-slate-500">Chakra Cost</span>
+                    <input type="number" className={`${sel} mt-0 px-1 text-center`} value={j.chakra_cost ?? 0}
+                      onChange={(e) => setJutsu(i, "chakra_cost", Number(e.target.value))} data-testid={`mgr-jutsu-${i}-cost`} />
+                  </label>
+                  <label className="block">
+                    <span className="text-[9px] text-slate-500">Chakra Gain</span>
+                    <input type="number" className={`${sel} mt-0 px-1 text-center`} value={j.chakra_gain ?? 0}
+                      onChange={(e) => setJutsu(i, "chakra_gain", Number(e.target.value))} data-testid={`mgr-jutsu-${i}-gain`} />
+                  </label>
+                  <label className="block">
+                    <span className="text-[9px] text-slate-500">Element</span>
+                    <select className={`${sel} mt-0 px-1`} value={j.element || "Fire"}
+                      onChange={(e) => setJutsu(i, "element", e.target.value)} data-testid={`mgr-jutsu-${i}-element`}>
+                      {ELEMENTS.map((x) => <option key={x} value={x}>{x}</option>)}
+                    </select>
+                  </label>
                 </div>
-              ))}
-            </div>
+                <input className={`${sel} mt-0`} placeholder="Description (e.g. 200% ATK damage to all enemies. 30% chance to Burn.)" value={j.description || ""}
+                  onChange={(e) => setJutsu(i, "description", e.target.value)} data-testid={`mgr-jutsu-${i}-desc`} />
+                {/* Status effects editor */}
+                <div className="space-y-1">
+                  {(j.effects || []).map((eff, ei) => (
+                    <div key={ei} className="flex items-center gap-1.5 rounded bg-black/[0.03] p-1.5" data-testid={`mgr-effect-${i}-${ei}`}>
+                      <select className={`${sel} mt-0 w-auto py-1 text-[11px]`} value={eff.type || "burn"}
+                        onChange={(e) => setEffect(i, ei, "type", e.target.value)} data-testid={`mgr-effect-${i}-${ei}-type`}>
+                        {["burn", "poison", "bleed", "stun", "freeze", "atk_down", "def_down"].map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <label className="flex items-center gap-0.5 text-[9px] text-slate-500">CHC%
+                        <input type="number" className={`${sel} mt-0 w-12 px-1 py-0.5 text-[11px] text-center`} value={eff.chance ?? 100}
+                          onChange={(e) => setEffect(i, ei, "chance", Number(e.target.value))} data-testid={`mgr-effect-${i}-${ei}-chance`} />
+                      </label>
+                      <label className="flex items-center gap-0.5 text-[9px] text-slate-500">DUR
+                        <input type="number" className={`${sel} mt-0 w-10 px-1 py-0.5 text-[11px] text-center`} value={eff.duration ?? 2}
+                          onChange={(e) => setEffect(i, ei, "duration", Number(e.target.value))} data-testid={`mgr-effect-${i}-${ei}-dur`} />
+                      </label>
+                      <label className="flex items-center gap-0.5 text-[9px] text-slate-500">VAL%
+                        <input type="number" className={`${sel} mt-0 w-12 px-1 py-0.5 text-[11px] text-center`} value={eff.value ?? 0}
+                          onChange={(e) => setEffect(i, ei, "value", Number(e.target.value))} data-testid={`mgr-effect-${i}-${ei}-val`} />
+                      </label>
+                      <button onClick={() => removeEffect(i, ei)} data-testid={`mgr-effect-${i}-${ei}-del`}
+                        className="text-fox hover:text-fox/70 p-0.5"><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  ))}
+                  <button onClick={() => addEffect(i)} data-testid={`mgr-add-effect-${i}`}
+                    className="text-[10px] text-chakra hover:text-chakra/70 flex items-center gap-1">+ Add Effect</button>
+                </div>
+              </div>
+            ))}
           </div>
+        </div>
+
+        <button onClick={saveEdits} disabled={busy} data-testid="mgr-save"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold bg-emerald-500 text-[#05050A] disabled:opacity-60 hover:brightness-110 transition-all">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes
+        </button>
+        {hero.is_custom && (
+          <button onClick={remove} disabled={busy} data-testid="mgr-delete"
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-semibold bg-fox/10 text-fox border border-fox/30 hover:bg-fox/20 disabled:opacity-60 transition-all">
+            <Trash2 className="w-4 h-4" /> Delete Hero
+          </button>
         )}
-        {!hero.is_custom && <p className="text-[11px] text-slate-500 text-center">Original hero — you can replace its portrait. Stats are fixed for game balance.</p>}
       </div>
     </motion.div>
   );

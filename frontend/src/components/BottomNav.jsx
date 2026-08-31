@@ -48,7 +48,7 @@ export default function BottomNav() {
       className="fixed bottom-0 inset-x-0 z-40 pb-[env(safe-area-inset-bottom)]"
       data-testid="bottom-nav"
     >
-      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#05050A] via-[#05050A]/85 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-[#05050A] via-[#05050A]/85 to-transparent pointer-events-none" />
       <div className="relative mx-auto max-w-lg px-3 pb-2">
         <div
           className="relative flex items-end justify-between rounded-2xl px-2 h-16 border border-black/10"
@@ -110,24 +110,24 @@ export default function BottomNav() {
                       style={{
                         background: `radial-gradient(circle at 50% 35%, ${s.color}, #B8860B)`,
                         border: "2px solid rgba(255,255,255,0.25)",
-                        boxShadow: `0 0 22px ${s.color}aa, inset 0 2px 4px rgba(255,255,255,0.4)`,
+                        boxShadow: `0 0 12px ${s.color}88, inset 0 2px 4px rgba(255,255,255,0.4)`,
                       }}
                     >
                       <Icon className="w-7 h-7 text-[#3a2a02]" />
                     </span>
-                    <span className="text-[10px] font-bold tracking-wide mt-0.5" style={{ color: active ? s.color : "#cbd5e1" }}>{s.label}</span>
+                    <span className="text-[10px] font-bold tracking-wide mt-0.5" style={{ color: active ? s.color : "#cbd5e1", textShadow: active ? `0 0 8px ${s.color}88` : "none" }}>{s.label}</span>
                   </Link>
                 </div>
               );
             }
 
             return (
-              <Link key={s.to} to={s.to} data-testid={s.testid} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative group">
+              <Link key={s.to} to={s.to} data-testid={s.testid} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative group" style={active ? { background: `${s.color}12` } : undefined}>
                 {active && (
-                  <motion.span layoutId="nav-active" className="absolute top-1 w-8 h-1 rounded-full" style={{ background: s.color, boxShadow: `0 0 10px ${s.color}` }} />
+                  <motion.span layoutId="nav-active" className="absolute top-1 w-10 h-1 rounded-full" style={{ background: s.color, boxShadow: `0 0 12px ${s.color}` }} />
                 )}
-                <Icon className="w-5 h-5 transition-transform group-active:scale-90" style={{ color: active ? s.color : "#94a3b8", filter: active ? `drop-shadow(0 0 6px ${s.color})` : "none" }} />
-                <span className="text-[10px] font-semibold tracking-wide" style={{ color: active ? s.color : "#64748b" }}>{s.label}</span>
+                <Icon className="w-5 h-5 transition-transform group-active:scale-90" style={{ color: active ? s.color : "#94a3b8", filter: active ? `drop-shadow(0 0 8px ${s.color})` : "none" }} />
+                <span className="text-[10px] font-semibold tracking-wide" style={{ color: active ? s.color : "#64748b", textShadow: active ? `0 0 8px ${s.color}66` : "none" }}>{s.label}</span>
               </Link>
             );
           })}

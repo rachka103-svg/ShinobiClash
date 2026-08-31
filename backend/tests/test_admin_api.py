@@ -121,7 +121,7 @@ class TestHeroSaveAndDelete:
         assert hero["element"] == "Fire"
         # clamp_stats should preserve provided in-band stats
         assert hero["base_stats"]["hp"] == 1000
-        assert "jutsus" in hero and len(hero["jutsus"]) == 3
+        assert "jutsus" in hero and len(hero["jutsus"]) == 4  # 3 role actives + 1 unique signature passive
 
         # Verify appears in public catalog
         c1 = anon_client.get(f"{BASE_URL}/api/game/catalog", timeout=15).json()
