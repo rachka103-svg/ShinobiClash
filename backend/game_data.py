@@ -1022,51 +1022,25 @@ def _apply_rarity_mastery(kit, rarity, role, ri):
 
     return kit
 
-def _kit_support():
-    ...
 
-def _kit_tank():
-    ...
+def _hero_jutsus(hid, name, element, rarity, role):
+    ri = RARITY_ORDER[rarity]
+    first = name.split(" ")[0]
+    el = element.lower()
 
-def _kit_assassin():
-    ...
+    # Build the role-specific core kit.
+    kit_builder = _ROLE_KIT_BUILDERS.get(role, _kit_default)
+    kit = kit_builder(hid, element, el, first, ri)
 
-def _kit_mage():
-    ...
+    # GR and above receive a fourth active Ascendant ability, so elite
+    # rarities are mechanically different rather than just stronger.
+    if ri >= RARITY_ORDER["GR"]:
+        _add_ascendant_skill(kit, hid, name, element, el, role, ri)
 
-def _kit_healer():
-    ...
+    # Rarity mastery tunes the kit further for high rarities.
+    kit = _apply_rarity_mastery(kit, rarity, role, ri)
 
-def _kit_control():
-    ...
-
-def _kit_bruiser():
-    ...
-
-def _kit_attacker():
-    ...
-
-def _kit_default():
-    ...
-
-
-_ROLE_KIT_BUILDERS = {
-    ...
-}
-
-
-def _add_ascendant_skill():
-    ...
-
-
-# ADD THE NEW FUNCTION HERE
-def _apply_rarity_mastery():
-    ...
-
-
-# REPLACE YOUR EXISTING FUNCTION WITH THIS
-def _hero_jutsus():
-    ...
+    return kit
 
 
 _HERO_DEFS = [
