@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Bot, Gauge, Settings } from "lucide-react";
+import { Bot, Gauge, Film } from "lucide-react";
 import BattleFighter from "@/components/BattleFighter";
 import BattleCommandPanel from "@/components/BattleCommandPanel";
 import { BattleTurnOrder, BattleInfoPanel } from "@/components/BattleSidePanels";
@@ -111,6 +111,7 @@ export default function Battle() {
   const [events, setEvents] = useState([]); // structured combat event log (Phase 3B) — for future VFX/animation
   const [auto, setAutoState] = useState(() => { try { return localStorage.getItem("sc_battle_auto") === "1"; } catch { return false; } });
   const [speed, setSpeedState] = useState(() => { try { return Number(localStorage.getItem("sc_battle_speed")) || 1; } catch { return 1; } });
+  const [cinema, setCinemaState] = useState(() => { try { return localStorage.getItem("sc_battle_cinema") !== "0"; } catch { return true; } });
 
   // --- Cinematic state ---
   const [introDone, setIntroDone] = useState(false);
@@ -126,8 +127,9 @@ export default function Battle() {
   const actionLockRef = useRef(false); // guards against multi-tap / double-submit dealing double damage
   const autoRef = useRef(false);
   const speedRef = useRef(1);
+  const cinemaRef = useRef(cinema);
   // Honor the pre-battle preferences chosen in the Battle hub on first mount.
-  useEffect(() => { autoRef.current = auto; speedRef.current = speed; }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { autoRef.current = auto; speedRef.current = speed; cinemaRef.current = cinema; }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setCombs = (next) => { combRef.current = next; setCombsState(next); };
   const pushLog = (msg) => setLog((l) => [msg, ...l].slice(0, 30));
@@ -138,6 +140,7 @@ export default function Battle() {
   const ms = useCallback((base) => Math.max(60, Math.round(base / speedRef.current)), []);
 
   const setAuto = (v) => { autoRef.current = v; setAutoState(v); try { localStorage.setItem("sc_battle_auto", v ? "1" : "0"); } catch { /* storage unavailable */ } };
+  const setCinema = (v) => { cinemaRef.current = v; setCinemaState(v); try { localStorage.setItem("sc_battle_cinema", v ? "1" : "0"); } catch { /* storage unavailable */ } };
   const cycleSpeed = () => {
     const next = speed >= 3 ? 1 : speed + 1;
     speedRef.current = next;
@@ -176,9 +179,20 @@ export default function Battle() {
     orderRef.current = buildOrder(all);
     ptrRef.current = 0;
     setPhase("intro");
-    const t = setTimeout(() => beginTurnAt(0, all, buildOrder(all)), ms(900));
-    return () => clearTimeout(t);
+    // With cinematics on, the first turn is gated on the BattleEntry intro
+    // finishing (see the introDone effect below) so the player never misses
+    // the opening of the fight. With cinematics off, start right away.
+    if (!cinemaRef.current) setIntroDone(true);
   }, [mode, id, catalogById]);
+
+  // Begin the first turn once the intro cinematic has finished — or at once
+  // when cinematics are disabled. This is what "halts" the battle until the
+  // cinematic art preview ends so nothing plays out behind the overlay.
+  useEffect(() => {
+    if (introDone && phase === "intro" && combRef.current.length > 0) {
+      beginTurnAt(0, combRef.current, orderRef.current);
+    }
+  }, [introDone, phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const aliveSide = (arr, side) => arr.some((c) => c.side === side && c.alive);
 
@@ -361,7 +375,7 @@ export default function Battle() {
 
     // Cinematic: ultimate abilities trigger a mini-cinematic that delays the
     // next turn so the letterbox/energy sequence has time to play.
-    if (isUltimate) {
+    if (isUltimate && cinemaRef.current) {
       setUltimateData({
         key: actionCounterRef.current,
         actorName: actor.name,
@@ -471,16 +485,16 @@ export default function Battle() {
       <BattlefieldEnv element={dominantElement} />
 
       {/* Cinematic battle entry transition */}
-      <BattleEntry title={title} chapter={mode === "campaign" ? `CHAPTER ${stage?.chapter || "I"}` : mode === "spire" ? `FLOOR ${floor}` : mode.toUpperCase()} onDone={() => setIntroDone(true)} />
+      {cinema && <BattleEntry title={title} chapter={mode === "campaign" ? `CHAPTER ${stage?.chapter || "I"}` : mode === "spire" ? `FLOOR ${floor}` : mode.toUpperCase()} onDone={() => setIntroDone(true)} />}
 
       {/* Cinematic turn announcement */}
-      <BattleTurnAnnounce activeUid={activeUid} actor={activeActor} phase={phase} round={round} />
+      {cinema && <BattleTurnAnnounce activeUid={activeUid} actor={activeActor} phase={phase} round={round} />}
 
       {/* Cinematic attack effects */}
-      <BattleAttackFx action={cinematicAction} onShake={(strength) => { setScreenShake(true); setTimeout(() => setScreenShake(false), strength === "strong" ? 500 : 400); }} />
+      {cinema && <BattleAttackFx action={cinematicAction} onShake={(strength) => { setScreenShake(true); setTimeout(() => setScreenShake(false), strength === "strong" ? 500 : 400); }} />}
 
       {/* Ultimate cinematic */}
-      <BattleUltimate data={ultimateData} onDone={() => setUltimateData(null)} />
+      {cinema && <BattleUltimate data={ultimateData} onDone={() => setUltimateData(null)} />}
 
       {/* Header: retreat + stage info + controls */}
       <div className="absolute top-0 left-0 right-0 z-20 glass border-b border-white/10 px-4 py-1.5 flex items-center justify-between">
@@ -509,10 +523,14 @@ export default function Battle() {
             <Bot className="w-3.5 h-3.5" />AUTO
           </button>
           <button
-            title="Settings"
-            className="flex items-center px-2 py-1.5 rounded-lg border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
+            onClick={() => setCinema(!cinema)}
+            data-testid="battle-cinema-toggle"
+            title="Toggle cinematic previews"
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-display tracking-wide border transition-colors ${
+              cinema ? "border-jutsu text-jutsu bg-fuchsia-500/15" : "border-white/15 text-slate-300 hover:text-white hover:border-white/30"
+            }`}
           >
-            <Settings className="w-3.5 h-3.5" />
+            <Film className="w-3.5 h-3.5" />CINEMA
           </button>
         </div>
       </div>
@@ -582,7 +600,12 @@ export default function Battle() {
           : mode === "trial" ? () => window.location.reload()
           : mode === "arena" ? () => navigate("/arena")
           : mode === "tsukuyomi" ? () => navigate("/tsukuyomi")
-          : () => navigate("/")
+          : () => {
+            const idx = stages.findIndex((s) => s.id === id);
+            const next = idx >= 0 && idx < stages.length - 1 ? stages[idx + 1] : null;
+            if (next) window.location.assign(`/battle/campaign/${next.id}`);
+            else window.location.assign("/campaign");
+          }
         }
         onLobby={() => navigate("/")}
         onRetry={() => window.location.reload()}

@@ -1270,7 +1270,7 @@ def star_up_cost(rarity: str, current_star: int) -> int:
 # ---------------------------------------------------------------------------
 # Campaign stages
 # ---------------------------------------------------------------------------
-STAGES = [
+_CURATED_STAGES = [
     {"id": "s1", "chapter": 1, "name": "Bandits at the Gate", "region": "Leaf Outskirts",
      "enemies": [{"template_id": "blaze", "level": 1}, {"template_id": "boulder", "level": 1}],
      "rewards": {"ryo": 150, "exp": 40}, "first_clear": {"ryo": 200, "ninja": None}},
@@ -1309,7 +1309,7 @@ STAGES = [
      "rewards": {"ryo": 800, "exp": 320}, "first_clear": {"ryo": 1500, "ninja": "shade"}},
 ]
 
-STAGES_BY_ID = {s["id"]: s for s in STAGES}
+_CURATED_STAGES_BY_ID = {s["id"]: s for s in _CURATED_STAGES}
 
 # ---------------------------------------------------------------------------
 # Scalable stage architecture — s1-s12 above are the curated Chapters 1-4.
@@ -1325,6 +1325,10 @@ _CHAPTER_REGIONS = [
     "Withering Hollow", "Sunspire Sanctum", "Frozen Reliquary", "Voidglass Expanse",
     "Verdant Undercroft", "Obsidian Bastion",
 ]
+# Regions for the hand-authored Chapters 1-4 — used by the procedural stage
+# filler so the generated stages 4+ in those chapters stay in-step with the
+# curated first three instead of switching to the Chapter 5+ region pool.
+_CURATED_CHAPTER_REGIONS = {1: "Leaf Outskirts", 2: "Misty Woods", 3: "Howling Cliffs", 4: "Forsaken Shrine"}
 
 
 def _rarity_band_for_chapter(chapter: int) -> list:
@@ -1395,23 +1399,28 @@ def _build_normal_stage(sid, chapter, i, region, base_level, candidates, stage_r
     }
 
 
-def generate_campaign_stages(start_chapter: int, end_chapter: int, stages_per_chapter: int = 6) -> list:
+def generate_campaign_stages(start_chapter: int, end_chapter: int, stages_per_chapter: int = 6, start_i: int = 1) -> list:
     """Procedurally builds stage definitions for any chapter range. Designed
     to scale to hundreds/thousands of stages without hand-authored data or
-    UI changes — Campaign/Roster already render whatever this returns."""
+    UI changes — Campaign/Roster already render whatever this returns.
+    `start_i` lets a chapter be partially filled (used to top up the curated
+    Chapters 1-4 from stage 4 up to `stages_per_chapter`)."""
     out = []
     pool_by_rarity = {}
     for tid, t in CATALOG_BY_ID.items():
         pool_by_rarity.setdefault(t["rarity"], []).append(tid)
 
     for chapter in range(start_chapter, end_chapter + 1):
-        region = _CHAPTER_REGIONS[(chapter - 1) % len(_CHAPTER_REGIONS)]
+        region = _CURATED_CHAPTER_REGIONS.get(chapter) or _CHAPTER_REGIONS[(chapter - 1) % len(_CHAPTER_REGIONS)]
         band = _rarity_band_for_chapter(chapter)
         candidates = [tid for r in band for tid in pool_by_rarity.get(r, [])] or list(CATALOG_BY_ID.keys())
-        for i in range(1, stages_per_chapter + 1):
+        for i in range(start_i, stages_per_chapter + 1):
             is_boss = i == stages_per_chapter
             sid = f"s{12 + (chapter - start_chapter) * stages_per_chapter + i}" if start_chapter > 4 else f"c{chapter}_{i}"
-            base_level = chapter * 5 + i
+            # Chapters 1-4 (curated intro) use a gentler level curve so the
+            # filled stages 4+ stay in step with the hand-authored first three
+            # and don't overshoot Chapter 5's difficulty.
+            base_level = (chapter + i + (chapter - 1) * 3) if chapter <= 4 else (chapter * 5 + i)
             stage_rng = random.Random((chapter * 1000 + i))
             if is_boss:
                 stage = _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rarity, stage_rng)
@@ -1421,10 +1430,16 @@ def generate_campaign_stages(start_chapter: int, end_chapter: int, stages_per_ch
     return out
 
 
-# Currently generate Chapters 5-8 (24 more stages) as the next content slice.
-# Calling generate_campaign_stages(9, 100) later scales the campaign further
-# with zero additional hand-authored data or UI work.
-STAGES.extend(generate_campaign_stages(5, 100, stages_per_chapter=6))
+# Assemble the full stage list. Curated Chapters 1-4 keep their hand-authored
+# first three stages (names, regions, first-clear ninja rewards intact) and
+# are topped up to 12 stages each with procedurally generated stages 4-12.
+# Chapters 5+ are fully procedural — every chapter ends up with 12 stages
+# (within the 10-20 per-chapter target).
+STAGES = []
+for _ch in range(1, 5):
+    STAGES.extend([s for s in _CURATED_STAGES if s["chapter"] == _ch])
+    STAGES.extend(generate_campaign_stages(_ch, _ch, stages_per_chapter=12, start_i=4))
+STAGES.extend(generate_campaign_stages(5, 100, stages_per_chapter=12))
 STAGES_BY_ID = {s["id"]: s for s in STAGES}
 
 

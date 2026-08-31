@@ -146,37 +146,34 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
         </div>
       )}
 
-      {/* Buttons */}
+      {/* Buttons — Retry + Next are always available, win or lose */}
       {stage >= 3 && (
         <div className="absolute inset-x-0 bottom-[12%] flex flex-col items-center gap-3 pointer-events-auto">
-          <div className="flex gap-3 px-4 w-full max-w-sm mx-auto">
+          <div className="flex gap-2.5 px-4 w-full max-w-md mx-auto">
             <button
               onClick={onBack}
               data-testid="cine-result-back"
-              className="flex-1 py-3 rounded-xl font-display text-lg tracking-wide border border-white/15 text-slate-300 hover:bg-white/10 transition-colors"
+              className="flex-1 py-3 rounded-xl font-display text-base sm:text-lg tracking-wide border border-white/15 text-slate-300 hover:bg-white/10 transition-colors"
             >
               {mode === "campaign" ? "CAMPAIGN" : mode === "arena" ? "ARENA" : "BACK"}
             </button>
-            {isVictory ? (
-              <button
-                onClick={onNext || onLobby}
-                data-testid="cine-result-next"
-                className="flex-1 py-3 rounded-xl font-display text-lg tracking-wide flex items-center justify-center gap-1 transition-colors"
-                style={{ background: "linear-gradient(135deg, #FFCA28, #FF8F00)", color: "#05050A" }}
-              >
-                {mode === "spire" ? "NEXT FLOOR" : mode === "trial" ? "FARM AGAIN" : mode === "arena" ? "FIND OPPONENT" : "LOBBY"}
-                <ArrowRight size={18} />
-              </button>
-            ) : (
-              <button
-                onClick={onRetry}
-                data-testid="cine-result-retry"
-                className="flex-1 py-3 rounded-xl font-display text-lg tracking-wide transition-colors"
-                style={{ background: "#FF5722", color: "#fff" }}
-              >
-                RETRY
-              </button>
-            )}
+            <button
+              onClick={onRetry}
+              data-testid="cine-result-retry"
+              className="flex-1 py-3 rounded-xl font-display text-base sm:text-lg tracking-wide transition-colors"
+              style={{ background: "#FF5722", color: "#fff" }}
+            >
+              RETRY
+            </button>
+            <button
+              onClick={onNext || onLobby}
+              data-testid="cine-result-next"
+              className="flex-1 py-3 rounded-xl font-display text-base sm:text-lg tracking-wide flex items-center justify-center gap-1 transition-colors"
+              style={{ background: "linear-gradient(135deg, #FFCA28, #FF8F00)", color: "#05050A" }}
+            >
+              {mode === "spire" ? "NEXT FLOOR" : mode === "trial" ? "FARM AGAIN" : mode === "arena" ? "FIND OPPONENT" : mode === "tsukuyomi" ? "TSUKUYOMI" : "NEXT"}
+              <ArrowRight size={18} />
+            </button>
           </div>
         </div>
       )}
