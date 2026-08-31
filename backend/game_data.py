@@ -846,36 +846,227 @@ def _add_ascendant_skill(kit, hid, name, element, el, role, ri):
 
     kit.append(skill)
 
+# ============================================================
+# RARITY MASTERY SYSTEM
+# ============================================================
+# Rarity now changes gameplay mechanics, not just raw stats.
+#
+# N / R      = Standard kit
+# SR         = Improved skill power
+# SSR        = Enhanced effect reliability
+# UR         = Superior chakra efficiency
+# GR         = Ascendant ultimate
+# LR         = Mastery-enhanced combat effects
+# MYTHIC     = Extreme mastery and signature-level bonuses
+# ============================================================
 
-def _hero_jutsus(hid, name, element, rarity, role):
-    ri = RARITY_ORDER[rarity]
-    first = name.split(" ")[0]
-    el = element.lower()
 
-    # Build the role-specific core kit.
-    kit_builder = _ROLE_KIT_BUILDERS.get(role, _kit_default)
-    kit = kit_builder(hid, element, el, first, ri)
+def _apply_rarity_mastery(kit, rarity, role, ri):
+    """
+    Enhances a generated hero kit based on rarity.
 
-    # ========================================================
-    # HIGH-RARITY HEROES
-    #
-    # GR and above receive a fourth active Ascendant ability.
-    # This makes elite rarities mechanically different rather
-    # than simply increasing their stats.
-    # ========================================================
+    This intentionally modifies existing skills rather than adding
+    generic duplicate abilities. Higher rarities therefore feel
+    mechanically stronger while preserving role identity.
+    """
 
+    # --------------------------------------------------------
+    # SR — refined combat techniques
+    # Small power improvement to signature abilities.
+    # --------------------------------------------------------
+    if ri >= RARITY_ORDER["SR"]:
+        for skill in kit:
+            if skill["chakra_cost"] > 0:
+                skill["power"] = int(skill.get("power", 0) * 1.05)
+
+    # --------------------------------------------------------
+    # SSR — improved mastery of status effects
+    # Makes effects more reliable.
+    # --------------------------------------------------------
+    if ri >= RARITY_ORDER["SSR"]:
+        for skill in kit:
+            for effect in skill.get("effects", []):
+                if effect.get("chance", 0) < 100:
+                    effect["chance"] = min(
+                        100,
+                        effect["chance"] + 10
+                    )
+
+    # --------------------------------------------------------
+    # UR — superior chakra control
+    # Powerful techniques become more efficient.
+    # --------------------------------------------------------
+    if ri >= RARITY_ORDER["UR"]:
+        for skill in kit:
+            cost = skill.get("chakra_cost", 0)
+
+            if cost > 0:
+                skill["chakra_cost"] = max(
+                    10,
+                    int(cost * 0.90)
+                )
+
+            if skill.get("chakra_gain", 0) > 0:
+                skill["chakra_gain"] += 5
+
+    # --------------------------------------------------------
+    # GR — Ascendant heroes gain stronger active techniques.
+    # The actual Ascendant skill is added separately.
+    # --------------------------------------------------------
     if ri >= RARITY_ORDER["GR"]:
-        _add_ascendant_skill(
-            kit,
-            hid,
-            name,
-            element,
-            el,
-            role,
-            ri,
-        )
+        for skill in kit:
+            if skill.get("ascendant"):
+                skill["power"] = int(
+                    skill.get("power", 0) * 1.12
+                )
+
+    # --------------------------------------------------------
+    # LR — Legendary mastery.
+    #
+    # Each role receives a mechanical specialization.
+    # --------------------------------------------------------
+    if ri >= RARITY_ORDER["LR"]:
+
+        if role == "Assassin":
+            for skill in kit:
+                for effect in skill.get("effects", []):
+                    if effect.get("type") == "bleed":
+                        effect["duration"] += 1
+                        effect["value"] = int(
+                            effect.get("value", 0) * 1.25
+                        )
+
+        elif role == "Mage":
+            for skill in kit:
+                for effect in skill.get("effects", []):
+                    if effect.get("type") in ("burn", "poison"):
+                        effect["duration"] += 1
+                        effect["value"] = int(
+                            effect.get("value", 0) * 1.25
+                        )
+
+        elif role == "Tank":
+            for skill in kit:
+                if skill.get("type") == "shield":
+                    skill["power"] = int(
+                        skill.get("power", 0) * 1.25
+                    )
+
+        elif role == "Healer":
+            for skill in kit:
+                if skill.get("type") == "heal":
+                    skill["power"] = int(
+                        skill.get("power", 0) * 1.20
+                    )
+
+        elif role == "Control":
+            for skill in kit:
+                for effect in skill.get("effects", []):
+                    if effect.get("type") in (
+                        "stun",
+                        "freeze",
+                        "def_down",
+                    ):
+                        effect["chance"] = min(
+                            100,
+                            effect.get("chance", 0) + 15
+                        )
+
+        elif role == "Support":
+            for skill in kit:
+                if skill.get("type") in ("heal", "shield"):
+                    skill["power"] = int(
+                        skill.get("power", 0) * 1.18
+                    )
+
+        elif role == "Bruiser":
+            for skill in kit:
+                if skill.get("type") == "attack":
+                    skill["power"] = int(
+                        skill.get("power", 0) * 1.15
+                    )
+
+        else:  # Attacker
+            for skill in kit:
+                if skill.get("type") in ("attack", "aoe"):
+                    skill["power"] = int(
+                        skill.get("power", 0) * 1.12
+                    )
+
+    # --------------------------------------------------------
+    # MYTHIC — pinnacle mastery.
+    #
+    # Mythic heroes receive a major improvement to their
+    # signature/Ascendant abilities.
+    # --------------------------------------------------------
+    if ri >= RARITY_ORDER["MYTHIC"]:
+        for skill in kit:
+
+            # Ascendant becomes dramatically stronger.
+            if skill.get("ascendant"):
+                skill["power"] = int(
+                    skill.get("power", 0) * 1.20
+                )
+                skill["chakra_cost"] = max(
+                    40,
+                    int(skill.get("chakra_cost", 0) * 0.85)
+                )
+
+            # Status effects become almost unavoidable.
+            for effect in skill.get("effects", []):
+                if effect.get("chance", 0) > 0:
+                    effect["chance"] = min(
+                        100,
+                        effect["chance"] + 15
+                    )
 
     return kit
+
+def _kit_support():
+    ...
+
+def _kit_tank():
+    ...
+
+def _kit_assassin():
+    ...
+
+def _kit_mage():
+    ...
+
+def _kit_healer():
+    ...
+
+def _kit_control():
+    ...
+
+def _kit_bruiser():
+    ...
+
+def _kit_attacker():
+    ...
+
+def _kit_default():
+    ...
+
+
+_ROLE_KIT_BUILDERS = {
+    ...
+}
+
+
+def _add_ascendant_skill():
+    ...
+
+
+# ADD THE NEW FUNCTION HERE
+def _apply_rarity_mastery():
+    ...
+
+
+# REPLACE YOUR EXISTING FUNCTION WITH THIS
+def _hero_jutsus():
+    ...
 
 
 _HERO_DEFS = [
