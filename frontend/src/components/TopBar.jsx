@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Swords, Users, Scroll, Trophy, Sparkles, LogOut, Coins, Gem, Home, Castle, LayoutGrid, Wand2, Crosshair, MoreHorizontal, Landmark, Anvil } from "lucide-react";
+import { Swords, Users, Scroll, Trophy, Sparkles, LogOut, Home, Castle, LayoutGrid, Wand2, Crosshair, MoreHorizontal, Landmark, Anvil } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import EnergyWidget from "@/components/EnergyWidget";
+import { CoinsIcon, GemsIcon, SwordsIcon } from "@/components/GameIcons";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 
 const NAV = [
@@ -41,7 +42,7 @@ export const TopBar = () => {
     <header className="sticky top-0 z-40 glass border-b border-black/10" data-testid="top-bar">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
         <Link to="/" className="flex items-center gap-2 group shrink-0" data-testid="logo-link">
-          <Swords className="w-6 h-6 text-chakra glow-text-cyan" />
+          <SwordsIcon size={24} className="text-chakra glow-text-cyan" />
           <span className="font-display text-2xl tracking-wider text-ink group-hover:text-chakra transition-colors">
             SHINOBI<span className="text-fox">CLASH</span>
           </span>
@@ -72,11 +73,11 @@ export const TopBar = () => {
             <EnergyWidget energy={user?.energy} onRefresh={refreshProfile} compact />
           </div>
           <div className="hidden sm:flex items-center gap-1.5 px-3 lg:px-3.5 py-1.5 lg:py-2 rounded bg-amber-500/10 border border-amber-500/30" data-testid="ryo-counter">
-            <Coins className="w-4 h-4 lg:w-5 lg:h-5 text-amber-400" />
+            <CoinsIcon className="w-4 h-4 lg:w-5 lg:h-5" />
             <span className="font-display text-lg lg:text-xl text-amber-300 tracking-wide">{user?.ryo ?? 0}</span>
           </div>
           <div className="hidden sm:flex items-center gap-1.5 px-3 lg:px-3.5 py-1.5 lg:py-2 rounded bg-fuchsia-500/10 border border-fuchsia-500/30" data-testid="gems-counter">
-            <Gem className="w-4 h-4 lg:w-5 lg:h-5 text-jutsu" />
+            <GemsIcon className="w-4 h-4 lg:w-5 lg:h-5" />
             <span className="font-display text-lg lg:text-xl text-jutsu tracking-wide">{user?.gems ?? 0}</span>
           </div>
           <div className="hidden sm:flex flex-col items-end leading-none">

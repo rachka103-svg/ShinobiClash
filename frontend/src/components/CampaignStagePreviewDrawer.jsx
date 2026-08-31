@@ -1,4 +1,5 @@
-import { Zap, Coins, Star, Lock, Play, RotateCcw, Crown, TrendingUp, TrendingDown, Gift, Shield } from "lucide-react";
+import { Zap, Play, RotateCcw, TrendingUp, TrendingDown, Gift, Shield } from "lucide-react";
+import { CrownIcon, StarIcon, LockIcon, CoinsIcon } from "@/components/GameIcons";
 import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import { ENERGY_COST } from "@/lib/energy";
@@ -48,12 +49,12 @@ export default function CampaignStagePreviewDrawer({ stage, state, catalogById, 
 
           {/* header */}
           <div className="flex items-center gap-2 mb-1.5">
-            {isBoss && <Crown className="w-4 h-4 text-amber-400 shrink-0" />}
+            {isBoss && <CrownIcon size={16} className="shrink-0" />}
             <span className="text-[11px] uppercase tracking-widest text-slate-500">Chapter {stage.chapter} · {stage.region}</span>
           </div>
           <div className="flex items-center gap-2 mb-4">
             <h2 className="font-display text-2xl sm:text-3xl text-ink tracking-wide leading-none" data-testid="stage-drawer-name">{stage.name}</h2>
-            {done && <Star className="w-4 h-4 fill-amber-400 text-amber-400 shrink-0" />}
+            {done && <StarIcon size={16} className="shrink-0" />}
           </div>
 
           {/* power comparison */}
@@ -97,7 +98,7 @@ export default function CampaignStagePreviewDrawer({ stage, state, catalogById, 
           {/* boss mechanics */}
           {isBoss && mech && (
             <div className="mb-5 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] p-3.5" data-testid="stage-boss-mechanic">
-              <p className="text-xs uppercase tracking-widest text-amber-400 mb-2 flex items-center gap-1.5"><Crown className="w-3.5 h-3.5" /> {mech.name}</p>
+              <p className="text-xs uppercase tracking-widest text-amber-400 mb-2 flex items-center gap-1.5"><CrownIcon size={14} /> {mech.name}</p>
               <div className="space-y-1.5">
                 {mech.phases.map((p, i) => {
                   const { range, detail } = describePhase(p);
@@ -113,7 +114,7 @@ export default function CampaignStagePreviewDrawer({ stage, state, catalogById, 
           {/* rewards */}
           <p className="text-xs uppercase tracking-widest text-slate-500 mb-2.5">Rewards</p>
           <div className="flex flex-wrap gap-2 mb-2.5">
-            <span className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-black/[0.04] text-amber-300 font-medium"><Coins className="w-3.5 h-3.5" />{stage.rewards.ryo} Ryo</span>
+            <span className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-black/[0.04] text-amber-300 font-medium"><CoinsIcon size={14} />{stage.rewards.ryo} Ryo</span>
             <span className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-black/[0.04] text-chakra font-medium"><Zap className="w-3.5 h-3.5" />{stage.rewards.exp} EXP</span>
           </div>
           {!done && (stage.first_clear?.ryo > 0 || stage.first_clear?.ninja) && (
@@ -134,7 +135,7 @@ export default function CampaignStagePreviewDrawer({ stage, state, catalogById, 
         <div className="sticky bottom-0 mx-auto w-full max-w-lg px-4 sm:px-5 pt-3 pb-4 bg-[#FFFFFF] border-t border-black/10">
           {locked ? (
             <div className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-black/[0.04] text-slate-500 font-display text-lg tracking-wide">
-              <Lock className="w-4 h-4" /> LOCKED
+              <LockIcon size={16} /> LOCKED
             </div>
           ) : (
             <button

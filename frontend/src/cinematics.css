@@ -1,0 +1,494 @@
+/* ==========================================================================
+   SHINOBI CLASH — Cinematic animation system
+   Battle & Summon cinematic effects: transitions, layered environments,
+   attack phases, ultimate sequences, victory reveals, summon rituals.
+   All CSS-driven for performance — no heavy animation libraries.
+   ========================================================================== */
+
+/* ---- Battle Entry Transition ---- */
+@keyframes cineDarken {
+  0%   { opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.cine-darken { animation: cineDarken 2.2s ease-in-out forwards; }
+
+@keyframes cineBlurSweep {
+  0%   { transform: translateX(-100%) scaleX(0.3); opacity: 0; }
+  20%  { opacity: 0.9; }
+  50%  { transform: translateX(50%) scaleX(2); opacity: 0.7; }
+  80%  { opacity: 0.5; }
+  100% { transform: translateX(120%) scaleX(0.3); opacity: 0; }
+}
+.cine-blur-sweep {
+  animation: cineBlurSweep 1.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  background: linear-gradient(90deg, transparent, rgba(124, 77, 255, 0.35) 40%, rgba(0, 229, 255, 0.2) 50%, rgba(124, 77, 255, 0.35) 60%, transparent);
+  filter: blur(12px);
+}
+
+@keyframes cineVignetteClose {
+  0%   { opacity: 0; transform: scale(2.5); }
+  30%  { opacity: 0.85; transform: scale(1.6); }
+  60%  { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+.cine-vignette-close {
+  animation: cineVignetteClose 1.6s ease-in forwards;
+  background: radial-gradient(ellipse at center, transparent 20%, rgba(5, 5, 10, 0.97) 70%);
+}
+
+@keyframes cineTitleIn {
+  0%   { opacity: 0; transform: translateY(30px) scale(1.08); letter-spacing: 0.5em; }
+  20%  { opacity: 1; transform: translateY(0) scale(1.04); letter-spacing: 0.25em; }
+  70%  { opacity: 1; transform: translateY(0) scale(1); letter-spacing: 0.08em; }
+  100% { opacity: 0; transform: translateY(-20px) scale(0.98); letter-spacing: 0.08em; }
+}
+.cine-title { animation: cineTitleIn 2.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes cineLineGrow {
+  0%   { width: 0; opacity: 0; }
+  25%  { opacity: 1; }
+  60%  { width: 60%; opacity: 1; }
+  100% { width: 80%; opacity: 0; }
+}
+.cine-title-line { animation: cineLineGrow 2.8s ease-out forwards; }
+
+@keyframes cineSubtitleIn {
+  0%, 30% { opacity: 0; transform: translateY(10px); }
+  45%     { opacity: 1; transform: translateY(0); }
+  85%     { opacity: 1; }
+  100%    { opacity: 0; }
+}
+.cine-subtitle { animation: cineSubtitleIn 2.8s ease-out forwards; }
+
+/* ---- Battlefield Environment Layers ---- */
+@keyframes fogDrift {
+  0%   { transform: translateX(-5%) translateY(0); }
+  50%  { transform: translateX(5%) translateY(-2%); }
+  100% { transform: translateX(-5%) translateY(0); }
+}
+.fog-drift { animation: fogDrift 20s ease-in-out infinite; }
+.fog-drift-slow { animation: fogDrift 35s ease-in-out infinite; }
+
+@keyframes cloudDrift {
+  0%   { transform: translateX(-10%); }
+  100% { transform: translateX(10%); }
+}
+.cloud-drift { animation: cloudDrift 60s linear infinite alternate; }
+
+@keyframes moonGlow {
+  0%, 100% { opacity: 0.6; filter: blur(2px); }
+  50%      { opacity: 0.85; filter: blur(1px); }
+}
+.moon-glow { animation: moonGlow 8s ease-in-out infinite; }
+
+@keyframes particleFloat {
+  0%   { transform: translateY(0) translateX(0); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.4; }
+  100% { transform: translateY(-100vh) translateX(var(--drift, 20px)); opacity: 0; }
+}
+.battle-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  animation: particleFloat linear infinite;
+}
+
+@keyframes parallaxShift {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(-8px); }
+}
+.parallax-bg { animation: parallaxShift 30s ease-in-out infinite; }
+.parallax-mid { animation: parallaxShift 20s ease-in-out infinite; }
+
+/* ---- Character Idle / Cinematic Fighter ---- */
+@keyframes idleBreath {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-3px) scale(1.01); }
+}
+.idle-breath { animation: idleBreath 3.5s ease-in-out infinite; }
+
+@keyframes idleCloth {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  25%      { transform: rotate(1deg) translateY(-1px); }
+  75%      { transform: rotate(-1deg) translateY(1px); }
+}
+.idle-cloth { animation: idleCloth 4s ease-in-out infinite; }
+
+@keyframes auraPulseElement {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50%      { opacity: 0.6; transform: scale(1.08); }
+}
+.aura-element { animation: auraPulseElement 2.8s ease-in-out infinite; }
+
+@keyframes groundShadowPulse {
+  0%, 100% { opacity: 0.4; transform: scaleX(1); }
+  50%      { opacity: 0.55; transform: scaleX(1.05); }
+}
+.ground-shadow { animation: groundShadowPulse 3.5s ease-in-out infinite; }
+
+/* ---- Turn Announcement ---- */
+@keyframes turnAnnounceIn {
+  0%   { opacity: 0; transform: translateY(20px) scale(0.9); }
+  15%  { opacity: 1; transform: translateY(0) scale(1); }
+  80%  { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-10px) scale(0.98); }
+}
+.turn-announce { animation: turnAnnounceIn 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes turnLineExpand {
+  0%   { width: 0; opacity: 0; }
+  20%  { opacity: 1; }
+  70%  { width: 100%; opacity: 0.8; }
+  100% { width: 100%; opacity: 0; }
+}
+.turn-line { animation: turnLineExpand 1.6s ease-out forwards; }
+
+/* ---- Attack Phases ---- */
+@keyframes attackAnticipate {
+  0%   { transform: scale(1) translateX(0); }
+  40%  { transform: scale(1.08) translateX(-8px); filter: brightness(1.3); }
+  100% { transform: scale(1.12) translateX(0); filter: brightness(1.5); }
+}
+.attack-anticipate { animation: attackAnticipate 0.5s ease-out forwards; }
+
+@keyframes attackDash {
+  0%   { transform: translateX(0) scale(1.12); filter: brightness(1.5); }
+  50%  { transform: translateX(var(--dash-x, 60px)) scale(1.15); filter: blur(2px) brightness(2); }
+  100% { transform: translateX(var(--dash-x, 60px)) scale(1.1); filter: brightness(1.8); }
+}
+.attack-dash { animation: attackDash 0.3s ease-in forwards; }
+
+@keyframes attackReturn {
+  0%   { transform: translateX(var(--dash-x, 60px)) scale(1.1); filter: brightness(1.5); }
+  100% { transform: translateX(0) scale(1); filter: brightness(1); }
+}
+.attack-return { animation: attackReturn 0.4s ease-out forwards; }
+
+@keyframes impactFlash {
+  0%   { opacity: 0; transform: scale(0.3); }
+  20%  { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(2); }
+}
+.impact-flash { animation: impactFlash 0.5s ease-out forwards; }
+
+@keyframes impactRing {
+  0%   { opacity: 0.8; transform: scale(0.2); border-width: 4px; }
+  100% { opacity: 0; transform: scale(2.5); border-width: 1px; }
+}
+.impact-ring { animation: impactRing 0.6s ease-out forwards; }
+
+@keyframes screenShake {
+  0%, 100% { transform: translate(0, 0); }
+  10%  { transform: translate(-4px, 2px); }
+  20%  { transform: translate(5px, -3px); }
+  30%  { transform: translate(-3px, 4px); }
+  40%  { transform: translate(4px, -2px); }
+  50%  { transform: translate(-5px, 1px); }
+  60%  { transform: translate(3px, 3px); }
+  70%  { transform: translate(-2px, -4px); }
+  80%  { transform: translate(4px, 2px); }
+  90%  { transform: translate(-3px, -1px); }
+}
+.screen-shake { animation: screenShake 0.4s ease-in-out; }
+.screen-shake-strong { animation: screenShake 0.5s ease-in-out; animation-iteration-count: 2; }
+
+@keyframes damageNumberPop {
+  0%   { opacity: 0; transform: translateY(10px) scale(0.5); }
+  20%  { opacity: 1; transform: translateY(-5px) scale(1.3); }
+  60%  { opacity: 1; transform: translateY(-15px) scale(1); }
+  100% { opacity: 0; transform: translateY(-40px) scale(0.9); }
+}
+.cine-damage { animation: damageNumberPop 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes cineCritNumber {
+  0%   { opacity: 0; transform: translateY(15px) scale(0.3) rotate(-5deg); }
+  15%  { opacity: 1; transform: translateY(-5px) scale(1.5) rotate(2deg); }
+  40%  { transform: translateY(-10px) scale(1.2) rotate(0deg); }
+  70%  { opacity: 1; transform: translateY(-20px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-50px) scale(1); }
+}
+.cine-crit { animation: cineCritNumber 1.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes abilityNameFlash {
+  0%   { opacity: 0; transform: translateY(15px) scale(0.9); letter-spacing: 0.3em; }
+  20%  { opacity: 1; transform: translateY(0) scale(1); letter-spacing: 0.15em; }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+.ability-name-flash { animation: abilityNameFlash 0.9s ease-out forwards; }
+
+/* ---- Hit-stop (brief freeze) ---- */
+@keyframes hitStop {
+  0%, 100% { filter: none; }
+  50%      { filter: brightness(2) saturate(0.3); }
+}
+.hit-stop { animation: hitStop 0.15s steps(1); }
+
+/* ---- Ultimate Cinematic ---- */
+@keyframes letterboxIn {
+  0%   { height: 0; }
+  100% { height: 12vh; }
+}
+.letterbox-in { animation: letterboxIn 0.4s ease-out forwards; }
+.letterbox-out { animation: letterboxIn 0.4s ease-out reverse forwards; }
+
+@keyframes ultZoomIn {
+  0%   { transform: scale(1); filter: brightness(1); }
+  50%  { transform: scale(1.15); filter: brightness(1.3); }
+  100% { transform: scale(1.25); filter: brightness(1.6) saturate(1.3); }
+}
+.ult-zoom { animation: ultZoomIn 1.2s ease-out forwards; }
+
+@keyframes ultEnergyFill {
+  0%   { opacity: 0; transform: scale(0.5); }
+  30%  { opacity: 0.6; transform: scale(1); }
+  60%  { opacity: 0.9; transform: scale(1.3); }
+  100% { opacity: 0; transform: scale(1.8); }
+}
+.ult-energy { animation: ultEnergyFill 2s ease-out forwards; }
+
+@keyframes ultNameReveal {
+  0%   { opacity: 0; transform: scale(1.3); letter-spacing: 0.4em; filter: blur(8px); }
+  30%  { opacity: 1; transform: scale(1.05); letter-spacing: 0.2em; filter: blur(2px); }
+  60%  { opacity: 1; transform: scale(1); letter-spacing: 0.1em; filter: blur(0); }
+  100% { opacity: 0; transform: scale(0.95); filter: blur(4px); }
+}
+.ult-name { animation: ultNameReveal 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes ultCharName {
+  0%, 15% { opacity: 0; transform: translateY(10px); }
+  30%     { opacity: 1; transform: translateY(0); }
+  85%     { opacity: 1; }
+  100%    { opacity: 0; transform: translateY(-5px); }
+}
+.ult-char-name { animation: ultCharName 2.5s ease-out forwards; }
+
+@keyframes ultLineDecor {
+  0%, 10% { width: 0; opacity: 0; }
+  25%     { width: 70%; opacity: 1; }
+  85%     { width: 70%; opacity: 1; }
+  100%    { width: 0; opacity: 0; }
+}
+.ult-line { animation: ultLineDecor 2.5s ease-out forwards; }
+
+@keyframes ultScreenDistort {
+  0%, 100% { transform: scale(1) skewX(0); }
+  20%      { transform: scale(1.02) skewX(1deg); }
+  40%      { transform: scale(0.99) skewX(-1deg); }
+  60%      { transform: scale(1.01) skewX(0.5deg); }
+  80%      { transform: scale(1) skewX(-0.5deg); }
+}
+.ult-distort { animation: ultScreenDistort 2.5s ease-in-out; }
+
+@keyframes ultParticleBurst {
+  0%   { transform: translate(0, 0) scale(0); opacity: 1; }
+  100% { transform: translate(var(--px, 0), var(--py, 0)) scale(1.5); opacity: 0; }
+}
+.ult-particle { animation: ultParticleBurst 1.2s ease-out forwards; }
+
+/* ---- Victory Sequence ---- */
+@keyframes victoryFadeIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+.victory-fade { animation: victoryFadeIn 1s ease-in forwards; }
+
+@keyframes victoryTitle {
+  0%   { opacity: 0; transform: scale(1.5) translateY(30px); letter-spacing: 0.5em; filter: blur(10px); }
+  30%  { opacity: 1; transform: scale(1.1) translateY(0); letter-spacing: 0.2em; filter: blur(2px); }
+  60%  { transform: scale(1) translateY(0); letter-spacing: 0.08em; filter: blur(0); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.victory-title { animation: victoryTitle 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes victoryGoldLight {
+  0%   { opacity: 0; transform: scale(0.5); }
+  40%  { opacity: 0.4; transform: scale(1); }
+  100% { opacity: 0.25; transform: scale(1.2); }
+}
+.victory-gold-light { animation: victoryGoldLight 2s ease-out forwards; }
+
+@keyframes rewardReveal {
+  0%   { opacity: 0; transform: scale(0.3) translateY(20px); }
+  50%  { opacity: 1; transform: scale(1.15) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.reward-reveal { animation: rewardReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes rewardGlow {
+  0%, 100% { filter: drop-shadow(0 0 8px currentColor); }
+  50%      { filter: drop-shadow(0 0 20px currentColor); }
+}
+.reward-glow { animation: rewardGlow 2s ease-in-out infinite; }
+
+@keyframes rewardParticle {
+  0%   { transform: translateY(0) scale(0); opacity: 0; }
+  30%  { opacity: 1; }
+  100% { transform: translateY(-40px) scale(1.2); opacity: 0; }
+}
+.reward-particle { animation: rewardParticle 1s ease-out forwards; }
+
+@keyframes enemyDeathFade {
+  0%   { opacity: 1; transform: scale(1); filter: brightness(1); }
+  30%  { opacity: 0.8; transform: scale(1.05); filter: brightness(2) saturate(0); }
+  100% { opacity: 0; transform: scale(0.8) translateY(-20px); filter: brightness(0) blur(8px); }
+}
+.enemy-death-fade { animation: enemyDeathFade 0.8s ease-out forwards; }
+
+/* ---- Summon Circle ---- */
+@keyframes circleRotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.circle-rotate { animation: circleRotate 20s linear infinite; }
+.circle-rotate-fast { animation: circleRotate 8s linear infinite; }
+.circle-rotate-rev { animation: circleRotate 25s linear infinite reverse; }
+
+@keyframes circleGlowPulse {
+  0%, 100% { opacity: 0.5; filter: drop-shadow(0 0 15px currentColor); }
+  50%      { opacity: 0.9; filter: drop-shadow(0 0 35px currentColor); }
+}
+.circle-glow { animation: circleGlowPulse 4s ease-in-out infinite; }
+
+@keyframes circleSpinSummon {
+  0%   { transform: rotate(0deg) scale(1); }
+  100% { transform: rotate(720deg) scale(1.3); }
+}
+.circle-spin-summon { animation: circleSpinSummon 3s ease-in forwards; }
+
+/* ---- Summon Cinematic ---- */
+@keyframes summonFadeUI {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+.summon-fade-ui { animation: summonFadeUI 0.5s ease-out forwards; }
+
+@keyframes summonParticleInward {
+  0%   { transform: translate(var(--sx, 0), var(--sy, 0)) scale(1); opacity: 0; }
+  30%  { opacity: 1; }
+  100% { transform: translate(0, 0) scale(0.2); opacity: 0; }
+}
+.summon-particle-inward { animation: summonParticleInward 1.5s ease-in forwards; }
+
+@keyframes summonEnergyRise {
+  0%   { opacity: 0; transform: translateY(0) scaleY(0.3); }
+  30%  { opacity: 0.7; }
+  100% { opacity: 0; transform: translateY(-200px) scaleY(1.5); }
+}
+.summon-energy-rise { animation: summonEnergyRise 2s ease-out forwards; }
+
+@keyframes summonLightRay {
+  0%   { opacity: 0; transform: scaleY(0); }
+  30%  { opacity: 0.6; }
+  100% { opacity: 0; transform: scaleY(1.5); }
+}
+.summon-light-ray { animation: summonLightRay 1.8s ease-out forwards; }
+
+@keyframes summonBrightFlash {
+  0%   { opacity: 0; }
+  40%  { opacity: 0.3; }
+  70%  { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+.summon-bright-flash { animation: summonBrightFlash 1s ease-in-out forwards; }
+
+@keyframes summonScreenShake {
+  0%, 100% { transform: translate(0, 0); }
+  20%  { transform: translate(-6px, 3px); }
+  40%  { transform: translate(7px, -4px); }
+  60%  { transform: translate(-5px, 5px); }
+  80%  { transform: translate(6px, -2px); }
+}
+.summon-shake { animation: summonScreenShake 0.6s ease-in-out; }
+
+@keyframes rarityRevealText {
+  0%   { opacity: 0; transform: scale(2) translateY(-20px); letter-spacing: 0.6em; filter: blur(10px); }
+  30%  { opacity: 1; transform: scale(1.1) translateY(0); letter-spacing: 0.3em; filter: blur(2px); }
+  70%  { opacity: 1; transform: scale(1) translateY(0); letter-spacing: 0.15em; filter: blur(0); }
+  100% { opacity: 0; transform: scale(0.95); filter: blur(4px); }
+}
+.rarity-reveal-text { animation: rarityRevealText 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes charRevealFade {
+  0%   { opacity: 0; transform: scale(1.1); filter: brightness(0.3) blur(8px); }
+  40%  { opacity: 1; filter: brightness(0.6) blur(4px); }
+  100% { opacity: 1; transform: scale(1); filter: brightness(1) blur(0); }
+}
+.char-reveal-fade { animation: charRevealFade 1.5s ease-out forwards; }
+
+@keyframes charNameReveal {
+  0%, 40% { opacity: 0; transform: translateY(15px); }
+  60%     { opacity: 1; transform: translateY(0); }
+  100%    { opacity: 1; transform: translateY(0); }
+}
+.char-name-reveal { animation: charNameReveal 2s ease-out forwards; }
+
+@keyframes silhouetteReveal {
+  0%   { opacity: 0; filter: brightness(0) blur(15px); transform: scale(0.9); }
+  30%  { opacity: 1; filter: brightness(0.1) blur(10px); transform: scale(0.95); }
+  60%  { opacity: 1; filter: brightness(0.3) blur(6px); transform: scale(1); }
+  100% { opacity: 1; filter: brightness(1) blur(0); transform: scale(1); }
+}
+.silhouette-reveal { animation: silhouetteReveal 2s ease-out forwards; }
+
+@keyframes rimLightTrace {
+  0%   { opacity: 0; }
+  50%  { opacity: 0.8; }
+  100% { opacity: 0.3; }
+}
+.rim-light { animation: rimLightTrace 1.5s ease-out forwards; }
+
+@keyframes duplicateDissolve {
+  0%   { opacity: 1; filter: brightness(1) blur(0); transform: scale(1); }
+  30%  { opacity: 0.8; filter: brightness(1.5) blur(2px); }
+  60%  { opacity: 0.5; filter: brightness(2) blur(6px) saturate(0.3); transform: scale(1.1); }
+  100% { opacity: 0; filter: brightness(3) blur(12px) saturate(0); transform: scale(1.2); }
+}
+.duplicate-dissolve { animation: duplicateDissolve 1.2s ease-out forwards; }
+
+@keyframes fragmentBurst {
+  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--fx, 30px), var(--fy, -40px)) scale(0.3); opacity: 0; }
+}
+.fragment-burst { animation: fragmentBurst 1s ease-out forwards; }
+
+@keyframes summonCardExpand {
+  0%   { transform: scale(0.3) rotateY(90deg); opacity: 0; }
+  50%  { transform: scale(1.1) rotateY(0deg); opacity: 1; }
+  100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+}
+.summon-card-expand { animation: summonCardExpand 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes summonCardGlow {
+  0%, 100% { box-shadow: 0 0 8px var(--card-glow), inset 0 0 4px var(--card-glow); }
+  50%      { box-shadow: 0 0 20px var(--card-glow), inset 0 0 8px var(--card-glow); }
+}
+.summon-card-glow { animation: summonCardGlow 2s ease-in-out infinite; }
+
+@keyframes summonPortalPulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50%      { transform: scale(1.05); opacity: 1; }
+}
+.summon-portal-pulse { animation: summonPortalPulse 2.5s ease-in-out infinite; }
+
+/* ---- Utility: cinematic vignette overlay ---- */
+.cine-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(5, 5, 10, 0.6) 100%);
+  z-index: 5;
+}
+
+/* ---- Element particle theming ---- */
+.el-particle-fire { background: #FF5722; box-shadow: 0 0 6px #FF5722, 0 0 12px #FF6B33; }
+.el-particle-water { background: #29B6F6; box-shadow: 0 0 6px #29B6F6, 0 0 12px #4FC3F7; }
+.el-particle-lightning { background: #FFCA28; box-shadow: 0 0 6px #FFCA28, 0 0 12px #FFD54F; }
+.el-particle-wind { background: #00E676; box-shadow: 0 0 6px #00E676, 0 0 12px #69F0AE; }
+.el-particle-dark { background: #7C4DFF; box-shadow: 0 0 6px #7C4DFF, 0 0 12px #9575CD; }
+.el-particle-earth { background: #A1887F; box-shadow: 0 0 6px #A1887F, 0 0 12px #BCAAA4; }
+.el-particle-light { background: #FFD54F; box-shadow: 0 0 6px #FFD54F, 0 0 12px #FFE082; }

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Image } from "lucide-react";
 import { RARITY, ELEMENT, glow, scrimBottom, vignetteInset, rarityFrame, GOLD } from "@/lib/theme";
+import { ElementIcon } from "@/components/ElementIcons";
 import { DecoCorners } from "@/components/RarityFx";
 
 /**
@@ -85,10 +86,7 @@ export default function HeroPortrait({
 
       {/* top-left: element, minimal glyph — no boxed pill */}
       <div className="absolute top-2 left-2.5 flex items-center gap-1 z-10">
-        <span
-          className="w-2 h-2 rounded-full"
-          style={{ background: element.color, boxShadow: `0 0 6px ${element.color}` }}
-        />
+        <ElementIcon element={hero.element} size={16} />
         {mode !== "compact" && (
           <span className="text-[11px] font-semibold tracking-wide" style={{ color: element.color, textShadow: `0 0 8px ${element.color}` }}>
             {hero.element}

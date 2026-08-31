@@ -1,0 +1,99 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    image: python:3.12
+    working_dir: /app/backend
+    volumes:
+      - ./:/app
+      - backend_venv:/app/backend/.venv
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=shinobi_clash
+      - JWT_SECRET=base44-dev-jwt-secret-change-me
+      - FRONTEND_URL=https://3000-${BASE44_PUBLIC_HOST_SUFFIX}
+      - ADMIN_EMAIL=admin@shinobi.com
+      - ADMIN_PASSWORD=admin123
+      - PYTHONUNBUFFERED=1
+      - WATCHFILES_FORCE_POLLING=true
+    env_file:
+      - ./.env.base44-defaults
+      - /run/base44/app.env
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        # The proprietary emergentintegrations LLM library is not installable
+        # outside the emergent.sh platform. Provide a local stub (kept out of the
+        # repo, on PYTHONPATH) so the server imports and boots; the AI-art
+        # endpoints return their existing error when actually called.
+        mkdir -p /opt/stubs/emergentintegrations/llm
+        printf '%s\n' '__version__ = "0.2.0"' > /opt/stubs/emergentintegrations/__init__.py
+        : > /opt/stubs/emergentintegrations/llm/__init__.py
+        cat > /opt/stubs/emergentintegrations/llm/chat.py <<'PYEOF'
+        class UserMessage:
+            def __init__(self, text=None, **kwargs):
+                self.text = text
+
+        class LlmChat:
+            def __init__(self, api_key=None, session_id=None, system_message=None, **kwargs):
+                self.api_key = api_key
+                self.session_id = session_id
+                self.system_message = system_message
+                self._provider = None
+                self._model = None
+            def with_model(self, provider, model):
+                self._provider = provider
+                self._model = model
+                return self
+            async def send_message(self, message, **kwargs):
+                raise RuntimeError("emergentintegrations LLM backend is not available in this environment")
+            async def send_message_multimodal_response(self, message, **kwargs):
+                raise RuntimeError("emergentintegrations LLM backend is not available in this environment")
+        PYEOF
+        grep -v -e '^emergentintegrations==' -e '^litellm @' requirements.txt | pip install --no-cache-dir -r /dev/stdin
+        PYTHONPATH=/opt/stubs uvicorn server:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/backend
+    expose:
+      - "8000"
+
+  frontend:
+    image: node:20
+    working_dir: /app/frontend
+    volumes:
+      - ./:/app
+      - frontend_node_modules:/app/frontend/node_modules
+    environment:
+      - REACT_APP_BACKEND_URL=
+      - HOST=0.0.0.0
+      - PORT=3000
+      - BROWSER=none
+      - CI=false
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    depends_on:
+      - backend
+    command: >
+      bash -c "corepack enable
+      && corepack prepare yarn@1.22.22 --activate
+      && yarn install
+      && yarn start"
+    ports:
+      - "3000:3000"
+
+volumes:
+  mongo_data:
+  backend_venv:
+  frontend_node_modules:

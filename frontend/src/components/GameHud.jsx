@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { Coins, Gem, Zap, LogOut, Moon, Sun } from "lucide-react";
+import { Coins, Gem, Zap, LogOut, Moon, Sun, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
+import { useAudio } from "@/context/AudioContext";
 
 /**
  * GameHud — a slim, console-style top HUD of floating resource pills and a
@@ -24,6 +25,7 @@ const Pill = ({ icon: Icon, color, value, testid }) => (
 export default function GameHud() {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { muted, toggleMute } = useAudio();
   const navigate = useNavigate();
   const energy = user?.energy;
   const handleLogout = async () => { await logout(); navigate("/login"); };
@@ -46,6 +48,14 @@ export default function GameHud() {
               <p className="text-[10px] text-chakra leading-none mt-0.5">Lv. {user?.level ?? 1}</p>
             </div>
           </div>
+          <button
+            onClick={toggleMute}
+            data-testid="hud-sound-toggle"
+            aria-label={muted ? "Unmute sound" : "Mute sound"}
+            className="pointer-events-auto w-8 h-8 rounded-full bg-white/80 dark:bg-black/40 backdrop-blur-md border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-500 hover:text-chakra hover:border-chakra/40 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-chakra"
+          >
+            {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
           <button
             onClick={toggleTheme}
             data-testid="hud-theme-toggle"

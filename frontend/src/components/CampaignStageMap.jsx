@@ -1,4 +1,4 @@
-import { Check, Lock, Crown, Swords } from "lucide-react";
+import { LockIcon, CheckIcon, CrownIcon, SwordsIcon } from "@/components/GameIcons";
 
 const NODE_SIZE = 60;
 const BOSS_SIZE = 78;
@@ -80,7 +80,7 @@ export default function CampaignStageMap({ stages, allStages, cleared, onSelectS
             >
               {isBoss && (
                 <span className="text-[9px] font-bold tracking-widest text-amber-400 mb-1 flex items-center gap-0.5">
-                  <Crown className="w-3 h-3" /> BOSS
+                  <CrownIcon size={12} /> BOSS
                 </span>
               )}
               {/* ground shadow — cheap static depth cue, no animation */}
@@ -106,11 +106,11 @@ export default function CampaignStageMap({ stages, allStages, cleared, onSelectS
                 }}
               >
                 {state === "locked" ? (
-                  <Lock className="w-5 h-5 text-slate-600" />
+                  <LockIcon size={20} />
                 ) : state === "completed" ? (
-                  isBoss ? <Crown className="w-6 h-6 text-amber-400" /> : <Check className="w-6 h-6 text-amber-400" />
+                  isBoss ? <CrownIcon size={24} /> : <CheckIcon size={24} />
                 ) : isBoss ? (
-                  <Swords className="w-7 h-7 text-rose-400" />
+                  <SwordsIcon size={28} className="text-rose-400" />
                 ) : (
                   <span className="font-display text-lg text-chakra">{i + 1}</span>
                 )}

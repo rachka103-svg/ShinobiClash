@@ -19,10 +19,26 @@ export function elementMultiplier(attEl, defEl, advantage) {
   return 1.0;
 }
 
+// --- Stat debuff helpers (atk_down / def_down from jutsu effects) ---
+export function effectiveAtk(actor) {
+  let atk = actor.atk;
+  const debuff = actor.statuses?.find((s) => s.effectType === "atk_down" && (s.duration ?? 0) > 0);
+  if (debuff) atk = Math.round(atk * (1 - (debuff.value || 0) / 100));
+  return atk;
+}
+export function effectiveDef(actor) {
+  let def = actor.def;
+  const debuff = actor.statuses?.find((s) => s.effectType === "def_down" && (s.duration ?? 0) > 0);
+  if (debuff) def = Math.round(def * (1 - (debuff.value || 0) / 100));
+  return def;
+}
+
 export function rollDamage(actor, target, jutsu, advantage) {
-  const base = (jutsu.power / 100) * actor.atk;
+  const atk = effectiveAtk(actor);
+  const def = effectiveDef(target);
+  const base = (jutsu.power / 100) * atk;
   const mult = elementMultiplier(jutsu.element, target.element, advantage);
-  let raw = base * mult - target.def * 0.5;
+  let raw = base * mult - def * 0.5;
   raw = Math.max(raw, base * 0.18);
   const variance = 0.9 + Math.random() * 0.2;
   const crit = Math.random() < 0.16;
@@ -30,7 +46,21 @@ export function rollDamage(actor, target, jutsu, advantage) {
   return { dmg, crit, mult };
 }
 
-export function buildCombatant(uid, side, template, level, ascension = 0, instanceId = null, statsOverride = null, skillRank = 1, passiveUnlocked = true) {
+// Reforge modifier definitions — mirror of backend gd.REFORGE_MODIFIERS.
+// Each reforge either appends a status `effect` to a jutsu (consumed by
+// applyJutsuEffects) or adds a flat bonus-power %. Applied in buildCombatant.
+export const REFORGE_MODIFIERS = {
+  burn:         { effect: { type: "burn", chance: 30, duration: 3, value: 40 } },
+  poison:       { effect: { type: "poison", chance: 30, duration: 3, value: 35 } },
+  bleed:        { effect: { type: "bleed", chance: 30, duration: 3, value: 38 } },
+  stun:         { effect: { type: "stun", chance: 18, duration: 1 } },
+  freeze:       { effect: { type: "freeze", chance: 18, duration: 1 } },
+  atk_down:     { effect: { type: "atk_down", chance: 35, duration: 2, value: 20 } },
+  def_down:     { effect: { type: "def_down", chance: 35, duration: 2, value: 20 } },
+  extra_damage: { bonus_power_pct: 12 },
+};
+
+export function buildCombatant(uid, side, template, level, ascension = 0, instanceId = null, statsOverride = null, skillRank = 1, passiveUnlocked = true, reforge = null) {
   // `statsOverride` lets allies use the server-computed stats (which include
   // evolution stars + equipped gear + set bonuses) so combat always matches
   // the profile; enemies fall back to the base formula.
@@ -38,10 +68,28 @@ export function buildCombatant(uid, side, template, level, ascension = 0, instan
   // Skill Rank scales all active jutsu power (+8% per rank beyond the 1st);
   // the signature passive only applies once unlocked (skill rank >= 3).
   const skillMult = 1 + Math.max(0, (skillRank || 1) - 1) * 0.08;
-  const jutsus = (template.jutsus || []).map((j) =>
-    (j.type === "attack" || j.type === "aoe" || j.type === "heal")
+  const reforgeMap = reforge || {};
+  const jutsus = (template.jutsus || []).map((j) => {
+    let jj = (j.type === "attack" || j.type === "aoe" || j.type === "heal")
       ? { ...j, power: Math.round((j.power || 0) * skillMult) }
-      : { ...j });
+      : { ...j };
+    // Reforge: merge unlocked combat modifiers into the jutsu (extra status
+    // effects + bonus power). Only active jutsus are reforgable.
+    const mods = reforgeMap[j.id];
+    if (mods && mods.length) {
+      const effects = [...(jj.effects || [])];
+      let bonusPct = 0;
+      for (const mid of mods) {
+        const m = REFORGE_MODIFIERS[mid];
+        if (!m) continue;
+        if (m.effect) effects.push({ ...m.effect });
+        if (m.bonus_power_pct) bonusPct += m.bonus_power_pct;
+      }
+      if (effects.length) jj.effects = effects;
+      if (bonusPct && jj.power) jj.power = Math.round(jj.power * (1 + bonusPct / 100));
+    }
+    return jj;
+  });
   return {
     uid,
     instanceId,
@@ -235,7 +283,68 @@ export function resolveOnHitEffects(actor, target, jutsu) {
     events.push(makeEvent("DEBUFF_APPLIED", { targetUid: target.uid, text: "Withering Curse" }));
   }
 
+  // Jutsu-carried status effects (burn, poison, bleed, stun, freeze,
+  // atk_down, def_down) — data-driven from the admin jutsu editor. Each
+  // effect entry: {type, chance (%), duration (turns), value (% of ATK for
+  // DoTs, % reduction for debuffs)}.
+  const effEvents = applyJutsuEffects(actor, target, jutsu);
+  events.push(...effEvents);
+
   return { burstDamage, events };
+}
+
+const DOT_TYPES = new Set(["burn", "poison", "bleed"]);
+const CC_TYPES = new Set(["stun", "freeze"]);
+const DEBUFF_TYPES = new Set(["atk_down", "def_down"]);
+
+/** Applies jutsu-carried status effects to the target. Called from
+ * resolveOnHitEffects for attack/aoe jutsus. Each effect in jutsu.effects
+ * is chance-rolled, then attached as a status on the target. */
+export function applyJutsuEffects(actor, target, jutsu) {
+  const events = [];
+  if (!target.alive || !jutsu.effects?.length) return events;
+  target.statuses = target.statuses || [];
+
+  for (const eff of jutsu.effects) {
+    // Chance-based roll (default 100% if not specified)
+    if (eff.chance != null && eff.chance < 100 && Math.random() * 100 > eff.chance) continue;
+
+    const et = eff.type;
+    const dur = eff.duration || 2;
+    const val = eff.value || 0;
+
+    if (DOT_TYPES.has(et)) {
+      // DoT: value is % of actor's ATK per tick
+      const mag = Math.max(1, Math.round(effectiveAtk(actor) * (val / 100)));
+      let existing = target.statuses.find((s) => s.effectType === et && s.source === actor.uid);
+      if (existing) {
+        existing.duration = dur;
+        existing.magnitude = Math.max(existing.magnitude, mag);
+      } else {
+        target.statuses.push({ id: `${et}_${actor.uid}_${target.uid}_${Date.now()}`, effectType: et, source: actor.uid, duration: dur, magnitude: mag });
+      }
+      events.push(makeEvent("DEBUFF_APPLIED", { targetUid: target.uid, text: `${et.charAt(0).toUpperCase() + et.slice(1)} applied!` }));
+    } else if (CC_TYPES.has(et)) {
+      if (!target.statuses.find((s) => s.effectType === et)) {
+        target.statuses.push({ id: `${et}_${target.uid}_${Date.now()}`, effectType: et, source: actor.uid, duration: 1 });
+        events.push(makeEvent("DEBUFF_APPLIED", { targetUid: target.uid, text: `${et.charAt(0).toUpperCase() + et.slice(1)}!` }));
+      }
+    } else if (DEBUFF_TYPES.has(et)) {
+      let existing = target.statuses.find((s) => s.effectType === et);
+      if (existing) {
+        existing.duration = dur;
+      } else {
+        target.statuses.push({ id: `${et}_${target.uid}_${Date.now()}`, effectType: et, source: actor.uid, duration: dur, value: val });
+        events.push(makeEvent("DEBUFF_APPLIED", { targetUid: target.uid, text: `${et === "atk_down" ? "ATK" : "DEF"} Down!` }));
+      }
+    }
+  }
+  return events;
+}
+
+/** Whether the actor is stunned/frozen and should skip their turn. */
+export function isStunned(actor) {
+  return !!actor.statuses?.some((s) => CC_TYPES.has(s.effectType) && (s.duration ?? 0) > 0);
 }
 
 /**
@@ -254,6 +363,17 @@ export function tickStatuses(actor) {
       const tick = s.magnitude * s.stacks;
       dmg += tick;
       events.push(makeEvent("DOT_TRIGGERED", { targetUid: actor.uid, value: tick }));
+      s.duration -= 1;
+      if (s.duration > 0) keep.push(s);
+    } else if (DOT_TYPES.has(s.effectType)) {
+      // burn / poison / bleed — tick once per turn
+      const tick = s.magnitude || 0;
+      dmg += tick;
+      events.push(makeEvent("DOT_TRIGGERED", { targetUid: actor.uid, value: tick }));
+      s.duration -= 1;
+      if (s.duration > 0) keep.push(s);
+    } else if (CC_TYPES.has(s.effectType) || DEBUFF_TYPES.has(s.effectType)) {
+      // stun / freeze / atk_down / def_down — decrement duration
       s.duration -= 1;
       if (s.duration > 0) keep.push(s);
     } else {

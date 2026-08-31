@@ -268,39 +268,14 @@ html, body {
     box-shadow: 0 0 18px rgba(255, 202, 40, 0.18), inset 0 0 12px rgba(255, 202, 40, 0.10);
 }
 
-/* Art-Deco corner ornaments. Level + color driven by the rarity frame.
-   L-shaped stepped brackets (deco, not floral); higher tiers add diamond
-   studs. Kept tight so glows never merge across grid cells. */
+/* Rarity-scaled corner ornaments — rendered as SVG flourishes by DecoCorners
+   (one distinct design per level). This rule only positions the container. */
 .deco-corners {
     position: absolute;
     inset: 0;
     pointer-events: none;
     z-index: 12;
 }
-.deco-corners > i {
-    position: absolute;
-    width: var(--corner-size, 14px);
-    height: var(--corner-size, 14px);
-    border: 0 solid var(--corner-color, #fff);
-    filter: drop-shadow(0 0 4px var(--corner-color, #fff));
-    opacity: 0.92;
-}
-.deco-corners > i:nth-child(1) { top: 5px; left: 5px; border-top-width: 2px; border-left-width: 2px; border-top-left-radius: 4px; }
-.deco-corners > i:nth-child(2) { top: 5px; right: 5px; border-top-width: 2px; border-right-width: 2px; border-top-right-radius: 4px; }
-.deco-corners > i:nth-child(3) { bottom: 5px; left: 5px; border-bottom-width: 2px; border-left-width: 2px; border-bottom-left-radius: 4px; }
-.deco-corners > i:nth-child(4) { bottom: 5px; right: 5px; border-bottom-width: 2px; border-right-width: 2px; border-bottom-right-radius: 4px; }
-.deco-corners > b {
-    position: absolute;
-    width: 5px;
-    height: 5px;
-    background: var(--corner-color, #fff);
-    transform: rotate(45deg);
-    box-shadow: 0 0 6px var(--corner-color, #fff);
-}
-.deco-corners > b:nth-of-type(1) { top: 3px; left: calc(50% - 2.5px); }
-.deco-corners > b:nth-of-type(2) { bottom: 3px; left: calc(50% - 2.5px); }
-.deco-corners > b:nth-of-type(3) { left: 3px; top: calc(50% - 2.5px); }
-.deco-corners > b:nth-of-type(4) { right: 3px; top: calc(50% - 2.5px); }
 
 .grain::before {
     content: "";
@@ -398,6 +373,22 @@ html, body {
 .aura-2 { animation: auraPulse2 2.6s ease-in-out infinite; }
 .aura-3 { animation: auraPulse3 2.2s ease-in-out infinite; }
 .aura-4 { animation: auraPulse4 1.7s ease-in-out infinite; }
+
+/* Godly aura (GR) — the most intense pulse, with a prismatic border shift */
+@keyframes auraPulse5 {
+    0%, 100% { box-shadow: 0 0 14px var(--glow), 0 0 30px var(--glow), inset 0 0 16px var(--glow); }
+    50%      { box-shadow: 0 0 24px var(--glow), 0 0 50px var(--glow), inset 0 0 28px var(--glow); }
+}
+.aura-5 { animation: auraPulse5 1.4s ease-in-out infinite; }
+
+@keyframes godlyBorder {
+    0%   { border-color: #FFCA28; }
+    25%  { border-color: #64FFDA; }
+    50%  { border-color: #D500F9; }
+    75%  { border-color: #00E5FF; }
+    100% { border-color: #FFCA28; }
+}
+.godly-border { animation: godlyBorder 3s linear infinite; }
 
 @keyframes sparkleFloat {
     0%   { transform: translateY(10px) scale(0.4); opacity: 0; }

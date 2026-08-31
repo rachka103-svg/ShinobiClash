@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Heart, Sword, Shield, Wind, Star, ChevronsUp, Gem, Coins, Sparkles, Check,
-  Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2,
+  Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2, RotateCcw,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -16,7 +16,7 @@ import { useGame } from "@/context/GameContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
 const Stat = ({ icon: Icon, label, value, color }) => (
-  <div className="flex flex-col items-center gap-1 flex-1 min-w-0 py-1">
+  <div className="flex flex-col items-center gap-1 min-w-0 py-1">
     <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color }} />
     <span className="font-display text-xl sm:text-2xl text-ink leading-none">{value}</span>
     <span className="text-[10px] uppercase tracking-widest text-slate-500">{label}</span>
@@ -43,12 +43,13 @@ export default function HeroDetailModal({
   open, onClose, template, instance = null, owned = false, obtain = null, progression = null, squad = null,
 }) {
   const { user, setUser } = useAuth();
-  const { gearConfig, items, expTomeGoldCost } = useGame();
+  const { gearConfig, items, expTomeGoldCost, reforgeModifiers, reforgeMaxPerJutsu } = useGame();
   const [tab, setTab] = useState("train");
   const [qty, setQty] = useState(1);
   const [gearSlot, setGearSlot] = useState(null);
   const [busyLocal, setBusyLocal] = useState(false);
   const [immersive, setImmersive] = useState(false);
+  const [showRevertConfirm, setShowRevertConfirm] = useState(false);
 
   if (!template) return null;
   const rarity = RARITY[template.rarity] || RARITY.R;
@@ -88,6 +89,40 @@ export default function HeroDetailModal({
       const { data } = await api.post("/game/hero/skill-up", { instance_id: instance.instance_id });
       setUser(data.profile);
       toast.success(data.unlocked_passive ? "Passive Unlocked!" : `Skills raised to Rank ${data.skill_rank}!`);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setBusyLocal(false); }
+  };
+
+  // ---------- Reforge derived state ----------
+  const reforgeMods = reforgeModifiers || {};
+  const maxPerJutsu = reforgeMaxPerJutsu || 2;
+  const instReforge = instance?.reforge || {};
+  const reforgeNextCost = instance?.reforge_next_cost || null;
+  const reforgeAffordable = reforgeNextCost && shardsOwned >= reforgeNextCost.shards && (user?.ryo || 0) >= reforgeNextCost.ryo;
+  const activeJutsus = (template.jutsus || []).filter((j) => ["attack", "aoe", "heal"].includes(j.type));
+
+  const doReforge = async (jutsuId, modId) => {
+    setBusyLocal(true);
+    try {
+      const { data } = await api.post("/game/hero/reforge", { instance_id: instance.instance_id, jutsu_id: jutsuId, modifier_id: modId });
+      setUser(data.profile);
+      toast.success(`${reforgeMods[modId]?.name || "Reforge"} applied!`);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setBusyLocal(false); }
+  };
+
+  // ---------- Revert to base ----------
+  const isAtBase = instance?.level === 1 && (instance?.exp || 0) === 0 && (instance?.ascension || 0) === 0 && (instance?.stars || 1) === 1 && (instance?.skill_rank || 1) === 1 && !Object.keys(instance?.reforge || {}).length;
+
+  const doRevert = async () => {
+    setBusyLocal(true);
+    try {
+      const { data } = await api.post("/game/hero/revert", { instance_id: instance.instance_id });
+      setUser(data.profile);
+      toast.success("Hero reverted to Lv.1 — all materials refunded!");
+      setShowRevertConfirm(false);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setBusyLocal(false); }
@@ -165,9 +200,6 @@ export default function HeroDetailModal({
             <div className="absolute inset-x-0 bottom-0 z-10 p-5 sm:p-7">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-white/15 text-white">{template.role}</span>
-                {instance && (
-                  <span className="ml-auto font-display text-lg text-amber-300 flex items-center gap-1"><Zap className="w-4 h-4" />{instance.power} PWR</span>
-                )}
               </div>
               <h2 className="font-display text-4xl sm:text-6xl tracking-wide text-white leading-none">{template.name}</h2>
               {template.title && <p className="text-sm sm:text-base text-chakra italic mt-1.5">{template.title}</p>}
@@ -208,7 +240,7 @@ export default function HeroDetailModal({
         </div>
 
         {/* ---------- Profile content ---------- */}
-        <div className="p-5 sm:p-7">
+        <div className="p-4 sm:p-7 overflow-x-hidden min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-black/[0.06] text-slate-700">{template.role}</span>
             {instance && (
@@ -236,7 +268,7 @@ export default function HeroDetailModal({
 
           {/* Stats */}
           <div className="glass-panel mt-5 p-3 sm:p-4">
-            <div className="flex items-stretch divide-x divide-white/10 relative z-10">
+            <div className="grid grid-cols-4 divide-x divide-white/10">
               <Stat icon={Heart} label="HP" value={stats.hp} color="#FF1744" />
               <Stat icon={Sword} label="ATK" value={stats.atk} color="#FF5722" />
               <Stat icon={Shield} label="DEF" value={stats.def} color="#29B6F6" />
@@ -245,17 +277,18 @@ export default function HeroDetailModal({
           </div>
 
           {progression && instance ? (
-            <Tabs value={tab} onValueChange={setTab} className="mt-6" data-testid="hero-detail-tabs">
+            <Tabs value={tab} onValueChange={setTab} className="mt-6 min-w-0" data-testid="hero-detail-tabs">
               <TabsList className="grid grid-cols-4 w-full bg-black/[0.04] border border-black/10 rounded-xl h-11">
-                <TabsTrigger value="train" data-testid="hero-train-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-chakra/15 data-[state=active]:text-chakra rounded-lg">TRAIN</TabsTrigger>
-                <TabsTrigger value="evolve" data-testid="hero-evolve-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-amber-400/15 data-[state=active]:text-amber-300 rounded-lg">EVOLVE</TabsTrigger>
-                <TabsTrigger value="skills" data-testid="hero-skills-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">SKILLS</TabsTrigger>
-                <TabsTrigger value="gear" data-testid="hero-gear-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-fox/15 data-[state=active]:text-fox rounded-lg">GEAR</TabsTrigger>
+                <TabsTrigger value="train" data-testid="hero-train-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-chakra/15 data-[state=active]:text-chakra rounded-lg">TRAIN</TabsTrigger>
+                <TabsTrigger value="evolve" data-testid="hero-evolve-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-amber-400/15 data-[state=active]:text-amber-300 rounded-lg">EVOLVE</TabsTrigger>
+                <TabsTrigger value="skills" data-testid="hero-skills-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">SKILLS</TabsTrigger>
+                <TabsTrigger value="gear" data-testid="hero-gear-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-fox/15 data-[state=active]:text-fox rounded-lg">GEAR</TabsTrigger>
               </TabsList>
 
               {/* ================= TRAIN ================= */}
-              <TabsContent value="train" className="mt-4" data-testid="hero-progression-section">
-                <div className="flex items-center justify-between mb-1.5">
+              <TabsContent value="train" className="mt-4 w-full min-w-0" data-testid="hero-progression-section">
+                <div className="rounded-xl bg-black/[0.04] border border-black/10 p-3 mb-4 overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
                   <span className="font-display text-xl text-ink">Lv.{instance.level}<span className="text-slate-500 text-sm">/{instance.level_cap}</span></span>
                   <div className="flex gap-0.5" data-testid="ascension-stars">
                     {Array.from({ length: instance.ascension_max }).map((_, i) => (
@@ -267,11 +300,13 @@ export default function HeroDetailModal({
                   <span>EXP</span>
                   <span data-testid="hero-exp-label">{progression.atCap ? "MAX — ascend to continue" : `${instance.exp} / ${instance.exp_to_next}`}</span>
                 </div>
-                <div className="h-2 rounded bg-black/50 overflow-hidden mb-4">
+                <div className="h-2 rounded bg-black/50 overflow-hidden">
                   <div className="h-full rounded" style={{ width: `${expPct}%`, background: "linear-gradient(90deg,#00E5FF,#76FF03)" }} />
                 </div>
+                </div>
 
-                <div className="flex items-center justify-between mb-2">
+                <div className="rounded-xl bg-black/[0.04] border border-black/10 p-3 overflow-hidden">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                   <p className="text-xs uppercase tracking-widest text-slate-500">Train with EXP Tomes</p>
                   <div className="flex gap-1" data-testid="train-qty-selector">
                     {[1, 5, 25].map((q) => (
@@ -279,14 +314,14 @@ export default function HeroDetailModal({
                         key={q}
                         onClick={() => setQty(q)}
                         data-testid={`train-qty-${q}`}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${qty === q ? "bg-chakra/20 text-chakra border border-chakra/40" : "text-slate-500 border border-black/10"}`}
+                        className={`px-2 sm:px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${qty === q ? "bg-chakra/20 text-chakra border border-chakra/40" : "text-slate-500 border border-black/10"}`}
                       >
                         x{q}
                       </button>
                     ))}
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 mb-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2 w-full min-w-0 overflow-hidden">
                   {["exp_tome_minor", "exp_tome_greater", "exp_tome_ancient"].map((tid) => {
                     const count = inv[tid] || 0;
                     const meta = items[tid];
@@ -308,14 +343,15 @@ export default function HeroDetailModal({
                     );
                   })}
                 </div>
-                <p className="text-[10px] text-slate-500 mb-4">Training consumes tomes + Ryo. Farm both in the Resource Dungeons.</p>
+                <p className="text-[10px] text-slate-500">Training consumes tomes + Ryo. Farm both in the Resource Dungeons.</p>
+                </div>
 
                 {!progression.fullyAscended ? (
                   <button
                     onClick={progression.onAscend}
                     disabled={busy || !progression.canAscend}
                     data-testid="ascend-button"
-                    className="w-full py-3 mb-1 rounded-xl font-display text-base sm:text-lg tracking-wide bg-amber-400 text-[#05050A] hover:bg-amber-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 flex-wrap"
+                    className="w-full py-3 mt-4 mb-2 rounded-xl font-display text-base sm:text-lg tracking-wide bg-amber-400 text-[#05050A] hover:bg-amber-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 flex-wrap"
                   >
                     {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <ChevronsUp className="w-5 h-5" />}
                     {progression.atCap ? "ASCEND" : "REACH LV.CAP TO ASCEND"}
@@ -327,8 +363,42 @@ export default function HeroDetailModal({
                     )}
                   </button>
                 ) : (
-                  <div className="w-full py-3 mb-1 rounded-xl text-center font-display text-base tracking-wide text-amber-300 bg-amber-400/10 flex items-center justify-center gap-2" data-testid="fully-ascended-label">
+                  <div className="w-full py-3 mt-4 mb-2 rounded-xl text-center font-display text-base tracking-wide text-amber-300 bg-amber-400/10 flex items-center justify-center gap-2" data-testid="fully-ascended-label">
                     <Sparkles className="w-4 h-4" /> FULLY ASCENDED
+                  </div>
+                )}
+
+                {/* Revert to base — refunds all invested materials */}
+                {!isAtBase && !showRevertConfirm && (
+                  <button
+                    onClick={() => setShowRevertConfirm(true)}
+                    disabled={busy}
+                    data-testid="revert-button"
+                    className="w-full py-2.5 mt-2 rounded-xl font-display text-sm tracking-wide text-fox border border-fox/30 bg-fox/5 hover:bg-fox/10 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" /> REVERT TO BASE
+                  </button>
+                )}
+                {showRevertConfirm && (
+                  <div className="mt-2 rounded-xl border border-fox/30 bg-fox/5 p-3" data-testid="revert-confirm">
+                    <p className="text-xs text-slate-600 mb-3 text-center">Reset to Lv.1 and refund all EXP tomes, Ryo, shards, ascension crystals &amp; materials?</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={doRevert}
+                        disabled={busy}
+                        data-testid="revert-confirm-yes"
+                        className="flex-1 py-2.5 rounded-xl font-display text-sm tracking-wide bg-fox text-white hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2"
+                      >
+                        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />} CONFIRM REVERT
+                      </button>
+                      <button
+                        onClick={() => setShowRevertConfirm(false)}
+                        disabled={busy}
+                        className="flex-1 py-2.5 rounded-xl font-display text-sm tracking-wide text-slate-600 border border-black/10 hover:bg-black/5 transition-colors disabled:opacity-40"
+                      >
+                        CANCEL
+                      </button>
+                    </div>
                   </div>
                 )}
               </TabsContent>
@@ -443,6 +513,76 @@ export default function HeroDetailModal({
                         <Sparkles className="w-4 h-4" /> SKILLS MASTERED — RANK {skill.rank_max}
                       </div>
                     )}
+
+                    {/* ---------- REFORGE ---------- */}
+                    <div className="rounded-xl border p-3 mt-4" style={{ borderColor: "rgba(255,202,40,0.3)", background: "rgba(255,202,40,0.04)" }} data-testid="hero-reforge-panel">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Anvil className="w-4 h-4 text-amber-300" />
+                        <p className="font-display text-lg tracking-wide text-ink">REFORGE</p>
+                        <span className="ml-auto text-[10px] text-slate-500">Refine jutsus with hero shards</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mb-3 leading-snug">Spend {template.name} shards to permanently add combat modifiers — burn, stun, extra damage and more — to a jutsu.</p>
+
+                      <div className="space-y-2.5">
+                        {activeJutsus.map((j) => {
+                          const applied = instReforge[j.id] || [];
+                          const atCap = applied.length >= maxPerJutsu;
+                          return (
+                            <div key={j.id} className="rounded-lg bg-black/[0.04] border border-black/10 p-2.5">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <span className="text-xs font-bold text-ink truncate flex-1">{j.name}</span>
+                                {applied.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {applied.map((mid) => (
+                                      <span key={mid} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                                        {reforgeMods[mid]?.name || mid}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              {!atCap && reforgeNextCost && (
+                                <div className="flex flex-wrap gap-1">
+                                  {Object.values(reforgeMods).map((m) => {
+                                    const has = applied.includes(m.id);
+                                    return (
+                                      <button
+                                        key={m.id}
+                                        onClick={() => doReforge(j.id, m.id)}
+                                        disabled={busy || has || !reforgeAffordable}
+                                        title={m.desc}
+                                        data-testid={`reforge-${j.id}-${m.id}`}
+                                        className="text-[10px] px-2 py-1 rounded-md border transition-colors disabled:opacity-40"
+                                        style={{
+                                          color: has ? "#64748b" : "#FFCA28",
+                                          borderColor: has ? "rgba(255,255,255,0.1)" : "rgba(255,202,40,0.35)",
+                                          background: has ? "transparent" : "rgba(255,202,40,0.08)",
+                                        }}
+                                      >
+                                        {has ? "✓ " : "+ "}{m.name.replace(" Reforge", "")}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                              {atCap && <p className="text-[10px] text-slate-500">Reforge slots full.</p>}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {reforgeNextCost && (
+                        <div className="flex items-center gap-3 mt-3 pt-2 border-t border-black/10">
+                          <span className="text-[10px] uppercase tracking-widest text-slate-500">Next Reforge</span>
+                          <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: shardsOwned >= reforgeNextCost.shards ? "#FFCA28" : "#FF5722" }}>
+                            <Star className="w-3 h-3" />{shardsOwned}/{reforgeNextCost.shards}
+                          </span>
+                          <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: (user?.ryo || 0) >= reforgeNextCost.ryo ? "#FFCA28" : "#FF5722" }}>
+                            <Coins className="w-3 h-3" />{(user?.ryo || 0)}/{reforgeNextCost.ryo}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <p className="text-center text-slate-500 py-8 text-sm">Skills unlock once you own this hero.</p>
@@ -575,7 +715,11 @@ export default function HeroDetailModal({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-ink text-sm">{j.name}</span>
-                    {j.chakra_cost > 0 ? <span className="text-[10px] font-bold text-chakra">{j.chakra_cost} CK</span> : <span className="text-[10px] text-slate-500">Basic</span>}
+                    {j.signature && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-jutsu/15 text-jutsu border border-jutsu/30">SIGNATURE</span>}
+                    {j.ascendant && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300 border border-amber-400/30">ASCENDANT</span>}
+                    {j.type === "passive" ? <span className="text-[10px] text-slate-500">Passive</span>
+                      : j.chakra_cost > 0 ? <span className="text-[10px] font-bold text-chakra">{j.chakra_cost} CK</span>
+                      : <span className="text-[10px] text-slate-500">Basic</span>}
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">{j.description}</p>
                 </div>
