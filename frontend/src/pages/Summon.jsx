@@ -12,7 +12,7 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import { rarityFrame, GOLD, BG } from "@/lib/theme";
 import { auraClass, DecoCorners } from "@/components/RarityFx";
-import SummonCinematic from "@/components/cinematic/SummonCinematic";
+import SummonRevealOverlay from "@/components/SummonRevealOverlay";
 import SummonCircle from "@/components/cinematic/SummonCircle";
 import BeginnerSummon from "@/components/BeginnerSummon";
 import HeroInspectionOverlay from "@/components/HeroInspectionOverlay";
@@ -697,7 +697,7 @@ export default function Summon() {
         </DialogContent>
       </Dialog>
 
-      <SummonCinematic open={!!reveal} results={reveal || []} onClose={() => setReveal(null)} />
+      <SummonRevealOverlay open={!!reveal} results={reveal || []} onClose={() => setReveal(null)} />
       <AnimatePresence>
         {inspectIndex !== null && (
           <HeroInspectionOverlay
