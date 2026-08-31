@@ -128,6 +128,12 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
               ★ {rewards.gear.set_name} {rewards.gear.slot} ({rewards.gear.rarity})
             </div>
           )}
+          {/* Crystal drop */}
+          {rewards.crystal && (
+            <div className="reward-reveal font-display text-lg mt-1 flex items-center gap-1.5" style={{ animationDelay: "1.7s", opacity: 0, animationFillMode: "forwards", color: rewards.crystal.tier_color || "#AB47BC" }}>
+              <Gem size={18} /> ★ {rewards.crystal.tier_name} Crystal ({rewards.crystal.main_stat.toUpperCase()})
+            </div>
+          )}
         </div>
       )}
 

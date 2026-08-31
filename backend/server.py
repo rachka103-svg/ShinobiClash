@@ -724,7 +724,7 @@ def public_user(user: dict) -> dict:
         "crystals": [ex.crystal_public(c) for c in crystal_all],
         "crystal_config": {
             "tiers": ex.CRYSTAL_TIERS,
-            "drop_chance": ex.CRYSTAL_DROP_CHANCE,
+            "drop_fraction": ex.CRYSTAL_DROP_FRACTION,
         },
         "stepup": stepup_public(user),
         "pity": user.get("pity") or gd.fresh_pity_state(),
@@ -2254,9 +2254,10 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
         user.setdefault("gear", []).append(g)
         gear_reward = gear_public(g)
 
-    # CRYSTAL drop — a low-rate (0.5%-1%) bonus drop scaling with difficulty.
+    # CRYSTAL drop — a super-rare bonus that scales with the boss's gear
+    # rare-drop chance (boss index + difficulty) at a fraction of that rate.
     crystal_reward = None
-    crystal_hit = ex.roll_crystal_drop(body.difficulty)
+    crystal_hit = ex.roll_crystal_drop(r["rare_chance"])
     if crystal_hit:
         user.setdefault("crystals", []).append(crystal_hit)
         crystal_reward = ex.crystal_public(crystal_hit)
@@ -2299,7 +2300,8 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
             "rewards": {"ryo": r["ryo"], "items": r["items"], "hero_exp": hero_exp,
                         "gear": gear_reward, "rare_hit": rare_hit, "rare_chance": r["rare_chance"],
                         "gear_set_name": boss["gear_set_name"], "first_clear_bonus": first_clear_bonus,
-                        "crystal": crystal_reward}}
+                        "crystal": crystal_reward,
+                        "crystal_chance": round(r["rare_chance"] * ex.CRYSTAL_DROP_FRACTION, 4)}}
 
 
 @api_router.get("/game/shop")

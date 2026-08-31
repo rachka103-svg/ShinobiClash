@@ -12,8 +12,9 @@ Three long-term progression systems added on top of the core game:
    fully transcended R rivals a natural GR.
 
 3. CRYSTALS — a new equippable gear category (one per hero) that carries flat
-   + percent stat bonuses, dropped by bosses in Tsukuyomi (and campaign boss
-   stages) at a low 0.5%-1% rate that scales with difficulty. Modeled on the
+   + percent stat bonuses, dropped ONLY by bosses in Tsukuyomi as a rare drop
+   that scales with boss index and difficulty (like the signature gear drop,
+   but at roughly half the rate so they stay super rare). Modeled on the
    crystal equipment system from Iruna Online.
 """
 
@@ -192,12 +193,10 @@ CRYSTAL_SUBSTAT_POOL = [
     ("atk", 8, 26), ("def", 6, 22), ("hp", 60, 200), ("spd", 3, 12),
 ]
 
-# Drop chance per difficulty (campaign boss stages use the "normal" rate).
-CRYSTAL_DROP_CHANCE = {
-    "normal": 0.005,    # 0.5%
-    "hard": 0.0075,     # 0.75%
-    "nightmare": 0.01,  # 1.0%
-}
+# Crystals drop at a fraction of the Tsukuyomi boss's gear rare-drop chance
+# (which already scales with boss index + difficulty), keeping them super
+# rare — roughly half the rate of a signature gear piece.
+CRYSTAL_DROP_FRACTION = 0.5
 
 
 def roll_crystal(difficulty: str = "normal") -> dict:
@@ -281,9 +280,13 @@ def crystal_public(c: dict) -> dict:
     }
 
 
-def roll_crystal_drop(difficulty: str = "normal") -> Optional[dict]:
-    """Returns a new crystal if the drop roll succeeds, else None."""
-    chance = CRYSTAL_DROP_CHANCE.get(difficulty, CRYSTAL_DROP_CHANCE["normal"])
+def roll_crystal_drop(gear_rare_chance: float) -> Optional[dict]:
+    """Returns a new crystal if the drop roll succeeds, else None.
+
+    `gear_rare_chance` is the boss's computed gear rare-drop rate (already
+    scaled by boss index + difficulty). The crystal rolls at a fraction of
+    that rate so it stays rarer than equipment."""
+    chance = gear_rare_chance * CRYSTAL_DROP_FRACTION
     if gd.secure_rng.random() < chance:
-        return roll_crystal(difficulty)
+        return roll_crystal("normal")
     return None
