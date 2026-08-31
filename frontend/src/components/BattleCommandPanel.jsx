@@ -55,7 +55,9 @@ export default function BattleCommandPanel({ activeActor, phase, targeting, auto
               {targeting ? "▶ Select a Target" : "Choose a Jutsu"}
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {activeActor.jutsus.map((j) => {
+              {activeActor.jutsus
+                .filter((j) => j.type !== "passive")
+                .map((j) => {
                 const usable = j.chakra_cost <= activeActor.chakra;
                 const aimed = targeting?.id === j.id;
                 const SIcon = SKILL_ICON[j.type] || SkillAttackIcon;

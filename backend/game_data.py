@@ -424,15 +424,6 @@ def _hero_jutsus(hid, name, element, rarity, role):
     first = name.split(" ")[0]
     el = element.lower()
     kit = _ROLE_KIT_BUILDERS.get(role, _kit_default)(hid, element, el, first, ri)
-    # 4th skill — a UNIQUE signature ability (passive) for every hero. This
-    # is the hero's identity-defining mechanic (from MECHANIC_LIBRARY / role
-    # generic), surfaced as a visible skill rather than a hidden field.
-    sig = _passive_for(hid, role)
-    kit.append({
-        "id": f"{hid}_passive", "name": sig["name"], "type": "passive",
-        "power": 0, "chakra_cost": 0, "chakra_gain": 0, "element": element,
-        "description": sig["description"], "signature": True,
-    })
     # 5th skill — GR heroes carry an additional Ascendant active ability,
     # a powerful unique surge that only the pinnacle rarity wields.
     if ri >= RARITY_ORDER["GR"]:
@@ -480,14 +471,8 @@ _HERO_DEFS = [
 # Backfill the original 12 heroes with extended base_stats and ultimate abilities
 for _h in _ORIGINAL_12:
     _h["base_stats"] = _hero_stats(_h["rarity"], _h["role"])
-    # 4th skill — unique signature passive for every original hero (none of
-    # the original 12 are GR, so no 5th Ascendant here).
-    _sig = _passive_for(_h["id"], _h["role"])
-    _h["jutsus"].append({
-        "id": f"{_h['id']}_passive", "name": _sig["name"], "type": "passive",
-        "power": 0, "chakra_cost": 0, "chakra_gain": 0, "element": _h["element"],
-        "description": _sig["description"], "signature": True,
-    })
+    # Signature passive is stored separately and is resolved automatically by the battle engine.
+    _h["passive"] = _passive_for(_h["id"], _h["role"])
     NINJA_CATALOG.append(_h)
 
 for _hid, _name, _title, _el, _rar, _role, _lore in _HERO_DEFS:
@@ -495,6 +480,7 @@ for _hid, _name, _title, _el, _rar, _role, _lore in _HERO_DEFS:
         "id": _hid, "name": _name, "title": _title, "element": _el, "rarity": _rar,
         "role": _role, "lore": _lore, "base_stats": _hero_stats(_rar, _role),
         "jutsus": _hero_jutsus(_hid, _name, _el, _rar, _role),
+        "passive": _passive_for(_hid, _role),
     })
 
 # ---------------------------------------------------------------------------
@@ -1218,22 +1204,17 @@ _HERO_OVERRIDES = {}
 
 
 def _finalize_kit(n):
-    """Ensure every hero carries a unique signature ability (4th skill) and
-    that GR heroes carry an Ascendant (5th). Idempotent — only appends what is
-    missing, so static heroes (already finalized at module load) are untouched
-    while custom/legacy heroes are brought up to the same kit standard."""
+    """Ensure every hero has a separate automatic signature passive and that
+    GR heroes carry an Ascendant active skill. Passive abilities are deliberately
+    kept OUT of jutsus so they can never appear as selectable battle commands."""
     jutsus = n.get("jutsus")
     if not jutsus or not n.get("id"):
         return
     role = n.get("role", "Attacker")
     element = n.get("element", "Fire")
-    if not any(j.get("signature") for j in jutsus):
-        sig = _passive_for(n["id"], role)
-        jutsus.append({
-            "id": f"{n['id']}_passive", "name": sig["name"], "type": "passive",
-            "power": 0, "chakra_cost": 0, "chakra_gain": 0, "element": element,
-            "description": sig["description"], "signature": True,
-        })
+    # Legacy safety: remove any passive accidentally stored as a selectable jutsu.
+    n["jutsus"] = [j for j in jutsus if j.get("type") != "passive"]
+    jutsus = n["jutsus"]
     if n.get("rarity") == "GR" and not any(j.get("ascendant") for j in jutsus):
         first = n.get("name", "Hero").split(" ")[0]
         asc_type = "heal" if role in ("Support", "Healer") else "aoe"
