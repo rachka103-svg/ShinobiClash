@@ -36,7 +36,9 @@ const cloneArr = (arr) => arr.map((c) => ({ ...c, statuses: (c.statuses || []).m
 function pickAiAction(actor, arr) {
   const enemies = arr.filter((c) => c.side !== actor.side && c.alive);
   const allies = arr.filter((c) => c.side === actor.side && c.alive);
-  const affordable = actor.jutsus.filter((j) => j.chakra_cost <= actor.chakra);
+  const affordable = actor.jutsus.filter((j) =>
+        j.type !== "passive" && j.chakra_cost <= actor.chakra
+      );
   const healJ = affordable.find((j) => j.type === "heal");
   const woundedAlly = allies.find((a) => a.hp / a.maxHp < 0.45);
 
