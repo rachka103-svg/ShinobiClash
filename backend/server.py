@@ -27,6 +27,7 @@ from pydantic import BaseModel, EmailStr, Field
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 import game_data as gd
+import expansion_systems as ex
 import admin_config as ac
 
 # Cryptographically-secure RNG for all gameplay-affecting randomness (gacha
@@ -297,6 +298,23 @@ class PortraitUploadIn(BaseModel):
     image: str  # base64 (optionally a data URL)
 
 
+class StepupClaimIn(BaseModel):
+    milestone: int
+
+
+class TranscendIn(BaseModel):
+    instance_id: str
+
+
+class CrystalEquipIn(BaseModel):
+    crystal_id: str
+    instance_id: str
+
+
+class CrystalUnequipIn(BaseModel):
+    crystal_id: str
+
+
 class ArtDescribeIn(BaseModel):
     name: str = Field(min_length=1, max_length=60)
     element: Optional[str] = None
@@ -425,6 +443,26 @@ def free_summons_public(user: dict) -> dict:
         "gem_used": fs.get("gem_used", 0), "gem_max": gd.FREE_GEM_SUMMONS_PER_DAY,
         "coin_used": fs.get("coin_used", 0), "coin_max": gd.FREE_COIN_SUMMONS_PER_DAY,
         "cycle": fs.get("cycle"),
+    }
+
+
+def stepup_public(user: dict) -> dict:
+    """Step-up summon ladder: every milestone the player has reached, marked
+    claimed/unclaimed, plus the boosted (3x SSR+) rates for display."""
+    level = user.get("level", 1)
+    claimed = user.get("stepup_claimed") or []
+    reached = ex.stepup_milestones(level)
+    avail = ex.stepup_available(level, claimed)
+    return {
+        "milestones": [
+            {"level": m, "claimed": m in claimed, "available": m in avail}
+            for m in reached
+        ],
+        "next_milestone": ex.stepup_milestones(level)[-1] + ex.STEPUP_EVERY if reached else ex.STEPUP_FIRST,
+        "available_count": len(avail),
+        "pull_count": ex.STEPUP_PULL_COUNT,
+        "boost_mult": ex.STEPUP_BOOST_MULT,
+        "rates": ex.stepup_rates(),
     }
 
 
@@ -598,7 +636,7 @@ def gear_public(g: dict) -> dict:
     }
 
 
-def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, user: dict) -> None:
+def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_hero: dict, user: dict) -> None:
     """Computes all derived fields (stats/power/gear/skill/etc.) for a single
     owned hero instance, mutating it in place. Returns early (no-op) if the
     hero's static template can't be found (e.g. a deleted custom hero)."""
@@ -609,15 +647,22 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, user: dict) -> None:
     tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
     if not tmpl:
         return
-    rarity = tmpl["rarity"]
+    rarity = ex.effective_rarity(inst, tmpl)
+    native_rarity = tmpl["rarity"]
     star_mult = _star_bonus_mult(inst["stars"])
-    base_stats = gd.compute_stats(inst["template_id"], inst["level"], asc)
+    base_stats = ex.compute_stats_for_rarity(inst["template_id"], inst["level"], asc, rarity)
     star_stats = {k: (round(v * star_mult) if k in ("hp", "atk", "def") else v) for k, v in base_stats.items()}
     equipped = gear_by_hero.get(inst["instance_id"], [])
-    final_stats = gd.apply_gear_to_stats(star_stats, equipped) if equipped else star_stats
+    geared = gd.apply_gear_to_stats(star_stats, equipped) if equipped else star_stats
+    crystal = crystal_by_hero.get(inst["instance_id"])
+    final_stats = ex.apply_crystal_to_stats(geared, crystal) if crystal else geared
+    inst["rarity"] = rarity
+    inst["native_rarity"] = native_rarity
+    inst["evolved_rarity"] = inst.get("evolved_rarity") or native_rarity
     inst["stats"] = final_stats
     inst["power"] = _power_from_stats(final_stats)
     inst["equipped_gear"] = {g["slot"]: g["gear_id"] for g in equipped}
+    inst["equipped_crystal"] = crystal["crystal_id"] if crystal else None
     inst["gear_score"] = sum(gd.gear_score(g) for g in equipped)
     inst["exp_to_next"] = gd.hero_exp_to_next(inst["level"])
     inst["level_cap"] = gd.level_cap(rarity, asc)
@@ -636,6 +681,9 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, user: dict) -> None:
     inst["passive"] = tmpl.get("passive") if sk["passive_unlocked"] else None
     inst["passive_locked"] = not sk["passive_unlocked"]
     inst["shards"] = user.get("hero_shards", {}).get(inst["template_id"], 0)
+    # Transcendence — raise this hero's rarity tier toward GR.
+    inst["transcendence_target"] = ex.transcendence_target(rarity)
+    inst["transcendence_cost"] = ex.transcendence_cost(rarity)
     # Reforge — per-jutsu unlocked combat modifiers (burn/stun/extra dmg/etc.)
     inst_reforge = inst.get("reforge", {}) or {}
     inst["reforge"] = inst_reforge
@@ -650,8 +698,13 @@ def public_user(user: dict) -> dict:
     for g in gear_all:
         if g.get("equipped_by"):
             gear_by_hero.setdefault(g["equipped_by"], []).append(g)
+    crystal_all = user.get("crystals", [])
+    crystal_by_hero = {}
+    for c in crystal_all:
+        if c.get("equipped_by"):
+            crystal_by_hero[c["equipped_by"]] = c
     for inst in ninjas:
-        _hydrate_ninja_instance(inst, gear_by_hero, user)
+        _hydrate_ninja_instance(inst, gear_by_hero, crystal_by_hero, user)
     team_ids = set(user.get("team", []))
     team_power = sum(i.get("power", 0) for i in ninjas if i["instance_id"] in team_ids)
     return {
@@ -668,6 +721,12 @@ def public_user(user: dict) -> dict:
         "inventory": user.get("inventory", {}),
         "hero_shards": user.get("hero_shards", {}),
         "gear": [gear_public(g) for g in gear_all],
+        "crystals": [ex.crystal_public(c) for c in crystal_all],
+        "crystal_config": {
+            "tiers": ex.CRYSTAL_TIERS,
+            "drop_chance": ex.CRYSTAL_DROP_CHANCE,
+        },
+        "stepup": stepup_public(user),
         "pity": user.get("pity") or gd.fresh_pity_state(),
         "team": user.get("team", []),
         "cleared_stages": user.get("cleared_stages", []),
@@ -1481,6 +1540,55 @@ async def free_summon(body: FreeSummonIn, user: dict = Depends(get_current_user)
 
 
 # ---------------------------------------------------------------------------
+# STEP-UP SUMMON — a free x10 unlocked every 10 player levels (1, 10, 20 ...)
+# with tripled (3x) base rates for SSR and above. One claim per milestone.
+# ---------------------------------------------------------------------------
+@api_router.get("/game/summon/stepup")
+async def stepup_status(user: dict = Depends(get_current_user)):
+    return {"stepup": stepup_public(user)}
+
+
+@api_router.post("/game/summon/stepup")
+async def stepup_claim(body: StepupClaimIn, user: dict = Depends(get_current_user)):
+    level = user.get("level", 1)
+    claimed = list(user.get("stepup_claimed") or [])
+    if body.milestone in claimed:
+        raise HTTPException(status_code=400, detail="This step-up reward is already claimed")
+    if body.milestone not in ex.stepup_milestones(level):
+        raise HTTPException(status_code=400, detail="You have not reached this milestone yet")
+
+    pity = user.get("pity") or gd.fresh_pity_state()
+    pool = ex.stepup_pool(featured_id=FEATURED_BANNER.get("template_id"))
+    results = []
+    for i in range(ex.STEPUP_PULL_COUNT):
+        # x10 guarantee: the final pull is forced SR+ if none appeared yet.
+        force = (i == ex.STEPUP_PULL_COUNT - 1 and
+                 not any(gd.RARITY_ORDER[r["rarity"]] >= gd.RARITY_ORDER[gd.X10_GUARANTEE_RARITY]
+                        for r in results))
+        if force:
+            sr_pool = [(tid, w) for tid, w in pool
+                       if gd.RARITY_ORDER[gd.CATALOG_BY_ID[tid]["rarity"]] >= gd.RARITY_ORDER[gd.X10_GUARANTEE_RARITY]]
+            chosen = _weighted_choice(sr_pool) if sr_pool else _weighted_choice(pool)
+        else:
+            chosen = _weighted_choice(pool)
+        tmpl, is_dup, shards = _grant_summoned_hero(user, chosen)
+        results.append({"template_id": chosen, "name": tmpl["name"], "rarity": tmpl["rarity"],
+                        "element": tmpl["element"], "role": tmpl["role"], "portrait": tmpl["portrait"],
+                        "duplicate": is_dup, "shards_gained": shards})
+        pity["total_pulls"] = pity.get("total_pulls", 0) + 1
+
+    claimed.append(body.milestone)
+    user["stepup_claimed"] = claimed
+    user["pity"] = pity
+    bump_mission(user, "summon", ex.STEPUP_PULL_COUNT)
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ninjas": user["ninjas"], "hero_shards": user.get("hero_shards", {}),
+        "pity": pity, "stepup_claimed": claimed,
+        "daily": user["daily"], "achievements": user.get("achievements")}})
+    return {"profile": public_user(user), "results": results, "milestone": body.milestone}
+
+
+# ---------------------------------------------------------------------------
 # Achievements — long-term goals granting currency + stat-boost items.
 # ---------------------------------------------------------------------------
 @api_router.get("/game/achievements")
@@ -1567,6 +1675,46 @@ async def evolve_hero(body: EvolveIn, user: dict = Depends(get_current_user)):
 async def star_up(body: StarUpIn, user: dict = Depends(get_current_user)):
     """Legacy route — kept for compatibility; now runs the Evolution system."""
     return await _do_evolve(body.instance_id, user)
+
+
+@api_router.post("/game/hero/transcend")
+async def transcend_hero(body: TranscendIn, user: dict = Depends(get_current_user)):
+    """Rarity Transcendence — raise a hero's rarity tier by one (up to GR).
+    Recomputes base stats for the new tier, so a transcended R rivals a
+    natural GR. Costs hero shards + Ryo + Astral Sigils."""
+    inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == body.instance_id), None)
+    if not inst:
+        raise HTTPException(status_code=404, detail="Hero not found")
+    tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Hero template not found")
+    cur_rarity = ex.effective_rarity(inst, tmpl)
+    cost = ex.transcendence_cost(cur_rarity)
+    if not cost:
+        raise HTTPException(status_code=400, detail="This hero has already reached the GR rarity cap")
+    hero_shards = user.setdefault("hero_shards", {})
+    have_shards = hero_shards.get(inst["template_id"], 0)
+    if have_shards < cost["shards"]:
+        raise HTTPException(status_code=400, detail=f"Not enough shards ({have_shards}/{cost['shards']})")
+    if user.get("ryo", 0) < cost["ryo"]:
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost['ryo']}")
+    inventory = user.get("inventory", {})
+    for iid, qty in cost["items"].items():
+        if inventory.get(iid, 0) < qty:
+            name = gd.ITEMS.get(iid, {}).get("name", iid)
+            raise HTTPException(status_code=400, detail=f"Not enough {name} ({inventory.get(iid, 0)}/{qty})")
+    hero_shards[inst["template_id"]] = have_shards - cost["shards"]
+    user["ryo"] -= cost["ryo"]
+    for iid, qty in cost["items"].items():
+        inventory[iid] -= qty
+    inst["evolved_rarity"] = cost["target"]
+    user["inventory"] = inventory
+    bump_mission(user, "evolve")
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"], "inventory": inventory,
+        "daily": user["daily"], "achievements": user.get("achievements")}})
+    return {"profile": public_user(user), "instance_id": inst["instance_id"],
+            "new_rarity": cost["target"]}
 
 
 @api_router.post("/game/hero/use-exp")
@@ -1950,6 +2098,39 @@ async def gear_summon(body: GearSummonIn, user: dict = Depends(get_current_user)
     return {"profile": public_user(user), "results": results}
 
 
+# ---------------------------------------------------------------------------
+# CRYSTALS — equippable stat-boosting relics dropped by bosses. One per hero.
+# ---------------------------------------------------------------------------
+def _find_crystal(user: dict, crystal_id: str) -> dict:
+    c = next((x for x in user.get("crystals", []) if x.get("crystal_id") == crystal_id), None)
+    if not c:
+        raise HTTPException(status_code=404, detail="Crystal not found")
+    return c
+
+
+@api_router.post("/game/crystal/equip")
+async def crystal_equip(body: CrystalEquipIn, user: dict = Depends(get_current_user)):
+    c = _find_crystal(user, body.crystal_id)
+    inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == body.instance_id), None)
+    if not inst:
+        raise HTTPException(status_code=404, detail="Hero not found")
+    # one crystal per hero — unequip whoever currently holds this crystal
+    for other in user.get("crystals", []):
+        if other.get("equipped_by") == body.instance_id and other["crystal_id"] != c["crystal_id"]:
+            other["equipped_by"] = None
+    c["equipped_by"] = body.instance_id
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"crystals": user["crystals"]}})
+    return {"profile": public_user(user), "equipped": c["crystal_id"]}
+
+
+@api_router.post("/game/crystal/unequip")
+async def crystal_unequip(body: CrystalUnequipIn, user: dict = Depends(get_current_user)):
+    c = _find_crystal(user, body.crystal_id)
+    c["equipped_by"] = None
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"crystals": user["crystals"]}})
+    return {"profile": public_user(user)}
+
+
 @api_router.post("/game/spire/complete")
 async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current_user)):
     floor = body.floor
@@ -2073,6 +2254,13 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
         user.setdefault("gear", []).append(g)
         gear_reward = gear_public(g)
 
+    # CRYSTAL drop — a low-rate (0.5%-1%) bonus drop scaling with difficulty.
+    crystal_reward = None
+    crystal_hit = ex.roll_crystal_drop(body.difficulty)
+    if crystal_hit:
+        user.setdefault("crystals", []).append(crystal_hit)
+        crystal_reward = ex.crystal_public(crystal_hit)
+
     # progress: remember the highest difficulty cleared per boss
     tsuku = user.get("tsukuyomi") or {}
     order = {"normal": 1, "hard": 2, "nightmare": 3}
@@ -2104,12 +2292,14 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
         bump_mission(user, "hero_levelup", total_levels)
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ryo": user["ryo"], "gems": user.get("gems", 0), "wins": user["wins"], "ninjas": user["ninjas"], "inventory": inventory,
-        "gear": user.get("gear", []), "daily": user["daily"], "tsukuyomi": tsuku, "tsukuyomi_fc": fc,
+        "gear": user.get("gear", []), "crystals": user.get("crystals", []),
+        "daily": user["daily"], "tsukuyomi": tsuku, "tsukuyomi_fc": fc,
         "level": user["level"], "exp": user["exp"]}})
     return {"profile": public_user(user), "result": "win",
             "rewards": {"ryo": r["ryo"], "items": r["items"], "hero_exp": hero_exp,
                         "gear": gear_reward, "rare_hit": rare_hit, "rare_chance": r["rare_chance"],
-                        "gear_set_name": boss["gear_set_name"], "first_clear_bonus": first_clear_bonus}}
+                        "gear_set_name": boss["gear_set_name"], "first_clear_bonus": first_clear_bonus,
+                        "crystal": crystal_reward}}
 
 
 @api_router.get("/game/shop")

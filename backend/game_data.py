@@ -1498,6 +1498,7 @@ ITEMS = {
     "exp_tome_ancient":  {"id": "exp_tome_ancient", "name": "Ancient EXP Tome", "type": "exp", "value": 6000, "icon": "book-open", "color": "#AB47BC", "desc": "Grants 6,000 EXP to a single hero."},
     "ascension_crystal": {"id": "ascension_crystal", "name": "Ascension Crystal", "type": "material", "value": 0, "icon": "gem", "color": "#00E5FF", "desc": "Spent to ascend a hero beyond its level cap."},
     "summon_ticket":     {"id": "summon_ticket", "name": "Summon Ticket", "type": "ticket", "value": 0, "icon": "ticket", "color": "#FFCA28", "desc": "Summons a hero for free, no Ryo required."},
+    "astral_sigil":      {"id": "astral_sigil", "name": "Astral Sigil", "type": "material", "value": 0, "icon": "sparkles", "color": "#64FFDA", "desc": "A rune of ascendant starlight. Consumed to transcend a hero's rarity tier toward GR."},
 }
 
 # (item_id, qty, weight) — rolled on each battle win.
