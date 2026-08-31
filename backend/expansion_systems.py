@@ -219,7 +219,7 @@ def roll_crystal(difficulty: str = "normal") -> dict:
         "main_stat": main_stat,
         "plus": 0,
         "subs": subs,
-        "equipped_by": None,
+        "socketed_in": None,
         "locked": False,
     }
 
@@ -258,6 +258,28 @@ def apply_crystal_to_stats(base: dict, crystal: Optional[dict]) -> dict:
         return base
     st = crystal_stats(crystal)
     flat, pct = st["flat"], st["pct"]
+    return {
+        "hp": round((base["hp"] + flat["hp"]) * (1 + pct["hp"] / 100)),
+        "atk": round((base["atk"] + flat["atk"]) * (1 + pct["atk"] / 100)),
+        "def": round((base["def"] + flat["def"]) * (1 + pct["def"] / 100)),
+        "spd": round((base["spd"] + flat["spd"]) * (1 + pct["spd"] / 100)),
+        "chakra": base["chakra"],
+    }
+
+
+def apply_crystals_to_stats(base: dict, crystals: list) -> dict:
+    """Applies multiple socketed crystals (one per gear piece) to a hero's
+    stats dict — aggregates all flat and percent bonuses, then applies once."""
+    if not crystals:
+        return base
+    flat = {"hp": 0, "atk": 0, "def": 0, "spd": 0}
+    pct = {"hp": 0.0, "atk": 0.0, "def": 0.0, "spd": 0.0}
+    for c in crystals:
+        st = crystal_stats(c)
+        for k in flat:
+            flat[k] += st["flat"][k]
+        for k in pct:
+            pct[k] += st["pct"][k]
     return {
         "hp": round((base["hp"] + flat["hp"]) * (1 + pct["hp"] / 100)),
         "atk": round((base["atk"] + flat["atk"]) * (1 + pct["atk"] / 100)),

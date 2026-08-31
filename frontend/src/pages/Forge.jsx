@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
   Anvil, Hammer, Coins, Loader2, FlaskConical, Sparkles, ChevronRight, Layers, Filter,
+  Gem, X, Plus,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
@@ -11,10 +12,15 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ItemIcon } from "@/components/ItemIcon";
 import SummonRevealOverlay from "@/components/SummonRevealOverlay";
+import CrystalPickerModal from "@/components/CrystalPickerModal";
+
+const CRYSTAL_STAT_LABEL = { hp: "HP", atk: "ATK", def: "DEF", spd: "SPD" };
+const crystalSubLabel = (s) => (s.stat.endsWith("_pct") ? `${s.stat.slice(0, -4).toUpperCase()} %` : s.stat.toUpperCase());
 
 /**
- * THE FORGE — gear inventory + enhancement, crafting (blueprints) and
- * material fusion. The long-term material sink that keeps drops meaningful.
+ * THE FORGE — gear inventory + enhancement, crafting (blueprints), material
+ * fusion, and the crystal inventory. The long-term material sink that keeps
+ * drops meaningful.
  */
 export default function Forge() {
   const { user, setUser } = useAuth();
@@ -24,8 +30,11 @@ export default function Forge() {
   const [busy, setBusy] = useState(false);
   const [craftReveal, setCraftReveal] = useState(null);
   const [fuseQty, setFuseQty] = useState({});
+  const [pickerGear, setPickerGear] = useState(null);
 
   const gear = user?.gear || [];
+  const crystals = user?.crystals || [];
+  const crystalsByGear = Object.fromEntries(crystals.filter((c) => c.socketed_in).map((c) => [c.socketed_in, c]));
   const inv = user?.inventory || {};
   const slotMeta = gearConfig?.slot_meta || {};
   const rarityMeta = gearConfig?.rarity_meta || {};
@@ -42,6 +51,7 @@ export default function Forge() {
   }, [gear, slotFilter]);
 
   const sel = selectedGear ? gear.find((g) => g.gear_id === selectedGear) : null;
+  const selCrystal = sel ? crystalsByGear[sel.gear_id] : null;
 
   const enhance = async (gearId) => {
     setBusy(true);
@@ -81,20 +91,32 @@ export default function Forge() {
     } finally { setBusy(false); }
   };
 
+  const removeCrystal = async (crystalId) => {
+    setBusy(true);
+    try {
+      const { data } = await api.post("/game/crystal/unequip", { crystal_id: crystalId });
+      setUser(data.profile);
+      toast.success("Crystal removed");
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setBusy(false); }
+  };
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 min-w-0" data-testid="forge-page">
       <div className="mb-6">
         <h1 className="font-display text-5xl sm:text-6xl tracking-wide text-ink leading-none flex items-center gap-3">
           <Anvil className="w-9 h-9 text-fox" /> THE FORGE
         </h1>
-        <p className="text-slate-500 mt-1">Equip, enhance, craft and fuse — turn battlefield salvage into power.</p>
+        <p className="text-slate-500 mt-1">Equip, enhance, craft, fuse and socket crystals — turn battlefield salvage into power.</p>
       </div>
 
       <Tabs defaultValue="inventory" data-testid="forge-tabs">
-        <TabsList className="grid grid-cols-3 w-full bg-black/[0.04] border border-black/10 rounded-xl h-11 mb-5">
+        <TabsList className="grid grid-cols-4 w-full bg-black/[0.04] border border-black/10 rounded-xl h-11 mb-5">
           <TabsTrigger value="inventory" data-testid="forge-inventory-tab" className="font-display tracking-wider text-base data-[state=active]:bg-fox/15 data-[state=active]:text-fox rounded-lg">GEAR</TabsTrigger>
           <TabsTrigger value="craft" data-testid="forge-craft-tab" className="font-display tracking-wider text-base data-[state=active]:bg-chakra/15 data-[state=active]:text-chakra rounded-lg">CRAFT</TabsTrigger>
           <TabsTrigger value="fuse" data-testid="forge-fuse-tab" className="font-display tracking-wider text-base data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">FUSE</TabsTrigger>
+          <TabsTrigger value="crystals" data-testid="forge-crystals-tab" className="font-display tracking-wider text-base data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">CRYSTALS</TabsTrigger>
         </TabsList>
 
         {/* ============ INVENTORY ============ */}
@@ -123,6 +145,7 @@ export default function Forge() {
               {filtered.map((g, i) => {
                 const color = rarityMeta[g.rarity]?.color || "#9E9E9E";
                 const equippedName = g.equipped_by ? heroName(g.equipped_by) : null;
+                const crystal = crystalsByGear[g.gear_id];
                 return (
                   <motion.button
                     key={g.gear_id}
@@ -141,6 +164,7 @@ export default function Forge() {
                     </div>
                     <p className="text-xs font-bold text-ink truncate">{g.set_name} {slotMeta[g.slot]?.name}</p>
                     <p className="text-[10px] text-slate-500 mt-0.5">Score {g.score} · {g.main_stat.toUpperCase()} {g.main_value}</p>
+                    {crystal && <p className="text-[10px] mt-0.5 truncate flex items-center gap-0.5" style={{ color: crystal.tier_color }}><Gem className="w-2.5 h-2.5" /> {crystal.tier_name} {CRYSTAL_STAT_LABEL[crystal.main_stat]}</p>}
                     {equippedName && <p className="text-[10px] text-chakra mt-0.5 truncate">▸ {equippedName}</p>}
                   </motion.button>
                 );
@@ -245,6 +269,40 @@ export default function Forge() {
             ))}
           </div>
         </TabsContent>
+
+        {/* ============ CRYSTALS ============ */}
+        <TabsContent value="crystals">
+          <p className="text-xs text-slate-500 mb-3">Socket crystals into gear for flat + % stat bonuses. Hunt them from the Nightmare bosses in Tsukuyomi.</p>
+          {crystals.length === 0 ? (
+            <div className="text-center py-16 text-slate-500" data-testid="forge-crystals-empty">
+              <Gem className="w-8 h-8 mx-auto mb-2 text-slate-700" />
+              No crystals yet — hunt the Nightmare bosses in Tsukuyomi.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5" data-testid="forge-crystals-grid">
+              {crystals.map((c) => {
+                const socketedGear = c.socketed_in ? gear.find((g) => g.gear_id === c.socketed_in) : null;
+                return (
+                  <div key={c.crystal_id} className="p-3 rounded-xl bg-black/[0.04]" style={{ border: `1.5px solid ${c.tier_color}55` }} data-testid={`forge-crystal-card-${c.crystal_id}`}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Gem className="w-5 h-5" style={{ color: c.tier_color }} />
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest" style={{ color: c.tier_color }}>{c.tier_name}</span>
+                      {c.plus > 0 && <span className="text-[10px] font-bold text-amber-300">+{c.plus}</span>}
+                      <span className="ml-auto text-[10px] font-bold text-ink">Score {c.score}</span>
+                    </div>
+                    <p className="text-xs font-bold text-ink">{CRYSTAL_STAT_LABEL[c.main_stat]} +{c.main_value} <span className="text-slate-500 font-normal">(main)</span></p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{c.subs.map((s) => `${crystalSubLabel(s)} +${s.value}${s.stat.endsWith("_pct") ? "%" : ""}`).join(" · ")}</p>
+                    {socketedGear ? (
+                      <p className="text-[10px] text-chakra mt-1 truncate">◆ {socketedGear.set_name} {slotMeta[socketedGear.slot]?.name}</p>
+                    ) : (
+                      <p className="text-[10px] text-slate-500 mt-1">Unsocketed</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
 
       {/* ============ Gear detail dialog ============ */}
@@ -288,6 +346,27 @@ export default function Forge() {
               </div>
             )}
 
+            {/* Crystal socket */}
+            <div className="rounded-xl bg-black/[0.04] border border-black/10 p-3" data-testid="forge-gear-crystal-socket">
+              <p className="text-xs font-bold mb-1.5 flex items-center gap-1"><Gem className="w-3.5 h-3.5 text-jutsu" /> Crystal Socket</p>
+              {selCrystal ? (
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: selCrystal.tier_color }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold" style={{ color: selCrystal.tier_color }}>{selCrystal.tier_name} · {CRYSTAL_STAT_LABEL[selCrystal.main_stat]} +{selCrystal.main_value}</p>
+                    <p className="text-[10px] text-slate-500 truncate">{selCrystal.subs.map((s) => `${crystalSubLabel(s)} +${s.value}${s.stat.endsWith("_pct") ? "%" : ""}`).join(" · ")}</p>
+                  </div>
+                  <button onClick={() => removeCrystal(selCrystal.crystal_id)} disabled={busy} data-testid="forge-crystal-remove" className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-bold bg-fox/10 text-fox border border-fox/30 hover:bg-fox/20 transition-colors disabled:opacity-40">
+                    <X className="w-3 h-3" /> Remove
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setPickerGear(sel)} disabled={busy} data-testid="forge-crystal-socket" className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-display text-base tracking-wide bg-jutsu/15 text-jutsu border border-jutsu/40 hover:bg-jutsu/25 transition-colors disabled:opacity-40">
+                  <Plus className="w-4 h-4" /> Socket Crystal
+                </button>
+              )}
+            </div>
+
             {/* Enhance */}
             <div>
               <div className="flex justify-between text-xs text-slate-500 mb-1">
@@ -322,6 +401,7 @@ export default function Forge() {
       </Dialog>
 
       <SummonRevealOverlay open={!!craftReveal} results={craftReveal || []} onClose={() => setCraftReveal(null)} />
+      <CrystalPickerModal open={!!pickerGear} onClose={() => setPickerGear(null)} gearId={pickerGear?.gear_id} gearName={pickerGear ? `${pickerGear.set_name} ${slotMeta[pickerGear.slot]?.name || pickerGear.slot}` : null} />
     </div>
   );
 }

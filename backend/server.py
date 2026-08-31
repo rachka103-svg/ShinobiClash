@@ -304,7 +304,7 @@ class TranscendIn(BaseModel):
 
 class CrystalEquipIn(BaseModel):
     crystal_id: str
-    instance_id: str
+    gear_id: str
 
 
 class CrystalUnequipIn(BaseModel):
@@ -644,7 +644,7 @@ def gear_public(g: dict) -> dict:
     }
 
 
-def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_hero: dict, user: dict) -> None:
+def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_gear: dict, user: dict) -> None:
     """Computes all derived fields (stats/power/gear/skill/etc.) for a single
     owned hero instance, mutating it in place. Returns early (no-op) if the
     hero's static template can't be found (e.g. a deleted custom hero)."""
@@ -662,15 +662,15 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_hero: dic
     star_stats = {k: (round(v * star_mult) if k in ("hp", "atk", "def") else v) for k, v in base_stats.items()}
     equipped = gear_by_hero.get(inst["instance_id"], [])
     geared = gd.apply_gear_to_stats(star_stats, equipped) if equipped else star_stats
-    crystal = crystal_by_hero.get(inst["instance_id"])
-    final_stats = ex.apply_crystal_to_stats(geared, crystal) if crystal else geared
+    socketed = [crystal_by_gear[g["gear_id"]] for g in equipped if g["gear_id"] in crystal_by_gear]
+    final_stats = ex.apply_crystals_to_stats(geared, socketed) if socketed else geared
     inst["rarity"] = rarity
     inst["native_rarity"] = native_rarity
     inst["evolved_rarity"] = inst.get("evolved_rarity") or native_rarity
     inst["stats"] = final_stats
     inst["power"] = _power_from_stats(final_stats)
     inst["equipped_gear"] = {g["slot"]: g["gear_id"] for g in equipped}
-    inst["equipped_crystal"] = crystal["crystal_id"] if crystal else None
+    inst["socketed_crystals"] = {g["slot"]: crystal_by_gear[g["gear_id"]]["crystal_id"] for g in equipped if g["gear_id"] in crystal_by_gear}
     inst["gear_score"] = sum(gd.gear_score(g) for g in equipped)
     inst["exp_to_next"] = gd.hero_exp_to_next(inst["level"])
     inst["level_cap"] = gd.level_cap(rarity, asc)
@@ -707,12 +707,13 @@ def public_user(user: dict) -> dict:
         if g.get("equipped_by"):
             gear_by_hero.setdefault(g["equipped_by"], []).append(g)
     crystal_all = user.get("crystals", [])
-    crystal_by_hero = {}
+    crystal_by_gear = {}
     for c in crystal_all:
-        if c.get("equipped_by"):
-            crystal_by_hero[c["equipped_by"]] = c
+        gid = c.get("socketed_in")
+        if gid:
+            crystal_by_gear[gid] = c
     for inst in ninjas:
-        _hydrate_ninja_instance(inst, gear_by_hero, crystal_by_hero, user)
+        _hydrate_ninja_instance(inst, gear_by_hero, crystal_by_gear, user)
     team_ids = set(user.get("team", []))
     team_power = sum(i.get("power", 0) for i in ninjas if i["instance_id"] in team_ids)
     return {
@@ -2112,7 +2113,7 @@ async def gear_summon(body: GearSummonIn, user: dict = Depends(get_current_user)
 
 
 # ---------------------------------------------------------------------------
-# CRYSTALS — equippable stat-boosting relics dropped by bosses. One per hero.
+# CRYSTALS — equippable stat-boosting relics dropped by bosses. One per gear piece.
 # ---------------------------------------------------------------------------
 def _find_crystal(user: dict, crystal_id: str) -> dict:
     c = next((x for x in user.get("crystals", []) if x.get("crystal_id") == crystal_id), None)
@@ -2124,14 +2125,14 @@ def _find_crystal(user: dict, crystal_id: str) -> dict:
 @api_router.post("/game/crystal/equip")
 async def crystal_equip(body: CrystalEquipIn, user: dict = Depends(get_current_user)):
     c = _find_crystal(user, body.crystal_id)
-    inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == body.instance_id), None)
-    if not inst:
-        raise HTTPException(status_code=404, detail="Hero not found")
-    # one crystal per hero — unequip whoever currently holds this crystal
+    g = next((x for x in user.get("gear", []) if x.get("gear_id") == body.gear_id), None)
+    if not g:
+        raise HTTPException(status_code=404, detail="Gear not found")
+    # one crystal per gear piece — unsocket whichever crystal holds this slot
     for other in user.get("crystals", []):
-        if other.get("equipped_by") == body.instance_id and other["crystal_id"] != c["crystal_id"]:
-            other["equipped_by"] = None
-    c["equipped_by"] = body.instance_id
+        if other.get("socketed_in") == body.gear_id and other["crystal_id"] != c["crystal_id"]:
+            other["socketed_in"] = None
+    c["socketed_in"] = body.gear_id
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"crystals": user["crystals"]}})
     return {"profile": public_user(user), "equipped": c["crystal_id"]}
 
@@ -2139,7 +2140,7 @@ async def crystal_equip(body: CrystalEquipIn, user: dict = Depends(get_current_u
 @api_router.post("/game/crystal/unequip")
 async def crystal_unequip(body: CrystalUnequipIn, user: dict = Depends(get_current_user)):
     c = _find_crystal(user, body.crystal_id)
-    c["equipped_by"] = None
+    c["socketed_in"] = None
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"crystals": user["crystals"]}})
     return {"profile": public_user(user)}
 

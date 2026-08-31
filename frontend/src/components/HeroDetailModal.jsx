@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Heart, Sword, Shield, Wind, Star, ChevronsUp, Gem, Coins, Sparkles, Check,
-  Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2, RotateCcw,
+  Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2, RotateCcw, X,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -11,9 +11,12 @@ import { rarityFrame, GOLD } from "@/lib/theme";
 import { DecoCorners } from "@/components/RarityFx";
 import { RarityBadge } from "@/components/RarityBadge";
 import { ItemIcon } from "@/components/ItemIcon";
+import CrystalPickerModal from "@/components/CrystalPickerModal";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
+
+const CRYSTAL_STAT_LABEL = { hp: "HP", atk: "ATK", def: "DEF", spd: "SPD" };
 
 const Stat = ({ icon: Icon, label, value, color }) => (
   <div className="flex flex-col items-center gap-1 min-w-0 py-1">
@@ -47,6 +50,7 @@ export default function HeroDetailModal({
   const [tab, setTab] = useState("train");
   const [qty, setQty] = useState(1);
   const [gearSlot, setGearSlot] = useState(null);
+  const [pickerGear, setPickerGear] = useState(null);
   const [busyLocal, setBusyLocal] = useState(false);
   const [immersive, setImmersive] = useState(false);
   const [showRevertConfirm, setShowRevertConfirm] = useState(false);
@@ -138,6 +142,21 @@ export default function HeroDetailModal({
   const setCounts = {};
   Object.values(equippedBySlot).forEach((g) => { setCounts[g.set_id] = (setCounts[g.set_id] || 0) + 1; });
 
+  // ---------- Crystal socket state (one crystal per equipped gear piece) ----------
+  const crystals = user?.crystals || [];
+  const crystalsByGear = Object.fromEntries(crystals.filter((c) => c.socketed_in).map((c) => [c.socketed_in, c]));
+  const equippedGearList = Object.values(equippedBySlot);
+  const removeCrystal = async (crystalId) => {
+    setBusyLocal(true);
+    try {
+      const { data } = await api.post("/game/crystal/unequip", { crystal_id: crystalId });
+      setUser(data.profile);
+      toast.success("Crystal removed");
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setBusyLocal(false); }
+  };
+
   const equipGear = async (gearId) => {
     setBusyLocal(true);
     try {
@@ -165,6 +184,7 @@ export default function HeroDetailModal({
   const closeAll = () => { setImmersive(false); onClose(); };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => !o && closeAll()}>
       <DialogContent
         data-testid="hero-detail-modal"
@@ -652,6 +672,36 @@ export default function HeroDetailModal({
                   </div>
                 )}
 
+                {/* Crystal sockets — one per equipped gear piece */}
+                {equippedGearList.length > 0 && (
+                  <div className="mb-3" data-testid="hero-crystal-sockets">
+                    <p className="text-xs uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1"><Gem className="w-3 h-3 text-jutsu" /> Crystal Sockets</p>
+                    <div className="space-y-1.5">
+                      {equippedGearList.map((g) => {
+                        const crystal = crystalsByGear[g.gear_id];
+                        return (
+                          <div key={g.gear_id} className="flex items-center gap-2 p-2 rounded-lg bg-black/[0.04] border border-black/10">
+                            <ItemIcon icon={slotMeta[g.slot]?.icon} className="w-4 h-4 shrink-0 text-slate-500" />
+                            <span className="text-[10px] uppercase tracking-widest text-slate-500 w-16 shrink-0">{slotMeta[g.slot]?.name || g.slot}</span>
+                            {crystal ? (
+                              <>
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: crystal.tier_color }} />
+                                <span className="text-xs font-bold flex-1 min-w-0 truncate" style={{ color: crystal.tier_color }}>{crystal.tier_name} · {CRYSTAL_STAT_LABEL[crystal.main_stat]} +{crystal.main_value}</span>
+                                <button onClick={() => removeCrystal(crystal.crystal_id)} disabled={busy} data-testid={`hero-crystal-remove-${g.gear_id}`} className="shrink-0 text-fox hover:text-fox/70 disabled:opacity-40" title="Remove crystal"><X className="w-3.5 h-3.5" /></button>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-xs text-slate-500 flex-1">Empty socket</span>
+                                <button onClick={() => setPickerGear(g)} disabled={busy} data-testid={`hero-crystal-socket-${g.gear_id}`} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-jutsu/15 text-jutsu border border-jutsu/40 hover:bg-jutsu/25 transition-colors disabled:opacity-40"><Plus className="w-3 h-3" /> Crystal</button>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Slot inventory */}
                 {gearSlot && (
                   <div className="rounded-xl bg-black/30 border border-black/10 p-2 max-h-56 overflow-y-auto space-y-1.5" data-testid="hero-gear-inventory">
@@ -731,6 +781,8 @@ export default function HeroDetailModal({
         )}
       </DialogContent>
     </Dialog>
+    <CrystalPickerModal open={!!pickerGear} onClose={() => setPickerGear(null)} gearId={pickerGear?.gear_id} gearName={pickerGear ? `${slotMeta[pickerGear.slot]?.name || pickerGear.slot}` : null} />
+    </>
   );
 }
 
