@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Bot, Gauge, Film } from "lucide-react";
+import { Bot, Gauge, Film, Settings } from "lucide-react";
 import BattleFighter from "@/components/BattleFighter";
 import BattleCommandPanel from "@/components/BattleCommandPanel";
 import { BattleTurnOrder, BattleInfoPanel } from "@/components/BattleSidePanels";
 import BattlefieldEnv from "@/components/cinematic/BattlefieldEnv";
 import BattleEntry from "@/components/cinematic/BattleEntry";
-import BattleTurnAnnounce from "@/components/cinematic/BattleTurnAnnounce";
 import BattleAttackFx from "@/components/cinematic/BattleAttackFx";
 import BattleUltimate from "@/components/cinematic/BattleUltimate";
 import BattleVictory from "@/components/cinematic/BattleVictory";
@@ -19,7 +18,6 @@ import {
   tickStatuses, applyBattleStartPassives, checkBossPhaseTransitions, makeEvent, spireEnemies,
   isStunned, computeStats, applyEnemyGear,
 } from "@/lib/battle";
-import { ELEMENT, RARITY } from "@/lib/styles";
 import api from "@/lib/api";
 
 let _uid = 0;
@@ -40,40 +38,25 @@ function pickAiAction(actor, arr) {
   const affordable = actor.jutsus.filter((j) =>
         j.type !== "passive" && j.chakra_cost <= actor.chakra
       );
-
-  // 1. Heal a genuinely threatened ally (< 35% HP)
   const healJ = affordable.find((j) => j.type === "heal");
-  const threatenedAlly = allies.find((a) => a.hp / a.maxHp < 0.35);
-  if (healJ && threatenedAlly) {
-    return { jutsu: healJ, targetUid: threatenedAlly.uid };
+  const woundedAlly = allies.find((a) => a.hp / a.maxHp < 0.45);
+
+  let jutsu, targetUid = null;
+  if (healJ && woundedAlly) {
+    jutsu = healJ; targetUid = woundedAlly.uid;
+  } else {
+    const offensive = affordable.filter((j) => j.type === "attack" || j.type === "aoe");
+    const aoe = offensive.find((j) => j.type === "aoe");
+    if (aoe && enemies.length >= 2 && Math.random() < 0.6) {
+      jutsu = aoe;
+    } else {
+      const atks = offensive.filter((j) => j.type === "attack");
+      jutsu = atks.sort((a, b) => b.power - a.power)[0] || actor.jutsus[0];
+      targetUid = [...enemies].sort((a, b) => a.hp - b.hp)[0]?.uid;
+    }
+    if (jutsu.type === "aoe") targetUid = null;
   }
-
-  // 2. Shield a vulnerable ally when no heal is needed/available
-  const shieldJ = affordable.find((j) => j.type === "shield");
-  const vulnerableAlly = allies.find((a) => a.hp / a.maxHp < 0.5 && a.shield === 0);
-  if (shieldJ && vulnerableAlly && !healJ) {
-    return { jutsu: shieldJ, targetUid: vulnerableAlly.uid };
-  }
-
-  const offensive = affordable.filter((j) => j.type === "attack" || j.type === "aoe");
-  const singleAtks = offensive.filter((j) => j.type === "attack");
-  const aoe = offensive.find((j) => j.type === "aoe");
-  const lowestEnemy = [...enemies].sort((a, b) => a.hp - b.hp)[0];
-
-  // 3. Finish a nearly-dead enemy with the cheapest attack (don't waste AoE)
-  if (lowestEnemy && lowestEnemy.hp / lowestEnemy.maxHp < 0.25 && singleAtks.length) {
-    const finisher = singleAtks.sort((a, b) => a.chakra_cost - b.chakra_cost)[0];
-    return { jutsu: finisher, targetUid: lowestEnemy.uid };
-  }
-
-  // 4. Use AoE when multiple enemies are alive and none is about to die
-  if (aoe && enemies.length >= 2) {
-    return { jutsu: aoe, targetUid: null };
-  }
-
-  // 5. Default: strongest single attack on the lowest-HP enemy
-  const jutsu = singleAtks.sort((a, b) => b.power - a.power)[0] || offensive[0] || actor.jutsus[0];
-  return { jutsu, targetUid: lowestEnemy?.uid || null };
+  return { jutsu, targetUid };
 }
 
 export default function Battle() {
@@ -174,9 +157,10 @@ export default function Battle() {
       .filter(Boolean)
       .map((inst) => buildCombatant(nextUid(), "ally", catalogById[inst.template_id], inst.level, inst.ascension || 0, inst.instance_id, inst.stats || null, inst.skill_rank || 1, !(inst.passive_locked), inst.reforge || null));
     const enemies = enemiesDef.map((e) => {
-      const baseStats = computeStats(catalogById[e.template_id], e.level, e.ascension || 0);
+      const template = catalogById[e.template_id];
+      const baseStats = computeStats(template, e.level, e.ascension || 0);
       const gearedStats = e.gear_bonus ? applyEnemyGear(baseStats, e.gear_bonus) : baseStats;
-      return buildCombatant(nextUid(), "enemy", catalogById[e.template_id], e.level, e.ascension || 0, null, gearedStats);
+      return buildCombatant(nextUid(), "enemy", template, e.level, e.ascension || 0, null, gearedStats);
     });
     // Wire the boss-mechanic framework onto the boss stage's single enemy
     // (only real Campaign boss stages set stage.boss_mechanic — Spire and
@@ -193,7 +177,6 @@ export default function Battle() {
     }
     const all = [...allies, ...enemies];
     const startEvents = applyBattleStartPassives(all);
-    // Initialize boss phase mechanics at battle start (applies phase 1 buffs)
     const bossStartEvents = checkBossPhaseTransitions(all, bossMechanics);
     if (startEvents.length) {
       pushEvents(startEvents);
@@ -207,26 +190,15 @@ export default function Battle() {
     orderRef.current = buildOrder(all);
     ptrRef.current = 0;
     setPhase("intro");
-    // With cinematics on, the first turn is gated on the BattleEntry intro
-    // finishing (see the introDone effect below) so the player never misses
-    // the opening of the fight. With cinematics off, start right away.
-    if (!cinemaRef.current) setIntroDone(true);
+    const t = setTimeout(() => beginTurnAt(0, all, buildOrder(all)), ms(900));
+    return () => clearTimeout(t);
   }, [mode, id, catalogById]);
-
-  // Begin the first turn once the intro cinematic has finished — or at once
-  // when cinematics are disabled. This is what "halts" the battle until the
-  // cinematic art preview ends so nothing plays out behind the overlay.
-  useEffect(() => {
-    if (introDone && phase === "intro" && combRef.current.length > 0) {
-      beginTurnAt(0, combRef.current, orderRef.current);
-    }
-  }, [introDone, phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const aliveSide = (arr, side) => arr.some((c) => c.side === side && c.alive);
 
   const beginTurnAt = useCallback((ptr, arr, order) => {
-    if (!aliveSide(arr, "ally")) { setTimeout(() => setPhase("lose"), ms(900)); return; }
-    if (!aliveSide(arr, "enemy")) { setTimeout(() => setPhase("win"), ms(900)); return; }
+    if (!aliveSide(arr, "ally")) { setPhase("lose"); return; }
+    if (!aliveSide(arr, "enemy")) { setPhase("win"); return; }
 
     const work = cloneArr(arr);
     let p = ptr;
@@ -249,9 +221,6 @@ export default function Battle() {
     if (dotDmg > 0 && actor.alive) {
       actor.hp = Math.max(0, actor.hp - dotDmg);
       pushLog(`${actor.name} suffers ${dotDmg} from a lingering curse.`);
-      const dotId = `dot-${actor.uid}-${Date.now()}-${Math.random()}`;
-      setFloaters((f) => [...f, { id: dotId, uid: actor.uid, text: `-${dotDmg}`, color: "#76FF03" }]);
-      setTimeout(() => setFloaters((f) => f.filter((x) => x.id !== dotId)), ms(750));
       evs.push(makeEvent("DOT_TRIGGERED", { targetUid: actor.uid, value: dotDmg }));
       if (actor.hp === 0) {
         const revived = resolveDeath(actor, evs);
@@ -273,14 +242,6 @@ export default function Battle() {
 
     // chakra regen at start of turn
     actor.chakra = Math.min(actor.maxChakra, actor.chakra + 20);
-
-    // Shock disrupts chakra generation — reduces the turn's chakra gain
-    const shock = actor.statuses?.find((s) => s.effectType === "shock" && (s.duration ?? 0) > 0);
-    if (shock) {
-      const reduction = Math.round(20 * (shock.value || 50) / 100);
-      actor.chakra = Math.max(0, actor.chakra - reduction);
-      pushLog(`${actor.name} loses ${reduction} chakra to Shock!`);
-    }
 
     // Stun / Freeze check — skip the actor's turn entirely
     if (isStunned(actor)) {
@@ -327,7 +288,7 @@ export default function Battle() {
 
     const newFloaters = [];
     const newEvents = [];
-    const addFloat = (uid, text, color, isCrit = false) => newFloaters.push({ id: `${Date.now()}-${uid}-${Math.random()}`, uid, text, color, isCrit });
+    const addFloat = (uid, text, color) => newFloaters.push({ id: `${Date.now()}-${uid}-${Math.random()}`, uid, text, color });
 
     const applyDamage = (target) => {
       const { dmg, crit, mult, notes } = resolveDamage(act, target, jutsu, advantage);
@@ -338,18 +299,6 @@ export default function Battle() {
         remaining -= absorbed;
       }
       target.hp = Math.max(0, target.hp - remaining);
-
-      // Boss lifesteal (desperation phase) — heals the attacker for a % of damage dealt
-      if (act.lifestealPct && remaining > 0 && act.alive) {
-        const healAmt = Math.round(remaining * (act.lifestealPct / 100));
-        const oldHp = act.hp;
-        act.hp = Math.min(act.maxHp, act.hp + healAmt);
-        const actualHeal = act.hp - oldHp;
-        if (actualHeal > 0) {
-          addFloat(act.uid, `+${actualHeal}`, "#00E676");
-          newEvents.push(makeEvent("HEAL", { actorUid: act.uid, targetUid: act.uid, value: actualHeal }));
-        }
-      }
 
       // Boss shield-phase break tracking: 3 AoE hits while shielded forces
       // the shield down early, regardless of remaining shield value.
@@ -365,7 +314,7 @@ export default function Battle() {
       }
 
       const color = notes.includes("execute") ? "#E040FB" : mult > 1 ? "#FFCA28" : mult < 1 ? "#94A3B8" : "#FF1744";
-      addFloat(target.uid, `${crit ? "CRIT " : ""}${notes.includes("execute") ? "EXECUTE " : ""}-${dmg}`, color, crit);
+      addFloat(target.uid, `${crit ? "CRIT " : ""}${notes.includes("execute") ? "EXECUTE " : ""}-${dmg}`, color);
       newEvents.push(makeEvent(crit ? "CRITICAL" : "DAMAGE", { actorUid: act.uid, targetUid: target.uid, value: dmg }));
       setShakeUid(target.uid);
       setTimeout(() => setShakeUid(null), ms(300));
@@ -493,9 +442,7 @@ export default function Battle() {
         .then(({ data }) => {
           if (data.profile) setUser(data.profile);
           setResultData(data);
-          if (data.level_up) {
-            setTimeout(() => setShowLevelUp(true), 4200);
-          }
+          if (data.level_up) setTimeout(() => setShowLevelUp(true), 4200);
         })
         .catch(() => setResultData({ result: phase }));
     }
@@ -543,9 +490,6 @@ export default function Battle() {
       {/* Cinematic battle entry transition */}
       {cinema && <BattleEntry title={title} chapter={mode === "campaign" ? `CHAPTER ${stage?.chapter || "I"}` : mode === "spire" ? `FLOOR ${floor}` : mode.toUpperCase()} onDone={() => setIntroDone(true)} />}
 
-      {/* Cinematic turn announcement */}
-      {cinema && <BattleTurnAnnounce activeUid={activeUid} actor={activeActor} phase={phase} round={round} />}
-
       {/* Cinematic attack effects */}
       {cinema && <BattleAttackFx action={cinematicAction} onShake={(strength) => { setScreenShake(true); setTimeout(() => setScreenShake(false), strength === "strong" ? 500 : 400); }} />}
 
@@ -580,13 +524,16 @@ export default function Battle() {
           </button>
           <button
             onClick={() => setCinema(!cinema)}
-            data-testid="battle-cinema-toggle"
-            title="Toggle cinematic previews"
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-display tracking-wide border transition-colors ${
-              cinema ? "border-jutsu text-jutsu bg-fuchsia-500/15" : "border-white/15 text-slate-300 hover:text-white hover:border-white/30"
-            }`}
+            title={cinema ? "Cinematics on" : "Cinematics off"}
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-display tracking-wide border transition-colors ${cinema ? "border-violet-400/50 text-violet-300 bg-violet-500/10" : "border-white/15 text-slate-400 hover:text-white"}`}
           >
-            <Film className="w-3.5 h-3.5" />CINEMA
+            <Film className="w-3.5 h-3.5" />
+          </button>
+          <button
+            title="Settings"
+            className="flex items-center px-2 py-1.5 rounded-lg border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
+          >
+            <Settings className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -612,13 +559,11 @@ export default function Battle() {
             {phase === "select" && activeActor && !auto && (
               <div className="inline-flex items-center gap-2">
                 <span className="text-[10px] uppercase tracking-widest text-chakra font-bold">YOUR TURN</span>
-                <span className="font-display text-lg text-white">{activeActor.name}</span>
               </div>
             )}
             {phase === "enemy" && activeActor && (
               <div className="inline-flex items-center gap-2">
                 <span className="text-[10px] uppercase tracking-widest text-fox font-bold">ENEMY TURN</span>
-                <span className="font-display text-lg text-white">{activeActor.name}</span>
               </div>
             )}
             {phase === "intro" && (
@@ -657,25 +602,21 @@ export default function Battle() {
           : mode === "arena" ? () => navigate("/arena")
           : mode === "tsukuyomi" ? () => navigate("/tsukuyomi")
           : () => {
-            const idx = stages.findIndex((s) => s.id === id);
-            const next = idx >= 0 && idx < stages.length - 1 ? stages[idx + 1] : null;
-            if (next) window.location.assign(`/battle/campaign/${next.id}`);
-            else window.location.assign("/campaign");
-          }
+              const idx = stages.findIndex((s) => s.id === id);
+              const next = idx >= 0 && idx < stages.length - 1 ? stages[idx + 1] : null;
+              if (next) window.location.assign(`/battle/campaign/${next.id}`);
+              else window.location.assign("/campaign");
+            }
         }
         onLobby={() => navigate("/")}
         onRetry={() => window.location.reload()}
       />
 
-      {/* Level-up celebration — appears after victory rewards */}
       <LevelUpOverlay
         open={showLevelUp}
         data={resultData?.level_up}
         onClose={() => setShowLevelUp(false)}
       />
-      />
     </div>
   );
 }
-
-
