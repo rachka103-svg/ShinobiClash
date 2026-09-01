@@ -12,7 +12,8 @@ export function GameProvider({ children }) {
   const [bossMechanics, setBossMechanics] = useState({});
   const [items, setItems] = useState({});
   const [trials, setTrials] = useState([]);
-  const [summonCost, setSummonCost] = useState(300);
+  const [summonCost, setSummonCost] = useState(5000);
+  const [goldSummonX10Cost, setGoldSummonX10Cost] = useState(40000);
   const [gemCosts, setGemCosts] = useState({ summon: 150, energy_refill_per_point: 4, energy_refill_min: 15 });
   const [banner, setBanner] = useState(null);
   // --- Phase J expansion config (all data-driven from the backend) ---
@@ -34,7 +35,8 @@ export function GameProvider({ children }) {
     setAdvantage(data.element_advantage);
     setItems(data.items || {});
     setTrials(data.trials || []);
-    setSummonCost(data.summon_cost || 300);
+    setSummonCost(data.summon_cost || 5000);
+    setGoldSummonX10Cost(data.gold_summon_x10_cost || 40000);
     setGemCosts(data.gem_costs || { summon: 150, energy_refill_per_point: 4, energy_refill_min: 15 });
     setBanner(data.banner || null);
     setSummonRates(data.summon_rates || {});
@@ -82,7 +84,7 @@ export function GameProvider({ children }) {
 
   return (
     <GameContext.Provider value={{
-      catalog, catalogById, advantage, stages, chapters, bossMechanics, items, trials, summonCost, gemCosts, banner,
+      catalog, catalogById, advantage, stages, chapters, bossMechanics, items, trials, summonCost, goldSummonX10Cost, gemCosts, banner,
       summonRates, summonRatesRyo, pityConfig, gearConfig, craftRecipes, fusionRecipes, expTomeGoldCost, dungeons,
       reforgeModifiers, reforgeMaxPerJutsu,
       loading, catalogError, retryCatalog: loadInitialData, refreshCatalog,

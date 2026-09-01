@@ -1,6 +1,8 @@
 // Client-side turn-based combat helpers.
 // Mirrors backend stat formulas and contains battle-side mechanics.
 
+import { spireFloorConfig, pickRarity } from "./spireConfig";
+
 // ============================================================
 // CORE CONFIGURATION
 // ============================================================
@@ -110,6 +112,34 @@ export function hasStatus(
     actor,
     effectType
   );
+}
+
+// ============================================================
+// ENEMY GEAR
+// ============================================================
+
+export function applyEnemyGear(stats, gearBonus) {
+  if (!gearBonus) return stats;
+
+  return {
+    ...stats,
+    hp: Math.round(
+      stats.hp *
+        (1 + (gearBonus.hp_pct || 0) / 100)
+    ),
+    atk: Math.round(
+      stats.atk *
+        (1 + (gearBonus.atk_pct || 0) / 100)
+    ),
+    def: Math.round(
+      stats.def *
+        (1 + (gearBonus.def_pct || 0) / 100)
+    ),
+    spd: Math.round(
+      stats.spd *
+        (1 + (gearBonus.spd_pct || 0) / 100)
+    ),
+  };
 }
 
 // ============================================================
@@ -271,7 +301,7 @@ export function rollDamage(
 
   let raw =
     base * mult -
-    def * 0.5;
+    def * 0.6;
 
   raw = Math.max(
     raw,
@@ -374,6 +404,15 @@ export const REFORGE_MODIFIERS = {
       chance: 35,
       duration: 2,
       value: 20,
+    },
+  },
+
+  shock: {
+    effect: {
+      type: "shock",
+      chance: 25,
+      duration: 2,
+      value: 50,
     },
   },
 
@@ -563,9 +602,8 @@ export function buildCombatant(
     shieldBrokenPhase: null,
     enraged: false,
     shieldPhaseActive: false,
+    lifestealPct: 0,
 
-    // Store original stats so boss
-    // phase multipliers never stack incorrectly.
     baseBattleAtk: s.atk,
     baseBattleSpd: s.spd,
     baseBattleDef: s.def,
@@ -630,41 +668,58 @@ export function spireEnemies(
       0
   );
 
-  const boss =
-    floor % 5 === 0;
+  const cfg =
+    spireFloorConfig(floor);
 
   const lvl =
-    2 + floor * 2;
+    cfg.enemyLevel;
 
-  let bands;
+  const probs =
+    cfg.rarityProbs;
 
-  if (floor <= 3) {
-    bands = ["R"];
-  } else if (floor <= 6) {
-    bands = ["R", "SR"];
-  } else if (floor <= 10) {
-    bands = ["SR", "SSR"];
-  } else if (floor <= 15) {
-    bands = ["SSR", "UR"];
-  } else {
-    bands = ["UR", "GR"];
-  }
+  if (cfg.isBoss) {
+    const bossRoll =
+      0.3 + rng() * 0.7;
 
-  if (boss) {
-    const bossPool =
-      catalog.filter((c) =>
-        [
-          "SSR",
-          "UR",
-          "GR",
-        ].includes(c.rarity)
+    let bossRarity =
+      pickRarity(
+        probs,
+        bossRoll
       );
 
+    if (
+      bossRarity === "R" ||
+      bossRarity === "SR"
+    ) {
+      bossRarity = "SSR";
+    }
+
+    const bossPool =
+      catalog.filter(
+        (c) =>
+          c.rarity === bossRarity
+      );
+
+    const pool =
+      bossPool.length
+        ? bossPool
+        : catalog.filter((c) =>
+            [
+              "SSR",
+              "UR",
+              "GR",
+            ].includes(c.rarity)
+          );
+
+    const src =
+      pool.length
+        ? pool
+        : catalog;
+
     const b =
-      bossPool[
+      src[
         Math.floor(
-          rng() *
-            bossPool.length
+          rng() * src.length
         )
       ] || catalog[0];
 
@@ -678,24 +733,8 @@ export function spireEnemies(
     ];
   }
 
-  const pool =
-    catalog.filter((c) =>
-      bands.includes(c.rarity)
-    );
-
-  const src =
-    pool.length
-      ? pool
-      : catalog;
-
   const count =
-    Math.min(
-      3,
-      2 +
-        Math.floor(
-          (floor - 1) / 5
-        )
-    );
+    cfg.teamSize;
 
   const out = [];
 
@@ -704,11 +743,27 @@ export function spireEnemies(
     i < count;
     i++
   ) {
+    const rarity =
+      pickRarity(
+        probs,
+        rng()
+      );
+
+    let pool =
+      catalog.filter(
+        (c) =>
+          c.rarity === rarity
+      );
+
+    if (!pool.length) {
+      pool = catalog;
+    }
+
     out.push({
       template_id:
-        src[
+        pool[
           Math.floor(
-            rng() * src.length
+            rng() * pool.length
           )
         ].id,
 
@@ -752,7 +807,6 @@ const WIRED_EFFECTS = new Set([
   "escalating_dot",
   "team_shield",
   "revive_once",
-
   "lifesteal",
   "counterattack",
   "crit_boost",
@@ -797,10 +851,6 @@ export function resolveDamage(
 
   const notes = [];
 
-  // ==========================================================
-  // PASSIVE: Berserk at low HP
-  // ==========================================================
-
   if (
     actor.passive?.effect_type ===
     "berserk_low_hp"
@@ -817,10 +867,6 @@ export function resolveDamage(
       notes.push("berserk");
     }
   }
-
-  // ==========================================================
-  // PASSIVE: Missing HP scaling
-  // ==========================================================
 
   if (
     actor.passive?.effect_type ===
@@ -842,10 +888,6 @@ export function resolveDamage(
     }
   }
 
-  // ==========================================================
-  // PASSIVE: Execute
-  // ==========================================================
-
   if (
     actor.passive?.effect_type ===
       "execute_low_hp" &&
@@ -860,10 +902,6 @@ export function resolveDamage(
     notes.push("execute");
   }
 
-  // ==========================================================
-  // PASSIVE: Poison Mastery
-  // ==========================================================
-
   if (
     actor.passive?.effect_type ===
       "poison_mastery" &&
@@ -876,10 +914,6 @@ export function resolveDamage(
     notes.push("poison_mastery");
   }
 
-  // ==========================================================
-  // PASSIVE: Burn Mastery
-  // ==========================================================
-
   if (
     actor.passive?.effect_type ===
       "burn_mastery" &&
@@ -891,10 +925,6 @@ export function resolveDamage(
 
     notes.push("burn_mastery");
   }
-
-  // ==========================================================
-  // BOSS ENRAGE
-  // ==========================================================
 
   if (actor.enraged) {
     dmg = Math.round(
@@ -938,10 +968,6 @@ export function applyDamage(
   let remaining = damage;
   let absorbed = 0;
   let shieldBroken = false;
-
-  // ==========================================================
-  // SHIELD ABSORPTION
-  // ==========================================================
 
   if (target.shield > 0) {
     absorbed = Math.min(
@@ -1223,10 +1249,6 @@ export function resolveOnHitEffects(
 
   let burstDamage = 0;
 
-  // ==========================================================
-  // PASSIVE: Blood Mark
-  // ==========================================================
-
   if (
     actor.passive?.effect_type ===
     "stacking_mark_detonate"
@@ -1316,10 +1338,6 @@ export function resolveOnHitEffects(
     }
   }
 
-  // ==========================================================
-  // PASSIVE: Escalating DOT
-  // ==========================================================
-
   if (
     actor.passive?.effect_type ===
     "escalating_dot"
@@ -1344,17 +1362,14 @@ export function resolveOnHitEffects(
     if (!dot) {
       dot = {
         id: `dot_${actor.uid}_${target.uid}_${Date.now()}`,
-        effectType:
-          "curse_dot",
+        effectType: "curse_dot",
         source: actor.uid,
         duration: 4,
         magnitude: baseMag,
         stacks: 1,
       };
 
-      target.statuses.push(
-        dot
-      );
+      target.statuses.push(dot);
     } else {
       dot.duration = 4;
 
@@ -1385,10 +1400,6 @@ export function resolveOnHitEffects(
     );
   }
 
-  // ==========================================================
-  // JUTSU EFFECTS
-  // ==========================================================
-
   const effectEvents =
     applyJutsuEffects(
       actor,
@@ -1399,10 +1410,6 @@ export function resolveOnHitEffects(
   events.push(
     ...effectEvents
   );
-
-  // ==========================================================
-  // PASSIVE: Lifesteal
-  // ==========================================================
 
   if (
     actor.passive?.effect_type ===
@@ -1450,10 +1457,6 @@ export function resolveOnHitEffects(
       );
     }
   }
-
-  // ==========================================================
-  // PASSIVE: Chakra on Hit
-  // ==========================================================
 
   if (
     actor.passive?.effect_type ===
@@ -1545,10 +1548,6 @@ export function applyJutsuEffects(
     const val =
       eff.value || 0;
 
-    // ========================================================
-    // DOT EFFECTS
-    // ========================================================
-
     if (
       DOT_TYPES.has(et)
     ) {
@@ -1633,10 +1632,6 @@ export function applyJutsuEffects(
       );
     }
 
-    // ========================================================
-    // CROWD CONTROL
-    // ========================================================
-
     else if (
       CC_TYPES.has(et)
     ) {
@@ -1679,10 +1674,6 @@ export function applyJutsuEffects(
         );
       }
     }
-
-    // ========================================================
-    // STAT DEBUFFS
-    // ========================================================
 
     else if (
       DEBUFF_TYPES.has(et)
@@ -1731,6 +1722,37 @@ export function applyJutsuEffects(
         )
       );
     }
+
+    else if (et === "shock") {
+      if (
+        !target.statuses.find(
+          (s) =>
+            s.effectType ===
+            "shock"
+        )
+      ) {
+        target.statuses.push({
+          id: `shock_${target.uid}_${Date.now()}`,
+          effectType: "shock",
+          source: actor.uid,
+          duration: dur,
+          value: val || 50,
+        });
+
+        events.push(
+          makeEvent(
+            "DEBUFF_APPLIED",
+            {
+              actorUid:
+                actor.uid,
+              targetUid:
+                target.uid,
+              text: "Shock!",
+            }
+          )
+        );
+      }
+    }
   }
 
   return events;
@@ -1773,10 +1795,6 @@ export function tickStatuses(actor) {
   for (
     const s of actor.statuses
   ) {
-    // ========================================================
-    // ESCALATING CURSE DOT
-    // ========================================================
-
     if (
       s.effectType ===
       "curse_dot"
@@ -1808,10 +1826,6 @@ export function tickStatuses(actor) {
         keep.push(s);
       }
     }
-
-    // ========================================================
-    // NORMAL DOT
-    // ========================================================
 
     else if (
       DOT_TYPES.has(
@@ -1849,17 +1863,14 @@ export function tickStatuses(actor) {
       }
     }
 
-    // ========================================================
-    // CROWD CONTROL / DEBUFF
-    // ========================================================
-
     else if (
       CC_TYPES.has(
         s.effectType
       ) ||
       DEBUFF_TYPES.has(
         s.effectType
-      )
+      ) ||
+      s.effectType === "shock"
     ) {
       s.duration -= 1;
 
@@ -1867,10 +1878,6 @@ export function tickStatuses(actor) {
         keep.push(s);
       }
     }
-
-    // ========================================================
-    // OTHER STATUS
-    // ========================================================
 
     else {
       keep.push(s);
@@ -1957,10 +1964,6 @@ export function applyBattleStartPassives(
   arr.forEach((c) => {
     if (!c.alive) return;
 
-    // ========================================================
-    // TEAM SHIELD
-    // ========================================================
-
     if (
       c.passive?.effect_type ===
       "team_shield"
@@ -2002,10 +2005,6 @@ export function applyBattleStartPassives(
         });
     }
 
-    // ========================================================
-    // SPEED BOOST
-    // ========================================================
-
     if (
       c.passive?.effect_type ===
       "speed_boost"
@@ -2038,10 +2037,6 @@ export function applyBattleStartPassives(
         )
       );
     }
-
-    // ========================================================
-    // FIRST STRIKE
-    // ========================================================
 
     if (
       c.passive?.effect_type ===
@@ -2139,13 +2134,12 @@ export function enterBossPhase(
   phase,
   events
 ) {
-  // Reset phase state without
-  // permanently stacking stats.
+  // Reset phase state so multipliers do not stack permanently.
   boss.enraged = false;
   boss.shieldPhaseActive = false;
+  boss.lifestealPct = 0;
 
-  // Restore original combat stats before
-  // applying the new phase.
+  // Restore original stats before applying new phase modifiers.
   if (boss.baseBattleAtk != null) {
     boss.atk =
       boss.baseBattleAtk;
@@ -2206,12 +2200,16 @@ export function enterBossPhase(
   }
 
   // ==========================================================
-  // ENRAGED PHASE
+  // ENRAGED / EMPOWERED / DESPERATION
   // ==========================================================
 
   else if (
     phase.behavior ===
-    "enraged"
+    "enraged" ||
+    phase.behavior ===
+      "empowered" ||
+    phase.behavior ===
+      "desperation"
   ) {
     const atkMult =
       phase.atk_mult || 1;
@@ -2231,7 +2229,47 @@ export function enterBossPhase(
           spdMult
       );
 
+    if (phase.shield_pct) {
+      const amt =
+        Math.round(
+          boss.maxHp *
+            (phase.shield_pct / 100)
+        );
+
+      boss.shield += amt;
+
+      events.push(
+        makeEvent(
+          "SHIELD_APPLIED",
+          {
+            targetUid:
+              boss.uid,
+            value: amt,
+            text:
+              phase.behavior ===
+              "desperation"
+                ? "Desperation Shield"
+                : "Empowered Shield",
+          }
+        )
+      );
+    }
+
+    if (phase.lifesteal_pct) {
+      boss.lifestealPct =
+        phase.lifesteal_pct;
+    }
+
     boss.enraged = true;
+
+    const phaseLabel =
+      phase.behavior ===
+      "desperation"
+        ? "DESPERATION"
+        : phase.behavior ===
+          "empowered"
+        ? "EMPOWERED"
+        : "ENRAGED";
 
     events.push(
       makeEvent(
@@ -2239,8 +2277,7 @@ export function enterBossPhase(
         {
           targetUid:
             boss.uid,
-          text:
-            "ENRAGED",
+          text: phaseLabel,
         }
       )
     );
@@ -2269,6 +2306,30 @@ export function enterBossPhase(
         }
       )
     );
+  }
+
+  // ==========================================================
+  // NORMAL PHASE
+  // ==========================================================
+
+  else if (
+    phase.behavior === "normal"
+  ) {
+    if (phase.atk_mult) {
+      boss.atk =
+        Math.round(
+          boss.baseBattleAtk *
+            phase.atk_mult
+        );
+    }
+
+    if (phase.spd_mult) {
+      boss.spd =
+        Math.round(
+          boss.baseBattleSpd *
+            phase.spd_mult
+        );
+    }
   }
 
   return events;
