@@ -20,7 +20,9 @@ ELEMENT_ADVANTAGE = {
 # right team; higher tiers are generally stronger but never make the rest
 # of the roster obsolete. Team building — not raw rarity — is the objective.
 # ---------------------------------------------------------------------------
-RARITY_ORDER = {"N": 0, "R": 1, "SR": 2, "SSR": 3, "UR": 4, "GR": 5, "LR": 6, "MYTHIC": 7}
+RARITY_ORDER = {"N": 0, "R": 1, "SR": 2, "SSR": 3, "UR": 4, "LR": 5, "GR": 6, "MYTHIC": 7}
+# NOTE: LR (5) now sits BELOW GR (6) — GR is the ascension pinnacle. This
+# ordering is what stat scaling, summon weights and skill mastery all follow.
 RARITY_TIERS = {k: v + 1 for k, v in RARITY_ORDER.items()}
 ASCENSION_MAX = {"N": 16, "R": 16, "SR": 16, "SSR": 16, "UR": 16, "GR": 16, "LR": 16, "MYTHIC": 16}
 
@@ -218,8 +220,8 @@ RARITY_BASE = {
     "SR":     {"hp": 1240, "atk": 178,  "def": 93,  "spd": 113, "chakra": 118, "crit_rate": 8,  "crit_damage": 155, "accuracy": 89, "resistance": 10},
     "SSR":    {"hp": 1920, "atk": 276,  "def": 144, "spd": 132, "chakra": 138, "crit_rate": 11, "crit_damage": 170, "accuracy": 91, "resistance": 15},
     "UR":     {"hp": 2980, "atk": 430,  "def": 224, "spd": 155, "chakra": 160, "crit_rate": 14, "crit_damage": 185, "accuracy": 93, "resistance": 20},
-    "GR":     {"hp": 4620, "atk": 665,  "def": 348, "spd": 180, "chakra": 185, "crit_rate": 18, "crit_damage": 210, "accuracy": 95, "resistance": 28},
-    "LR":     {"hp": 7160, "atk": 1030, "def": 540, "spd": 210, "chakra": 215, "crit_rate": 22, "crit_damage": 240, "accuracy": 96, "resistance": 36},
+    "LR":     {"hp": 4620, "atk": 665,  "def": 348, "spd": 180, "chakra": 185, "crit_rate": 18, "crit_damage": 210, "accuracy": 95, "resistance": 28},
+    "GR":     {"hp": 7160, "atk": 1030, "def": 540, "spd": 210, "chakra": 215, "crit_rate": 22, "crit_damage": 240, "accuracy": 96, "resistance": 36},
     "MYTHIC": {"hp": 11100,"atk": 1600, "def": 837, "spd": 244, "chakra": 250, "crit_rate": 28, "crit_damage": 280, "accuracy": 98, "resistance": 48},
 }
 STAT_KEYS = ("hp", "atk", "def", "spd", "chakra", "crit_rate", "crit_damage", "accuracy", "resistance")
@@ -1032,9 +1034,10 @@ def _hero_jutsus(hid, name, element, rarity, role):
     kit_builder = _ROLE_KIT_BUILDERS.get(role, _kit_default)
     kit = kit_builder(hid, element, el, first, ri)
 
-    # GR and above receive a fourth active Ascendant ability, so elite
-    # rarities are mechanically different rather than just stronger.
-    if ri >= RARITY_ORDER["GR"]:
+    # LR and above receive a fourth active Ascendant ability, so elite
+    # rarities are mechanically different rather than just stronger. (Threshold
+    # is LR so both LR and the GR pinnacle — plus MYTHIC — receive it.)
+    if ri >= RARITY_ORDER["LR"]:
         _add_ascendant_skill(kit, hid, name, element, el, role, ri)
 
     # Rarity mastery tunes the kit further for high rarities.
@@ -1249,17 +1252,26 @@ STARTER_NINJAS = ["blaze", "ripple", "zephyr"]
 
 # Weighted summon pool (per rarity). Lower rarity = higher chance.
 # GEM banner (premium) — the standard, pity-backed rates.
-SUMMON_WEIGHTS = {"R": 1000, "SR": 320, "SSR": 95, "UR": 20, "GR": 2}
+SUMMON_WEIGHTS = {"R": 1000, "SR": 320, "SSR": 95, "UR": 20, "LR": 6, "GR": 2}
 # GOLD/RYO banner (budget) — SUPER low chance at rare heroes and NO pity.
 # Heavily floored to R/SR; UR/GR are vanishingly rare here.
-GOLD_SUMMON_WEIGHTS = {"R": 4000, "SR": 520, "SSR": 60, "UR": 4, "GR": 0.5}
+GOLD_SUMMON_WEIGHTS = {"R": 4000, "SR": 520, "SSR": 60, "UR": 4, "LR": 1.5, "GR": 0.5}
 SUMMON_COST = 300
 
 # Shards gained when pulling a hero already owned (duplicate protection —
 # duplicates are NEVER wasted). Lower rarity yields more shards since it's
 # pulled far more often; shards feed the star-up system.
-SHARD_YIELD_PER_DUPLICATE = {"R": 100, "SR": 100, "SSR": 100, "UR": 100, "GR": 100}
-STAR_LEVEL_MAX = 6
+SHARD_YIELD_PER_DUPLICATE = {"R": 100, "SR": 100, "SSR": 100, "UR": 100, "LR": 100, "GR": 100, "MYTHIC": 100}
+# Absolute star ceiling across all rarities (GR caps at 8). Per-rarity caps
+# live in progression.MAX_STARS; use max_stars_for_rarity() for the real cap.
+STAR_LEVEL_MAX = 8
+
+
+def max_stars_for_rarity(rarity: str) -> int:
+    """Per-rarity star cap (R=3 ... GR=8). Falls back to the absolute ceiling
+    for rarities outside the ascension ladder (N / MYTHIC)."""
+    import progression as _prog
+    return _prog.get_max_stars_for_rarity(rarity)
 
 
 def star_up_cost(rarity: str, current_star: int) -> int:
@@ -1917,7 +1929,7 @@ def fresh_login_state() -> dict:
 # on top at runtime so they become fully playable (summon, battle, gallery).
 # ---------------------------------------------------------------------------
 ELEMENTS = list(ELEMENT_ADVANTAGE.keys())
-RARITIES = ["R", "SR", "SSR", "UR", "GR"]
+RARITIES = ["R", "SR", "SSR", "UR", "LR", "GR"]
 
 STATIC_CATALOG = [dict(n) for n in NINJA_CATALOG]
 _CUSTOM_HEROES = []
@@ -2055,6 +2067,15 @@ ITEMS.update({
     "blueprint_armor":     {"id": "blueprint_armor", "name": "Armor Blueprint", "type": "blueprint", "value": 0, "icon": "scroll", "color": "#29B6F6", "desc": "Craft armor at the Forge."},
     "blueprint_accessory": {"id": "blueprint_accessory", "name": "Accessory Blueprint", "type": "blueprint", "value": 0, "icon": "scroll", "color": "#00E676", "desc": "Craft an accessory at the Forge."},
     "blueprint_relic":     {"id": "blueprint_relic", "name": "Relic Blueprint", "type": "blueprint", "value": 0, "icon": "scroll", "color": "#FFC857", "desc": "Craft a relic at the Forge."},
+    # --- Elemental Ascension Materials (consumed when ascending rarity tiers).
+    # Architecture is in place; required only once progression.ELEMENTAL_ESSENCE_ENABLED is True.
+    "fire_essence":      {"id": "fire_essence", "name": "Fire Essence", "type": "material", "value": 0, "icon": "flame", "color": "#FF5722", "desc": "Condensed flame. A future ascension material for Fire heroes."},
+    "water_essence":     {"id": "water_essence", "name": "Water Essence", "type": "material", "value": 0, "icon": "droplet", "color": "#29B6F6", "desc": "Condensed tide. A future ascension material for Water heroes."},
+    "earth_essence":     {"id": "earth_essence", "name": "Earth Essence", "type": "material", "value": 0, "icon": "mountain", "color": "#A1887F", "desc": "Condensed stone. A future ascension material for Earth heroes."},
+    "wind_essence":      {"id": "wind_essence", "name": "Wind Essence", "type": "material", "value": 0, "icon": "wind", "color": "#00E676", "desc": "Condensed gale. A future ascension material for Wind heroes."},
+    "lightning_essence": {"id": "lightning_essence", "name": "Lightning Essence", "type": "material", "value": 0, "icon": "zap", "color": "#FFCA28", "desc": "Condensed storm. A future ascension material for Lightning heroes."},
+    "light_essence":     {"id": "light_essence", "name": "Light Essence", "type": "material", "value": 0, "icon": "sun", "color": "#FFD54F", "desc": "Condensed radiance. A future ascension material for Light heroes."},
+    "dark_essence":      {"id": "dark_essence", "name": "Dark Essence", "type": "material", "value": 0, "icon": "moon", "color": "#7C4DFF", "desc": "Condensed shadow. A future ascension material for Dark heroes."},
 })
 
 # Battle drops now include crafting/evolution materials (long-term grind loops).
@@ -2077,19 +2098,13 @@ EXP_TOME_GOLD_COST = {"exp_tome_minor": 25, "exp_tome_greater": 110, "exp_tome_a
 STAR_BONUS_PER_STAR = 0.18  # +18% HP/ATK/DEF per star beyond the 1st (big evolution payoff)
 
 
-def evolution_cost(rarity: str, current_star: int) -> dict:
+def evolution_cost(rarity: str, current_star: int):
     """Full cost to evolve a hero from `current_star` -> `current_star + 1`.
-    Stars 1-3: shards + ryo. Star 3->4 adds Evolution Essence. Star 4->5 and
-    5->6 add Celestial Cores on top."""
-    ri = RARITY_ORDER[rarity]
-    shards = round((40 + ri * 15) * (1 + 0.6 * (current_star - 1)))
-    ryo = 400 + current_star * 350 + ri * 150
-    items = {}
-    if current_star >= 3:
-        items["evo_essence"] = 2 + (current_star - 3) * 3 + ri
-    if current_star >= 4:
-        items["celestial_core"] = 1 + (current_star - 4) * 2
-    return {"shards": shards, "ryo": ryo, "items": items}
+    Delegates to the centralized progression config (per-rarity star caps +
+    shard/gold costs). Returns None when the hero is already at its rarity's
+    star cap (no further evolution possible — Ascension is the next step)."""
+    import progression as _prog
+    return _prog.get_evolution_cost(rarity, current_star)
 
 
 # ---------------------------------------------------------------------------
@@ -2336,11 +2351,11 @@ def summon_rates(currency: str = "gems") -> dict:
     counts = {}
     for t in CATALOG_BY_ID.values():
         counts[t["rarity"]] = counts.get(t["rarity"], 0) + 1
-    total = sum(weights[r] * c for r, c in counts.items())
+    total = sum(weights.get(r, 0) * c for r, c in counts.items())
     if total <= 0:
         return {}
-    return {r: round(weights[r] * c / total * 100, 3)
-            for r, c in sorted(counts.items(), key=lambda kv: RARITY_ORDER[kv[0]])}
+    return {r: round(weights.get(r, 0) * c / total * 100, 3)
+            for r, c in sorted(counts.items(), key=lambda kv: RARITY_ORDER.get(kv[0], 0))}
 
 
 def pity_chance(pull_number_since_last: int) -> float:
@@ -2552,7 +2567,7 @@ SHOP_BY_ID = {s["id"]: s for s in SHOP_ITEMS}
 # ===========================================================================
 SKILL_RANK_MAX = 10
 PASSIVE_UNLOCK_RANK = 3
-RARITY_PASSIVE_UNLOCK_RANK = {"R": 5, "SR": 4, "SSR": 3, "UR": 2, "GR": 2}
+RARITY_PASSIVE_UNLOCK_RANK = {"R": 5, "SR": 4, "SSR": 3, "UR": 2, "LR": 2, "GR": 2}
 SKILL_POWER_PER_RANK = 0.08  # +8% jutsu power per rank beyond the 1st
 
 

@@ -24,33 +24,29 @@ import uuid as _uuid
 from typing import Optional
 
 import game_data as gd
+import progression as prog
 
 # ---------------------------------------------------------------------------
-# Shared rarity helpers
+# Shared rarity helpers — the ascension ladder is owned by progression.py
+# (R -> SR -> SSR -> UR -> LR -> GR, with GR as the pinnacle).
 # ---------------------------------------------------------------------------
-RARITY_LADDER = ["R", "SR", "SSR", "UR", "GR"]
-TRANSCENDENCE_MAX = "GR"
+RARITY_LADDER = prog.ASCENSION_LADDER
+TRANSCENDENCE_MAX = prog.ASCENSION_MAX
 
 
 def _next_rarity(rarity: str) -> Optional[str]:
-    """Next rarity tier up, or None if already at the cap (GR)."""
-    if rarity not in RARITY_LADDER:
-        # Heroes above R (e.g. native SSR/UR) can still transcend toward GR.
-        idx = gd.RARITY_ORDER.get(rarity, 1)
-        for r in RARITY_LADDER:
-            if gd.RARITY_ORDER[r] > idx:
-                return r
-        return None
-    i = RARITY_LADDER.index(rarity)
-    if i + 1 < len(RARITY_LADDER):
-        return RARITY_LADDER[i + 1]
-    return None
+    """Next rarity tier up the ascension ladder, or None at the GR cap."""
+    return prog.get_next_rarity(rarity)
 
 
 def effective_rarity(inst: dict, tmpl: dict) -> str:
-    """The rarity a hero currently fights at — its transcended rarity if it
-    has one, otherwise the template's native rarity."""
-    return inst.get("evolved_rarity") or tmpl["rarity"]
+    """The rarity a hero currently fights at — its ascended (evolved) rarity
+    if it has one, otherwise the template's native rarity. Also resolves any
+    legacy star overflow (heroes evolved under the old flat 6-star system) by
+    walking them up the ladder until their stars fit the new per-rarity cap."""
+    evolved = inst.get("evolved_rarity") or tmpl["rarity"]
+    stars = inst.get("stars", 1)
+    return prog.resolve_effective_rarity(evolved, tmpl["rarity"], stars)
 
 
 # ===========================================================================
@@ -120,25 +116,15 @@ TRANSCENDENCE_MATERIAL = "astral_sigil"
 
 
 def transcendence_target(rarity: str) -> Optional[str]:
+    """Next rarity tier up the ascension ladder (alias for the UI field)."""
     return _next_rarity(rarity)
 
 
-def transcendence_cost(current_rarity: str) -> Optional[dict]:
-    """Cost to transcend from `current_rarity` -> the next tier. Returns None
-    at the GR cap. Shards scale with how far the hero has already climbed;
-    the astral sigil demand rises sharply near the top."""
-    target = _next_rarity(current_rarity)
-    if not target:
-        return None
-    ri = gd.RARITY_ORDER[current_rarity]
-    ti = gd.RARITY_ORDER[target]
-    # Shards: more the higher you go (300 -> 600 -> 1200 -> 2000)
-    shards = 300 * (2 ** (ti - 1))
-    ryo = 5000 + ri * 4000 + ti * 6000
-    # Astral sigils: 5 -> 10 -> 20 -> 40 climbing toward GR
-    sigils = 5 * (2 ** (ti - 1))
-    return {"shards": shards, "ryo": ryo, "items": {TRANSCENDENCE_MATERIAL: sigils},
-            "target": target}
+def transcendence_cost(current_rarity: str, element: Optional[str] = None) -> Optional[dict]:
+    """Cost to ascend from `current_rarity` -> the next tier. Delegates to the
+    centralized progression config (shards + gold + elemental essence). Returns
+    None at the GR cap."""
+    return prog.get_ascension_cost(current_rarity, element)
 
 
 def hero_base_stats(template_id: str, rarity: str) -> dict:
