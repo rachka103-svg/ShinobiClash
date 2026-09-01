@@ -229,7 +229,7 @@ export default function Tsukuyomi() {
                   <div className="rounded-xl bg-white/90 border border-black/10 px-3 py-2" data-testid="tsukuyomi-rare-chance">
                     <p className="text-[9px] uppercase tracking-widest text-slate-500 flex items-center gap-1"><Percent className="w-3 h-3" /> Rare Drop</p>
                     <p className="font-display text-base leading-none mt-0.5" style={{ color: DIFF_COLOR[difficulty] }}>{rareChance}%</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">+ basic nightmare materials</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1"><Gem className="w-2.5 h-2.5" /> Crystal {(rareChance * 0.18).toFixed(1)}% · + materials</p>
                   </div>
                 </div>
               </div>

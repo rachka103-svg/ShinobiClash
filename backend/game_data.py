@@ -20,7 +20,9 @@ ELEMENT_ADVANTAGE = {
 # right team; higher tiers are generally stronger but never make the rest
 # of the roster obsolete. Team building — not raw rarity — is the objective.
 # ---------------------------------------------------------------------------
-RARITY_ORDER = {"N": 0, "R": 1, "SR": 2, "SSR": 3, "UR": 4, "GR": 5, "LR": 6, "MYTHIC": 7}
+RARITY_ORDER = {"N": 0, "R": 1, "SR": 2, "SSR": 3, "UR": 4, "LR": 5, "GR": 6, "MYTHIC": 7}
+# NOTE: LR (5) now sits BELOW GR (6) — GR is the ascension pinnacle. This
+# ordering is what stat scaling, summon weights and skill mastery all follow.
 RARITY_TIERS = {k: v + 1 for k, v in RARITY_ORDER.items()}
 ASCENSION_MAX = {"N": 16, "R": 16, "SR": 16, "SSR": 16, "UR": 16, "GR": 16, "LR": 16, "MYTHIC": 16}
 
@@ -218,8 +220,8 @@ RARITY_BASE = {
     "SR":     {"hp": 1240, "atk": 178,  "def": 93,  "spd": 113, "chakra": 118, "crit_rate": 8,  "crit_damage": 155, "accuracy": 89, "resistance": 10},
     "SSR":    {"hp": 1920, "atk": 276,  "def": 144, "spd": 132, "chakra": 138, "crit_rate": 11, "crit_damage": 170, "accuracy": 91, "resistance": 15},
     "UR":     {"hp": 2980, "atk": 430,  "def": 224, "spd": 155, "chakra": 160, "crit_rate": 14, "crit_damage": 185, "accuracy": 93, "resistance": 20},
-    "GR":     {"hp": 4620, "atk": 665,  "def": 348, "spd": 180, "chakra": 185, "crit_rate": 18, "crit_damage": 210, "accuracy": 95, "resistance": 28},
-    "LR":     {"hp": 7160, "atk": 1030, "def": 540, "spd": 210, "chakra": 215, "crit_rate": 22, "crit_damage": 240, "accuracy": 96, "resistance": 36},
+    "LR":     {"hp": 4620, "atk": 665,  "def": 348, "spd": 180, "chakra": 185, "crit_rate": 18, "crit_damage": 210, "accuracy": 95, "resistance": 28},
+    "GR":     {"hp": 7160, "atk": 1030, "def": 540, "spd": 210, "chakra": 215, "crit_rate": 22, "crit_damage": 240, "accuracy": 96, "resistance": 36},
     "MYTHIC": {"hp": 11100,"atk": 1600, "def": 837, "spd": 244, "chakra": 250, "crit_rate": 28, "crit_damage": 280, "accuracy": 98, "resistance": 48},
 }
 STAT_KEYS = ("hp", "atk", "def", "spd", "chakra", "crit_rate", "crit_damage", "accuracy", "resistance")
@@ -1022,51 +1024,26 @@ def _apply_rarity_mastery(kit, rarity, role, ri):
 
     return kit
 
-def _kit_support():
-    ...
 
-def _kit_tank():
-    ...
+def _hero_jutsus(hid, name, element, rarity, role):
+    ri = RARITY_ORDER[rarity]
+    first = name.split(" ")[0]
+    el = element.lower()
 
-def _kit_assassin():
-    ...
+    # Build the role-specific core kit.
+    kit_builder = _ROLE_KIT_BUILDERS.get(role, _kit_default)
+    kit = kit_builder(hid, element, el, first, ri)
 
-def _kit_mage():
-    ...
+    # LR and above receive a fourth active Ascendant ability, so elite
+    # rarities are mechanically different rather than just stronger. (Threshold
+    # is LR so both LR and the GR pinnacle — plus MYTHIC — receive it.)
+    if ri >= RARITY_ORDER["LR"]:
+        _add_ascendant_skill(kit, hid, name, element, el, role, ri)
 
-def _kit_healer():
-    ...
+    # Rarity mastery tunes the kit further for high rarities.
+    kit = _apply_rarity_mastery(kit, rarity, role, ri)
 
-def _kit_control():
-    ...
-
-def _kit_bruiser():
-    ...
-
-def _kit_attacker():
-    ...
-
-def _kit_default():
-    ...
-
-
-_ROLE_KIT_BUILDERS = {
-    ...
-}
-
-
-def _add_ascendant_skill():
-    ...
-
-
-# ADD THE NEW FUNCTION HERE
-def _apply_rarity_mastery():
-    ...
-
-
-# REPLACE YOUR EXISTING FUNCTION WITH THIS
-def _hero_jutsus():
-    ...
+    return kit
 
 
 _HERO_DEFS = [
@@ -1275,17 +1252,34 @@ STARTER_NINJAS = ["blaze", "ripple", "zephyr"]
 
 # Weighted summon pool (per rarity). Lower rarity = higher chance.
 # GEM banner (premium) — the standard, pity-backed rates.
-SUMMON_WEIGHTS = {"R": 1000, "SR": 320, "SSR": 95, "UR": 20, "GR": 2}
+SUMMON_WEIGHTS = {"R": 1000, "SR": 320, "SSR": 95, "UR": 20, "LR": 6, "GR": 2}
 # GOLD/RYO banner (budget) — SUPER low chance at rare heroes and NO pity.
 # Heavily floored to R/SR; UR/GR are vanishingly rare here.
-GOLD_SUMMON_WEIGHTS = {"R": 4000, "SR": 520, "SSR": 60, "UR": 4, "GR": 0.5}
-SUMMON_COST = 300
+GOLD_SUMMON_WEIGHTS = {"R": 4000, "SR": 520, "SSR": 60, "UR": 4, "LR": 1.5, "GR": 0.5}
+# Gold (Ryo) summon cost — significantly increased from 300 to make gold
+# summons a meaningful decision rather than something players can spam.
+# A new player clearing Chapter 1 earns ~10k Ryo (first clears + rewards),
+# so 5000 = ~2 summons per chapter of first-clear progress. Daily income
+# (login + missions + stage replays + gold vault) is ~2.5k-4k Ryo, giving
+# roughly 2-3 summons per day from routine play.
+SUMMON_COST = 5000
+# x10 Gold Summon — 8x the single cost (20% discount vs 10 individual pulls).
+GOLD_SUMMON_X10_COST = 40000
 
 # Shards gained when pulling a hero already owned (duplicate protection —
 # duplicates are NEVER wasted). Lower rarity yields more shards since it's
 # pulled far more often; shards feed the star-up system.
-SHARD_YIELD_PER_DUPLICATE = {"R": 100, "SR": 100, "SSR": 100, "UR": 100, "GR": 100}
-STAR_LEVEL_MAX = 6
+SHARD_YIELD_PER_DUPLICATE = {"R": 100, "SR": 100, "SSR": 100, "UR": 100, "LR": 100, "GR": 100, "MYTHIC": 100}
+# Absolute star ceiling across all rarities (GR caps at 8). Per-rarity caps
+# live in progression.MAX_STARS; use max_stars_for_rarity() for the real cap.
+STAR_LEVEL_MAX = 8
+
+
+def max_stars_for_rarity(rarity: str) -> int:
+    """Per-rarity star cap (R=3 ... GR=8). Falls back to the absolute ceiling
+    for rarities outside the ascension ladder (N / MYTHIC)."""
+    import progression as _prog
+    return _prog.get_max_stars_for_rarity(rarity)
 
 
 def star_up_cost(rarity: str, current_star: int) -> int:
@@ -1296,7 +1290,7 @@ def star_up_cost(rarity: str, current_star: int) -> int:
 # ---------------------------------------------------------------------------
 # Campaign stages
 # ---------------------------------------------------------------------------
-STAGES = [
+_CURATED_STAGES = [
     {"id": "s1", "chapter": 1, "name": "Bandits at the Gate", "region": "Leaf Outskirts",
      "enemies": [{"template_id": "blaze", "level": 1}, {"template_id": "boulder", "level": 1}],
      "rewards": {"ryo": 150, "exp": 40}, "first_clear": {"ryo": 200, "ninja": None}},
@@ -1305,37 +1299,37 @@ STAGES = [
      "rewards": {"ryo": 170, "exp": 50}, "first_clear": {"ryo": 250, "ninja": None}},
     {"id": "s3", "chapter": 1, "name": "Forest Ambush", "region": "Misty Woods",
      "enemies": [{"template_id": "zephyr", "level": 3}, {"template_id": "boulder", "level": 3}, {"template_id": "spark", "level": 2}],
-     "rewards": {"ryo": 200, "exp": 65}, "first_clear": {"ryo": 300, "ninja": "ember"}},
+     "rewards": {"ryo": 200, "exp": 65}, "first_clear": {"ryo": 300, "ninja": "blaze", "items": {"exp_tome_minor": 2}}},
     {"id": "s4", "chapter": 2, "name": "River of Blades", "region": "Misty Woods",
      "enemies": [{"template_id": "ripple", "level": 5}, {"template_id": "frost", "level": 4}],
      "rewards": {"ryo": 230, "exp": 80}, "first_clear": {"ryo": 350, "ninja": None}},
     {"id": "s5", "chapter": 2, "name": "The Rogue Medic", "region": "Misty Woods",
      "enemies": [{"template_id": "frost", "level": 6}, {"template_id": "ripple", "level": 5}, {"template_id": "ember", "level": 5}],
-     "rewards": {"ryo": 260, "exp": 95}, "first_clear": {"ryo": 400, "ninja": "frost"}},
+     "rewards": {"ryo": 260, "exp": 95}, "first_clear": {"ryo": 400, "ninja": "ripple", "items": {"exp_tome_minor": 2}}},
     {"id": "s6", "chapter": 2, "name": "Stone Sentinels", "region": "Rocky Pass",
      "enemies": [{"template_id": "terra", "level": 7}, {"template_id": "boulder", "level": 7}],
      "rewards": {"ryo": 300, "exp": 115}, "first_clear": {"ryo": 450, "ninja": None}},
     {"id": "s7", "chapter": 3, "name": "Thunder on the Ridge", "region": "Rocky Pass",
      "enemies": [{"template_id": "spark", "level": 9}, {"template_id": "raijin", "level": 8}],
-     "rewards": {"ryo": 340, "exp": 135}, "first_clear": {"ryo": 500, "ninja": "terra"}},
+     "rewards": {"ryo": 340, "exp": 135}, "first_clear": {"ryo": 500, "ninja": "spark", "items": {"exp_tome_minor": 3}}},
     {"id": "s8", "chapter": 3, "name": "Eye of the Storm", "region": "Howling Cliffs",
      "enemies": [{"template_id": "gale", "level": 10}, {"template_id": "zephyr", "level": 9}, {"template_id": "spark", "level": 9}],
      "rewards": {"ryo": 380, "exp": 160}, "first_clear": {"ryo": 600, "ninja": None}},
     {"id": "s9", "chapter": 3, "name": "The Storm Herald", "region": "Howling Cliffs",
      "enemies": [{"template_id": "gale", "level": 13}, {"template_id": "raijin", "level": 12}],
-     "rewards": {"ryo": 430, "exp": 185}, "first_clear": {"ryo": 700, "ninja": "gale"}},
+     "rewards": {"ryo": 430, "exp": 185}, "first_clear": {"ryo": 700, "ninja": None, "items": {"summon_ticket": 1, "exp_tome_greater": 2, "ascension_crystal": 1}}},
     {"id": "s10", "chapter": 4, "name": "Shadows Gather", "region": "Forsaken Shrine",
      "enemies": [{"template_id": "shade", "level": 14}, {"template_id": "raijin", "level": 13}, {"template_id": "ember", "level": 13}],
      "rewards": {"ryo": 500, "exp": 220}, "first_clear": {"ryo": 800, "ninja": None}},
     {"id": "s11", "chapter": 4, "name": "Light Against Dark", "region": "Forsaken Shrine",
      "enemies": [{"template_id": "lumina", "level": 16}, {"template_id": "shade", "level": 15}],
-     "rewards": {"ryo": 600, "exp": 260}, "first_clear": {"ryo": 900, "ninja": "lumina"}},
+     "rewards": {"ryo": 600, "exp": 260}, "first_clear": {"ryo": 900, "ninja": None, "items": {"summon_ticket": 1, "ascension_crystal": 3, "exp_tome_greater": 3}}},
     {"id": "s12", "chapter": 4, "name": "The Hollow Blade", "region": "Forsaken Shrine",
      "enemies": [{"template_id": "shade", "level": 18}, {"template_id": "lumina", "level": 17}, {"template_id": "gale", "level": 16}],
-     "rewards": {"ryo": 800, "exp": 320}, "first_clear": {"ryo": 1500, "ninja": "shade"}},
+     "rewards": {"ryo": 800, "exp": 320}, "first_clear": {"ryo": 1500, "ninja": None, "items": {"summon_ticket": 2, "ascension_crystal": 5, "exp_tome_ancient": 1}}},
 ]
 
-STAGES_BY_ID = {s["id"]: s for s in STAGES}
+_CURATED_STAGES_BY_ID = {s["id"]: s for s in _CURATED_STAGES}
 
 # ---------------------------------------------------------------------------
 # Scalable stage architecture — s1-s12 above are the curated Chapters 1-4.
@@ -1351,21 +1345,46 @@ _CHAPTER_REGIONS = [
     "Withering Hollow", "Sunspire Sanctum", "Frozen Reliquary", "Voidglass Expanse",
     "Verdant Undercroft", "Obsidian Bastion",
 ]
+# Regions for the hand-authored Chapters 1-4 — used by the procedural stage
+# filler so the generated stages 4+ in those chapters stay in-step with the
+# curated first three instead of switching to the Chapter 5+ region pool.
+_CURATED_CHAPTER_REGIONS = {1: "Leaf Outskirts", 2: "Misty Woods", 3: "Howling Cliffs", 4: "Forsaken Shrine"}
 
 
 def _rarity_band_for_chapter(chapter: int) -> list:
-    """Which rarity tiers a chapter's regular (non-boss) enemies are drawn from."""
+    """Which rarity tiers a chapter's regular (non-boss) enemies are drawn from.
+    Scales gradually: Chapters 1-3 stay R only (approachable), 4-6 add SR,
+    7-10 introduce SSR, 11+ see UR, and very late chapters see GR enemies."""
     order = ["N", "R", "SR", "SSR", "UR", "GR", "LR", "MYTHIC"]
-    # every 2 chapters, the band creeps up one tier; caps at GR for regular mobs
-    lo = min(5, max(0, (chapter - 1) // 2))
-    hi = min(6, lo + 2)
-    return order[lo:hi + 1]
+    if chapter <= 3:
+        return ["R"]
+    elif chapter <= 6:
+        return ["R", "SR"]
+    elif chapter <= 10:
+        return ["SR", "SSR"]
+    elif chapter <= 15:
+        return ["SSR", "UR"]
+    elif chapter <= 25:
+        return ["UR", "GR"]
+    else:
+        return ["GR", "LR", "MYTHIC"]
 
 
 def _boss_rarity_for_chapter(chapter: int) -> list:
-    order = ["SSR", "UR", "GR", "LR", "MYTHIC"]
-    idx = min(len(order) - 1, max(0, (chapter - 4) // 2))
-    return order[idx:idx + 2] or [order[-1]]
+    """Boss rarity scales more aggressively than regular mobs — bosses are
+    always at least one tier above the regular enemy band."""
+    if chapter <= 3:
+        return ["R", "SR"]
+    elif chapter <= 6:
+        return ["SR", "SSR"]
+    elif chapter <= 10:
+        return ["SSR", "UR"]
+    elif chapter <= 15:
+        return ["UR", "GR"]
+    elif chapter <= 25:
+        return ["GR", "LR"]
+    else:
+        return ["LR", "MYTHIC"]
 
 
 # Reusable boss-phase framework — a mega boss is never just a bigger HP bar.
@@ -1392,7 +1411,111 @@ BOSS_MECHANICS = {
         "summons_adds_at_pct": 40,
         "immune_to": ["poison"],
     },
+    "tsukuyomi_dreamlord": {
+        "name": "Dreamlord's Descent",
+        "phases": [
+            {"hp_above": 60, "behavior": "normal", "atk_mult": 1.15, "spd_mult": 1.0},
+            {"hp_between": [25, 60], "behavior": "empowered", "atk_mult": 1.45, "spd_mult": 1.35, "shield_pct": 15},
+            {"hp_below": 25, "behavior": "desperation", "atk_mult": 2.0, "spd_mult": 1.5, "shield_pct": 25, "lifesteal_pct": 15},
+        ],
+        "summons_adds_at_pct": 50,
+        "immune_to": ["stun", "freeze"],
+    },
 }
+
+
+def _enemy_gear_bonuses(chapter: int, is_boss: bool, stage_rng) -> dict:
+    """Generate stat bonuses representing enemy equipment. Scales with
+    chapter progression — early enemies have little/no gear, mid-game enemies
+    get meaningful bonuses, late-game enemies have competitive gear sets.
+    Returns a dict of percentage bonuses {hp_pct, atk_pct, def_pct, spd_pct}."""
+    if chapter <= 2:
+        # Early game: mostly no gear, occasional basic common gear
+        if is_boss:
+            return {"hp_pct": 5, "atk_pct": 3, "def_pct": 3, "spd_pct": 0}
+        return {} if stage_rng.random() > 0.2 else {"hp_pct": 3, "atk_pct": 2, "def_pct": 2, "spd_pct": 0}
+    elif chapter <= 5:
+        # Early-mid: basic gear appears, bosses get rare gear
+        base = 5 + chapter * 2
+        if is_boss:
+            return {"hp_pct": base + 8, "atk_pct": base + 5, "def_pct": base + 3, "spd_pct": 3}
+        return {"hp_pct": base, "atk_pct": base - 1, "def_pct": base - 2, "spd_pct": 2} if stage_rng.random() > 0.3 else {}
+    elif chapter <= 10:
+        # Mid game: consistent gear, epic gear on bosses
+        base = 15 + (chapter - 5) * 3
+        if is_boss:
+            return {"hp_pct": base + 12, "atk_pct": base + 8, "def_pct": base + 6, "spd_pct": 5}
+        return {"hp_pct": base, "atk_pct": base - 2, "def_pct": base - 3, "spd_pct": 3}
+    elif chapter <= 20:
+        # Late game: strong gear, complete sets on bosses
+        base = 30 + (chapter - 10) * 3
+        if is_boss:
+            return {"hp_pct": base + 15, "atk_pct": base + 12, "def_pct": base + 10, "spd_pct": 8}
+        return {"hp_pct": base, "atk_pct": base - 3, "def_pct": base - 4, "spd_pct": 5}
+    else:
+        # End game: top-tier gear on everything
+        base = 60 + min(40, (chapter - 20) * 2)
+        if is_boss:
+            return {"hp_pct": base + 20, "atk_pct": base + 15, "def_pct": base + 12, "spd_pct": 10}
+        return {"hp_pct": base, "atk_pct": base - 5, "def_pct": base - 6, "spd_pct": 7}
+
+
+def _build_enemy_team(chapter, candidates, pool_by_rarity, stage_rng, count, base_level) -> list:
+    """Build an enemy team with intelligent composition that scales with
+    chapter progression. Early chapters use random attackers; mid/late
+    chapters form synergistic teams with tanks, healers, supports, and
+    damage dealers."""
+    if chapter <= 3 or count <= 1:
+        # Early game: simple random composition
+        return [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
+
+    # Mid/late game: build a synergistic team
+    # Categorize available heroes by role
+    by_role = {}
+    for tid in candidates:
+        tmpl = CATALOG_BY_ID.get(tid)
+        if not tmpl:
+            continue
+        by_role.setdefault(tmpl["role"], []).append(tid)
+
+    # Ensure we have at least some roles available; fall back to candidates
+    tanks = by_role.get("Tank", []) or by_role.get("Bruiser", []) or candidates
+    healers = by_role.get("Healer", []) or by_role.get("Support", []) or []
+    supports = by_role.get("Support", []) or by_role.get("Control", []) or []
+    damage = by_role.get("Attacker", []) or by_role.get("Assassin", []) or by_role.get("Mage", []) or candidates
+    control = by_role.get("Control", []) or by_role.get("Mage", []) or []
+    assassins = by_role.get("Assassin", []) or damage
+
+    team = []
+    if count >= 3 and chapter >= 7:
+        # Synergistic composition: Tank + Healer/Support + Damage
+        team.append({"template_id": stage_rng.choice(tanks), "level": base_level + stage_rng.randint(0, 2)})
+        if healers and chapter >= 10:
+            team.append({"template_id": stage_rng.choice(healers), "level": base_level + stage_rng.randint(0, 1)})
+        elif supports:
+            team.append({"template_id": stage_rng.choice(supports), "level": base_level + stage_rng.randint(0, 1)})
+        else:
+            team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+        # Fill remaining slots with damage/control
+        for _ in range(count - 2):
+            if chapter >= 15 and control and stage_rng.random() > 0.6:
+                team.append({"template_id": stage_rng.choice(control), "level": base_level + stage_rng.randint(0, 2)})
+            else:
+                team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+    elif count >= 2 and chapter >= 5:
+        # Basic composition: mix of roles
+        team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+        if tanks and stage_rng.random() > 0.4:
+            team.append({"template_id": stage_rng.choice(tanks), "level": base_level + stage_rng.randint(0, 2)})
+        else:
+            team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+        for _ in range(count - 2):
+            team.append({"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)})
+    else:
+        # Fallback: random
+        team = [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
+
+    return team
 
 
 def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rarity, stage_rng) -> dict:
@@ -1400,7 +1523,19 @@ def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rari
     boss_candidates = [tid for r in boss_band for tid in pool_by_rarity.get(r, [])] or candidates
     boss_tid = stage_rng.choice(boss_candidates)
     mech_id = "sealed_titan" if chapter % 2 == 0 else "abyssal_warden"
-    enemies = [{"template_id": boss_tid, "level": round(base_level * 1.6)}]
+    # Boss level scales more aggressively in mid/late game
+    boss_level_mult = 1.6 if chapter <= 5 else (1.8 + (chapter - 5) * 0.03)
+    boss_level = round(base_level * boss_level_mult)
+    boss_gear = _enemy_gear_bonuses(chapter, True, stage_rng)
+    enemies = [{"template_id": boss_tid, "level": boss_level, "gear_bonus": boss_gear}]
+    # Late-game bosses get supporting adds
+    if chapter >= 8:
+        add_band = _rarity_band_for_chapter(chapter)
+        add_candidates = [tid for r in add_band for tid in pool_by_rarity.get(r, [])] or candidates
+        add_count = min(2, 1 + (chapter - 8) // 5)
+        add_gear = _enemy_gear_bonuses(chapter, False, stage_rng)
+        for _ in range(add_count):
+            enemies.append({"template_id": stage_rng.choice(add_candidates), "level": round(boss_level * 0.85), "gear_bonus": add_gear})
     return {
         "id": sid, "chapter": chapter, "name": f"{CATALOG_BY_ID[boss_tid]['name']}'s Last Stand",
         "region": region, "enemies": enemies, "is_boss": True,
@@ -1412,7 +1547,11 @@ def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rari
 
 def _build_normal_stage(sid, chapter, i, region, base_level, candidates, stage_rng) -> dict:
     count = min(3, 2 + i // 3)
-    enemies = [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
+    enemies = _build_enemy_team(chapter, candidates, {}, stage_rng, count, base_level)
+    # Apply enemy gear bonuses
+    gear = _enemy_gear_bonuses(chapter, False, stage_rng)
+    for e in enemies:
+        e["gear_bonus"] = gear
     return {
         "id": sid, "chapter": chapter, "name": f"{region} Skirmish {i}",
         "region": region, "enemies": enemies, "is_boss": False,
@@ -1421,23 +1560,37 @@ def _build_normal_stage(sid, chapter, i, region, base_level, candidates, stage_r
     }
 
 
-def generate_campaign_stages(start_chapter: int, end_chapter: int, stages_per_chapter: int = 6) -> list:
+def generate_campaign_stages(start_chapter: int, end_chapter: int, stages_per_chapter: int = 6, start_i: int = 1) -> list:
     """Procedurally builds stage definitions for any chapter range. Designed
     to scale to hundreds/thousands of stages without hand-authored data or
-    UI changes — Campaign/Roster already render whatever this returns."""
+    UI changes — Campaign/Roster already render whatever this returns.
+    `start_i` lets a chapter be partially filled (used to top up the curated
+    Chapters 1-4 from stage 4 up to `stages_per_chapter`)."""
     out = []
     pool_by_rarity = {}
     for tid, t in CATALOG_BY_ID.items():
         pool_by_rarity.setdefault(t["rarity"], []).append(tid)
 
     for chapter in range(start_chapter, end_chapter + 1):
-        region = _CHAPTER_REGIONS[(chapter - 1) % len(_CHAPTER_REGIONS)]
+        region = _CURATED_CHAPTER_REGIONS.get(chapter) or _CHAPTER_REGIONS[(chapter - 1) % len(_CHAPTER_REGIONS)]
         band = _rarity_band_for_chapter(chapter)
         candidates = [tid for r in band for tid in pool_by_rarity.get(r, [])] or list(CATALOG_BY_ID.keys())
-        for i in range(1, stages_per_chapter + 1):
+        for i in range(start_i, stages_per_chapter + 1):
             is_boss = i == stages_per_chapter
             sid = f"s{12 + (chapter - start_chapter) * stages_per_chapter + i}" if start_chapter > 4 else f"c{chapter}_{i}"
-            base_level = chapter * 5 + i
+            # Difficulty curve:
+            #   Chapters 1-3: gentle — player feels powerful, fast progress
+            #   Chapters 4-8: moderate ramp — evolution & better teams needed
+            #   Chapters 9-15: steeper — gear, team composition matter
+            #   Chapter 16+: demanding — optimization, transformation, elements
+            if chapter <= 4:
+                base_level = (chapter + i + (chapter - 1) * 3)
+            elif chapter <= 8:
+                base_level = (chapter * 5 + i + (chapter - 4) * 3)
+            elif chapter <= 15:
+                base_level = (chapter * 6 + i + (chapter - 8) * 5)
+            else:
+                base_level = (chapter * 7 + i + (chapter - 15) * 8)
             stage_rng = random.Random((chapter * 1000 + i))
             if is_boss:
                 stage = _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rarity, stage_rng)
@@ -1447,10 +1600,16 @@ def generate_campaign_stages(start_chapter: int, end_chapter: int, stages_per_ch
     return out
 
 
-# Currently generate Chapters 5-8 (24 more stages) as the next content slice.
-# Calling generate_campaign_stages(9, 100) later scales the campaign further
-# with zero additional hand-authored data or UI work.
-STAGES.extend(generate_campaign_stages(5, 100, stages_per_chapter=6))
+# Assemble the full stage list. Curated Chapters 1-4 keep their hand-authored
+# first three stages (names, regions, first-clear ninja rewards intact) and
+# are topped up to 12 stages each with procedurally generated stages 4-12.
+# Chapters 5+ are fully procedural — every chapter ends up with 12 stages
+# (within the 10-20 per-chapter target).
+STAGES = []
+for _ch in range(1, 5):
+    STAGES.extend([s for s in _CURATED_STAGES if s["chapter"] == _ch])
+    STAGES.extend(generate_campaign_stages(_ch, _ch, stages_per_chapter=12, start_i=4))
+STAGES.extend(generate_campaign_stages(5, 100, stages_per_chapter=12))
 STAGES_BY_ID = {s["id"]: s for s in STAGES}
 
 
@@ -1524,6 +1683,7 @@ ITEMS = {
     "exp_tome_ancient":  {"id": "exp_tome_ancient", "name": "Ancient EXP Tome", "type": "exp", "value": 6000, "icon": "book-open", "color": "#AB47BC", "desc": "Grants 6,000 EXP to a single hero."},
     "ascension_crystal": {"id": "ascension_crystal", "name": "Ascension Crystal", "type": "material", "value": 0, "icon": "gem", "color": "#00E5FF", "desc": "Spent to ascend a hero beyond its level cap."},
     "summon_ticket":     {"id": "summon_ticket", "name": "Summon Ticket", "type": "ticket", "value": 0, "icon": "ticket", "color": "#FFCA28", "desc": "Summons a hero for free, no Ryo required."},
+    "astral_sigil":      {"id": "astral_sigil", "name": "Astral Sigil", "type": "material", "value": 0, "icon": "sparkles", "color": "#64FFDA", "desc": "A rune of ascendant starlight. Consumed to transcend a hero's rarity tier toward GR."},
 }
 
 # (item_id, qty, weight) — rolled on each battle win.
@@ -1599,8 +1759,10 @@ def ninja_power(template_id: str, level: int, ascension: int = 0) -> int:
 
 
 def exp_to_next(level: int) -> int:
-    """Player account level curve."""
-    return 80 + (level - 1) * 60
+    """Player account level curve. Delegates to the centralized
+    player_progression module so all progression balancing lives in one place."""
+    import player_progression as _pp
+    return _pp.xp_required_for_level(level)
 
 
 def hero_exp_to_next(level: int) -> int:
@@ -1630,14 +1792,113 @@ def ascension_cost(rarity: str, ascension: int) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Endless Spire (ascending tower) — scales forever, farmable on replay.
+# Endless Spire (ascending tower) — 1000 floors with phased progression.
 # ---------------------------------------------------------------------------
+SPIRE_MAX_FLOOR = 1000
+
+# Six progression phases. Each defines the enemy level band and stat
+# multiplier band for its floor range; the actual values are linearly
+# interpolated within the phase so transitions are smooth (no sudden walls).
+SPIRE_PHASES = [
+    # name,              min,  max,  lvl_s, lvl_e, mult_s, mult_e, reward_mult
+    ("Onboarding",         1,   50,     2,    30,    1.0,    1.3,   1.0),
+    ("Early Progression", 51,  150,    30,    70,    1.3,    1.8,   1.5),
+    ("Midgame",          151,  350,    70,   140,    1.8,    2.8,   2.5),
+    ("Advanced",         351,  600,   140,   220,    2.8,    4.5,   4.0),
+    ("Endgame",          601,  850,   220,   300,    4.5,    7.0,   6.0),
+    ("Ascendant",        851, 1000,   300,   380,    7.0,   10.0,   9.0),
+]
+
+# Gradual rarity probability per phase (sums to 1.0). Higher phases shift
+# toward rarer enemies — but never jumps all-at-once; the interpolation
+# between phases blends the probabilities smoothly.
+SPIRE_RARITY_PROBS = [
+    {"R": 0.70, "SR": 0.25, "SSR": 0.05, "UR": 0.00, "GR": 0.00},  # 1 Onboarding
+    {"R": 0.35, "SR": 0.40, "SSR": 0.20, "UR": 0.05, "GR": 0.00},  # 2 Early
+    {"R": 0.10, "SR": 0.25, "SSR": 0.35, "UR": 0.25, "GR": 0.05},  # 3 Midgame
+    {"R": 0.00, "SR": 0.10, "SSR": 0.25, "UR": 0.40, "GR": 0.25},  # 4 Advanced
+    {"R": 0.00, "SR": 0.00, "SSR": 0.15, "UR": 0.35, "GR": 0.50},  # 5 Endgame
+    {"R": 0.00, "SR": 0.00, "SSR": 0.05, "UR": 0.25, "GR": 0.70},  # 6 Ascendant
+]
+
+# Boss floors: 10, 25, 50, 75, 100, then every 50 up to 1000.
+SPIRE_BOSS_FLOORS = frozenset(
+    {10, 25, 50, 75, 100} | {f for f in range(150, 1001, 50)}
+)
+# Major milestone floors with special rewards.
+SPIRE_MILESTONE_FLOORS = frozenset({100, 250, 500, 750, 1000})
+
+
+def _spire_phase_for(floor: int) -> int:
+    """Returns the 0-based phase index for a floor (clamped to 0-5)."""
+    for i, (_, lo, hi, *_rest) in enumerate(SPIRE_PHASES):
+        if lo <= floor <= hi:
+            return i
+    return len(SPIRE_PHASES) - 1
+
+
+def _spire_lerp(floor: int, phase_idx: int, start: float, end: float) -> float:
+    """Linear interpolation of a value within a phase, based on floor."""
+    _, lo, hi, *_ = SPIRE_PHASES[phase_idx]
+    t = (floor - lo) / max(1, hi - lo)
+    return start + t * (end - start)
+
+
+def spire_floor_config(floor: int) -> dict:
+    """Deterministic procedural config for a single Spire floor. All tuning
+    constants are centralized above so the curve can be adjusted in one place."""
+    floor = max(1, min(floor, SPIRE_MAX_FLOOR))
+    pi = _spire_phase_for(floor)
+    name, lo, hi, lvl_s, lvl_e, mult_s, mult_e, reward_mult = SPIRE_PHASES[pi]
+
+    enemy_level = round(_spire_lerp(floor, pi, lvl_s, lvl_e))
+    stat_mult = round(_spire_lerp(floor, pi, mult_s, mult_e), 3)
+    is_boss = floor in SPIRE_BOSS_FLOORS
+    is_milestone = floor in SPIRE_MILESTONE_FLOORS
+    team_size = 3 if floor >= 10 else 2
+
+    # Blend rarity probabilities between the current and next phase for a
+    # smooth transition (weighted by how far through the phase we are).
+    _, plo, phi, *_ = SPIRE_PHASES[pi]
+    t = (floor - plo) / max(1, phi - plo)
+    probs_here = SPIRE_RARITY_PROBS[pi]
+    probs_next = SPIRE_RARITY_PROBS[min(pi + 1, len(SPIRE_RARITY_PROBS) - 1)]
+    rarity_probs = {r: round(probs_here[r] * (1 - t) + probs_next[r] * t, 4)
+                    for r in probs_here}
+
+    return {
+        "floor": floor,
+        "phase": name,
+        "phase_idx": pi + 1,
+        "enemy_level": enemy_level,
+        "stat_mult": stat_mult,
+        "rarity_probs": rarity_probs,
+        "team_size": team_size,
+        "is_boss": is_boss,
+        "is_milestone": is_milestone,
+        "reward_mult": reward_mult,
+    }
+
+
 def spire_rewards(floor: int, advancing: bool) -> dict:
-    boss = floor % 5 == 0
-    ryo = 120 + floor * 35
-    hero_exp = 40 + floor * 12
+    cfg = spire_floor_config(floor)
+    base_ryo = 100 + floor * 25
+    base_exp = 30 + floor * 10
+    rm = cfg["reward_mult"]
+    boss = cfg["is_boss"]
+    milestone = cfg["is_milestone"]
+
+    ryo = round(base_ryo * rm)
+    hero_exp = round(base_exp * rm)
+    if boss:
+        ryo = round(ryo * 1.5)
+        hero_exp = round(hero_exp * 1.5)
+
     if advancing:
-        if boss:
+        if milestone:
+            items = {"ascension_crystal": 5, "summon_ticket": 3,
+                     "exp_tome_greater": 3, "lunar_essence": 1}
+        elif boss:
             items = {"ascension_crystal": 2, "summon_ticket": 1, "exp_tome_greater": 1}
         else:
             items = {"exp_tome_minor": 2}
@@ -1647,7 +1908,8 @@ def spire_rewards(floor: int, advancing: bool) -> dict:
         ryo = round(ryo * 0.4)
         hero_exp = round(hero_exp * 0.4)
         items = {"exp_tome_minor": 1}
-    return {"ryo": ryo, "hero_exp_base": hero_exp, "items": items, "boss": boss}
+    return {"ryo": ryo, "hero_exp_base": hero_exp, "items": items,
+            "boss": boss, "milestone": milestone}
 
 
 # ---------------------------------------------------------------------------
@@ -1794,8 +2056,9 @@ GEM_ENERGY_REFILL_MIN_COST = 15
 ARENA_WIN_MILESTONE_EVERY = 5      # every 5th Arena win
 ARENA_WIN_MILESTONE_GEMS = 20
 
-SPIRE_FLOOR_MILESTONE_EVERY = 5    # every 5th floor actually advanced
-SPIRE_FLOOR_MILESTONE_GEMS_BASE = 15
+# Spire gem rewards: boss floors give gems; major milestones give big bonuses.
+SPIRE_BOSS_GEMS_BASE = 30
+SPIRE_MILESTONE_GEMS_BASE = 200
 
 
 def first_clear_gems(chapter: int) -> int:
@@ -1826,7 +2089,7 @@ def fresh_login_state() -> dict:
 # on top at runtime so they become fully playable (summon, battle, gallery).
 # ---------------------------------------------------------------------------
 ELEMENTS = list(ELEMENT_ADVANTAGE.keys())
-RARITIES = ["R", "SR", "SSR", "UR", "GR"]
+RARITIES = ["R", "SR", "SSR", "UR", "LR", "GR"]
 
 STATIC_CATALOG = [dict(n) for n in NINJA_CATALOG]
 _CUSTOM_HEROES = []
@@ -1964,6 +2227,15 @@ ITEMS.update({
     "blueprint_armor":     {"id": "blueprint_armor", "name": "Armor Blueprint", "type": "blueprint", "value": 0, "icon": "scroll", "color": "#29B6F6", "desc": "Craft armor at the Forge."},
     "blueprint_accessory": {"id": "blueprint_accessory", "name": "Accessory Blueprint", "type": "blueprint", "value": 0, "icon": "scroll", "color": "#00E676", "desc": "Craft an accessory at the Forge."},
     "blueprint_relic":     {"id": "blueprint_relic", "name": "Relic Blueprint", "type": "blueprint", "value": 0, "icon": "scroll", "color": "#FFC857", "desc": "Craft a relic at the Forge."},
+    # --- Elemental Ascension Materials (consumed when ascending rarity tiers).
+    # Architecture is in place; required only once progression.ELEMENTAL_ESSENCE_ENABLED is True.
+    "fire_essence":      {"id": "fire_essence", "name": "Fire Essence", "type": "material", "value": 0, "icon": "flame", "color": "#FF5722", "desc": "Condensed flame. A future ascension material for Fire heroes."},
+    "water_essence":     {"id": "water_essence", "name": "Water Essence", "type": "material", "value": 0, "icon": "droplet", "color": "#29B6F6", "desc": "Condensed tide. A future ascension material for Water heroes."},
+    "earth_essence":     {"id": "earth_essence", "name": "Earth Essence", "type": "material", "value": 0, "icon": "mountain", "color": "#A1887F", "desc": "Condensed stone. A future ascension material for Earth heroes."},
+    "wind_essence":      {"id": "wind_essence", "name": "Wind Essence", "type": "material", "value": 0, "icon": "wind", "color": "#00E676", "desc": "Condensed gale. A future ascension material for Wind heroes."},
+    "lightning_essence": {"id": "lightning_essence", "name": "Lightning Essence", "type": "material", "value": 0, "icon": "zap", "color": "#FFCA28", "desc": "Condensed storm. A future ascension material for Lightning heroes."},
+    "light_essence":     {"id": "light_essence", "name": "Light Essence", "type": "material", "value": 0, "icon": "sun", "color": "#FFD54F", "desc": "Condensed radiance. A future ascension material for Light heroes."},
+    "dark_essence":      {"id": "dark_essence", "name": "Dark Essence", "type": "material", "value": 0, "icon": "moon", "color": "#7C4DFF", "desc": "Condensed shadow. A future ascension material for Dark heroes."},
 })
 
 # Battle drops now include crafting/evolution materials (long-term grind loops).
@@ -1986,19 +2258,13 @@ EXP_TOME_GOLD_COST = {"exp_tome_minor": 25, "exp_tome_greater": 110, "exp_tome_a
 STAR_BONUS_PER_STAR = 0.18  # +18% HP/ATK/DEF per star beyond the 1st (big evolution payoff)
 
 
-def evolution_cost(rarity: str, current_star: int) -> dict:
+def evolution_cost(rarity: str, current_star: int):
     """Full cost to evolve a hero from `current_star` -> `current_star + 1`.
-    Stars 1-3: shards + ryo. Star 3->4 adds Evolution Essence. Star 4->5 and
-    5->6 add Celestial Cores on top."""
-    ri = RARITY_ORDER[rarity]
-    shards = round((40 + ri * 15) * (1 + 0.6 * (current_star - 1)))
-    ryo = 400 + current_star * 350 + ri * 150
-    items = {}
-    if current_star >= 3:
-        items["evo_essence"] = 2 + (current_star - 3) * 3 + ri
-    if current_star >= 4:
-        items["celestial_core"] = 1 + (current_star - 4) * 2
-    return {"shards": shards, "ryo": ryo, "items": items}
+    Delegates to the centralized progression config (per-rarity star caps +
+    shard/gold costs). Returns None when the hero is already at its rarity's
+    star cap (no further evolution possible — Ascension is the next step)."""
+    import progression as _prog
+    return _prog.get_evolution_cost(rarity, current_star)
 
 
 # ---------------------------------------------------------------------------
@@ -2245,11 +2511,11 @@ def summon_rates(currency: str = "gems") -> dict:
     counts = {}
     for t in CATALOG_BY_ID.values():
         counts[t["rarity"]] = counts.get(t["rarity"], 0) + 1
-    total = sum(weights[r] * c for r, c in counts.items())
+    total = sum(weights.get(r, 0) * c for r, c in counts.items())
     if total <= 0:
         return {}
-    return {r: round(weights[r] * c / total * 100, 3)
-            for r, c in sorted(counts.items(), key=lambda kv: RARITY_ORDER[kv[0]])}
+    return {r: round(weights.get(r, 0) * c / total * 100, 3)
+            for r, c in sorted(counts.items(), key=lambda kv: RARITY_ORDER.get(kv[0], 0))}
 
 
 def pity_chance(pull_number_since_last: int) -> float:
@@ -2343,6 +2609,14 @@ def _tsukuyomi_boss_defs() -> list:
         idx = i + 1
         rng = _random.Random(7000 + idx)
         adds = rng.sample(all_ids, min(2, len(all_ids)))
+        # Tsukuyomi bosses use the powerful 3-phase Dreamlord mechanic,
+        # significantly higher base levels, and boss-tier generated gear.
+        boss_gear = {
+            "hp_pct": 25 + idx * 3,
+            "atk_pct": 20 + idx * 2,
+            "def_pct": 18 + idx * 2,
+            "spd_pct": 10 + idx,
+        }
         out.append({
             "id": f"tsuku_{idx}",
             "index": idx,
@@ -2351,12 +2625,13 @@ def _tsukuyomi_boss_defs() -> list:
             "portrait": t["portrait"],
             "element": t["element"],
             "rarity": t["rarity"],
-            "base_level": 18 + i * 5,
+            "base_level": 25 + i * 7,  # significantly higher base levels
             "rare_chance": round(min(0.10, 0.05 + (i // 5) * 0.0125), 4),
             "gear_set": set_keys[i % len(set_keys)],
             "gear_set_name": GEAR_SETS[set_keys[i % len(set_keys)]]["name"],
             "gear_set_color": GEAR_SETS[set_keys[i % len(set_keys)]]["color"],
-            "boss_mechanic": "abyssal_warden" if i % 2 else "sealed_titan",
+            "boss_mechanic": "tsukuyomi_dreamlord",
+            "boss_gear": boss_gear,
             "adds": adds,
             "lore": _TSUKU_LORE[i % len(_TSUKU_LORE)],
         })
@@ -2370,12 +2645,24 @@ TSUKUYOMI_BY_ID = {b["id"]: b for b in TSUKUYOMI_BOSSES}
 def tsukuyomi_enemies(boss: dict, difficulty: str = "normal") -> list:
     diff = TSUKU_DIFF_BY_ID.get(difficulty, TSUKUYOMI_DIFFICULTIES[0])
     lvl = max(1, round(boss["base_level"] * diff["power_mult"]))
-    enemies = [{"template_id": boss["template_id"], "level": lvl}]
+    # Boss gets powerful generated gear; adds get scaled gear based on difficulty
+    boss_gear = boss.get("boss_gear") or {"hp_pct": 25, "atk_pct": 20, "def_pct": 18, "spd_pct": 10}
+    # Scale boss gear with difficulty
+    diff_mult = diff["power_mult"]
+    scaled_boss_gear = {
+        "hp_pct": round(boss_gear["hp_pct"] * diff_mult),
+        "atk_pct": round(boss_gear["atk_pct"] * diff_mult),
+        "def_pct": round(boss_gear["def_pct"] * diff_mult),
+        "spd_pct": round(boss_gear["spd_pct"] * diff_mult),
+    }
+    enemies = [{"template_id": boss["template_id"], "level": lvl, "gear_bonus": scaled_boss_gear}]
     add_lvl = max(1, round(lvl * 0.85))
+    add_gear = {"hp_pct": round(15 * diff_mult), "atk_pct": round(12 * diff_mult),
+                "def_pct": round(10 * diff_mult), "spd_pct": round(5 * diff_mult)}
     if difficulty == "hard":
-        enemies.append({"template_id": boss["adds"][0], "level": add_lvl})
+        enemies.append({"template_id": boss["adds"][0], "level": add_lvl, "gear_bonus": add_gear})
     elif difficulty == "nightmare":
-        enemies += [{"template_id": a, "level": add_lvl} for a in boss["adds"]]
+        enemies += [{"template_id": a, "level": add_lvl, "gear_bonus": add_gear} for a in boss["adds"]]
     return enemies
 
 
@@ -2461,7 +2748,7 @@ SHOP_BY_ID = {s["id"]: s for s in SHOP_ITEMS}
 # ===========================================================================
 SKILL_RANK_MAX = 10
 PASSIVE_UNLOCK_RANK = 3
-RARITY_PASSIVE_UNLOCK_RANK = {"R": 5, "SR": 4, "SSR": 3, "UR": 2, "GR": 2}
+RARITY_PASSIVE_UNLOCK_RANK = {"R": 5, "SR": 4, "SSR": 3, "UR": 2, "LR": 2, "GR": 2}
 SKILL_POWER_PER_RANK = 0.08  # +8% jutsu power per rank beyond the 1st
 
 

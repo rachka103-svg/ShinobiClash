@@ -4,6 +4,7 @@ import { CoinsIcon, GemsIcon, SwordsIcon } from "@/components/GameIcons";
 import { ElementIcon } from "@/components/ElementIcons";
 import { RARITY } from "@/lib/styles";
 import { ENERGY_COST } from "@/lib/energy";
+import { spireFloorConfig, SPIRE_MAX_FLOOR } from "@/lib/spireConfig";
 
 const PURPLE = "#a855f7";
 
@@ -32,8 +33,9 @@ function RewardSlot({ children, label }) {
 }
 
 export default function SpireChallenge({ floor, enemies, catalogById, isBoss, ryoReward, onChallenge }) {
-  const recPower = floor * 600;
-  const difficulty = Math.min(5, Math.floor(floor / 2) + 1);
+  const cfg = spireFloorConfig(floor);
+  const recPower = Math.round(floor * 600 * cfg.statMult);
+  const difficulty = Math.min(5, cfg.phaseIdx);
 
   // Unique enemy elements for the "Enemy Elements" row.
   const elements = enemies
@@ -55,11 +57,15 @@ export default function SpireChallenge({ floor, enemies, catalogById, isBoss, ry
       {/* ── Header ── */}
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.28em] mb-1" style={{ color: PURPLE }}>Current Challenge</p>
+          <p className="text-[11px] uppercase tracking-[0.28em] mb-1" style={{ color: PURPLE }}>{cfg.phase} · Phase {cfg.phaseIdx}/6</p>
           <h2 className="font-display text-5xl leading-none text-white tracking-wide">FLOOR {floor}</h2>
-          {isBoss && (
+          {cfg.isMilestone ? (
+            <span className="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide" style={{ background: "rgba(255,202,40,0.18)", color: "#FFCA28", border: "1px solid rgba(255,202,40,0.5)" }}>
+              ★ Milestone Boss
+            </span>
+          ) : isBoss && (
             <span className="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide" style={{ background: "rgba(255,87,34,0.18)", color: "#fb923c", border: "1px solid rgba(255,87,34,0.45)" }}>
-              Elite Boss
+              Boss Floor
             </span>
           )}
         </div>
@@ -148,8 +154,12 @@ export default function SpireChallenge({ floor, enemies, catalogById, isBoss, ry
             <RewardSlot label={ryoReward.toLocaleString()}>
               <CoinsIcon size={30} />
             </RewardSlot>
-            {isBoss && (
-              <RewardSlot label="2">
+            {cfg.isMilestone ? (
+              <RewardSlot label={`${200 + floor}`}>
+                <GemsIcon size={30} />
+              </RewardSlot>
+            ) : isBoss && (
+              <RewardSlot label={`${30 + Math.floor(floor / 5)}`}>
                 <GemsIcon size={30} />
               </RewardSlot>
             )}

@@ -43,9 +43,27 @@ export default function GameHud() {
             <span className="w-7 h-7 rounded-full flex items-center justify-center font-display text-sm text-[#05050A] shrink-0" style={{ background: "linear-gradient(135deg,#00E5FF,#0091EA)" }}>
               {(user?.name || "S").slice(0, 1).toUpperCase()}
             </span>
-            <div className="leading-none">
-              <p className="text-[11px] font-semibold text-ink leading-none max-w-[90px] truncate" data-testid="hud-player-name">{user?.name}</p>
-              <p className="text-[10px] text-chakra leading-none mt-0.5">Lv. {user?.level ?? 1}</p>
+            <div className="leading-none min-w-[68px]">
+              <div className="flex items-center gap-1.5">
+                <p className="text-[11px] font-semibold text-ink leading-none max-w-[80px] truncate" data-testid="hud-player-name">{user?.name}</p>
+              </div>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] text-chakra font-display leading-none shrink-0" data-testid="hud-player-level">Lv.{user?.level ?? 1}</span>
+                <div className="flex-1 h-1 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden" data-testid="hud-xp-bar-track">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(100, ((user?.exp ?? 0) / Math.max(1, user?.exp_to_next ?? 1)) * 100)}%`,
+                      background: "linear-gradient(90deg, #00E5FF, #0091EA)",
+                      boxShadow: "0 0 6px rgba(0,229,255,0.5)",
+                    }}
+                    data-testid="hud-xp-bar-fill"
+                  />
+                </div>
+              </div>
+              <p className="text-[8px] text-slate-400 leading-none mt-0.5 tabular-nums" data-testid="hud-xp-text">
+                {(user?.exp ?? 0).toLocaleString()} / {(user?.exp_to_next ?? 0).toLocaleString()}
+              </p>
             </div>
           </div>
           <button

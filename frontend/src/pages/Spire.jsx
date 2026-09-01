@@ -4,6 +4,7 @@ import { Castle, Swords } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import { spireEnemies } from "@/lib/battle";
+import { spireFloorConfig, SPIRE_MAX_FLOOR } from "@/lib/spireConfig";
 import { startBattle } from "@/lib/energy";
 import SpireProgression from "@/components/spire/SpireProgression";
 import SpireChallenge from "@/components/spire/SpireChallenge";
@@ -17,12 +18,13 @@ export default function Spire() {
   const navigate = useNavigate();
 
   const cleared = user?.spire_floor || 0;
-  const maxAttempt = cleared + 1;
+  const maxAttempt = Math.min(cleared + 1, SPIRE_MAX_FLOOR);
   const [floor, setFloor] = useState(maxAttempt);
 
   const enemies = catalog.length ? spireEnemies(floor, catalog) : [];
-  const isBoss = floor % 5 === 0;
-  const ryoReward = 120 + floor * 35;
+  const cfg = spireFloorConfig(floor);
+  const isBoss = cfg.isBoss;
+  const ryoReward = Math.round((100 + floor * 25) * cfg.rewardMult * (isBoss ? 1.5 : 1));
 
   // Blueprint shows exactly the three base trial dungeons (Scroll Sanctum,
   // Crystal Cavern, Gold Vault). Tiered dungeon entries live on the Dungeons page.

@@ -15,6 +15,7 @@ import { auraClass, DecoCorners } from "@/components/RarityFx";
 import SummonRevealOverlay from "@/components/SummonRevealOverlay";
 import SummonCircle from "@/components/cinematic/SummonCircle";
 import BeginnerSummon from "@/components/BeginnerSummon";
+import StepUpSummon from "@/components/StepUpSummon";
 import HeroInspectionOverlay from "@/components/HeroInspectionOverlay";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -95,7 +96,7 @@ const Stars = ({ rarity, className = "w-3 h-3" }) => {
  */
 export default function Summon() {
   const { user, setUser } = useAuth();
-  const { catalog, catalogById, summonCost, banner, gemCosts, summonRates, summonRatesRyo, pityConfig, gearConfig } = useGame();
+  const { catalog, catalogById, summonCost, goldSummonX10Cost, banner, gemCosts, summonRates, summonRatesRyo, pityConfig, gearConfig } = useGame();
   const [mode, setMode] = useState("hero"); // hero | gear
   const [payMode, setPayMode] = useState("gems"); // gems | ryo  (hero altar)
   const [busy, setBusy] = useState(false);
@@ -220,7 +221,7 @@ export default function Summon() {
   const gemX1 = gemCosts.summon;
   const ryoX1 = summonCost;
   const heroX1 = payMode === "gems" ? gemX1 : ryoX1;
-  const heroX10 = heroX1 * 10;
+  const heroX10 = payMode === "gems" ? gemX1 * 10 : goldSummonX10Cost;
   const heroHave = payMode === "gems" ? (user?.gems || 0) : (user?.ryo || 0);
   const payColor = payMode === "gems" ? "#D500F9" : "#FFCA28";
 
@@ -259,7 +260,7 @@ export default function Summon() {
 
       {/* Mode tabs */}
       <div className="flex items-center gap-2 mb-2 shrink-0 relative z-10" data-testid="summon-tabs">
-        {[["hero", "Hero Altar"], ["beginner", "Beginner"]].map(([id, lbl]) => (
+        {[["hero", "Hero Altar"], ["stepup", "Step-Up"], ["beginner", "Beginner"]].map(([id, lbl]) => (
           <button key={id} onClick={() => setMode(id)} data-testid={`summon-tab-${id}`}
             className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all ${mode === id ? "bg-chakra text-[#05050A]" : "bg-white/[0.04] text-slate-400 hover:text-white border border-white/10"}`}>
             {lbl}
@@ -268,7 +269,7 @@ export default function Summon() {
       </div>
 
       {/* ===================== Two-column body ===================== */}
-      {mode === "beginner" ? <BeginnerSummon /> : (
+      {mode === "beginner" ? <BeginnerSummon /> : mode === "stepup" ? <StepUpSummon /> : (
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 lg:gap-4 relative z-10">
         {/* -------- LEFT: cinematic featured banner -------- */}
         {featuredHero ? (

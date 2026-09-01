@@ -27,7 +27,10 @@ from pydantic import BaseModel, EmailStr, Field
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 import game_data as gd
+import expansion_systems as ex
+import progression as prog
 import admin_config as ac
+import player_progression as pp
 
 # Cryptographically-secure RNG for all gameplay-affecting randomness (gacha
 # pulls, gear/loot drops, pity/5050 rolls). random.random()/random.choice()
@@ -112,6 +115,48 @@ def _decode_access_token(token: str) -> dict:
     return payload
 
 
+def migrate_progression(user: dict) -> bool:
+    """Versioned one-time migrations (user['prog_v']):
+      v2 — hero star/rarity migration (existing).
+      v3 — player-level XP-curve migration: ensures stored level/exp is
+           consistent with the current centralized XP curve. Processes any
+           pending level-ups FORWARD only (never lowers a level). Does NOT
+           retroactively grant level-up rewards for already-earned levels.
+    """
+    pv = user.get("prog_v", 0)
+    if pv >= 3:
+        return False
+    changed = False
+    if pv < 2:
+        for inst in user.get("ninjas", []):
+            tmpl = gd.CATALOG_BY_ID.get(inst.get("template_id"))
+            if not tmpl:
+                continue
+            native = tmpl["rarity"]
+            evolved = inst.get("evolved_rarity") or native
+            stars = inst.get("stars", 1)
+            resolved = prog.resolve_effective_rarity(evolved, native, stars)
+            if resolved != evolved:
+                inst["evolved_rarity"] = resolved
+                changed = True
+            if stars > prog.STAR_ABSOLUTE_MAX:
+                inst["stars"] = prog.STAR_ABSOLUTE_MAX
+                changed = True
+    # v3: reconcile player level with the new XP curve (no retroactive rewards)
+    if pv < 3:
+        level = user.get("level", 1)
+        exp = user.get("exp", 0)
+        while exp >= gd.exp_to_next(level):
+            exp -= gd.exp_to_next(level)
+            level += 1
+        if level != user.get("level", 1) or exp != user.get("exp", 0):
+            user["level"] = level
+            user["exp"] = exp
+            changed = True
+    user["prog_v"] = 3
+    return changed
+
+
 async def _sync_lazy_daily_state(user: dict) -> None:
     """Applies any pending energy/daily/arena/login resets (lazy migration
     evaluated on every authenticated request) and persists them if changed."""
@@ -122,6 +167,7 @@ async def _sync_lazy_daily_state(user: dict) -> None:
     changed_fs = ensure_free_summon_state(user)
     changed_bg = ensure_beginner_state(user)
     changed_ac = ensure_achievements_state(user)
+    changed_prog = migrate_progression(user)
     if changed_e or changed_d or changed_a or changed_l or changed_fs or changed_bg or changed_ac:
         await db.users.update_one({"_id": user["_id"]}, {"$set": {
             "energy": user["energy"], "daily": user["daily"],
@@ -131,6 +177,10 @@ async def _sync_lazy_daily_state(user: dict) -> None:
             "free_summons": user.get("free_summons"), "beginner": user.get("beginner"),
             "achievements": user.get("achievements"),
         }})
+    if changed_prog:
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {
+            "ninjas": user.get("ninjas", []), "prog_v": 3,
+            "level": user.get("level", 1), "exp": user.get("exp", 0)}})
 
 
 async def get_current_user(request: Request) -> dict:
@@ -297,6 +347,19 @@ class PortraitUploadIn(BaseModel):
     image: str  # base64 (optionally a data URL)
 
 
+class TranscendIn(BaseModel):
+    instance_id: str
+
+
+class CrystalEquipIn(BaseModel):
+    crystal_id: str
+    gear_id: str
+
+
+class CrystalUnequipIn(BaseModel):
+    crystal_id: str
+
+
 class ArtDescribeIn(BaseModel):
     name: str = Field(min_length=1, max_length=60)
     element: Optional[str] = None
@@ -425,6 +488,38 @@ def free_summons_public(user: dict) -> dict:
         "gem_used": fs.get("gem_used", 0), "gem_max": gd.FREE_GEM_SUMMONS_PER_DAY,
         "coin_used": fs.get("coin_used", 0), "coin_max": gd.FREE_COIN_SUMMONS_PER_DAY,
         "cycle": fs.get("cycle"),
+    }
+
+
+def _stepup_used(user: dict) -> int:
+    """Resolves the step-up summons used counter, migrating from the legacy
+    stepup_claimed milestone list if the new field doesn't exist yet."""
+    used = user.get("step_up_summons_used")
+    if used is not None:
+        return used
+    # Legacy migration: old system tracked claimed milestones as a list.
+    # The level-1 milestone was a freebie that doesn't exist in the new
+    # floor(level/10) system, so exclude it from the count.
+    claimed = user.get("stepup_claimed") or []
+    return len([m for m in claimed if m != 1])
+
+
+def stepup_public(user: dict) -> dict:
+    """Step-up summon status: earned vs used vs available, calculated
+    deterministically from the player's current level."""
+    level = user.get("level", 1)
+    used = _stepup_used(user)
+    total_earned = ex.stepup_total_earned(level)
+    available = max(0, total_earned - used)
+    return {
+        "total_earned": total_earned,
+        "used": used,
+        "available": available,
+        "level": level,
+        "next_milestone": ex.stepup_next_milestone(level),
+        "progress_to_next": level % ex.STEPUP_EVERY,
+        "pull_count": ex.STEPUP_PULL_COUNT,
+        "rates": ex.stepup_rates(),
     }
 
 
@@ -598,7 +693,7 @@ def gear_public(g: dict) -> dict:
     }
 
 
-def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, user: dict) -> None:
+def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_gear: dict, user: dict) -> None:
     """Computes all derived fields (stats/power/gear/skill/etc.) for a single
     owned hero instance, mutating it in place. Returns early (no-op) if the
     hero's static template can't be found (e.g. a deleted custom hero)."""
@@ -609,22 +704,33 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, user: dict) -> None:
     tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
     if not tmpl:
         return
-    rarity = tmpl["rarity"]
+    rarity = ex.effective_rarity(inst, tmpl)
+    native_rarity = tmpl["rarity"]
     star_mult = _star_bonus_mult(inst["stars"])
-    base_stats = gd.compute_stats(inst["template_id"], inst["level"], asc)
+    base_stats = ex.compute_stats_for_rarity(inst["template_id"], inst["level"], asc, rarity)
     star_stats = {k: (round(v * star_mult) if k in ("hp", "atk", "def") else v) for k, v in base_stats.items()}
     equipped = gear_by_hero.get(inst["instance_id"], [])
-    final_stats = gd.apply_gear_to_stats(star_stats, equipped) if equipped else star_stats
+    geared = gd.apply_gear_to_stats(star_stats, equipped) if equipped else star_stats
+    socketed = [crystal_by_gear[g["gear_id"]] for g in equipped if g["gear_id"] in crystal_by_gear]
+    final_stats = ex.apply_crystals_to_stats(geared, socketed) if socketed else geared
+    inst["rarity"] = rarity
+    inst["native_rarity"] = native_rarity
+    inst["evolved_rarity"] = inst.get("evolved_rarity") or native_rarity
     inst["stats"] = final_stats
     inst["power"] = _power_from_stats(final_stats)
     inst["equipped_gear"] = {g["slot"]: g["gear_id"] for g in equipped}
+    inst["socketed_crystals"] = {g["slot"]: crystal_by_gear[g["gear_id"]]["crystal_id"] for g in equipped if g["gear_id"] in crystal_by_gear}
     inst["gear_score"] = sum(gd.gear_score(g) for g in equipped)
     inst["exp_to_next"] = gd.hero_exp_to_next(inst["level"])
     inst["level_cap"] = gd.level_cap(rarity, asc)
     inst["ascension_max"] = gd.ASCENSION_MAX[rarity]
     inst["max_level"] = gd.max_level(rarity)
-    inst["stars_max"] = gd.STAR_LEVEL_MAX
-    inst["evolution_cost"] = gd.evolution_cost(rarity, inst["stars"]) if inst["stars"] < gd.STAR_LEVEL_MAX else None
+    # Per-rarity star cap (R=3 ... GR=8). Evolution is possible while below cap.
+    stars = inst.get("stars", 1)
+    stars_max = gd.max_stars_for_rarity(rarity)
+    inst["stars_max"] = stars_max
+    inst["at_star_cap"] = stars >= stars_max
+    inst["evolution_cost"] = gd.evolution_cost(rarity, stars) if stars < stars_max else None
     inst["star_up_cost"] = inst["evolution_cost"]["shards"] if inst["evolution_cost"] else None
     inst["faction"] = tmpl.get("faction")
     inst["role"] = tmpl.get("role")
@@ -636,6 +742,24 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, user: dict) -> None:
     inst["passive"] = tmpl.get("passive") if sk["passive_unlocked"] else None
     inst["passive_locked"] = not sk["passive_unlocked"]
     inst["shards"] = user.get("hero_shards", {}).get(inst["template_id"], 0)
+    # Ascension (rarity tier raise) — unlocked once the hero reaches its
+    # current rarity's star cap. Costs shards + gold (+ elemental essence).
+    asc_target = ex.transcendence_target(rarity)
+    asc_cost = ex.transcendence_cost(rarity, tmpl.get("element"))
+    inst["ascension_target"] = asc_target
+    inst["ascension_cost"] = asc_cost
+    inst["ascension_benefits"] = prog.get_ascension_benefits(asc_target) if asc_target else []
+    inst["can_ascend_rarity"] = bool(asc_target and stars >= stars_max)
+    # Kept for backward compatibility with older clients.
+    inst["transcendence_target"] = asc_target
+    inst["transcendence_cost"] = asc_cost
+    # Ascension skill scaling — how many tiers above native, for battle.
+    native_order = gd.RARITY_ORDER.get(native_rarity, 1)
+    eff_order = gd.RARITY_ORDER.get(rarity, native_order)
+    inst["ascension_tiers"] = max(0, eff_order - native_order)
+    _askill = prog.ascension_skill_multipliers(native_order, eff_order)
+    inst["ascension_skill_power_mult"] = round(_askill["power_mult"], 4)
+    inst["ascension_skill_effect_mult"] = round(_askill["effect_mult"], 4)
     # Reforge — per-jutsu unlocked combat modifiers (burn/stun/extra dmg/etc.)
     inst_reforge = inst.get("reforge", {}) or {}
     inst["reforge"] = inst_reforge
@@ -650,8 +774,14 @@ def public_user(user: dict) -> dict:
     for g in gear_all:
         if g.get("equipped_by"):
             gear_by_hero.setdefault(g["equipped_by"], []).append(g)
+    crystal_all = user.get("crystals", [])
+    crystal_by_gear = {}
+    for c in crystal_all:
+        gid = c.get("socketed_in")
+        if gid:
+            crystal_by_gear[gid] = c
     for inst in ninjas:
-        _hydrate_ninja_instance(inst, gear_by_hero, user)
+        _hydrate_ninja_instance(inst, gear_by_hero, crystal_by_gear, user)
     team_ids = set(user.get("team", []))
     team_power = sum(i.get("power", 0) for i in ninjas if i["instance_id"] in team_ids)
     return {
@@ -668,6 +798,12 @@ def public_user(user: dict) -> dict:
         "inventory": user.get("inventory", {}),
         "hero_shards": user.get("hero_shards", {}),
         "gear": [gear_public(g) for g in gear_all],
+        "crystals": [ex.crystal_public(c) for c in crystal_all],
+        "crystal_config": {
+            "tiers": ex.CRYSTAL_TIERS,
+            "drop_fraction": ex.CRYSTAL_DROP_FRACTION,
+        },
+        "stepup": stepup_public(user),
         "pity": user.get("pity") or gd.fresh_pity_state(),
         "team": user.get("team", []),
         "cleared_stages": user.get("cleared_stages", []),
@@ -687,19 +823,62 @@ def public_user(user: dict) -> dict:
     }
 
 
-async def grant_player_exp(user: dict, amount: int):
-    level = user.get("level", 1)
+async def grant_player_exp(user: dict, amount: int) -> Optional[dict]:
+    """Adds player XP, processing any level-ups. Each level gained awards
+    rewards (ryo/gems/items) from the centralized player_progression table.
+    Returns None if no level-up occurred, or a level-up summary dict:
+        {old_level, new_level, levels_gained, is_milestone, rewards: [...],
+         total_rewards: {ryo, gems, items}}
+    Multiple level-ups are processed in one pass — all rewards are granted,
+    nothing is lost."""
+    old_level = user.get("level", 1)
+    level = old_level
     exp = user.get("exp", 0) + amount
+    levels_gained = []
     while exp >= gd.exp_to_next(level):
         exp -= gd.exp_to_next(level)
         level += 1
+        rewards = pp.get_level_rewards(level)
+        # Apply rewards immediately
+        user["ryo"] = user.get("ryo", 0) + rewards["ryo"]
+        user["gems"] = user.get("gems", 0) + rewards["gems"]
+        inv = user.get("inventory", {})
+        for iid, qty in rewards["items"].items():
+            inv[iid] = inv.get(iid, 0) + qty
+        user["inventory"] = inv
+        levels_gained.append(rewards)
     user["level"] = level
     user["exp"] = exp
+    if not levels_gained:
+        return None
+    # Aggregate total rewards across all gained levels
+    total = {"ryo": 0, "gems": 0, "items": {}}
+    any_milestone = False
+    for r in levels_gained:
+        total["ryo"] += r["ryo"]
+        total["gems"] += r["gems"]
+        for iid, qty in r["items"].items():
+            total["items"][iid] = total["items"].get(iid, 0) + qty
+        if r["is_milestone"]:
+            any_milestone = True
+    return {
+        "old_level": old_level,
+        "new_level": level,
+        "levels_gained": len(levels_gained),
+        "is_milestone": any_milestone,
+        "rewards": levels_gained,
+        "total_rewards": total,
+    }
 
 
 def grant_hero_exp(inst: dict, amount: int) -> int:
-    """Add EXP to a hero, auto-leveling up to its cap. Returns levels gained."""
-    rarity = gd.CATALOG_BY_ID[inst["template_id"]]["rarity"]
+    """Add EXP to a hero, auto-leveling up to its cap. Returns levels gained.
+    Uses the hero's EFFECTIVE (ascended) rarity so an ascended hero can level
+    toward the higher cap its new tier unlocks."""
+    tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
+    if not tmpl:
+        return 0
+    rarity = ex.effective_rarity(inst, tmpl)
     cap = gd.level_cap(rarity, inst.get("ascension", 0))
     inst["exp"] = inst.get("exp", 0) + amount
     gained = 0
@@ -818,7 +997,7 @@ async def me(user: dict = Depends(get_current_user)):
 @api_router.get("/game/catalog")
 async def catalog():
     return {"ninjas": gd.NINJA_CATALOG, "element_advantage": gd.ELEMENT_ADVANTAGE,
-            "items": gd.ITEMS, "summon_cost": gd.SUMMON_COST,
+            "items": gd.ITEMS, "summon_cost": gd.SUMMON_COST, "gold_summon_x10_cost": gd.GOLD_SUMMON_X10_COST,
             "trials": gd.TRIALS + gd.DUNGEON_TRIALS,
             "banner": banner_info(), "factions": gd.FACTIONS, "roles": gd.ROLES,
             "tags": gd.TAGS, "rarities": gd.RARITIES,
@@ -849,6 +1028,16 @@ async def catalog():
             "exp_tome_gold_cost": gd.EXP_TOME_GOLD_COST,
             "reforge_modifiers": gd.REFORGE_MODIFIERS,
             "reforge_max_per_jutsu": gd.REFORGE_MAX_PER_JUTSU,
+            "progression_config": {
+                "ascension_ladder": prog.ASCENSION_LADDER,
+                "max_stars": prog.MAX_STARS,
+                "evolution_shard_costs": prog.EVOLUTION_SHARD_COST_BY_STAR,
+                "ascension_costs": prog.ASCENSION_COSTS,
+                "ascension_benefits": prog.ASCENSION_BENEFITS,
+                "elemental_essence_enabled": prog.ELEMENTAL_ESSENCE_ENABLED,
+                "element_essence": prog.ELEMENT_ESSENCE,
+                "star_bonus_per_star": gd.STAR_BONUS_PER_STAR,
+            },
             "dungeons": [
                 {**d, "tiers": [
                     {"id": t["id"], "tier": t["tier"], "name": t["name"], "enemies": t["enemies"],
@@ -1081,7 +1270,7 @@ async def arena_battle_complete(body: ArenaBattleCompleteIn, user: dict = Depend
         hero_exp = distribute_hero_exp(
             user, body.participants or list(user.get("team", [])), body.survivors, gd.ARENA_WIN_REWARDS["hero_exp_base"]
         )
-        await grant_player_exp(user, gd.ARENA_WIN_REWARDS["hero_exp_base"])
+        level_up = await grant_player_exp(user, gd.ARENA_WIN_REWARDS["hero_exp_base"])
         bump_mission(user, "any_win")
         bump_mission(user, "arena_win")
         await db.users.update_one({"_id": user["_id"]}, {"$set": {
@@ -1090,7 +1279,8 @@ async def arena_battle_complete(body: ArenaBattleCompleteIn, user: dict = Depend
             "level": user["level"], "exp": user["exp"], "daily": user["daily"], "achievements": user.get("achievements"),
         }})
         return {"profile": public_user(user), "result": "win",
-                "rewards": {"ryo": gd.ARENA_WIN_REWARDS["ryo"], "gems": gems_gained, "hero_exp": hero_exp}}
+                "rewards": {"ryo": gd.ARENA_WIN_REWARDS["ryo"], "gems": gems_gained, "hero_exp": hero_exp},
+                "level_up": level_up}
     else:
         user["arena_rating"] = max(0, user.get("arena_rating", gd.ARENA_RATING_DEFAULT) - gd.ARENA_RATING_LOSS)
         user["arena_losses"] = user.get("arena_losses", 0) + 1
@@ -1139,9 +1329,10 @@ def _roll_battle_gear_drop(user: dict, chapter: int) -> Optional[dict]:
 
 def _apply_campaign_first_clear_bonus(user: dict, stage: dict, stage_id: str, cleared: list,
                                        ninjas: list, rewards: dict) -> None:
-    """Grants the one-time first-clear bonus (bonus Ryo/Gems + a guaranteed
-    hero drop, if any) and marks the stage as cleared. Mutates `cleared`,
-    `ninjas` and `rewards` in place."""
+    """Grants the one-time first-clear bonus (bonus Ryo/Gems + items + a
+    hero drop if any) and marks the stage as cleared. Enforces the campaign
+    hero-reward rarity cap — UR/LR/GR heroes are NEVER granted from campaign.
+    Mutates `cleared`, `ninjas` and `rewards` in place."""
     cleared.append(stage_id)
     fc = stage.get("first_clear", {})
     user["ryo"] += fc.get("ryo", 0)
@@ -1149,10 +1340,28 @@ def _apply_campaign_first_clear_bonus(user: dict, stage: dict, stage_id: str, cl
     gems_gained = gd.first_clear_gems(stage.get("chapter", 1))
     user["gems"] = user.get("gems", 0) + gems_gained
     rewards["gems"] = gems_gained
+    # First-clear item bundle (materials, tickets, etc.)
+    fc_items = fc.get("items", {})
+    if fc_items:
+        inventory = user.get("inventory", {})
+        for iid, qty in fc_items.items():
+            inventory[iid] = inventory.get(iid, 0) + qty
+        user["inventory"] = inventory
+        merged = dict(rewards.get("items", {}))
+        for iid, qty in fc_items.items():
+            merged[iid] = merged.get(iid, 0) + qty
+        rewards["items"] = merged
+    # Hero reward — enforce chapter-based rarity cap
     drop = fc.get("ninja")
-    if drop and not any(i["template_id"] == drop for i in ninjas):
-        ninjas.append(new_ninja_instance(drop))
-        rewards["ninja"] = {"template_id": drop, "name": gd.CATALOG_BY_ID[drop]["name"], "rarity": gd.CATALOG_BY_ID[drop]["rarity"]}
+    if drop:
+        tmpl = gd.CATALOG_BY_ID.get(drop)
+        if tmpl:
+            chapter = stage.get("chapter", 1)
+            max_rarity = pp.campaign_hero_reward_max_rarity(chapter)
+            if gd.RARITY_ORDER.get(tmpl["rarity"], 0) <= gd.RARITY_ORDER.get(max_rarity, 0):
+                if not any(i["template_id"] == drop for i in ninjas):
+                    ninjas.append(new_ninja_instance(drop))
+                    rewards["ninja"] = {"template_id": drop, "name": tmpl["name"], "rarity": tmpl["rarity"]}
 
 
 @api_router.post("/game/battle/complete")
@@ -1173,7 +1382,7 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
     rewards = {"ryo": stage["rewards"]["ryo"], "gems": 0, "exp": base_exp, "ninja": None, "hero_exp": [], "items": {}}
 
     user["ryo"] = user.get("ryo", 0) + rewards["ryo"]
-    await grant_player_exp(user, base_exp)
+    level_up = await grant_player_exp(user, base_exp)
     user["wins"] = user.get("wins", 0) + 1
 
     # distribute hero EXP to participants (survivors full, fallen half)
@@ -1205,7 +1414,7 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
                   "daily": user["daily"], "gear": user.get("gear", [])}},
     )
     user["cleared_stages"] = cleared
-    return {"profile": public_user(user), "rewards": rewards, "result": "win", "first_clear": first_clear}
+    return {"profile": public_user(user), "rewards": rewards, "result": "win", "first_clear": first_clear, "level_up": level_up}
 
 
 def _rarity_pool(min_rarity: str = None, exclude_top: bool = True,
@@ -1223,7 +1432,9 @@ def _rarity_pool(min_rarity: str = None, exclude_top: bool = True,
         if exclude_top and t["rarity"] == gd.TOP_RARITY:
             continue
         if ri >= floor:
-            w = weights[t["rarity"]]
+            w = weights.get(t["rarity"], 0)
+            if w <= 0:
+                continue
             if featured_id and tid == featured_id:
                 w = w * FEATURED_RATE_MULT
             out.append((tid, w))
@@ -1308,6 +1519,14 @@ def _pull_once(user: dict, pity: dict, currency: str = "gems", force_sr_plus: bo
             "duplicate": is_duplicate, "shards_gained": shards_gained, "pity_note": pity_note}
 
 
+def _gold_summon_cost(count: int) -> int:
+    """Total Ryo cost for `count` gold summons. x10 gets a 20% discount
+    (8x single cost instead of 10x)."""
+    if count >= 10:
+        return gd.GOLD_SUMMON_X10_COST
+    return gd.SUMMON_COST * count
+
+
 def _validate_summon_funds(user: dict, inventory: dict, currency: str, count: int) -> None:
     """Raises 400 if the player can't afford `count` pulls on this currency."""
     if currency == "ticket":
@@ -1316,8 +1535,10 @@ def _validate_summon_funds(user: dict, inventory: dict, currency: str, count: in
     elif currency == "gems":
         if user.get("gems", 0) < gd.GEM_SUMMON_COST * count:
             raise HTTPException(status_code=400, detail=f"Not enough Gems — need {gd.GEM_SUMMON_COST * count}")
-    elif user.get("ryo", 0) < gd.SUMMON_COST * count:
-        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {gd.SUMMON_COST * count}")
+    else:
+        cost = _gold_summon_cost(count)
+        if user.get("ryo", 0) < cost:
+            raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost}")
 
 
 def _deduct_summon_cost(user: dict, inventory: dict, currency: str, count: int) -> None:
@@ -1328,7 +1549,7 @@ def _deduct_summon_cost(user: dict, inventory: dict, currency: str, count: int) 
     elif currency == "gems":
         user["gems"] = user.get("gems", 0) - gd.GEM_SUMMON_COST * count
     else:
-        user["ryo"] -= gd.SUMMON_COST * count
+        user["ryo"] -= _gold_summon_cost(count)
 
 
 @api_router.post("/game/summon")
@@ -1481,6 +1702,60 @@ async def free_summon(body: FreeSummonIn, user: dict = Depends(get_current_user)
 
 
 # ---------------------------------------------------------------------------
+# STEP-UP SUMMON — a free x10 unlocked every 10 player levels (1, 10, 20 ...)
+# with tripled (3x) base rates for SSR and above. One claim per milestone.
+# ---------------------------------------------------------------------------
+@api_router.get("/game/summon/stepup")
+async def stepup_status(user: dict = Depends(get_current_user)):
+    return {"stepup": stepup_public(user)}
+
+
+@api_router.post("/game/summon/stepup")
+async def stepup_claim(user: dict = Depends(get_current_user)):
+    level = user.get("level", 1)
+    used = _stepup_used(user)
+    available = ex.stepup_available_count(level, used)
+    if available <= 0:
+        raise HTTPException(status_code=400, detail=f"No Step-Up summons available — reach level {ex.stepup_next_milestone(level)} for your next free x10")
+
+    pity = user.get("pity") or gd.fresh_pity_state()
+    pool = ex.stepup_pool(featured_id=FEATURED_BANNER.get("template_id"))
+    results = []
+    for i in range(ex.STEPUP_PULL_COUNT):
+        # x10 guarantee: the final pull is forced SR+ if none appeared yet.
+        force = (i == ex.STEPUP_PULL_COUNT - 1 and
+                 not any(gd.RARITY_ORDER[r["rarity"]] >= gd.RARITY_ORDER[gd.X10_GUARANTEE_RARITY]
+                        for r in results))
+        if force:
+            sr_pool = [(tid, w) for tid, w in pool
+                       if gd.RARITY_ORDER[gd.CATALOG_BY_ID[tid]["rarity"]] >= gd.RARITY_ORDER[gd.X10_GUARANTEE_RARITY]]
+            chosen = _weighted_choice(sr_pool) if sr_pool else _weighted_choice(pool)
+        else:
+            chosen = _weighted_choice(pool)
+        tmpl, is_dup, shards = _grant_summoned_hero(user, chosen)
+        results.append({"template_id": chosen, "name": tmpl["name"], "rarity": tmpl["rarity"],
+                        "element": tmpl["element"], "role": tmpl["role"], "portrait": tmpl["portrait"],
+                        "duplicate": is_dup, "shards_gained": shards})
+        pity["total_pulls"] = pity.get("total_pulls", 0) + 1
+
+    user["step_up_summons_used"] = used + 1
+    user["pity"] = pity
+    bump_mission(user, "summon", ex.STEPUP_PULL_COUNT)
+    update_doc = {
+        "ninjas": user["ninjas"], "hero_shards": user.get("hero_shards", {}),
+        "pity": pity, "step_up_summons_used": used + 1,
+        "daily": user["daily"], "achievements": user.get("achievements"),
+    }
+    # Clean up legacy stepup_claimed list if it still exists
+    if "stepup_claimed" in user:
+        user.pop("stepup_claimed", None)
+        await db.users.update_one({"_id": user["_id"]}, {"$set": update_doc, "$unset": {"stepup_claimed": ""}})
+    else:
+        await db.users.update_one({"_id": user["_id"]}, {"$set": update_doc})
+    return {"profile": public_user(user), "results": results}
+
+
+# ---------------------------------------------------------------------------
 # Achievements — long-term goals granting currency + stat-boost items.
 # ---------------------------------------------------------------------------
 @api_router.get("/game/achievements")
@@ -1531,9 +1806,11 @@ async def _do_evolve(instance_id: str, user: dict) -> dict:
     if not tmpl:
         raise HTTPException(status_code=404, detail="Hero template not found")
     stars = inst.get("stars", 1)
-    if stars >= gd.STAR_LEVEL_MAX:
-        raise HTTPException(status_code=400, detail="This hero is already at maximum evolution")
-    cost = gd.evolution_cost(tmpl["rarity"], stars)
+    rarity = ex.effective_rarity(inst, tmpl)
+    stars_max = gd.max_stars_for_rarity(rarity)
+    if stars >= stars_max:
+        raise HTTPException(status_code=400, detail="This hero is already at maximum evolution for its rarity — Ascend to raise the cap")
+    cost = gd.evolution_cost(rarity, stars)
     hero_shards = user.setdefault("hero_shards", {})
     inventory = user.get("inventory", {})
     have_shards = hero_shards.get(inst["template_id"], 0)
@@ -1567,6 +1844,55 @@ async def evolve_hero(body: EvolveIn, user: dict = Depends(get_current_user)):
 async def star_up(body: StarUpIn, user: dict = Depends(get_current_user)):
     """Legacy route — kept for compatibility; now runs the Evolution system."""
     return await _do_evolve(body.instance_id, user)
+
+
+@api_router.post("/game/hero/transcend")
+async def transcend_hero(body: TranscendIn, user: dict = Depends(get_current_user)):
+    """Rarity Ascension — raise a hero's rarity tier by one up the ladder
+    (R -> SR -> SSR -> UR -> LR -> GR). Stars carry forward (they are NOT
+    reset); the hero simply gains a higher star cap + recomputed base stats
+    for the new tier. Requires the hero to be at its current rarity's star
+    cap. Costs hero shards + Ryo (+ elemental essence when enabled)."""
+    inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == body.instance_id), None)
+    if not inst:
+        raise HTTPException(status_code=404, detail="Hero not found")
+    tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Hero template not found")
+    cur_rarity = ex.effective_rarity(inst, tmpl)
+    stars = inst.get("stars", 1)
+    stars_max = gd.max_stars_for_rarity(cur_rarity)
+    if stars < stars_max:
+        raise HTTPException(status_code=400, detail=f"Reach {stars_max}\u2605 (max stars for {cur_rarity}) before ascending")
+    cost = ex.transcendence_cost(cur_rarity, tmpl.get("element"))
+    if not cost:
+        raise HTTPException(status_code=400, detail="This hero has already reached the GR rarity cap")
+    hero_shards = user.setdefault("hero_shards", {})
+    have_shards = hero_shards.get(inst["template_id"], 0)
+    if have_shards < cost["shards"]:
+        raise HTTPException(status_code=400, detail=f"Not enough shards ({have_shards}/{cost['shards']})")
+    if user.get("ryo", 0) < cost["ryo"]:
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost['ryo']}")
+    inventory = user.get("inventory", {})
+    for iid, qty in cost["items"].items():
+        if inventory.get(iid, 0) < qty:
+            name = gd.ITEMS.get(iid, {}).get("name", iid)
+            raise HTTPException(status_code=400, detail=f"Not enough {name} ({inventory.get(iid, 0)}/{qty})")
+    # Deduct resources (single atomic pass — no duplicate deductions).
+    hero_shards[inst["template_id"]] = have_shards - cost["shards"]
+    user["ryo"] -= cost["ryo"]
+    for iid, qty in cost["items"].items():
+        inventory[iid] -= qty
+    # Stars carry forward — only the rarity (and its higher star cap) changes.
+    inst["evolved_rarity"] = cost["target"]
+    user["inventory"] = inventory
+    bump_mission(user, "evolve")
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"], "inventory": inventory,
+        "daily": user["daily"], "achievements": user.get("achievements")}})
+    return {"profile": public_user(user), "instance_id": inst["instance_id"],
+            "new_rarity": cost["target"], "prev_rarity": cur_rarity,
+            "stars": stars, "ascended": True}
 
 
 @api_router.post("/game/hero/use-exp")
@@ -1721,11 +2047,13 @@ async def revert_hero(body: RevertIn, user: dict = Depends(get_current_user)):
     tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
     if not tmpl:
         raise HTTPException(status_code=404, detail="Hero template not found")
-    rarity = tmpl["rarity"]
+    native_rarity = tmpl["rarity"]
+    rarity = ex.effective_rarity(inst, tmpl)  # effective (ascended) rarity
 
     if (inst.get("level", 1) == 1 and inst.get("exp", 0) == 0 and
             inst.get("ascension", 0) == 0 and inst.get("stars", 1) == 1 and
-            inst.get("skill_rank", 1) == 1 and not gd.reforge_total(inst.get("reforge", {}))):
+            inst.get("skill_rank", 1) == 1 and not gd.reforge_total(inst.get("reforge", {}))
+            and rarity == native_rarity):
         raise HTTPException(status_code=400, detail="Hero is already at base level")
 
     inventory = user.get("inventory", {})
@@ -1763,14 +2091,34 @@ async def revert_hero(body: RevertIn, user: dict = Depends(get_current_user)):
         for iid, qty in cost.get("items", {}).items():
             inventory[iid] = inventory.get(iid, 0) + qty
 
-    # 3) Evolution costs → refund shards, items, Ryo
+    # 3) Evolution (star) costs → refund shards + Ryo (cost is star-based, so
+    #    iterating by star number is correct regardless of which rarity each
+    #    star was earned at).
     stars = inst.get("stars", 1)
     for i in range(stars - 1):
         cost = gd.evolution_cost(rarity, i)
+        if not cost:
+            continue
         shards_refund += cost["shards"]
         ryo_refund += cost["ryo"]
         for iid, qty in cost["items"].items():
             inventory[iid] = inventory.get(iid, 0) + qty
+
+    # 3b) Rarity Ascension costs → refund shards + Ryo + essence for each
+    #     tier the hero was ascended above its native rarity.
+    cur = native_rarity
+    while cur != rarity:
+        acost = prog.get_ascension_cost(cur, tmpl.get("element"))
+        if not acost:
+            break
+        shards_refund += acost["shards"]
+        ryo_refund += acost["ryo"]
+        for iid, qty in acost["items"].items():
+            inventory[iid] = inventory.get(iid, 0) + qty
+        nxt = prog.get_next_rarity(cur)
+        if not nxt:
+            break
+        cur = nxt
 
     # 4) Skill-up costs → refund shards, Ryo
     skill_rank = inst.get("skill_rank", 1)
@@ -1797,6 +2145,7 @@ async def revert_hero(body: RevertIn, user: dict = Depends(get_current_user)):
     inst["stars"] = 1
     inst["skill_rank"] = 1
     inst["reforge"] = {}
+    inst["evolved_rarity"] = native_rarity  # undo rarity ascension
     user["inventory"] = inventory
 
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
@@ -1950,6 +2299,39 @@ async def gear_summon(body: GearSummonIn, user: dict = Depends(get_current_user)
     return {"profile": public_user(user), "results": results}
 
 
+# ---------------------------------------------------------------------------
+# CRYSTALS — equippable stat-boosting relics dropped by bosses. One per gear piece.
+# ---------------------------------------------------------------------------
+def _find_crystal(user: dict, crystal_id: str) -> dict:
+    c = next((x for x in user.get("crystals", []) if x.get("crystal_id") == crystal_id), None)
+    if not c:
+        raise HTTPException(status_code=404, detail="Crystal not found")
+    return c
+
+
+@api_router.post("/game/crystal/equip")
+async def crystal_equip(body: CrystalEquipIn, user: dict = Depends(get_current_user)):
+    c = _find_crystal(user, body.crystal_id)
+    g = next((x for x in user.get("gear", []) if x.get("gear_id") == body.gear_id), None)
+    if not g:
+        raise HTTPException(status_code=404, detail="Gear not found")
+    # one crystal per gear piece — unsocket whichever crystal holds this slot
+    for other in user.get("crystals", []):
+        if other.get("socketed_in") == body.gear_id and other["crystal_id"] != c["crystal_id"]:
+            other["socketed_in"] = None
+    c["socketed_in"] = body.gear_id
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"crystals": user["crystals"]}})
+    return {"profile": public_user(user), "equipped": c["crystal_id"]}
+
+
+@api_router.post("/game/crystal/unequip")
+async def crystal_unequip(body: CrystalUnequipIn, user: dict = Depends(get_current_user)):
+    c = _find_crystal(user, body.crystal_id)
+    c["socketed_in"] = None
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"crystals": user["crystals"]}})
+    return {"profile": public_user(user)}
+
+
 @api_router.post("/game/spire/complete")
 async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current_user)):
     floor = body.floor
@@ -1962,9 +2344,13 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     r = gd.spire_rewards(floor, advancing)
     user["ryo"] = user.get("ryo", 0) + r["ryo"]
     gems_gained = 0
-    if advancing and floor % gd.SPIRE_FLOOR_MILESTONE_EVERY == 0:
-        gems_gained = gd.SPIRE_FLOOR_MILESTONE_GEMS_BASE + floor
-        user["gems"] = user.get("gems", 0) + gems_gained
+    if advancing:
+        if r.get("milestone"):
+            gems_gained = gd.SPIRE_MILESTONE_GEMS_BASE + floor
+            user["gems"] = user.get("gems", 0) + gems_gained
+        elif r.get("boss"):
+            gems_gained = gd.SPIRE_BOSS_GEMS_BASE + floor // 5
+            user["gems"] = user.get("gems", 0) + gems_gained
     hero_exp = distribute_hero_exp(user, body.participants or list(user.get("team", [])), body.survivors, r["hero_exp_base"])
     inventory = user.get("inventory", {})
     for iid, qty in r["items"].items():
@@ -1977,11 +2363,14 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     total_levels = sum(h["levels"] for h in hero_exp)
     if total_levels:
         bump_mission(user, "hero_levelup", total_levels)
+    level_up = await grant_player_exp(user, r.get("hero_exp_base", 0))
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"], "inventory": inventory,
-        "spire_floor": user.get("spire_floor", current), "daily": user["daily"]}})
-    rewards = {"ryo": r["ryo"], "gems": gems_gained, "items": r["items"], "hero_exp": hero_exp, "boss": r["boss"], "advancing": advancing}
-    return {"profile": public_user(user), "rewards": rewards, "result": "win", "floor": floor, "advancing": advancing}
+        "spire_floor": user.get("spire_floor", current), "daily": user["daily"],
+        "level": user["level"], "exp": user["exp"]}})
+    rewards = {"ryo": r["ryo"], "gems": gems_gained, "items": r["items"], "hero_exp": hero_exp,
+               "boss": r["boss"], "milestone": r.get("milestone", False), "advancing": advancing}
+    return {"profile": public_user(user), "rewards": rewards, "result": "win", "floor": floor, "advancing": advancing, "level_up": level_up}
 
 
 @api_router.post("/game/trial/complete")
@@ -2015,7 +2404,7 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     user["inventory"] = inventory
     bump_mission(user, "trial_win")
     bump_mission(user, "any_win")
-    await grant_player_exp(user, rw.get("hero_exp", 40))
+    level_up = await grant_player_exp(user, rw.get("hero_exp", 40))
     total_levels = sum(h["levels"] for h in hero_exp)
     if total_levels:
         bump_mission(user, "hero_levelup", total_levels)
@@ -2027,7 +2416,7 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
         items_out[blueprint_reward] = items_out.get(blueprint_reward, 0) + 1
     return {"profile": public_user(user),
             "rewards": {"ryo": rw.get("ryo", 0), "items": items_out, "hero_exp": hero_exp, "gear": gear_reward},
-            "result": "win"}
+            "result": "win", "level_up": level_up}
 
 
 @api_router.get("/game/tsukuyomi")
@@ -2073,6 +2462,14 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
         user.setdefault("gear", []).append(g)
         gear_reward = gear_public(g)
 
+    # CRYSTAL drop — a super-rare bonus that scales with the boss's gear
+    # rare-drop chance (boss index + difficulty) at a fraction of that rate.
+    crystal_reward = None
+    crystal_hit = ex.roll_crystal_drop(r["rare_chance"])
+    if crystal_hit:
+        user.setdefault("crystals", []).append(crystal_hit)
+        crystal_reward = ex.crystal_public(crystal_hit)
+
     # progress: remember the highest difficulty cleared per boss
     tsuku = user.get("tsukuyomi") or {}
     order = {"normal": 1, "hard": 2, "nightmare": 3}
@@ -2098,18 +2495,22 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
 
     user["inventory"] = inventory
     bump_mission(user, "any_win")
-    await grant_player_exp(user, r["hero_exp"])
+    level_up = await grant_player_exp(user, r["hero_exp"])
     total_levels = sum(h["levels"] for h in hero_exp)
     if total_levels:
         bump_mission(user, "hero_levelup", total_levels)
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ryo": user["ryo"], "gems": user.get("gems", 0), "wins": user["wins"], "ninjas": user["ninjas"], "inventory": inventory,
-        "gear": user.get("gear", []), "daily": user["daily"], "tsukuyomi": tsuku, "tsukuyomi_fc": fc,
+        "gear": user.get("gear", []), "crystals": user.get("crystals", []),
+        "daily": user["daily"], "tsukuyomi": tsuku, "tsukuyomi_fc": fc,
         "level": user["level"], "exp": user["exp"]}})
     return {"profile": public_user(user), "result": "win",
             "rewards": {"ryo": r["ryo"], "items": r["items"], "hero_exp": hero_exp,
                         "gear": gear_reward, "rare_hit": rare_hit, "rare_chance": r["rare_chance"],
-                        "gear_set_name": boss["gear_set_name"], "first_clear_bonus": first_clear_bonus}}
+                        "gear_set_name": boss["gear_set_name"], "first_clear_bonus": first_clear_bonus,
+                        "crystal": crystal_reward,
+                        "crystal_chance": round(r["rare_chance"] * ex.CRYSTAL_DROP_FRACTION, 4)},
+            "level_up": level_up}
 
 
 @api_router.get("/game/shop")

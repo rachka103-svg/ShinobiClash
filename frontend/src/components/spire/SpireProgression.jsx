@@ -1,30 +1,31 @@
 import { motion } from "framer-motion";
 import { Castle, ChevronRight } from "lucide-react";
 import { CheckIcon, LockIcon, SkullIcon } from "@/components/GameIcons";
+import { SPIRE_BOSS_FLOORS, SPIRE_MILESTONE_FLOORS } from "@/lib/spireConfig";
 import SpireTowerBg from "./SpireTowerBg";
 
 const PURPLE = "#a855f7";
 const GREEN = "#22c55e";
 
 // Build the vertical climb: a window around the player's progress plus
-// upcoming boss milestones (5, 10, 15…) so the path always previews the
-// Elite Boss and the mysterious upper floors — matching the blueprint.
+// upcoming boss floors so the path always previews the next challenge.
 function buildFloors(cleared) {
   const maxAttempt = cleared + 1;
   const low = Math.max(1, maxAttempt - 3);
   const high = maxAttempt + 2;
   const set = new Set();
   for (let f = low; f <= high; f++) set.add(f);
-  [5, 10, 15, 20].forEach((m) => { if (m > cleared && m <= maxAttempt + 8) set.add(m); });
+  // Add upcoming boss floors within a reasonable preview window
+  [...SPIRE_BOSS_FLOORS].forEach((m) => {
+    if (m > cleared && m <= maxAttempt + 8) set.add(m);
+  });
   return [...set].sort((a, b) => b - a); // highest first → climbs upward
 }
 
 function NodeIcon({ state, boss, floor }) {
   if (state === "cleared") return <CheckIcon size={22} />;
   if (state === "locked") return <LockIcon size={16} />;
-  // Only the near Elite Boss (floor 5) gets the skull crest; higher boss
-  // milestones stay locked/mysterious per the blueprint.
-  if (boss && floor < 10) return <SkullIcon size={22} />;
+  if (boss) return <SkullIcon size={22} />;
   return <span className="font-display text-xl leading-none">{floor}</span>;
 }
 
@@ -71,7 +72,8 @@ export default function SpireProgression({ cleared, floor, onSelect }) {
       <div className="absolute inset-0 z-20 flex flex-col justify-between py-[70px] px-5">
         {floors.map((f, i) => {
           const state = f <= cleared ? "cleared" : f === maxAttempt ? "current" : "locked";
-          const boss = f % 5 === 0;
+          const boss = SPIRE_BOSS_FLOORS.has(f);
+          const isMilestone = SPIRE_MILESTONE_FLOORS.has(f);
           const selected = f === floor;
           const canPick = f <= maxAttempt;
           const color = state === "cleared" ? GREEN : state === "current" ? PURPLE : "#475568";
@@ -117,8 +119,8 @@ export default function SpireProgression({ cleared, floor, onSelect }) {
                   )}
                   {state === "current" && <ChevronRight className="w-3.5 h-3.5" style={{ color: PURPLE }} />}
                 </div>
-                <span className="text-[11px] font-semibold" style={{ color: state === "cleared" ? GREEN : state === "current" ? "#c4b5fd" : boss && f < 10 ? PURPLE : "#475568" }}>
-                  {state === "cleared" ? "CLEARED" : state === "current" ? "In progress" : f >= 10 ? "?????" : boss ? "ELITE BOSS" : "Locked"}
+                <span className="text-[11px] font-semibold" style={{ color: state === "cleared" ? GREEN : state === "current" ? "#c4b5fd" : boss ? PURPLE : "#475568" }}>
+                  {state === "cleared" ? "CLEARED" : state === "current" ? "In progress" : isMilestone ? "MILESTONE BOSS" : boss ? "BOSS FLOOR" : "Locked"}
                 </span>
               </div>
             </motion.button>

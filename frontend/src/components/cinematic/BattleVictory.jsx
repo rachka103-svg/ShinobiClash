@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coins, Gem, Zap, ArrowRight, Star } from "lucide-react";
+import { Coins, Gem, Zap, ArrowRight, Star, Sparkles, Ticket } from "lucide-react";
 import { CoinsIcon, GemsIcon } from "@/components/GameIcons";
+
+const ITEM_META = {
+  exp_tome_minor: { icon: Sparkles, color: "#9E9E9E", label: "Minor EXP Tome" },
+  exp_tome_greater: { icon: Sparkles, color: "#29B6F6", label: "Greater EXP Tome" },
+  exp_tome_ancient: { icon: Sparkles, color: "#AB47BC", label: "Ancient EXP Tome" },
+  ascension_crystal: { icon: Gem, color: "#00E5FF", label: "Ascension Crystal" },
+  summon_ticket: { icon: Ticket, color: "#FFCA28", label: "Summon Ticket" },
+};
 
 /**
  * BattleVictory — cinematic victory sequence.
@@ -116,6 +124,20 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
               ))}
             </div>
           )}
+          {/* Item drops */}
+          {rewards.items && Object.keys(rewards.items).length > 0 && (
+            <div className="reward-reveal flex flex-wrap justify-center gap-2 mt-1 max-w-md" style={{ animationDelay: "1.1s", opacity: 0, animationFillMode: "forwards" }}>
+              {Object.entries(rewards.items).map(([iid, qty]) => {
+                const meta = ITEM_META[iid] || { icon: Sparkles, color: "#94A3B8", label: iid };
+                const Icon = meta.icon;
+                return (
+                  <span key={iid} className="flex items-center gap-1 text-sm" style={{ color: meta.color }} data-testid={`victory-item-${iid}`}>
+                    <Icon className="w-4 h-4" /> +{qty} {meta.label}
+                  </span>
+                );
+              })}
+            </div>
+          )}
           {/* Ninja recruit */}
           {rewards.ninja && (
             <div className="reward-reveal text-jutsu font-display text-lg mt-1" style={{ animationDelay: "1.3s", opacity: 0, animationFillMode: "forwards" }}>
@@ -126,6 +148,18 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
           {rewards.gear && (
             <div className="reward-reveal font-display text-lg mt-1" style={{ animationDelay: "1.5s", opacity: 0, animationFillMode: "forwards", color: rewards.gear.color || "#FFCA28" }}>
               ★ {rewards.gear.set_name} {rewards.gear.slot} ({rewards.gear.rarity})
+            </div>
+          )}
+          {/* Crystal drop */}
+          {rewards.crystal && (
+            <div className="reward-reveal font-display text-lg mt-1 flex items-center gap-1.5" style={{ animationDelay: "1.7s", opacity: 0, animationFillMode: "forwards", color: rewards.crystal.tier_color || "#AB47BC" }}>
+              <Gem size={18} /> ★ {rewards.crystal.tier_name} Crystal ({rewards.crystal.main_stat.toUpperCase()})
+            </div>
+          )}
+          {/* Level-up indicator */}
+          {result?.level_up && (
+            <div className="reward-reveal font-display text-xl mt-3 flex items-center gap-2" style={{ animationDelay: "2s", opacity: 0, animationFillMode: "forwards", color: "#00E5FF", textShadow: "0 0 20px rgba(0,229,255,0.6)" }} data-testid="victory-level-up-indicator">
+              <Star className="w-5 h-5" fill="currentColor" /> LEVEL UP! Lv.{result.level_up.old_level} → Lv.{result.level_up.new_level}
             </div>
           )}
         </div>
@@ -140,37 +174,34 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
         </div>
       )}
 
-      {/* Buttons */}
+      {/* Buttons — Retry + Next are always available, win or lose */}
       {stage >= 3 && (
         <div className="absolute inset-x-0 bottom-[12%] flex flex-col items-center gap-3 pointer-events-auto">
-          <div className="flex gap-3 px-4 w-full max-w-sm mx-auto">
+          <div className="flex gap-2.5 px-4 w-full max-w-md mx-auto">
             <button
               onClick={onBack}
               data-testid="cine-result-back"
-              className="flex-1 py-3 rounded-xl font-display text-lg tracking-wide border border-white/15 text-slate-300 hover:bg-white/10 transition-colors"
+              className="flex-1 py-3 rounded-xl font-display text-base sm:text-lg tracking-wide border border-white/15 text-slate-300 hover:bg-white/10 transition-colors"
             >
               {mode === "campaign" ? "CAMPAIGN" : mode === "arena" ? "ARENA" : "BACK"}
             </button>
-            {isVictory ? (
-              <button
-                onClick={onNext || onLobby}
-                data-testid="cine-result-next"
-                className="flex-1 py-3 rounded-xl font-display text-lg tracking-wide flex items-center justify-center gap-1 transition-colors"
-                style={{ background: "linear-gradient(135deg, #FFCA28, #FF8F00)", color: "#05050A" }}
-              >
-                {mode === "spire" ? "NEXT FLOOR" : mode === "trial" ? "FARM AGAIN" : mode === "arena" ? "FIND OPPONENT" : "LOBBY"}
-                <ArrowRight size={18} />
-              </button>
-            ) : (
-              <button
-                onClick={onRetry}
-                data-testid="cine-result-retry"
-                className="flex-1 py-3 rounded-xl font-display text-lg tracking-wide transition-colors"
-                style={{ background: "#FF5722", color: "#fff" }}
-              >
-                RETRY
-              </button>
-            )}
+            <button
+              onClick={onRetry}
+              data-testid="cine-result-retry"
+              className="flex-1 py-3 rounded-xl font-display text-base sm:text-lg tracking-wide transition-colors"
+              style={{ background: "#FF5722", color: "#fff" }}
+            >
+              RETRY
+            </button>
+            <button
+              onClick={onNext || onLobby}
+              data-testid="cine-result-next"
+              className="flex-1 py-3 rounded-xl font-display text-base sm:text-lg tracking-wide flex items-center justify-center gap-1 transition-colors"
+              style={{ background: "linear-gradient(135deg, #FFCA28, #FF8F00)", color: "#05050A" }}
+            >
+              {mode === "spire" ? "NEXT FLOOR" : mode === "trial" ? "FARM AGAIN" : mode === "arena" ? "FIND OPPONENT" : mode === "tsukuyomi" ? "TSUKUYOMI" : "NEXT"}
+              <ArrowRight size={18} />
+            </button>
           </div>
         </div>
       )}

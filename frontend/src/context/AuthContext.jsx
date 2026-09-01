@@ -55,8 +55,9 @@ export function AuthProvider({ children }) {
       const { data } = await api.get("/game/profile");
       setUser(data);
       return data;
-    } catch {
+    } catch (e) {
       // background refresh failing shouldn't crash the UI — keep the last known profile
+      console.error("Profile refresh failed:", e);
       return null;
     }
   }, []);
