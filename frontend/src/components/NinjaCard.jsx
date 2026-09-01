@@ -4,32 +4,23 @@ import { rarityFrame, GOLD, GODLY } from "@/lib/theme";
 import { auraClass, RaritySparkles, DecoCorners } from "@/components/RarityFx";
 import { ElementIcon } from "@/components/ElementIcons";
 
-export const NinjaCard = ({
-  ninja,
-  onClick,
-  selected,
-  disabled,
-  badge,
-  testid,
-}) => {
-  // IMPORTANT:
-  // Owned/evolved ninja instances may have an upgraded rarity that differs
-  // from their original catalog/template rarity.
-  //
-  // Always prioritize the instance rarity first.
-  const currentRarity =
-    ninja.current_rarity ||
+export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid }) => {
+  // Always prefer the hero's transformed rarity over its original catalog rarity.
+  // This ensures ascended heroes visually upgrade even if template data is merged in.
+  const displayRarity =
     ninja.evolved_rarity ||
-    ninja.rarity;
+    ninja.rarity ||
+    "R";
 
-  const rarity = RARITY[currentRarity] || RARITY.R;
+  const rarity = RARITY[displayRarity] || RARITY.R;
   const element = ELEMENT[ninja.element] || {};
-
   const tier = rarity.tier ?? 0;
+
+  // SSR and above get an animated aura
   const elite = tier >= 3;
 
-  const aura = auraClass(currentRarity);
-  const fr = rarityFrame(currentRarity);
+  const aura = auraClass(displayRarity);
+  const fr = rarityFrame(displayRarity);
 
   const edge = fr.isGodly
     ? GODLY.stroke
@@ -46,7 +37,7 @@ export const NinjaCard = ({
           border: `2px solid ${GODLY.base}`,
           "--glow": GODLY.base,
           boxShadow:
-            "inset 0 0 0 1px rgba(100,255,218,0.28), 0 0 22px rgba(100,255,218,0.35)",
+            "inset 0 0 0 1px rgba(100,255,218,0.28)",
         }
       : elite
         ? {
@@ -54,15 +45,10 @@ export const NinjaCard = ({
             "--glow": fr.useGold
               ? GOLD.base
               : `${rarity.color}${
-                  tier >= 4
-                    ? "cc"
-                    : tier >= 3
-                      ? "aa"
-                      : "88"
+                  tier >= 4 ? "cc" :
+                  tier >= 3 ? "aa" :
+                  "88"
                 }`,
-            boxShadow: `0 0 ${8 + tier * 5}px ${
-              fr.useGold ? GOLD.base : rarity.color
-            }66`,
           }
         : {
             border: `${tier >= 1 ? 1.5 : 1}px solid ${rarity.color}`,
@@ -80,69 +66,39 @@ export const NinjaCard = ({
       onClick={onClick}
       disabled={disabled}
       data-testid={testid}
-      className={`
-        relative
-        text-left
-        rounded-lg
-        overflow-hidden
-        group
-        transition-all
-        bg-[#FFFFFF]
-
-        ${
-          selected
-            ? "ring-2 ring-cyan-400 glow-cyan"
-            : fr.isGodly
-              ? `${aura} godly-border`
-              : elite
-                ? aura
-                : ""
-        }
-
-        ${disabled ? "opacity-50 grayscale" : ""}
-      `}
+      className={`relative text-left rounded-lg overflow-hidden group transition-all bg-[#FFFFFF] ${
+        selected
+          ? "ring-2 ring-cyan-400 glow-cyan"
+          : fr.isGodly
+            ? `${aura} godly-border`
+            : elite
+              ? aura
+              : ""
+      } ${disabled ? "opacity-50 grayscale" : ""}`}
       style={frameStyle}
     >
-      {/* Card artwork */}
       <div className="aspect-[3/4] overflow-hidden bg-black/40 relative">
-
         <img
           src={ninja.portrait}
           alt={ninja.name}
-          className="
-            w-full
-            h-full
-            object-cover
-            object-top
-            group-hover:scale-105
-            transition-transform
-            duration-500
-          "
+          className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
 
-        {/* Artwork gradient */}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
 
-        {/* Rarity sparkles */}
         {!disabled && (
-          <RaritySparkles rarity={currentRarity} />
+          <RaritySparkles rarity={displayRarity} />
         )}
 
-        {/* High rarity shine */}
         {tier >= 4 && !disabled && (
           <span className="absolute inset-0 shine-sweep pointer-events-none" />
         )}
 
-        {/* Decorative rarity corners */}
         {fr.cornerLevel >= 1 && !disabled && (
-          <DecoCorners
-            rarity={currentRarity}
-            size={16}
-          />
+          <DecoCorners rarity={displayRarity} size={16} />
         )}
 
-        {/* Level */}
         {ninja.level != null && (
           <span className="absolute bottom-1.5 right-1.5 font-display text-base text-white glow-text-cyan">
             Lv.{ninja.level}
@@ -152,7 +108,6 @@ export const NinjaCard = ({
         {badge}
       </div>
 
-      {/* Card information */}
       <div className="px-2 py-1.5">
         <div className="flex items-center gap-1.5">
           <ElementIcon
