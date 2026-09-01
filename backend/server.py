@@ -997,7 +997,7 @@ async def me(user: dict = Depends(get_current_user)):
 @api_router.get("/game/catalog")
 async def catalog():
     return {"ninjas": gd.NINJA_CATALOG, "element_advantage": gd.ELEMENT_ADVANTAGE,
-            "items": gd.ITEMS, "summon_cost": gd.SUMMON_COST,
+            "items": gd.ITEMS, "summon_cost": gd.SUMMON_COST, "gold_summon_x10_cost": gd.GOLD_SUMMON_X10_COST,
             "trials": gd.TRIALS + gd.DUNGEON_TRIALS,
             "banner": banner_info(), "factions": gd.FACTIONS, "roles": gd.ROLES,
             "tags": gd.TAGS, "rarities": gd.RARITIES,
@@ -1519,6 +1519,14 @@ def _pull_once(user: dict, pity: dict, currency: str = "gems", force_sr_plus: bo
             "duplicate": is_duplicate, "shards_gained": shards_gained, "pity_note": pity_note}
 
 
+def _gold_summon_cost(count: int) -> int:
+    """Total Ryo cost for `count` gold summons. x10 gets a 20% discount
+    (8x single cost instead of 10x)."""
+    if count >= 10:
+        return gd.GOLD_SUMMON_X10_COST
+    return gd.SUMMON_COST * count
+
+
 def _validate_summon_funds(user: dict, inventory: dict, currency: str, count: int) -> None:
     """Raises 400 if the player can't afford `count` pulls on this currency."""
     if currency == "ticket":
@@ -1527,8 +1535,10 @@ def _validate_summon_funds(user: dict, inventory: dict, currency: str, count: in
     elif currency == "gems":
         if user.get("gems", 0) < gd.GEM_SUMMON_COST * count:
             raise HTTPException(status_code=400, detail=f"Not enough Gems — need {gd.GEM_SUMMON_COST * count}")
-    elif user.get("ryo", 0) < gd.SUMMON_COST * count:
-        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {gd.SUMMON_COST * count}")
+    else:
+        cost = _gold_summon_cost(count)
+        if user.get("ryo", 0) < cost:
+            raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost}")
 
 
 def _deduct_summon_cost(user: dict, inventory: dict, currency: str, count: int) -> None:
@@ -1539,7 +1549,7 @@ def _deduct_summon_cost(user: dict, inventory: dict, currency: str, count: int) 
     elif currency == "gems":
         user["gems"] = user.get("gems", 0) - gd.GEM_SUMMON_COST * count
     else:
-        user["ryo"] -= gd.SUMMON_COST * count
+        user["ryo"] -= _gold_summon_cost(count)
 
 
 @api_router.post("/game/summon")

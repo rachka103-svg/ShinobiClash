@@ -1256,7 +1256,15 @@ SUMMON_WEIGHTS = {"R": 1000, "SR": 320, "SSR": 95, "UR": 20, "LR": 6, "GR": 2}
 # GOLD/RYO banner (budget) — SUPER low chance at rare heroes and NO pity.
 # Heavily floored to R/SR; UR/GR are vanishingly rare here.
 GOLD_SUMMON_WEIGHTS = {"R": 4000, "SR": 520, "SSR": 60, "UR": 4, "LR": 1.5, "GR": 0.5}
-SUMMON_COST = 300
+# Gold (Ryo) summon cost — significantly increased from 300 to make gold
+# summons a meaningful decision rather than something players can spam.
+# A new player clearing Chapter 1 earns ~10k Ryo (first clears + rewards),
+# so 5000 = ~2 summons per chapter of first-clear progress. Daily income
+# (login + missions + stage replays + gold vault) is ~2.5k-4k Ryo, giving
+# roughly 2-3 summons per day from routine play.
+SUMMON_COST = 5000
+# x10 Gold Summon — 8x the single cost (20% discount vs 10 individual pulls).
+GOLD_SUMMON_X10_COST = 40000
 
 # Shards gained when pulling a hero already owned (duplicate protection —
 # duplicates are NEVER wasted). Lower rarity yields more shards since it's
@@ -1344,18 +1352,39 @@ _CURATED_CHAPTER_REGIONS = {1: "Leaf Outskirts", 2: "Misty Woods", 3: "Howling C
 
 
 def _rarity_band_for_chapter(chapter: int) -> list:
-    """Which rarity tiers a chapter's regular (non-boss) enemies are drawn from."""
+    """Which rarity tiers a chapter's regular (non-boss) enemies are drawn from.
+    Scales gradually: Chapters 1-3 stay R only (approachable), 4-6 add SR,
+    7-10 introduce SSR, 11+ see UR, and very late chapters see GR enemies."""
     order = ["N", "R", "SR", "SSR", "UR", "GR", "LR", "MYTHIC"]
-    # every 2 chapters, the band creeps up one tier; caps at GR for regular mobs
-    lo = min(5, max(0, (chapter - 1) // 2))
-    hi = min(6, lo + 2)
-    return order[lo:hi + 1]
+    if chapter <= 3:
+        return ["R"]
+    elif chapter <= 6:
+        return ["R", "SR"]
+    elif chapter <= 10:
+        return ["SR", "SSR"]
+    elif chapter <= 15:
+        return ["SSR", "UR"]
+    elif chapter <= 25:
+        return ["UR", "GR"]
+    else:
+        return ["GR", "LR", "MYTHIC"]
 
 
 def _boss_rarity_for_chapter(chapter: int) -> list:
-    order = ["SSR", "UR", "GR", "LR", "MYTHIC"]
-    idx = min(len(order) - 1, max(0, (chapter - 4) // 2))
-    return order[idx:idx + 2] or [order[-1]]
+    """Boss rarity scales more aggressively than regular mobs — bosses are
+    always at least one tier above the regular enemy band."""
+    if chapter <= 3:
+        return ["R", "SR"]
+    elif chapter <= 6:
+        return ["SR", "SSR"]
+    elif chapter <= 10:
+        return ["SSR", "UR"]
+    elif chapter <= 15:
+        return ["UR", "GR"]
+    elif chapter <= 25:
+        return ["GR", "LR"]
+    else:
+        return ["LR", "MYTHIC"]
 
 
 # Reusable boss-phase framework — a mega boss is never just a bigger HP bar.
@@ -1382,7 +1411,111 @@ BOSS_MECHANICS = {
         "summons_adds_at_pct": 40,
         "immune_to": ["poison"],
     },
+    "tsukuyomi_dreamlord": {
+        "name": "Dreamlord's Descent",
+        "phases": [
+            {"hp_above": 60, "behavior": "normal", "atk_mult": 1.15, "spd_mult": 1.0},
+            {"hp_between": [25, 60], "behavior": "empowered", "atk_mult": 1.45, "spd_mult": 1.35, "shield_pct": 15},
+            {"hp_below": 25, "behavior": "desperation", "atk_mult": 2.0, "spd_mult": 1.5, "shield_pct": 25, "lifesteal_pct": 15},
+        ],
+        "summons_adds_at_pct": 50,
+        "immune_to": ["stun", "freeze"],
+    },
 }
+
+
+def _enemy_gear_bonuses(chapter: int, is_boss: bool, stage_rng) -> dict:
+    """Generate stat bonuses representing enemy equipment. Scales with
+    chapter progression — early enemies have little/no gear, mid-game enemies
+    get meaningful bonuses, late-game enemies have competitive gear sets.
+    Returns a dict of percentage bonuses {hp_pct, atk_pct, def_pct, spd_pct}."""
+    if chapter <= 2:
+        # Early game: mostly no gear, occasional basic common gear
+        if is_boss:
+            return {"hp_pct": 5, "atk_pct": 3, "def_pct": 3, "spd_pct": 0}
+        return {} if stage_rng.random() > 0.2 else {"hp_pct": 3, "atk_pct": 2, "def_pct": 2, "spd_pct": 0}
+    elif chapter <= 5:
+        # Early-mid: basic gear appears, bosses get rare gear
+        base = 5 + chapter * 2
+        if is_boss:
+            return {"hp_pct": base + 8, "atk_pct": base + 5, "def_pct": base + 3, "spd_pct": 3}
+        return {"hp_pct": base, "atk_pct": base - 1, "def_pct": base - 2, "spd_pct": 2} if stage_rng.random() > 0.3 else {}
+    elif chapter <= 10:
+        # Mid game: consistent gear, epic gear on bosses
+        base = 15 + (chapter - 5) * 3
+        if is_boss:
+            return {"hp_pct": base + 12, "atk_pct": base + 8, "def_pct": base + 6, "spd_pct": 5}
+        return {"hp_pct": base, "atk_pct": base - 2, "def_pct": base - 3, "spd_pct": 3}
+    elif chapter <= 20:
+        # Late game: strong gear, complete sets on bosses
+        base = 30 + (chapter - 10) * 3
+        if is_boss:
+            return {"hp_pct": base + 15, "atk_pct": base + 12, "def_pct": base + 10, "spd_pct": 8}
+        return {"hp_pct": base, "atk_pct": base - 3, "def_pct": base - 4, "spd_pct": 5}
+    else:
+        # End game: top-tier gear on everything
+        base = 60 + min(40, (chapter - 20) * 2)
+        if is_boss:
+            return {"hp_pct": base + 20, "atk_pct": base + 15, "def_pct": base + 12, "spd_pct": 10}
+        return {"hp_pct": base, "atk_pct": base - 5, "def_pct": base - 6, "spd_pct": 7}
+
+
+def _build_enemy_team(chapter, candidates, pool_by_rarity, stage_rng, count, base_level) -> list:
+    """Build an enemy team with intelligent composition that scales with
+    chapter progression. Early chapters use random attackers; mid/late
+    chapters form synergistic teams with tanks, healers, supports, and
+    damage dealers."""
+    if chapter <= 3 or count <= 1:
+        # Early game: simple random composition
+        return [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
+
+    # Mid/late game: build a synergistic team
+    # Categorize available heroes by role
+    by_role = {}
+    for tid in candidates:
+        tmpl = CATALOG_BY_ID.get(tid)
+        if not tmpl:
+            continue
+        by_role.setdefault(tmpl["role"], []).append(tid)
+
+    # Ensure we have at least some roles available; fall back to candidates
+    tanks = by_role.get("Tank", []) or by_role.get("Bruiser", []) or candidates
+    healers = by_role.get("Healer", []) or by_role.get("Support", []) or []
+    supports = by_role.get("Support", []) or by_role.get("Control", []) or []
+    damage = by_role.get("Attacker", []) or by_role.get("Assassin", []) or by_role.get("Mage", []) or candidates
+    control = by_role.get("Control", []) or by_role.get("Mage", []) or []
+    assassins = by_role.get("Assassin", []) or damage
+
+    team = []
+    if count >= 3 and chapter >= 7:
+        # Synergistic composition: Tank + Healer/Support + Damage
+        team.append({"template_id": stage_rng.choice(tanks), "level": base_level + stage_rng.randint(0, 2)})
+        if healers and chapter >= 10:
+            team.append({"template_id": stage_rng.choice(healers), "level": base_level + stage_rng.randint(0, 1)})
+        elif supports:
+            team.append({"template_id": stage_rng.choice(supports), "level": base_level + stage_rng.randint(0, 1)})
+        else:
+            team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+        # Fill remaining slots with damage/control
+        for _ in range(count - 2):
+            if chapter >= 15 and control and stage_rng.random() > 0.6:
+                team.append({"template_id": stage_rng.choice(control), "level": base_level + stage_rng.randint(0, 2)})
+            else:
+                team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+    elif count >= 2 and chapter >= 5:
+        # Basic composition: mix of roles
+        team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+        if tanks and stage_rng.random() > 0.4:
+            team.append({"template_id": stage_rng.choice(tanks), "level": base_level + stage_rng.randint(0, 2)})
+        else:
+            team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+        for _ in range(count - 2):
+            team.append({"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)})
+    else:
+        # Fallback: random
+        team = [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
+
+    return team
 
 
 def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rarity, stage_rng) -> dict:
@@ -1390,7 +1523,19 @@ def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rari
     boss_candidates = [tid for r in boss_band for tid in pool_by_rarity.get(r, [])] or candidates
     boss_tid = stage_rng.choice(boss_candidates)
     mech_id = "sealed_titan" if chapter % 2 == 0 else "abyssal_warden"
-    enemies = [{"template_id": boss_tid, "level": round(base_level * 1.6)}]
+    # Boss level scales more aggressively in mid/late game
+    boss_level_mult = 1.6 if chapter <= 5 else (1.8 + (chapter - 5) * 0.03)
+    boss_level = round(base_level * boss_level_mult)
+    boss_gear = _enemy_gear_bonuses(chapter, True, stage_rng)
+    enemies = [{"template_id": boss_tid, "level": boss_level, "gear_bonus": boss_gear}]
+    # Late-game bosses get supporting adds
+    if chapter >= 8:
+        add_band = _rarity_band_for_chapter(chapter)
+        add_candidates = [tid for r in add_band for tid in pool_by_rarity.get(r, [])] or candidates
+        add_count = min(2, 1 + (chapter - 8) // 5)
+        add_gear = _enemy_gear_bonuses(chapter, False, stage_rng)
+        for _ in range(add_count):
+            enemies.append({"template_id": stage_rng.choice(add_candidates), "level": round(boss_level * 0.85), "gear_bonus": add_gear})
     return {
         "id": sid, "chapter": chapter, "name": f"{CATALOG_BY_ID[boss_tid]['name']}'s Last Stand",
         "region": region, "enemies": enemies, "is_boss": True,
@@ -1402,7 +1547,11 @@ def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rari
 
 def _build_normal_stage(sid, chapter, i, region, base_level, candidates, stage_rng) -> dict:
     count = min(3, 2 + i // 3)
-    enemies = [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
+    enemies = _build_enemy_team(chapter, candidates, {}, stage_rng, count, base_level)
+    # Apply enemy gear bonuses
+    gear = _enemy_gear_bonuses(chapter, False, stage_rng)
+    for e in enemies:
+        e["gear_bonus"] = gear
     return {
         "id": sid, "chapter": chapter, "name": f"{region} Skirmish {i}",
         "region": region, "enemies": enemies, "is_boss": False,
@@ -1429,10 +1578,19 @@ def generate_campaign_stages(start_chapter: int, end_chapter: int, stages_per_ch
         for i in range(start_i, stages_per_chapter + 1):
             is_boss = i == stages_per_chapter
             sid = f"s{12 + (chapter - start_chapter) * stages_per_chapter + i}" if start_chapter > 4 else f"c{chapter}_{i}"
-            # Chapters 1-4 (curated intro) use a gentler level curve so the
-            # filled stages 4+ stay in step with the hand-authored first three
-            # and don't overshoot Chapter 5's difficulty.
-            base_level = (chapter + i + (chapter - 1) * 3) if chapter <= 4 else (chapter * 5 + i)
+            # Difficulty curve:
+            #   Chapters 1-3: gentle — player feels powerful, fast progress
+            #   Chapters 4-8: moderate ramp — evolution & better teams needed
+            #   Chapters 9-15: steeper — gear, team composition matter
+            #   Chapter 16+: demanding — optimization, transformation, elements
+            if chapter <= 4:
+                base_level = (chapter + i + (chapter - 1) * 3)
+            elif chapter <= 8:
+                base_level = (chapter * 5 + i + (chapter - 4) * 3)
+            elif chapter <= 15:
+                base_level = (chapter * 6 + i + (chapter - 8) * 5)
+            else:
+                base_level = (chapter * 7 + i + (chapter - 15) * 8)
             stage_rng = random.Random((chapter * 1000 + i))
             if is_boss:
                 stage = _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rarity, stage_rng)
@@ -2451,6 +2609,14 @@ def _tsukuyomi_boss_defs() -> list:
         idx = i + 1
         rng = _random.Random(7000 + idx)
         adds = rng.sample(all_ids, min(2, len(all_ids)))
+        # Tsukuyomi bosses use the powerful 3-phase Dreamlord mechanic,
+        # significantly higher base levels, and boss-tier generated gear.
+        boss_gear = {
+            "hp_pct": 25 + idx * 3,
+            "atk_pct": 20 + idx * 2,
+            "def_pct": 18 + idx * 2,
+            "spd_pct": 10 + idx,
+        }
         out.append({
             "id": f"tsuku_{idx}",
             "index": idx,
@@ -2459,12 +2625,13 @@ def _tsukuyomi_boss_defs() -> list:
             "portrait": t["portrait"],
             "element": t["element"],
             "rarity": t["rarity"],
-            "base_level": 18 + i * 5,
+            "base_level": 25 + i * 7,  # significantly higher base levels
             "rare_chance": round(min(0.10, 0.05 + (i // 5) * 0.0125), 4),
             "gear_set": set_keys[i % len(set_keys)],
             "gear_set_name": GEAR_SETS[set_keys[i % len(set_keys)]]["name"],
             "gear_set_color": GEAR_SETS[set_keys[i % len(set_keys)]]["color"],
-            "boss_mechanic": "abyssal_warden" if i % 2 else "sealed_titan",
+            "boss_mechanic": "tsukuyomi_dreamlord",
+            "boss_gear": boss_gear,
             "adds": adds,
             "lore": _TSUKU_LORE[i % len(_TSUKU_LORE)],
         })
@@ -2478,12 +2645,24 @@ TSUKUYOMI_BY_ID = {b["id"]: b for b in TSUKUYOMI_BOSSES}
 def tsukuyomi_enemies(boss: dict, difficulty: str = "normal") -> list:
     diff = TSUKU_DIFF_BY_ID.get(difficulty, TSUKUYOMI_DIFFICULTIES[0])
     lvl = max(1, round(boss["base_level"] * diff["power_mult"]))
-    enemies = [{"template_id": boss["template_id"], "level": lvl}]
+    # Boss gets powerful generated gear; adds get scaled gear based on difficulty
+    boss_gear = boss.get("boss_gear") or {"hp_pct": 25, "atk_pct": 20, "def_pct": 18, "spd_pct": 10}
+    # Scale boss gear with difficulty
+    diff_mult = diff["power_mult"]
+    scaled_boss_gear = {
+        "hp_pct": round(boss_gear["hp_pct"] * diff_mult),
+        "atk_pct": round(boss_gear["atk_pct"] * diff_mult),
+        "def_pct": round(boss_gear["def_pct"] * diff_mult),
+        "spd_pct": round(boss_gear["spd_pct"] * diff_mult),
+    }
+    enemies = [{"template_id": boss["template_id"], "level": lvl, "gear_bonus": scaled_boss_gear}]
     add_lvl = max(1, round(lvl * 0.85))
+    add_gear = {"hp_pct": round(15 * diff_mult), "atk_pct": round(12 * diff_mult),
+                "def_pct": round(10 * diff_mult), "spd_pct": round(5 * diff_mult)}
     if difficulty == "hard":
-        enemies.append({"template_id": boss["adds"][0], "level": add_lvl})
+        enemies.append({"template_id": boss["adds"][0], "level": add_lvl, "gear_bonus": add_gear})
     elif difficulty == "nightmare":
-        enemies += [{"template_id": a, "level": add_lvl} for a in boss["adds"]]
+        enemies += [{"template_id": a, "level": add_lvl, "gear_bonus": add_gear} for a in boss["adds"]]
     return enemies
 
 

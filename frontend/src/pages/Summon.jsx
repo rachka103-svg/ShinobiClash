@@ -96,7 +96,7 @@ const Stars = ({ rarity, className = "w-3 h-3" }) => {
  */
 export default function Summon() {
   const { user, setUser } = useAuth();
-  const { catalog, catalogById, summonCost, banner, gemCosts, summonRates, summonRatesRyo, pityConfig, gearConfig } = useGame();
+  const { catalog, catalogById, summonCost, goldSummonX10Cost, banner, gemCosts, summonRates, summonRatesRyo, pityConfig, gearConfig } = useGame();
   const [mode, setMode] = useState("hero"); // hero | gear
   const [payMode, setPayMode] = useState("gems"); // gems | ryo  (hero altar)
   const [busy, setBusy] = useState(false);
@@ -221,7 +221,7 @@ export default function Summon() {
   const gemX1 = gemCosts.summon;
   const ryoX1 = summonCost;
   const heroX1 = payMode === "gems" ? gemX1 : ryoX1;
-  const heroX10 = heroX1 * 10;
+  const heroX10 = payMode === "gems" ? gemX1 * 10 : goldSummonX10Cost;
   const heroHave = payMode === "gems" ? (user?.gems || 0) : (user?.ryo || 0);
   const payColor = payMode === "gems" ? "#D500F9" : "#FFCA28";
 

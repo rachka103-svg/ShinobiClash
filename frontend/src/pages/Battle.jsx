@@ -17,7 +17,7 @@ import { useAudio } from "@/context/AudioContext";
 import {
   buildCombatant, buildOrder, resolveDamage, resolveOnHitEffects, resolveDeath,
   tickStatuses, applyBattleStartPassives, checkBossPhaseTransitions, makeEvent, spireEnemies,
-  isStunned,
+  isStunned, computeStats, applyEnemyGear,
 } from "@/lib/battle";
 import { ELEMENT, RARITY } from "@/lib/styles";
 import api from "@/lib/api";
@@ -173,7 +173,11 @@ export default function Battle() {
       .map((tid) => user.ninjas.find((n) => n.instance_id === tid))
       .filter(Boolean)
       .map((inst) => buildCombatant(nextUid(), "ally", catalogById[inst.template_id], inst.level, inst.ascension || 0, inst.instance_id, inst.stats || null, inst.skill_rank || 1, !(inst.passive_locked), inst.reforge || null));
-    const enemies = enemiesDef.map((e) => buildCombatant(nextUid(), "enemy", catalogById[e.template_id], e.level, e.ascension || 0));
+    const enemies = enemiesDef.map((e) => {
+      const baseStats = computeStats(catalogById[e.template_id], e.level, e.ascension || 0);
+      const gearedStats = e.gear_bonus ? applyEnemyGear(baseStats, e.gear_bonus) : baseStats;
+      return buildCombatant(nextUid(), "enemy", catalogById[e.template_id], e.level, e.ascension || 0, null, gearedStats);
+    });
     // Wire the boss-mechanic framework onto the boss stage's single enemy
     // (only real Campaign boss stages set stage.boss_mechanic — Spire and
     // Arena naturally skip this and run through the exact same engine).
@@ -189,9 +193,15 @@ export default function Battle() {
     }
     const all = [...allies, ...enemies];
     const startEvents = applyBattleStartPassives(all);
+    // Initialize boss phase mechanics at battle start (applies phase 1 buffs)
+    const bossStartEvents = checkBossPhaseTransitions(all, bossMechanics);
     if (startEvents.length) {
       pushEvents(startEvents);
       startEvents.forEach((e) => e.text && pushLog(e.text));
+    }
+    if (bossStartEvents.length) {
+      pushEvents(bossStartEvents);
+      bossStartEvents.forEach((e) => e.text && pushLog(`${e.text}!`));
     }
     setCombs(all);
     orderRef.current = buildOrder(all);
@@ -328,6 +338,18 @@ export default function Battle() {
         remaining -= absorbed;
       }
       target.hp = Math.max(0, target.hp - remaining);
+
+      // Boss lifesteal (desperation phase) — heals the attacker for a % of damage dealt
+      if (act.lifestealPct && remaining > 0 && act.alive) {
+        const healAmt = Math.round(remaining * (act.lifestealPct / 100));
+        const oldHp = act.hp;
+        act.hp = Math.min(act.maxHp, act.hp + healAmt);
+        const actualHeal = act.hp - oldHp;
+        if (actualHeal > 0) {
+          addFloat(act.uid, `+${actualHeal}`, "#00E676");
+          newEvents.push(makeEvent("HEAL", { actorUid: act.uid, targetUid: act.uid, value: actualHeal }));
+        }
+      }
 
       // Boss shield-phase break tracking: 3 AoE hits while shielded forces
       // the shield down early, regardless of remaining shield value.

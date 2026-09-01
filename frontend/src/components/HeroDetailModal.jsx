@@ -82,6 +82,26 @@ export default function HeroDetailModal({
     } finally { setBusyLocal(false); }
   };
 
+  // ---------- Transformation (Rarity Ascension) derived state ----------
+  const ascTarget = instance?.ascension_target || instance?.transcendence_target || null;
+  const ascCost = instance?.ascension_cost || instance?.transcendence_cost || null;
+  const canTransform = instance?.can_ascend_rarity || false;
+  const ascAffordable = ascCost && canTransform &&
+    shardsOwned >= ascCost.shards &&
+    (user?.ryo || 0) >= ascCost.ryo &&
+    Object.entries(ascCost.items || {}).every(([iid, q]) => (inv[iid] || 0) >= q);
+
+  const doTranscend = async () => {
+    setBusyLocal(true);
+    try {
+      const { data } = await api.post("/game/hero/transcend", { instance_id: instance.instance_id });
+      setUser(data.profile);
+      toast.success(`Transformed to ${data.new_rarity}! New star capacity unlocked.`);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setBusyLocal(false); }
+  };
+
   // ---------- Skills / Jutsu derived state ----------
   const skill = instance?.skill || null;
   const skillCost = skill?.next_cost || null;
@@ -476,9 +496,88 @@ export default function HeroDetailModal({
                       <p className="text-[10px] text-slate-500 mt-2 text-center">Shards come from duplicate summons · Essences &amp; Cores from Dungeons and Fusion.</p>
                     )}
                   </>
+                ) : ascTarget ? (
+                  <>
+                    {/* MAX EVOLUTION REACHED — show Transform option */}
+                    <div className="w-full py-3 mb-4 rounded-xl text-center bg-amber-400/10 border border-amber-400/30" data-testid="max-evolution-reached">
+                      <p className="font-display text-lg tracking-wide text-amber-300 flex items-center justify-center gap-2">
+                        <Star className="w-5 h-5" /> MAX EVOLUTION REACHED
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        This hero has reached the pinnacle of {instance.rarity || template.rarity} rarity.
+                      </p>
+                    </div>
+
+                    {/* Transform preview */}
+                    <div className="rounded-xl bg-black/[0.04] border border-black/10 p-3 mb-4" data-testid="transform-preview">
+                      <div className="flex items-center justify-center gap-2 mb-3">
+                        <span className="text-sm font-bold" style={{ color: RARITY[instance.rarity]?.color || "#FFCA28" }}>{instance.rarity || template.rarity}</span>
+                        <ArrowRight className="w-4 h-4 text-slate-500" />
+                        <span className="text-sm font-bold" style={{ color: RARITY[ascTarget]?.color || "#00E5FF" }}>{ascTarget}</span>
+                        <span className="text-xs text-slate-500">· {instance.stars_max + 1}★ max</span>
+                      </div>
+                      <p className="text-xs text-slate-500 text-center mb-3">
+                        Transforming {template.name} to {ascTarget} unlocks a new star and significantly increases base potential.
+                      </p>
+
+                      {/* Transformation costs */}
+                      <div className="space-y-2 mb-4" data-testid="transform-cost-list">
+                        <CostRow
+                          icon={<Star className="w-4 h-4 text-amber-300" />}
+                          label={`${template.name} Shards`}
+                          have={shardsOwned} need={ascCost.shards}
+                          testid="transform-cost-shards"
+                        />
+                        <CostRow
+                          icon={<Coins className="w-4 h-4 text-amber-400" />}
+                          label="Ryo"
+                          have={user?.ryo || 0} need={ascCost.ryo}
+                          testid="transform-cost-ryo"
+                        />
+                        {Object.entries(ascCost.items || {}).map(([iid, q]) => (
+                          <CostRow
+                            key={iid}
+                            icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />}
+                            label={items[iid]?.name || iid}
+                            have={inv[iid] || 0} need={q}
+                            testid={`transform-cost-${iid}`}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Benefits preview */}
+                      {instance.ascension_benefits?.length > 0 && (
+                        <div className="mb-4 rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-2.5" data-testid="transform-benefits">
+                          <p className="text-[10px] uppercase tracking-widest text-emerald-400 mb-1.5">Transformation Benefits</p>
+                          <ul className="space-y-0.5">
+                            {instance.ascension_benefits.map((b, i) => (
+                              <li key={i} className="text-[11px] text-slate-600 flex items-center gap-1.5">
+                                <Check className="w-3 h-3 text-emerald-400 shrink-0" /> {b}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={doTranscend}
+                        disabled={busy || !ascAffordable}
+                        data-testid="hero-transform-button"
+                        className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-jutsu to-chakra text-[#05050A] hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2"
+                      >
+                        {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                        ⭐ TRANSFORM TO {ascTarget}
+                      </button>
+                      {!ascAffordable && (
+                        <p className="text-[10px] text-slate-500 mt-2 text-center">
+                          Reach {instance.stars_max}★ max evolution and gather the required materials to transform.
+                        </p>
+                      )}
+                    </div>
+                  </>
                 ) : (
                   <div className="w-full py-3 rounded-xl text-center font-display text-base tracking-wide text-amber-300 bg-amber-400/10 flex items-center justify-center gap-2" data-testid="fully-evolved-label">
-                    <Star className="w-4 h-4" /> FULLY EVOLVED — 6★
+                    <Star className="w-4 h-4" /> FULLY EVOLVED — {instance.stars_max || 6}★
                   </div>
                 )}
               </TabsContent>

@@ -35,6 +35,22 @@ export function elementMultiplier(
 }
 
 // ============================================================
+// ENEMY GEAR — applies generated stat bonuses (from stage data)
+// to an enemy's computed stats, representing equipment that
+// scales with campaign progression.
+// ============================================================
+export function applyEnemyGear(stats, gearBonus) {
+  if (!gearBonus) return stats;
+  return {
+    hp: Math.round(stats.hp * (1 + (gearBonus.hp_pct || 0) / 100)),
+    atk: Math.round(stats.atk * (1 + (gearBonus.atk_pct || 0) / 100)),
+    def: Math.round(stats.def * (1 + (gearBonus.def_pct || 0) / 100)),
+    spd: Math.round(stats.spd * (1 + (gearBonus.spd_pct || 0) / 100)),
+    chakra: stats.chakra,
+  };
+}
+
+// ============================================================
 // STAT DEBUFF HELPERS
 // ============================================================
 
@@ -1603,10 +1619,6 @@ export function enterBossPhase(
   phase,
   events
 ) {
-  boss.enraged = false;
-  boss.shieldPhaseActive =
-    false;
-
   if (
     phase.behavior ===
     "shielded"
@@ -1640,24 +1652,43 @@ export function enterBossPhase(
     );
   } else if (
     phase.behavior ===
-    "enraged"
+    "enraged" ||
+    phase.behavior ===
+      "empowered" ||
+    phase.behavior ===
+      "desperation"
   ) {
-    boss.atk =
-      Math.round(
-        boss.atk *
-          (phase.atk_mult ||
-            1)
-      );
+    // Apply stat multipliers from the phase definition
+    if (phase.atk_mult) {
+      boss.atk = Math.round(boss.atk * phase.atk_mult);
+    }
+    if (phase.spd_mult) {
+      boss.spd = Math.round(boss.spd * phase.spd_mult);
+    }
 
-    boss.spd =
-      Math.round(
-        boss.spd *
-          (phase.spd_mult ||
-            1)
+    // Empowered/desperation phases can grant shields
+    if (phase.shield_pct) {
+      const amt = Math.round(boss.maxHp * (phase.shield_pct / 100));
+      boss.shield += amt;
+      events.push(
+        makeEvent("SHIELD_APPLIED", {
+          targetUid: boss.uid,
+          value: amt,
+          text: phase.behavior === "desperation" ? "Desperation Shield" : "Empowered Shield",
+        })
       );
+    }
 
-    boss.enraged =
-      true;
+    // Desperation phase grants lifesteal
+    if (phase.lifesteal_pct) {
+      boss.lifestealPct = phase.lifesteal_pct;
+    }
+
+    boss.enraged = true;
+
+    const phaseLabel =
+      phase.behavior === "desperation" ? "DESPERATION" :
+      phase.behavior === "empowered" ? "EMPOWERED" : "ENRAGED";
 
     events.push(
       makeEvent(
@@ -1665,8 +1696,7 @@ export function enterBossPhase(
         {
           targetUid:
             boss.uid,
-          text:
-            "ENRAGED",
+          text: phaseLabel,
         }
       )
     );
@@ -1689,6 +1719,15 @@ export function enterBossPhase(
         }
       )
     );
+  } else if (
+    phase.behavior === "normal" &&
+    phase.atk_mult
+  ) {
+    // Phase 1 of Dreamlord has a passive atk boost applied at battle start
+    boss.atk = Math.round(boss.atk * phase.atk_mult);
+    if (phase.spd_mult) {
+      boss.spd = Math.round(boss.spd * phase.spd_mult);
+    }
   }
 
   return events;
