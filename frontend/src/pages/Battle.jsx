@@ -14,8 +14,20 @@ import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import { useAudio } from "@/context/AudioContext";
 import {
-  buildCombatant, buildOrder, resolveDamage, resolveOnHitEffects, resolveDeath,
-  tickStatuses, applyBattleStartPassives, checkBossPhaseTransitions, makeEvent, spireEnemies,
+  buildCombatant,
+  buildOrder,
+  resolveDamage,
+  resolveOnHitEffects,
+  resolveDeath,
+  resolveCounterattack,
+  resolveOnKillEffects,
+  applyDamage as applyCombatDamage,
+  checkLowHpPassives,
+  tickStatuses,
+  applyBattleStartPassives,
+  checkBossPhaseTransitions,
+  makeEvent,
+  spireEnemies,
   isStunned,
 } from "@/lib/battle";
 import { ELEMENT, RARITY } from "@/lib/styles";
