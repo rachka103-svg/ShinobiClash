@@ -56,8 +56,10 @@ export default function HeroDetailModal({
   const [showRevertConfirm, setShowRevertConfirm] = useState(false);
 
   if (!template) return null;
-  const rarity = RARITY[template.rarity] || RARITY.R;
-  const frame = rarityFrame(template.rarity);
+ const effectiveRarity = instance?.evolved_rarity || instance?.rarity || template.rarity;
+
+const rarity = RARITY[effectiveRarity] || RARITY.R;
+const frame = rarityFrame(effectiveRarity);
   const element = ELEMENT[template.element] || {};
   const stats = instance?.stats || template.base_stats;
   const expPct = instance && instance.exp_to_next ? Math.min(100, (instance.exp / instance.exp_to_next) * 100) : 0;
