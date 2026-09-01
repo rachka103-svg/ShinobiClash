@@ -54,8 +54,8 @@ export default function Arena() {
     try {
       const { data } = await api.get("/arena/status");
       setStatus(data.arena);
-    } catch {
-      // silent — non-critical
+    } catch (e) {
+      console.error("Arena status fetch failed:", e);
     }
   }, []);
 

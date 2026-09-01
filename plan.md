@@ -299,11 +299,11 @@ Testing:
 ## 2C) Tech Debt / Maintainability (Deferred)
 > Not required for the Summon blueprint request, but tracked due to recurring risk.
 
-### TD1 (P1) — Fix empty catch blocks + hook deps (Frontend)
-- Fix empty catch blocks:
-  - `/app/frontend/src/pages/Arena.jsx` (empty catch)
-  - `/app/frontend/src/context/AuthContext.jsx` (empty catch)
-- Review `GameContext.jsx` for stale closures / missing `exhaustive-deps`.
+### TD1 (P1) — Fix empty catch blocks + hook deps (Frontend) ✅ COMPLETE
+- Fixed empty catch blocks:
+  - `/app/frontend/src/pages/Arena.jsx` — `fetchStatus` catch now logs to console.error
+  - `/app/frontend/src/context/AuthContext.jsx` — logout catch logs to console.warn, refreshProfile catch logs to console.error
+- Reviewed `GameContext.jsx` — all useCallback deps are correct (applyCatalog: [], refreshCatalog: [applyCatalog], loadInitialData: [applyCatalog], useEffect: [loadInitialData]). No stale closures found.
 
 ### TD2 (P2) — Backend modularization
 - Refactor `/app/backend/server.py` (approaching ~2000 lines):
@@ -336,9 +336,9 @@ Testing:
 ---
 
 ## 3) Next Actions
-1. **Tech Debt (P1):** fix empty catch blocks in `Arena.jsx` and `AuthContext.jsx`; verify `GameContext` hooks.
+1. ~~**Tech Debt (P1):** fix empty catch blocks in `Arena.jsx` and `AuthContext.jsx`; verify `GameContext` hooks.~~ ✅ DONE
 2. **Tech Debt (P2):** begin modularizing `server.py` into smaller service modules.
-3. **Cleanup (P3):** delete dead files `TopBar.jsx` and legacy `Roster.jsx`.
+3. ~~**Cleanup (P3):** delete dead files `TopBar.jsx` and legacy `Roster.jsx`.~~ ✅ DONE
 4. Resume roadmap feature work:
    - **Phase F:** Spire UI redesign
    - **Admin additions:** Stage editor + toggles
