@@ -30,6 +30,7 @@ import game_data as gd
 import expansion_systems as ex
 import progression as prog
 import admin_config as ac
+import player_progression as pp
 
 # Cryptographically-secure RNG for all gameplay-affecting randomness (gacha
 # pulls, gear/loot drops, pity/5050 rolls). random.random()/random.choice()
@@ -115,30 +116,44 @@ def _decode_access_token(token: str) -> dict:
 
 
 def migrate_progression(user: dict) -> bool:
-    """One-time migration (versioned via user['prog_v']) for heroes evolved
-    under the OLD flat 6-star system. Walks any hero whose stored stars exceed
-    the NEW per-rarity cap up the ascension ladder, persisting the resolved
-    `evolved_rarity` so its star investment carries forward cleanly. Heroes
-    progressed under the new system are untouched (stars never exceed cap)."""
-    if user.get("prog_v") == 2:
+    """Versioned one-time migrations (user['prog_v']):
+      v2 — hero star/rarity migration (existing).
+      v3 — player-level XP-curve migration: ensures stored level/exp is
+           consistent with the current centralized XP curve. Processes any
+           pending level-ups FORWARD only (never lowers a level). Does NOT
+           retroactively grant level-up rewards for already-earned levels.
+    """
+    pv = user.get("prog_v", 0)
+    if pv >= 3:
         return False
     changed = False
-    for inst in user.get("ninjas", []):
-        tmpl = gd.CATALOG_BY_ID.get(inst.get("template_id"))
-        if not tmpl:
-            continue
-        native = tmpl["rarity"]
-        evolved = inst.get("evolved_rarity") or native
-        stars = inst.get("stars", 1)
-        resolved = prog.resolve_effective_rarity(evolved, native, stars)
-        if resolved != evolved:
-            inst["evolved_rarity"] = resolved
+    if pv < 2:
+        for inst in user.get("ninjas", []):
+            tmpl = gd.CATALOG_BY_ID.get(inst.get("template_id"))
+            if not tmpl:
+                continue
+            native = tmpl["rarity"]
+            evolved = inst.get("evolved_rarity") or native
+            stars = inst.get("stars", 1)
+            resolved = prog.resolve_effective_rarity(evolved, native, stars)
+            if resolved != evolved:
+                inst["evolved_rarity"] = resolved
+                changed = True
+            if stars > prog.STAR_ABSOLUTE_MAX:
+                inst["stars"] = prog.STAR_ABSOLUTE_MAX
+                changed = True
+    # v3: reconcile player level with the new XP curve (no retroactive rewards)
+    if pv < 3:
+        level = user.get("level", 1)
+        exp = user.get("exp", 0)
+        while exp >= gd.exp_to_next(level):
+            exp -= gd.exp_to_next(level)
+            level += 1
+        if level != user.get("level", 1) or exp != user.get("exp", 0):
+            user["level"] = level
+            user["exp"] = exp
             changed = True
-        # safety clamp — no hero can exceed GR's 8-star cap
-        if stars > prog.STAR_ABSOLUTE_MAX:
-            inst["stars"] = prog.STAR_ABSOLUTE_MAX
-            changed = True
-    user["prog_v"] = 2
+    user["prog_v"] = 3
     return changed
 
 
@@ -164,7 +179,8 @@ async def _sync_lazy_daily_state(user: dict) -> None:
         }})
     if changed_prog:
         await db.users.update_one({"_id": user["_id"]}, {"$set": {
-            "ninjas": user.get("ninjas", []), "prog_v": 2}})
+            "ninjas": user.get("ninjas", []), "prog_v": 3,
+            "level": user.get("level", 1), "exp": user.get("exp", 0)}})
 
 
 async def get_current_user(request: Request) -> dict:
@@ -807,14 +823,52 @@ def public_user(user: dict) -> dict:
     }
 
 
-async def grant_player_exp(user: dict, amount: int):
-    level = user.get("level", 1)
+async def grant_player_exp(user: dict, amount: int) -> Optional[dict]:
+    """Adds player XP, processing any level-ups. Each level gained awards
+    rewards (ryo/gems/items) from the centralized player_progression table.
+    Returns None if no level-up occurred, or a level-up summary dict:
+        {old_level, new_level, levels_gained, is_milestone, rewards: [...],
+         total_rewards: {ryo, gems, items}}
+    Multiple level-ups are processed in one pass — all rewards are granted,
+    nothing is lost."""
+    old_level = user.get("level", 1)
+    level = old_level
     exp = user.get("exp", 0) + amount
+    levels_gained = []
     while exp >= gd.exp_to_next(level):
         exp -= gd.exp_to_next(level)
         level += 1
+        rewards = pp.get_level_rewards(level)
+        # Apply rewards immediately
+        user["ryo"] = user.get("ryo", 0) + rewards["ryo"]
+        user["gems"] = user.get("gems", 0) + rewards["gems"]
+        inv = user.get("inventory", {})
+        for iid, qty in rewards["items"].items():
+            inv[iid] = inv.get(iid, 0) + qty
+        user["inventory"] = inv
+        levels_gained.append(rewards)
     user["level"] = level
     user["exp"] = exp
+    if not levels_gained:
+        return None
+    # Aggregate total rewards across all gained levels
+    total = {"ryo": 0, "gems": 0, "items": {}}
+    any_milestone = False
+    for r in levels_gained:
+        total["ryo"] += r["ryo"]
+        total["gems"] += r["gems"]
+        for iid, qty in r["items"].items():
+            total["items"][iid] = total["items"].get(iid, 0) + qty
+        if r["is_milestone"]:
+            any_milestone = True
+    return {
+        "old_level": old_level,
+        "new_level": level,
+        "levels_gained": len(levels_gained),
+        "is_milestone": any_milestone,
+        "rewards": levels_gained,
+        "total_rewards": total,
+    }
 
 
 def grant_hero_exp(inst: dict, amount: int) -> int:
@@ -1216,7 +1270,7 @@ async def arena_battle_complete(body: ArenaBattleCompleteIn, user: dict = Depend
         hero_exp = distribute_hero_exp(
             user, body.participants or list(user.get("team", [])), body.survivors, gd.ARENA_WIN_REWARDS["hero_exp_base"]
         )
-        await grant_player_exp(user, gd.ARENA_WIN_REWARDS["hero_exp_base"])
+        level_up = await grant_player_exp(user, gd.ARENA_WIN_REWARDS["hero_exp_base"])
         bump_mission(user, "any_win")
         bump_mission(user, "arena_win")
         await db.users.update_one({"_id": user["_id"]}, {"$set": {
@@ -1225,7 +1279,8 @@ async def arena_battle_complete(body: ArenaBattleCompleteIn, user: dict = Depend
             "level": user["level"], "exp": user["exp"], "daily": user["daily"], "achievements": user.get("achievements"),
         }})
         return {"profile": public_user(user), "result": "win",
-                "rewards": {"ryo": gd.ARENA_WIN_REWARDS["ryo"], "gems": gems_gained, "hero_exp": hero_exp}}
+                "rewards": {"ryo": gd.ARENA_WIN_REWARDS["ryo"], "gems": gems_gained, "hero_exp": hero_exp},
+                "level_up": level_up}
     else:
         user["arena_rating"] = max(0, user.get("arena_rating", gd.ARENA_RATING_DEFAULT) - gd.ARENA_RATING_LOSS)
         user["arena_losses"] = user.get("arena_losses", 0) + 1
@@ -1274,9 +1329,10 @@ def _roll_battle_gear_drop(user: dict, chapter: int) -> Optional[dict]:
 
 def _apply_campaign_first_clear_bonus(user: dict, stage: dict, stage_id: str, cleared: list,
                                        ninjas: list, rewards: dict) -> None:
-    """Grants the one-time first-clear bonus (bonus Ryo/Gems + a guaranteed
-    hero drop, if any) and marks the stage as cleared. Mutates `cleared`,
-    `ninjas` and `rewards` in place."""
+    """Grants the one-time first-clear bonus (bonus Ryo/Gems + items + a
+    hero drop if any) and marks the stage as cleared. Enforces the campaign
+    hero-reward rarity cap — UR/LR/GR heroes are NEVER granted from campaign.
+    Mutates `cleared`, `ninjas` and `rewards` in place."""
     cleared.append(stage_id)
     fc = stage.get("first_clear", {})
     user["ryo"] += fc.get("ryo", 0)
@@ -1284,10 +1340,28 @@ def _apply_campaign_first_clear_bonus(user: dict, stage: dict, stage_id: str, cl
     gems_gained = gd.first_clear_gems(stage.get("chapter", 1))
     user["gems"] = user.get("gems", 0) + gems_gained
     rewards["gems"] = gems_gained
+    # First-clear item bundle (materials, tickets, etc.)
+    fc_items = fc.get("items", {})
+    if fc_items:
+        inventory = user.get("inventory", {})
+        for iid, qty in fc_items.items():
+            inventory[iid] = inventory.get(iid, 0) + qty
+        user["inventory"] = inventory
+        merged = dict(rewards.get("items", {}))
+        for iid, qty in fc_items.items():
+            merged[iid] = merged.get(iid, 0) + qty
+        rewards["items"] = merged
+    # Hero reward — enforce chapter-based rarity cap
     drop = fc.get("ninja")
-    if drop and not any(i["template_id"] == drop for i in ninjas):
-        ninjas.append(new_ninja_instance(drop))
-        rewards["ninja"] = {"template_id": drop, "name": gd.CATALOG_BY_ID[drop]["name"], "rarity": gd.CATALOG_BY_ID[drop]["rarity"]}
+    if drop:
+        tmpl = gd.CATALOG_BY_ID.get(drop)
+        if tmpl:
+            chapter = stage.get("chapter", 1)
+            max_rarity = pp.campaign_hero_reward_max_rarity(chapter)
+            if gd.RARITY_ORDER.get(tmpl["rarity"], 0) <= gd.RARITY_ORDER.get(max_rarity, 0):
+                if not any(i["template_id"] == drop for i in ninjas):
+                    ninjas.append(new_ninja_instance(drop))
+                    rewards["ninja"] = {"template_id": drop, "name": tmpl["name"], "rarity": tmpl["rarity"]}
 
 
 @api_router.post("/game/battle/complete")
@@ -1308,7 +1382,7 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
     rewards = {"ryo": stage["rewards"]["ryo"], "gems": 0, "exp": base_exp, "ninja": None, "hero_exp": [], "items": {}}
 
     user["ryo"] = user.get("ryo", 0) + rewards["ryo"]
-    await grant_player_exp(user, base_exp)
+    level_up = await grant_player_exp(user, base_exp)
     user["wins"] = user.get("wins", 0) + 1
 
     # distribute hero EXP to participants (survivors full, fallen half)
@@ -1340,7 +1414,7 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
                   "daily": user["daily"], "gear": user.get("gear", [])}},
     )
     user["cleared_stages"] = cleared
-    return {"profile": public_user(user), "rewards": rewards, "result": "win", "first_clear": first_clear}
+    return {"profile": public_user(user), "rewards": rewards, "result": "win", "first_clear": first_clear, "level_up": level_up}
 
 
 def _rarity_pool(min_rarity: str = None, exclude_top: bool = True,
@@ -2279,12 +2353,14 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     total_levels = sum(h["levels"] for h in hero_exp)
     if total_levels:
         bump_mission(user, "hero_levelup", total_levels)
+    level_up = await grant_player_exp(user, r.get("hero_exp_base", 0))
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"], "inventory": inventory,
-        "spire_floor": user.get("spire_floor", current), "daily": user["daily"]}})
+        "spire_floor": user.get("spire_floor", current), "daily": user["daily"],
+        "level": user["level"], "exp": user["exp"]}})
     rewards = {"ryo": r["ryo"], "gems": gems_gained, "items": r["items"], "hero_exp": hero_exp,
                "boss": r["boss"], "milestone": r.get("milestone", False), "advancing": advancing}
-    return {"profile": public_user(user), "rewards": rewards, "result": "win", "floor": floor, "advancing": advancing}
+    return {"profile": public_user(user), "rewards": rewards, "result": "win", "floor": floor, "advancing": advancing, "level_up": level_up}
 
 
 @api_router.post("/game/trial/complete")
@@ -2318,7 +2394,7 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     user["inventory"] = inventory
     bump_mission(user, "trial_win")
     bump_mission(user, "any_win")
-    await grant_player_exp(user, rw.get("hero_exp", 40))
+    level_up = await grant_player_exp(user, rw.get("hero_exp", 40))
     total_levels = sum(h["levels"] for h in hero_exp)
     if total_levels:
         bump_mission(user, "hero_levelup", total_levels)
@@ -2330,7 +2406,7 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
         items_out[blueprint_reward] = items_out.get(blueprint_reward, 0) + 1
     return {"profile": public_user(user),
             "rewards": {"ryo": rw.get("ryo", 0), "items": items_out, "hero_exp": hero_exp, "gear": gear_reward},
-            "result": "win"}
+            "result": "win", "level_up": level_up}
 
 
 @api_router.get("/game/tsukuyomi")
@@ -2409,7 +2485,7 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
 
     user["inventory"] = inventory
     bump_mission(user, "any_win")
-    await grant_player_exp(user, r["hero_exp"])
+    level_up = await grant_player_exp(user, r["hero_exp"])
     total_levels = sum(h["levels"] for h in hero_exp)
     if total_levels:
         bump_mission(user, "hero_levelup", total_levels)
@@ -2423,7 +2499,8 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
                         "gear": gear_reward, "rare_hit": rare_hit, "rare_chance": r["rare_chance"],
                         "gear_set_name": boss["gear_set_name"], "first_clear_bonus": first_clear_bonus,
                         "crystal": crystal_reward,
-                        "crystal_chance": round(r["rare_chance"] * ex.CRYSTAL_DROP_FRACTION, 4)}}
+                        "crystal_chance": round(r["rare_chance"] * ex.CRYSTAL_DROP_FRACTION, 4)},
+            "level_up": level_up}
 
 
 @api_router.get("/game/shop")

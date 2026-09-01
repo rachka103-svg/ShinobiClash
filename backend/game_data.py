@@ -1291,34 +1291,34 @@ _CURATED_STAGES = [
      "rewards": {"ryo": 170, "exp": 50}, "first_clear": {"ryo": 250, "ninja": None}},
     {"id": "s3", "chapter": 1, "name": "Forest Ambush", "region": "Misty Woods",
      "enemies": [{"template_id": "zephyr", "level": 3}, {"template_id": "boulder", "level": 3}, {"template_id": "spark", "level": 2}],
-     "rewards": {"ryo": 200, "exp": 65}, "first_clear": {"ryo": 300, "ninja": "ember"}},
+     "rewards": {"ryo": 200, "exp": 65}, "first_clear": {"ryo": 300, "ninja": "blaze", "items": {"exp_tome_minor": 2}}},
     {"id": "s4", "chapter": 2, "name": "River of Blades", "region": "Misty Woods",
      "enemies": [{"template_id": "ripple", "level": 5}, {"template_id": "frost", "level": 4}],
      "rewards": {"ryo": 230, "exp": 80}, "first_clear": {"ryo": 350, "ninja": None}},
     {"id": "s5", "chapter": 2, "name": "The Rogue Medic", "region": "Misty Woods",
      "enemies": [{"template_id": "frost", "level": 6}, {"template_id": "ripple", "level": 5}, {"template_id": "ember", "level": 5}],
-     "rewards": {"ryo": 260, "exp": 95}, "first_clear": {"ryo": 400, "ninja": "frost"}},
+     "rewards": {"ryo": 260, "exp": 95}, "first_clear": {"ryo": 400, "ninja": "ripple", "items": {"exp_tome_minor": 2}}},
     {"id": "s6", "chapter": 2, "name": "Stone Sentinels", "region": "Rocky Pass",
      "enemies": [{"template_id": "terra", "level": 7}, {"template_id": "boulder", "level": 7}],
      "rewards": {"ryo": 300, "exp": 115}, "first_clear": {"ryo": 450, "ninja": None}},
     {"id": "s7", "chapter": 3, "name": "Thunder on the Ridge", "region": "Rocky Pass",
      "enemies": [{"template_id": "spark", "level": 9}, {"template_id": "raijin", "level": 8}],
-     "rewards": {"ryo": 340, "exp": 135}, "first_clear": {"ryo": 500, "ninja": "terra"}},
+     "rewards": {"ryo": 340, "exp": 135}, "first_clear": {"ryo": 500, "ninja": "spark", "items": {"exp_tome_minor": 3}}},
     {"id": "s8", "chapter": 3, "name": "Eye of the Storm", "region": "Howling Cliffs",
      "enemies": [{"template_id": "gale", "level": 10}, {"template_id": "zephyr", "level": 9}, {"template_id": "spark", "level": 9}],
      "rewards": {"ryo": 380, "exp": 160}, "first_clear": {"ryo": 600, "ninja": None}},
     {"id": "s9", "chapter": 3, "name": "The Storm Herald", "region": "Howling Cliffs",
      "enemies": [{"template_id": "gale", "level": 13}, {"template_id": "raijin", "level": 12}],
-     "rewards": {"ryo": 430, "exp": 185}, "first_clear": {"ryo": 700, "ninja": "gale"}},
+     "rewards": {"ryo": 430, "exp": 185}, "first_clear": {"ryo": 700, "ninja": None, "items": {"summon_ticket": 1, "exp_tome_greater": 2, "ascension_crystal": 1}}},
     {"id": "s10", "chapter": 4, "name": "Shadows Gather", "region": "Forsaken Shrine",
      "enemies": [{"template_id": "shade", "level": 14}, {"template_id": "raijin", "level": 13}, {"template_id": "ember", "level": 13}],
      "rewards": {"ryo": 500, "exp": 220}, "first_clear": {"ryo": 800, "ninja": None}},
     {"id": "s11", "chapter": 4, "name": "Light Against Dark", "region": "Forsaken Shrine",
      "enemies": [{"template_id": "lumina", "level": 16}, {"template_id": "shade", "level": 15}],
-     "rewards": {"ryo": 600, "exp": 260}, "first_clear": {"ryo": 900, "ninja": "lumina"}},
+     "rewards": {"ryo": 600, "exp": 260}, "first_clear": {"ryo": 900, "ninja": None, "items": {"summon_ticket": 1, "ascension_crystal": 3, "exp_tome_greater": 3}}},
     {"id": "s12", "chapter": 4, "name": "The Hollow Blade", "region": "Forsaken Shrine",
      "enemies": [{"template_id": "shade", "level": 18}, {"template_id": "lumina", "level": 17}, {"template_id": "gale", "level": 16}],
-     "rewards": {"ryo": 800, "exp": 320}, "first_clear": {"ryo": 1500, "ninja": "shade"}},
+     "rewards": {"ryo": 800, "exp": 320}, "first_clear": {"ryo": 1500, "ninja": None, "items": {"summon_ticket": 2, "ascension_crystal": 5, "exp_tome_ancient": 1}}},
 ]
 
 _CURATED_STAGES_BY_ID = {s["id"]: s for s in _CURATED_STAGES}
@@ -1601,8 +1601,10 @@ def ninja_power(template_id: str, level: int, ascension: int = 0) -> int:
 
 
 def exp_to_next(level: int) -> int:
-    """Player account level curve."""
-    return 80 + (level - 1) * 60
+    """Player account level curve. Delegates to the centralized
+    player_progression module so all progression balancing lives in one place."""
+    import player_progression as _pp
+    return _pp.xp_required_for_level(level)
 
 
 def hero_exp_to_next(level: int) -> int:

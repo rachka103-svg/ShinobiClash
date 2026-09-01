@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Coins, Gem, Zap, ArrowRight, Star } from "lucide-react";
+import { Coins, Gem, Zap, ArrowRight, Star, Sparkles, Ticket } from "lucide-react";
 import { CoinsIcon, GemsIcon } from "@/components/GameIcons";
+
+const ITEM_META = {
+  exp_tome_minor: { icon: Sparkles, color: "#9E9E9E", label: "Minor EXP Tome" },
+  exp_tome_greater: { icon: Sparkles, color: "#29B6F6", label: "Greater EXP Tome" },
+  exp_tome_ancient: { icon: Sparkles, color: "#AB47BC", label: "Ancient EXP Tome" },
+  ascension_crystal: { icon: Gem, color: "#00E5FF", label: "Ascension Crystal" },
+  summon_ticket: { icon: Ticket, color: "#FFCA28", label: "Summon Ticket" },
+};
 
 /**
  * BattleVictory — cinematic victory sequence.
@@ -116,6 +124,20 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
               ))}
             </div>
           )}
+          {/* Item drops */}
+          {rewards.items && Object.keys(rewards.items).length > 0 && (
+            <div className="reward-reveal flex flex-wrap justify-center gap-2 mt-1 max-w-md" style={{ animationDelay: "1.1s", opacity: 0, animationFillMode: "forwards" }}>
+              {Object.entries(rewards.items).map(([iid, qty]) => {
+                const meta = ITEM_META[iid] || { icon: Sparkles, color: "#94A3B8", label: iid };
+                const Icon = meta.icon;
+                return (
+                  <span key={iid} className="flex items-center gap-1 text-sm" style={{ color: meta.color }} data-testid={`victory-item-${iid}`}>
+                    <Icon className="w-4 h-4" /> +{qty} {meta.label}
+                  </span>
+                );
+              })}
+            </div>
+          )}
           {/* Ninja recruit */}
           {rewards.ninja && (
             <div className="reward-reveal text-jutsu font-display text-lg mt-1" style={{ animationDelay: "1.3s", opacity: 0, animationFillMode: "forwards" }}>
@@ -132,6 +154,12 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
           {rewards.crystal && (
             <div className="reward-reveal font-display text-lg mt-1 flex items-center gap-1.5" style={{ animationDelay: "1.7s", opacity: 0, animationFillMode: "forwards", color: rewards.crystal.tier_color || "#AB47BC" }}>
               <Gem size={18} /> ★ {rewards.crystal.tier_name} Crystal ({rewards.crystal.main_stat.toUpperCase()})
+            </div>
+          )}
+          {/* Level-up indicator */}
+          {result?.level_up && (
+            <div className="reward-reveal font-display text-xl mt-3 flex items-center gap-2" style={{ animationDelay: "2s", opacity: 0, animationFillMode: "forwards", color: "#00E5FF", textShadow: "0 0 20px rgba(0,229,255,0.6)" }} data-testid="victory-level-up-indicator">
+              <Star className="w-5 h-5" fill="currentColor" /> LEVEL UP! Lv.{result.level_up.old_level} → Lv.{result.level_up.new_level}
             </div>
           )}
         </div>

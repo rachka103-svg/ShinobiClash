@@ -10,6 +10,7 @@ import BattleTurnAnnounce from "@/components/cinematic/BattleTurnAnnounce";
 import BattleAttackFx from "@/components/cinematic/BattleAttackFx";
 import BattleUltimate from "@/components/cinematic/BattleUltimate";
 import BattleVictory from "@/components/cinematic/BattleVictory";
+import LevelUpOverlay from "@/components/LevelUpOverlay";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import { useAudio } from "@/context/AudioContext";
@@ -122,6 +123,7 @@ export default function Battle() {
   const [round, setRound] = useState(1);
   const [floaters, setFloaters] = useState([]); // {id, uid, text, color}
   const [resultData, setResultData] = useState(null);
+  const [showLevelUp, setShowLevelUp] = useState(false);
   const [shakeUid, setShakeUid] = useState(null);
   const [events, setEvents] = useState([]); // structured combat event log (Phase 3B) — for future VFX/animation
   const [auto, setAutoState] = useState(() => { try { return localStorage.getItem("sc_battle_auto") === "1"; } catch { return false; } });
@@ -469,6 +471,9 @@ export default function Battle() {
         .then(({ data }) => {
           if (data.profile) setUser(data.profile);
           setResultData(data);
+          if (data.level_up) {
+            setTimeout(() => setShowLevelUp(true), 4200);
+          }
         })
         .catch(() => setResultData({ result: phase }));
     }
@@ -638,6 +643,14 @@ export default function Battle() {
         }
         onLobby={() => navigate("/")}
         onRetry={() => window.location.reload()}
+      />
+
+      {/* Level-up celebration — appears after victory rewards */}
+      <LevelUpOverlay
+        open={showLevelUp}
+        data={resultData?.level_up}
+        onClose={() => setShowLevelUp(false)}
+      />
       />
     </div>
   );
