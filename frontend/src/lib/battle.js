@@ -123,18 +123,22 @@ export function applyEnemyGear(stats, gearBonus) {
 
   return {
     ...stats,
+
     hp: Math.round(
       stats.hp *
         (1 + (gearBonus.hp_pct || 0) / 100)
     ),
+
     atk: Math.round(
       stats.atk *
         (1 + (gearBonus.atk_pct || 0) / 100)
     ),
+
     def: Math.round(
       stats.def *
         (1 + (gearBonus.def_pct || 0) / 100)
     ),
+
     spd: Math.round(
       stats.spd *
         (1 + (gearBonus.spd_pct || 0) / 100)
@@ -1247,6 +1251,12 @@ export function resolveOnHitEffects(
 ) {
   const events = [];
 
+  // Ensure the target always has a status array.
+  // This prevents status-effect resolution from failing
+  // when a combatant enters battle without initialized statuses.
+  target.statuses =
+    target.statuses || [];
+
   let burstDamage = 0;
 
   if (
@@ -1400,6 +1410,7 @@ export function resolveOnHitEffects(
     );
   }
 
+  // Apply all jutsu-defined and reforge-defined effects.
   const effectEvents =
     applyJutsuEffects(
       actor,
@@ -2166,7 +2177,9 @@ export function enterBossPhase(
             100)
       );
 
-    boss.shield += amt;
+    // Replace the previous phase shield rather than stacking
+    // a new phase shield on top of an old remaining shield.
+    boss.shield = amt;
 
     boss.aoeHitsTaken = 0;
 
@@ -2236,7 +2249,9 @@ export function enterBossPhase(
             (phase.shield_pct / 100)
         );
 
-      boss.shield += amt;
+      // Replace any previous shield when a new phase
+      // explicitly grants a fresh phase shield.
+      boss.shield = amt;
 
       events.push(
         makeEvent(
