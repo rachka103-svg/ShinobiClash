@@ -10,15 +10,15 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
   // Always prefer evolved_rarity when it exists.
   const currentRarity = ninja.evolved_rarity || ninja.rarity || "R";
 
-  const rarity = RARITY[currentRarity] || RARITY.R;
+  const rarity = RARITY[displayRarity] || RARITY.R;
   const element = ELEMENT[ninja.element] || {};
   const tier = rarity.tier ?? 0;
 
   // SSR and above get an animated aura
   const elite = tier >= 3;
 
-  const aura = auraClass(currentRarity);
-  const fr = rarityFrame(currentRarity);
+  const aura = auraClass(displayRarity);
+  const fr = rarityFrame(displayRarity);
 
   const edge = fr.isGodly
     ? GODLY.stroke
@@ -79,7 +79,7 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
 
         {!disabled && (
-          <RaritySparkles rarity={currentRarity} />
+          <RaritySparkles rarity={displayRarity} />
         )}
 
         {tier >= 4 && !disabled && (
