@@ -33,6 +33,28 @@ const DEBUFF_TYPES = new Set([
   "def_down",
 ]);
 
+// Buff statuses — applied to allies, tick down each turn.
+const BUFF_TYPES = new Set([
+  "atk_up",
+  "def_up",
+  "spd_up",
+  "team_atk_up",
+  "team_def_up",
+  "regen",
+  "immunity",
+  "evade",
+  "damage_reflect",
+  "taunt",
+]);
+
+// Utility effect types — handled inline, not stored as statuses.
+const UTILITY_TYPES = new Set([
+  "cleanse",
+  "dispel",
+  "extra_turn",
+  "revive_ally",
+]);
+
 // ============================================================
 // STAT CALCULATION
 // ============================================================
@@ -168,6 +190,20 @@ export function effectiveAtk(actor) {
       (debuff.value || 0) / 100;
   }
 
+  const buffs =
+    actor.statuses?.filter(
+      (s) =>
+        (s.effectType === "atk_up" ||
+          s.effectType === "team_atk_up") &&
+        (s.duration ?? 0) > 0
+    ) || [];
+
+  for (const buff of buffs) {
+    atk *=
+      1 +
+      (buff.value || 0) / 100;
+  }
+
   return Math.max(
     1,
     Math.round(atk)
@@ -188,6 +224,20 @@ export function effectiveDef(actor) {
     def *=
       1 -
       (debuff.value || 0) / 100;
+  }
+
+  const buffs =
+    actor.statuses?.filter(
+      (s) =>
+        (s.effectType === "def_up" ||
+          s.effectType === "team_def_up") &&
+        (s.duration ?? 0) > 0
+    ) || [];
+
+  for (const buff of buffs) {
+    def *=
+      1 +
+      (buff.value || 0) / 100;
   }
 
   return Math.max(
@@ -831,6 +881,29 @@ const WIRED_EFFECTS = new Set([
   "poison_mastery",
   "burn_mastery",
   "shield_on_low_hp",
+  // New bespoke passives
+  "stun_chance",
+  "freeze_chance",
+  "burn_dot",
+  "poison_dot",
+  "speed_boost_self",
+  "cleanse_debuff",
+  "chakra_gain_boost",
+  "heal_boost",
+  "bonus_vs_full_hp",
+  "soul_harvest",
+  "adaptive_element",
+  "intercept_lowest_hp",
+  "counter_taunt",
+  "evade_passive",
+  "damage_reflect_passive",
+  "team_regen_ward",
+  "team_atk_buff",
+  "team_def_buff",
+  "revive_ally_passive",
+  "stacking_power",
+  "atk_scaling_turns",
+  "crit_boost_self",
 ]);
 
 export function hasWiredPassive(c) {
@@ -852,6 +925,43 @@ export function resolveDamage(
   jutsu,
   advantage
 ) {
+  // Evade check — target may dodge entirely
+  const evadeBuff = target.statuses?.find(
+    (s) =>
+      s.effectType === "evade" &&
+      (s.duration ?? 0) > 0
+  );
+  if (evadeBuff) {
+    const evadeChance = (evadeBuff.value || 30) / 100;
+    if (Math.random() < evadeChance) {
+      return {
+        dmg: 0,
+        crit: false,
+        mult: 1,
+        reduction: 0,
+        notes: ["evaded"],
+        evaded: true,
+      };
+    }
+  }
+
+  // Passive evade
+  if (
+    target.passive?.effect_type === "evade_passive"
+  ) {
+    const chance = (target.passive.params?.evade_chance || 12) / 100;
+    if (Math.random() < chance) {
+      return {
+        dmg: 0,
+        crit: false,
+        mult: 1,
+        reduction: 0,
+        notes: ["evaded"],
+        evaded: true,
+      };
+    }
+  }
+
   const base = rollDamage(
     actor,
     target,
@@ -938,12 +1048,48 @@ export function resolveDamage(
     notes.push("burn_mastery");
   }
 
+  if (
+    actor.passive?.effect_type ===
+      "bonus_vs_full_hp" &&
+    target.hp >= target.maxHp
+  ) {
+    const bonus = actor.passive.params?.bonus || 0.20;
+    dmg = Math.round(dmg * (1 + bonus));
+    notes.push("first_strike");
+  }
+
   if (actor.enraged) {
     dmg = Math.round(
       dmg * 1.2
     );
 
     notes.push("boss_enrage");
+  }
+
+  // Damage reflect — target reflects a portion of damage back to attacker
+  const reflectBuff = target.statuses?.find(
+    (s) =>
+      s.effectType === "damage_reflect" &&
+      (s.duration ?? 0) > 0
+  );
+  if (reflectBuff && actor.alive && dmg > 0) {
+    const reflectDmg = Math.round(dmg * (reflectBuff.value || 20) / 100);
+    if (reflectDmg > 0) {
+      actor.hp = Math.max(0, actor.hp - reflectDmg);
+    }
+  }
+
+  // Passive damage reflect
+  if (
+    target.passive?.effect_type === "damage_reflect_passive" &&
+    actor.alive &&
+    dmg > 0
+  ) {
+    const reflectPct = target.passive.params?.reflect_pct || 15;
+    const reflectDmg = Math.round(dmg * reflectPct / 100);
+    if (reflectDmg > 0) {
+      actor.hp = Math.max(0, actor.hp - reflectDmg);
+    }
   }
 
   return {
@@ -1109,11 +1255,14 @@ export function resolveCounterattack(
 ) {
   const events = [];
 
+  const isCounter =
+    target.passive?.effect_type === "counterattack" ||
+    target.passive?.effect_type === "counter_taunt";
+
   if (
     !target?.alive ||
     !attacker?.alive ||
-    target.passive?.effect_type !==
-      "counterattack"
+    !isCounter
   ) {
     return {
       damage: 0,
@@ -1122,10 +1271,9 @@ export function resolveCounterattack(
   }
 
   const chance =
-    passivePercent(
-      target,
-      0.25
-    );
+    target.passive?.params?.counter_chance
+      ? target.passive.params.counter_chance / 100
+      : passivePercent(target, 0.25);
 
   if (Math.random() >= chance) {
     return {
@@ -1135,10 +1283,9 @@ export function resolveCounterattack(
   }
 
   const damagePercent =
-    passivePercent(
-      target,
-      0.55
-    );
+    target.passive?.params?.counter_pct
+      ? target.passive.params.counter_pct / 100
+      : passivePercent(target, 0.55);
 
   const pseudoJutsu = {
     id: "counterattack",
@@ -1765,6 +1912,102 @@ export function applyJutsuEffects(
         );
       }
     }
+
+    // ---- BUFF effects — applied to the target (ally or self) ----
+    else if (BUFF_TYPES.has(et)) {
+      // Check immunity — don't apply debuffs to immune targets,
+      // but buffs are always allowed
+      target.statuses.push({
+        id: `${et}_${target.uid}_${Date.now()}`,
+        effectType: et,
+        source: actor.uid,
+        duration: dur,
+        value: val,
+      });
+
+      const label =
+        et === "atk_up" ? "ATK Up!" :
+        et === "def_up" ? "DEF Up!" :
+        et === "spd_up" ? "SPD Up!" :
+        et === "team_atk_up" ? "Team ATK Up!" :
+        et === "team_def_up" ? "Team DEF Up!" :
+        et === "regen" ? "Regen!" :
+        et === "immunity" ? "Immunity!" :
+        et === "evade" ? "Evade!" :
+        et === "damage_reflect" ? "Damage Reflect!" :
+        et === "taunt" ? "Taunt!" :
+        et;
+
+      events.push(
+        makeEvent("BUFF_APPLIED", {
+          actorUid: actor.uid,
+          targetUid: target.uid,
+          text: label,
+        })
+      );
+    }
+
+    // ---- UTILITY effects — handled inline ----
+    else if (et === "cleanse") {
+      const removed = (target.statuses || []).filter(
+        (s) =>
+          DOT_TYPES.has(s.effectType) ||
+          CC_TYPES.has(s.effectType) ||
+          DEBUFF_TYPES.has(s.effectType) ||
+          s.effectType === "shock"
+      );
+      target.statuses = (target.statuses || []).filter(
+        (s) =>
+          !DOT_TYPES.has(s.effectType) &&
+          !CC_TYPES.has(s.effectType) &&
+          !DEBUFF_TYPES.has(s.effectType) &&
+          s.effectType !== "shock"
+      );
+      if (removed.length > 0) {
+        events.push(
+          makeEvent("CLEANSE", {
+            actorUid: actor.uid,
+            targetUid: target.uid,
+            text: `Cleansed ${removed.length} debuff(s)!`,
+          })
+        );
+      }
+    }
+
+    else if (et === "dispel") {
+      const removed = (target.statuses || []).filter(
+        (s) => BUFF_TYPES.has(s.effectType)
+      );
+      target.statuses = (target.statuses || []).filter(
+        (s) => !BUFF_TYPES.has(s.effectType)
+      );
+      if (removed.length > 0) {
+        events.push(
+          makeEvent("DISPEL", {
+            actorUid: actor.uid,
+            targetUid: target.uid,
+            text: `Dispelled ${removed.length} buff(s)!`,
+          })
+        );
+      }
+    }
+
+    else if (et === "extra_turn") {
+      // Flag is read by the battle loop in Battle.jsx
+      actor._extraTurn = true;
+      events.push(
+        makeEvent("PASSIVE_TRIGGER", {
+          actorUid: actor.uid,
+          targetUid: actor.uid,
+          text: "Extra Turn!",
+        })
+      );
+    }
+
+    else if (et === "revive_ally") {
+      // Handled by the 'revive' skill type in Battle.jsx
+      // This effect is a no-op here when applied via applyJutsuEffects
+    }
   }
 
   return events;
@@ -1780,6 +2023,36 @@ export function isStunned(actor) {
       CC_TYPES.has(
         s.effectType
       ) &&
+      (s.duration ?? 0) > 0
+  );
+}
+
+// ============================================================
+// TAUNT CHECK — returns the uid of a taunting enemy, or null
+// ============================================================
+
+export function getTauntTarget(arr, attackerSide) {
+  const taunters = arr.filter(
+    (c) =>
+      c.alive &&
+      c.side !== attackerSide &&
+      c.statuses?.some(
+        (s) =>
+          s.effectType === "taunt" &&
+          (s.duration ?? 0) > 0
+      )
+  );
+  return taunters.length > 0 ? taunters[0].uid : null;
+}
+
+// ============================================================
+// IMMUNITY CHECK — is the target immune to debuffs?
+// ============================================================
+
+export function isImmune(target) {
+  return !!target.statuses?.some(
+    (s) =>
+      s.effectType === "immunity" &&
       (s.duration ?? 0) > 0
   );
 }
@@ -1886,6 +2159,37 @@ export function tickStatuses(actor) {
     ) {
       s.duration -= 1;
 
+      if (s.duration > 0) {
+        keep.push(s);
+      }
+    }
+
+    // Regen — heal ally each turn
+    else if (s.effectType === "regen") {
+      const healAmount = Math.round(
+        (actor.maxHp || 0) * (s.value || 10) / 100
+      );
+      const oldHp = actor.hp;
+      actor.hp = Math.min(actor.maxHp, actor.hp + healAmount);
+      const actualHeal = actor.hp - oldHp;
+      if (actualHeal > 0) {
+        events.push(
+          makeEvent("HEAL", {
+            targetUid: actor.uid,
+            value: actualHeal,
+            text: `Regen +${actualHeal}`,
+          })
+        );
+      }
+      s.duration -= 1;
+      if (s.duration > 0) {
+        keep.push(s);
+      }
+    }
+
+    // Buffs and taunt — tick duration
+    else if (BUFF_TYPES.has(s.effectType)) {
+      s.duration -= 1;
       if (s.duration > 0) {
         keep.push(s);
       }
@@ -2088,6 +2392,90 @@ export function applyBattleStartPassives(
           )
         );
       }
+    }
+
+    // Team ATK buff at battle start
+    if (
+      c.passive?.effect_type === "team_atk_buff"
+    ) {
+      const boost = c.passive.params?.atk_boost || 20;
+      const dur = c.passive.params?.duration || 3;
+      arr
+        .filter((a) => a.side === c.side && a.alive)
+        .forEach((ally) => {
+          ally.statuses = ally.statuses || [];
+          ally.statuses.push({
+            id: `team_atk_up_${ally.uid}_${Date.now()}`,
+            effectType: "team_atk_up",
+            source: c.uid,
+            duration: dur,
+            value: boost,
+          });
+        });
+      events.push(
+        makeEvent("BUFF_APPLIED", {
+          actorUid: c.uid,
+          text: `${c.passive.name}: Team ATK +${boost}%`,
+        })
+      );
+    }
+
+    // Team DEF buff at battle start
+    if (
+      c.passive?.effect_type === "team_def_buff"
+    ) {
+      const boost = c.passive.params?.def_boost || 15;
+      const dur = c.passive.params?.duration || 3;
+      arr
+        .filter((a) => a.side === c.side && a.alive)
+        .forEach((ally) => {
+          ally.statuses = ally.statuses || [];
+          ally.statuses.push({
+            id: `team_def_up_${ally.uid}_${Date.now()}`,
+            effectType: "team_def_up",
+            source: c.uid,
+            duration: dur,
+            value: boost,
+          });
+        });
+      events.push(
+        makeEvent("BUFF_APPLIED", {
+          actorUid: c.uid,
+          text: `${c.passive.name}: Team DEF +${boost}%`,
+        })
+      );
+    }
+
+    // Speed boost self at battle start
+    if (
+      c.passive?.effect_type === "speed_boost_self"
+    ) {
+      const boost = c.passive.params?.initial_boost || c.passive.params?.spd_boost || 15;
+      const bonus = Math.round(c.baseBattleSpd * boost / 100);
+      c.spd = c.baseBattleSpd + bonus;
+      events.push(
+        makeEvent("PASSIVE_TRIGGER", {
+          actorUid: c.uid,
+          targetUid: c.uid,
+          text: `${c.passive.name}: +${boost}% SPD`,
+          value: bonus,
+        })
+      );
+    }
+
+    // Stacking power — initialize stacks
+    if (
+      c.passive?.effect_type === "stacking_power" ||
+      c.passive?.effect_type === "atk_scaling_turns"
+    ) {
+      c._stacks = 0;
+    }
+
+    // Crit boost self — initialize stacks
+    if (
+      c.passive?.effect_type === "crit_boost_self"
+    ) {
+      c._critStacks = 0;
     }
   });
 

@@ -26,6 +26,9 @@ import {
   spireEnemies,
   computeStats,
   applyEnemyGear,
+  getTauntTarget,
+  isImmune,
+  applyJutsuEffects,
 } from "@/lib/battle";
 import api from "@/lib/api";
 
@@ -50,36 +53,70 @@ function pickAiAction(actor, arr) {
     (j) => j.type !== "passive" && j.chakra_cost <= actor.chakra
   );
 
-  const healJ = affordable.find((j) => j.type === "heal");
+  // Check for taunt — must target the taunting enemy
+  const tauntUid = getTauntTarget(arr, actor.side);
+
+  // Priority 1: Revive a fallen ally
+  const deadAlly = arr.find((c) => c.side === actor.side && !c.alive);
+  const reviveJ = affordable.find((j) => j.type === "revive");
+  if (reviveJ && deadAlly) {
+    return { jutsu: reviveJ, targetUid: deadAlly.uid };
+  }
+
+  // Priority 2: Heal a wounded ally
+  const healJ = affordable.find((j) => j.type === "heal" || j.type === "aoe_heal");
   const woundedAlly = allies.find((a) => a.hp / a.maxHp < 0.45);
+  if (healJ && woundedAlly) {
+    if (healJ.type === "aoe_heal") return { jutsu: healJ, targetUid: null };
+    return { jutsu: healJ, targetUid: woundedAlly.uid };
+  }
+
+  // Priority 3: Team buff if no allies have buffs
+  const buffJ = affordable.find((j) => j.type === "team_buff");
+  if (buffJ && Math.random() < 0.4) {
+    return { jutsu: buffJ, targetUid: null };
+  }
+
+  // Priority 4: Taunt if tank and enemies alive
+  const tauntJ = affordable.find((j) => j.type === "taunt");
+  if (tauntJ && actor.role === "Tank" && !actor.statuses?.some(s => s.effectType === "taunt") && Math.random() < 0.5) {
+    return { jutsu: tauntJ, targetUid: actor.uid };
+  }
+
+  // Priority 5: Cleanse if allies have debuffs
+  const cleanseJ = affordable.find((j) => j.type === "cleanse");
+  const debuffedAlly = allies.find((a) => a.statuses?.some(s =>
+    ["burn", "poison", "bleed", "stun", "freeze", "atk_down", "def_down", "shock"].includes(s.effectType)
+  ));
+  if (cleanseJ && debuffedAlly && Math.random() < 0.6) {
+    return { jutsu: cleanseJ, targetUid: debuffedAlly.uid };
+  }
+
+  // Priority 6: Offensive action
+  const offensive = affordable.filter(
+    (j) => j.type === "attack" || j.type === "aoe"
+  );
 
   let jutsu;
   let targetUid = null;
 
-  if (healJ && woundedAlly) {
-    jutsu = healJ;
-    targetUid = woundedAlly.uid;
+  const aoe = offensive.find((j) => j.type === "aoe");
+
+  if (aoe && enemies.length >= 2 && Math.random() < 0.6) {
+    jutsu = aoe;
   } else {
-    const offensive = affordable.filter(
-      (j) => j.type === "attack" || j.type === "aoe"
-    );
-
-    const aoe = offensive.find((j) => j.type === "aoe");
-
-    if (aoe && enemies.length >= 2 && Math.random() < 0.6) {
-      jutsu = aoe;
+    const atks = offensive.filter((j) => j.type === "attack");
+    jutsu = atks.sort((a, b) => b.power - a.power)[0] || actor.jutsus[0];
+    // Target lowest HP enemy, but respect taunt
+    if (tauntUid) {
+      targetUid = tauntUid;
     } else {
-      const atks = offensive.filter((j) => j.type === "attack");
-
-      jutsu =
-        atks.sort((a, b) => b.power - a.power)[0] ||
-        actor.jutsus[0];
-
       targetUid = [...enemies].sort((a, b) => a.hp - b.hp)[0]?.uid;
     }
-
-    if (jutsu.type === "aoe") targetUid = null;
   }
+
+  if (jutsu.type === "aoe") targetUid = null;
+  if (!jutsu) jutsu = actor.jutsus[0];
 
   return { jutsu, targetUid };
 }
@@ -889,17 +926,13 @@ export default function Battle() {
 
         if (t) {
           const sh = Math.round(
-            act.def * 2.5 + 150
+            (jutsu.power || 100) / 100 * act.def * 2.5 + 150
           );
 
           t.shield += sh;
+          t.statuses = t.statuses || [];
 
-          addFloat(
-            t.uid,
-            "SHIELD",
-            "#29B6F6"
-          );
-
+          addFloat(t.uid, "SHIELD", "#29B6F6");
           newEvents.push(
             makeEvent("SHIELD_APPLIED", {
               actorUid: act.uid,
@@ -907,6 +940,94 @@ export default function Battle() {
               value: sh,
             })
           );
+
+          // Apply shield skill effects (regen, immunity, cleanse, etc.)
+          if (jutsu.effects?.length) {
+            const effEvents = applyJutsuEffects(act, t, jutsu);
+            newEvents.push(...effEvents);
+          }
+        }
+      }
+
+      // ---------- AOE HEAL ----------
+      else if (jutsu.type === "aoe_heal") {
+        const allies = arr.filter((c) => c.side === act.side && c.alive);
+        newEvents.push(makeEvent("SKILL", { actorUid: act.uid, jutsuId: jutsu.id }));
+        allies.forEach((ally) => {
+          const heal = Math.round((jutsu.power || 100) / 100 * act.atk + (jutsu.power || 100));
+          ally.hp = Math.min(ally.maxHp, ally.hp + heal);
+          addFloat(ally.uid, `+${heal}`, "#00E676");
+          newEvents.push(makeEvent("HEAL", { actorUid: act.uid, targetUid: ally.uid, value: heal }));
+          // Apply heal effects (regen, cleanse, immunity, team buffs) to each ally
+          if (jutsu.effects?.length) {
+            ally.statuses = ally.statuses || [];
+            const effEvents = applyJutsuEffects(act, ally, jutsu);
+            newEvents.push(...effEvents);
+          }
+        });
+      }
+
+      // ---------- REVIVE ----------
+      else if (jutsu.type === "revive") {
+        const deadAlly = arr.find((c) => c.side === act.side && !c.alive);
+        if (deadAlly) {
+          const hpPct = jutsu.effects?.find((e) => e.type === "revive_ally")?.hp_pct || 30;
+          deadAlly.hp = Math.max(1, Math.round(deadAlly.maxHp * hpPct / 100));
+          deadAlly.alive = true;
+          deadAlly.shield = 0;
+          deadAlly.statuses = [];
+          addFloat(deadAlly.uid, "REVIVED!", "#FFD54F");
+          pushLog(`${deadAlly.name} revived!`);
+          newEvents.push(makeEvent("REVIVAL", { targetUid: deadAlly.uid, text: `${deadAlly.name} rises again!` }));
+          // Apply revive effects (team buffs, immunity, regen) to allies
+          if (jutsu.effects?.length) {
+            const allies = arr.filter((c) => c.side === act.side && c.alive);
+            allies.forEach((ally) => {
+              ally.statuses = ally.statuses || [];
+              const effEvents = applyJutsuEffects(act, ally, jutsu);
+              newEvents.push(...effEvents);
+            });
+          }
+        }
+      }
+
+      // ---------- TAUNT ----------
+      else if (jutsu.type === "taunt") {
+        act.statuses = act.statuses || [];
+        // Apply taunt and any self-buff effects (def_up, regen, etc.)
+        if (jutsu.effects?.length) {
+          const effEvents = applyJutsuEffects(act, act, jutsu);
+          newEvents.push(...effEvents);
+        }
+        addFloat(act.uid, "TAUNT!", "#FF5722");
+        pushLog(`${act.name} taunts all enemies!`);
+        newEvents.push(makeEvent("BUFF_APPLIED", { actorUid: act.uid, targetUid: act.uid, text: "Taunt!" }));
+      }
+
+      // ---------- TEAM BUFF ----------
+      else if (jutsu.type === "team_buff") {
+        const allies = arr.filter((c) => c.side === act.side && c.alive);
+        newEvents.push(makeEvent("SKILL", { actorUid: act.uid, jutsuId: jutsu.id }));
+        allies.forEach((ally) => {
+          ally.statuses = ally.statuses || [];
+          if (jutsu.effects?.length) {
+            const effEvents = applyJutsuEffects(act, ally, jutsu);
+            newEvents.push(...effEvents);
+          }
+        });
+        addFloat(act.uid, "TEAM BUFF!", "#00E5FF");
+      }
+
+      // ---------- CLEANSE ----------
+      else if (jutsu.type === "cleanse") {
+        const t = arr.find((c) => c.uid === targetUid);
+        if (t) {
+          t.statuses = t.statuses || [];
+          if (jutsu.effects?.length) {
+            const effEvents = applyJutsuEffects(act, t, jutsu);
+            newEvents.push(...effEvents);
+          }
+          addFloat(t.uid, "CLEANSED!", "#00E676");
         }
       }
 

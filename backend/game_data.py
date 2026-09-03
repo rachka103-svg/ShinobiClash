@@ -2,6 +2,7 @@
 
 import random
 from typing import Optional
+import hero_skills
 
 # Element advantage ring + dark/light pair.
 ELEMENT_ADVANTAGE = {
@@ -1079,16 +1080,19 @@ _HERO_DEFS = [
 # Backfill the original 12 heroes with extended base_stats and ultimate abilities
 for _h in _ORIGINAL_12:
     _h["base_stats"] = _hero_stats(_h["rarity"], _h["role"])
-    # Signature passive is stored separately and is resolved automatically by the battle engine.
-    _h["passive"] = _passive_for(_h["id"], _h["role"])
+    _kit = hero_skills.get_hero_kit(_h["id"], _h["name"], _h["element"], _h["rarity"], _h["role"])
+    if _kit:
+        _h["jutsus"] = _kit["skills"]
+    _h["passive"] = hero_skills.get_hero_passive(_h["id"], _h["role"])
     NINJA_CATALOG.append(_h)
 
 for _hid, _name, _title, _el, _rar, _role, _lore in _HERO_DEFS:
+    _kit = hero_skills.get_hero_kit(_hid, _name, _el, _rar, _role)
     NINJA_CATALOG.append({
         "id": _hid, "name": _name, "title": _title, "element": _el, "rarity": _rar,
         "role": _role, "lore": _lore, "base_stats": _hero_stats(_rar, _role),
-        "jutsus": _hero_jutsus(_hid, _name, _el, _rar, _role),
-        "passive": _passive_for(_hid, _role),
+        "jutsus": _kit["skills"] if _kit else _hero_jutsus(_hid, _name, _el, _rar, _role),
+        "passive": hero_skills.get_hero_passive(_hid, _role),
     })
 
 # ---------------------------------------------------------------------------
@@ -1135,10 +1139,12 @@ _HERO_DEFS_V2 = [
 ]
 
 for _hid, _name, _title, _el, _rar, _role, _fac, _lore in _HERO_DEFS_V2:
+    _kit = hero_skills.get_hero_kit(_hid, _name, _el, _rar, _role)
     NINJA_CATALOG.append({
         "id": _hid, "name": _name, "title": _title, "element": _el, "rarity": _rar,
         "role": _role, "faction": _fac, "lore": _lore, "base_stats": _hero_stats(_rar, _role),
-        "jutsus": _hero_jutsus(_hid, _name, _el, _rar, _role), "is_placeholder_art": True,
+        "jutsus": _kit["skills"] if _kit else _hero_jutsus(_hid, _name, _el, _rar, _role),
+        "is_placeholder_art": True,
     })
 
 # ---------------------------------------------------------------------------
@@ -1171,7 +1177,7 @@ for _n in NINJA_CATALOG:
     _n.setdefault("faction", _FACTION_OVERRIDE.get(_n["id"], _ELEMENT_FACTION_DEFAULT.get(_n["element"], "Crimson Leaf Order")))
     _tags = list(dict.fromkeys(_ROLE_TAGS.get(_n["role"], ["SINGLE_TARGET"]) + [_ELEMENT_TAG.get(_n["element"], "AOE")]))
     _n.setdefault("tags", _tags)
-    _n.setdefault("passive", _passive_for(_n["id"], _n["role"]))
+    _n.setdefault("passive", hero_skills.get_hero_passive(_n["id"], _n["role"]))
     _n.setdefault("is_placeholder_art", False)
     _n.setdefault("star_level_default", 1)
 
@@ -2120,7 +2126,7 @@ def _finalize_kit(n):
             "description": f"An ascendant {element.lower()} surge — {first}'s ultimate expression of power, unique to GR heroes.",
         })
     if "passive" not in n:
-        n["passive"] = _passive_for(n["id"], role)
+        n["passive"] = hero_skills.get_hero_passive(n["id"], role)
 
 
 def _rebuild_catalog():
