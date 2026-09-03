@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Heart, Sword, Shield, Wind, Star, ChevronsUp, Gem, Coins, Sparkles, Check,
@@ -12,6 +13,7 @@ import { DecoCorners } from "@/components/RarityFx";
 import { RarityBadge } from "@/components/RarityBadge";
 import { ItemIcon } from "@/components/ItemIcon";
 import CrystalPickerModal from "@/components/CrystalPickerModal";
+import TransformOverlay from "@/components/TransformOverlay";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
@@ -54,6 +56,7 @@ export default function HeroDetailModal({
   const [busyLocal, setBusyLocal] = useState(false);
   const [immersive, setImmersive] = useState(false);
   const [showRevertConfirm, setShowRevertConfirm] = useState(false);
+  const [transformFx, setTransformFx] = useState(null); // { oldRarity, newRarity } during transform sequence
 
   if (!template) return null;
  const effectiveRarity = instance?.evolved_rarity || instance?.rarity || template.rarity;
@@ -98,6 +101,8 @@ const frame = rarityFrame(effectiveRarity);
     try {
       const { data } = await api.post("/game/hero/transcend", { instance_id: instance.instance_id });
       setUser(data.profile);
+      // Trigger the cinematic transformation overlay
+      setTransformFx({ oldRarity: data.prev_rarity, newRarity: data.new_rarity });
       toast.success(`Transformed to ${data.new_rarity}! New star capacity unlocked.`);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
@@ -215,6 +220,20 @@ const frame = rarityFrame(effectiveRarity);
       >
         <DialogTitle className="sr-only">{template.name}</DialogTitle>
         <DialogDescription className="sr-only">Details for {template.name}</DialogDescription>
+
+        {/* ---- Transformation cinematic overlay ---- */}
+        <AnimatePresence>
+          {transformFx && (
+            <TransformOverlay
+              key="transform-fx"
+              oldRarity={transformFx.oldRarity}
+              newRarity={transformFx.newRarity}
+              portrait={template.portrait}
+              heroName={template.name}
+              onComplete={() => setTransformFx(null)}
+            />
+          )}
+        </AnimatePresence>
 
         {immersive ? (
           /* ---------- Immersive: art-only, info hidden ---------- */
