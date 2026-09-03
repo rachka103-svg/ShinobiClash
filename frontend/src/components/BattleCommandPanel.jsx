@@ -21,7 +21,11 @@ const TARGET_TYPE = {
   attack: "Single Enemy",
   aoe: "All Enemies",
   heal: "Single Ally",
+  aoe_heal: "All Allies",
   shield: "Single Ally",
+  revive: "Fallen Ally",
+  team_buff: "All Allies",
+  taunt: "Self",
 };
 
 /**
@@ -224,8 +228,7 @@ export default function BattleCommandPanel({
                     </p>
 
                     <p className="text-[9px] text-slate-500 mt-0.5">
-                      {TARGET_TYPE[j.type] ||
-                        "Single Enemy"}
+                      {TARGET_TYPE[j.type] || "—"}
                     </p>
 
                   </button>
