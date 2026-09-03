@@ -31,8 +31,8 @@ export default function TransformOverlay({ oldRarity, newRarity, portrait, heroN
   // Sparkle particle positions
   const sparkles = Array.from({ length: 14 }, (_, i) => ({
     left: `${10 + (i * 6) + Math.random() * 4}%`,
-    delay: `${Math.random() * 0.6}s`,
-    duration: `${1.4 + Math.random() * 0.8}s`,
+    delay: Math.random() * 0.6,
+    duration: 1.4 + Math.random() * 0.8,
     size: 4 + Math.random() * 6,
   }));
 
@@ -194,7 +194,7 @@ export default function TransformOverlay({ oldRarity, newRarity, portrait, heroN
             animate={{ y: [-20, -200], opacity: [0, 1, 0], scale: [0, 1, 0.5] }}
             transition={{
               delay: s.delay,
-              duration: parseFloat(s.duration),
+              duration: s.duration,
               ease: "easeOut",
             }}
           />
