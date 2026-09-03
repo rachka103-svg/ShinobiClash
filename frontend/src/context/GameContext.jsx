@@ -27,6 +27,8 @@ export function GameProvider({ children }) {
   const [dungeons, setDungeons] = useState([]);
   const [reforgeModifiers, setReforgeModifiers] = useState({});
   const [reforgeMaxPerJutsu, setReforgeMaxPerJutsu] = useState(2);
+  const [productionCategories, setProductionCategories] = useState([]);
+  const [forgeMaxLevel, setForgeMaxLevel] = useState(200);
   const [loading, setLoading] = useState(true);
   const [catalogError, setCatalogError] = useState(null);
 
@@ -49,6 +51,8 @@ export function GameProvider({ children }) {
     setDungeons(data.dungeons || []);
     setReforgeModifiers(data.reforge_modifiers || {});
     setReforgeMaxPerJutsu(data.reforge_max_per_jutsu || 2);
+    setProductionCategories(data.production_categories || []);
+    setForgeMaxLevel(data.forge_max_level || 200);
     const map = {};
     data.ninjas.forEach((n) => { map[n.id] = n; });
     setCatalogById(map);
@@ -86,7 +90,7 @@ export function GameProvider({ children }) {
     <GameContext.Provider value={{
       catalog, catalogById, advantage, stages, chapters, bossMechanics, items, trials, summonCost, goldSummonX10Cost, gemCosts, banner,
       summonRates, summonRatesRyo, pityConfig, gearConfig, craftRecipes, fusionRecipes, expTomeGoldCost, dungeons,
-      reforgeModifiers, reforgeMaxPerJutsu,
+      reforgeModifiers, reforgeMaxPerJutsu, productionCategories, forgeMaxLevel,
       loading, catalogError, retryCatalog: loadInitialData, refreshCatalog,
     }}>
       {children}

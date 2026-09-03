@@ -2996,3 +2996,29 @@ def achievement_metric(user: dict, key: str) -> int:
 
 def fresh_achievements_state() -> dict:
     return {a["id"]: {"progress": 0, "claimed": False} for a in ACHIEVEMENTS}
+
+
+# ===========================================================================
+# FORGE PRODUCTION SYSTEM — forge levels 1-200, tiered recipes, chapter-gated
+# material drops. See forge_production.py for full logic.
+# ===========================================================================
+import forge_production as fp
+
+# Register forge materials in ITEMS so the UI has proper metadata.
+ITEMS.update({
+    m[0]: {"id": m[0], "name": m[1], "type": "forge_material", "value": 0,
+           "icon": m[2], "color": m[3], "desc": m[4]}
+    for m in fp.FORGE_MATERIALS
+})
+
+# Register all forge-produced consumables (5 categories × 200 tiers = 1000).
+ITEMS.update(fp.forge_item_entries())
+
+# Re-export key functions so server.py can call them via gd.
+FORGE_PRODUCTION_CATEGORIES = fp.PRODUCTION_CATEGORIES
+FORGE_MAX_LEVEL = fp.FORGE_MAX_LEVEL
+forge_production_recipe = fp.production_recipe
+forge_production_recipes = fp.all_production_recipes
+forge_level_from_xp = fp.forge_level_from_xp
+forge_xp_for_level = fp.forge_xp_for_level
+roll_forge_drops = fp.roll_forge_drops

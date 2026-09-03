@@ -260,6 +260,11 @@ class UseExpIn(BaseModel):
     qty: int = 1
 
 
+class ForgeProduceIn(BaseModel):
+    category: str   # e.g. "hp_potion"
+    tier: int        # 1-200
+
+
 class AscendIn(BaseModel):
     instance_id: str
 
@@ -820,6 +825,8 @@ def public_user(user: dict) -> dict:
         "beginner": beginner_public(user),
         "free_summons": free_summons_public(user),
         "achievements": achievements_public(user),
+        "forge_level": user.get("forge_level", 1),
+        "forge_xp": user.get("forge_xp", 0),
     }
 
 
@@ -938,6 +945,8 @@ async def register(body: RegisterIn, response: Response):
         "login": gd.fresh_login_state(),
         "arena_rating": gd.ARENA_RATING_DEFAULT,
         "arena_wins": 0,
+        "forge_level": 1,
+        "forge_xp": 0,
         "arena_losses": 0,
         "arena_daily": gd.fresh_arena_daily_state(),
     }
@@ -1028,6 +1037,8 @@ async def catalog():
             "exp_tome_gold_cost": gd.EXP_TOME_GOLD_COST,
             "reforge_modifiers": gd.REFORGE_MODIFIERS,
             "reforge_max_per_jutsu": gd.REFORGE_MAX_PER_JUTSU,
+            "production_categories": gd.FORGE_PRODUCTION_CATEGORIES,
+            "forge_max_level": gd.FORGE_MAX_LEVEL,
             "progression_config": {
                 "ascension_ladder": prog.ASCENSION_LADDER,
                 "max_stars": prog.MAX_STARS,
@@ -1394,6 +1405,13 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
     # item drops
     rewards["items"] = _roll_battle_item_drops(user, chapter, first_clear)
     inventory = user["inventory"]
+
+    # forge material drops — chapter-gated, boss-specific mats from boss stages
+    forge_drops = gd.roll_forge_drops(chapter, stage.get("is_boss", False), stage.get("boss_mechanic"), first_clear)
+    if forge_drops:
+        for iid, qty in forge_drops.items():
+            inventory[iid] = inventory.get(iid, 0) + qty
+        rewards.setdefault("forge_materials", {}).update(forge_drops)
 
     # gear drops — battles from Chapter 2 onward can drop gear (long-term loop)
     rewards["gear"] = _roll_battle_gear_drop(user, chapter)
@@ -2266,6 +2284,62 @@ async def material_fuse(body: FuseIn, user: dict = Depends(get_current_user)):
     return {"profile": public_user(user), "fused": {body.target_id: qty}}
 
 
+# ---------------------------------------------------------------------------
+# FORGE PRODUCTION — craft consumables from forge materials, gain forge XP.
+# ---------------------------------------------------------------------------
+@api_router.post("/game/forge/produce")
+async def forge_produce(body: ForgeProduceIn, user: dict = Depends(get_current_user)):
+    recipe = gd.forge_production_recipe(body.category, body.tier)
+    if not recipe:
+        raise HTTPException(status_code=400, detail="Invalid production recipe")
+
+    forge_level = user.get("forge_level", 1)
+    if forge_level < recipe["forge_level_req"]:
+        raise HTTPException(status_code=400, detail=f"Forge level {recipe['forge_level_req']} required")
+
+    inventory = user.get("inventory", {})
+    # Check all materials
+    for mat_id, need in recipe["materials"].items():
+        have = inventory.get(mat_id, 0)
+        if have < need:
+            mat_name = gd.ITEMS.get(mat_id, {}).get("name", mat_id)
+            raise HTTPException(status_code=400, detail=f"Not enough {mat_name} ({have}/{need})")
+
+    # Check ryo
+    if user.get("ryo", 0) < recipe["ryo"]:
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {recipe['ryo']}")
+
+    # Consume materials + ryo
+    for mat_id, need in recipe["materials"].items():
+        inventory[mat_id] -= need
+    user["ryo"] -= recipe["ryo"]
+
+    # Grant output item
+    out_id = recipe["output"]["id"]
+    inventory[out_id] = inventory.get(out_id, 0) + recipe["output"]["qty"]
+    user["inventory"] = inventory
+
+    # Grant forge XP and process level-ups
+    forge_xp = user.get("forge_xp", 0) + recipe["forge_xp"]
+    old_level = user.get("forge_level", 1)
+    new_level, _, _ = gd.forge_level_from_xp(forge_xp)
+    user["forge_xp"] = forge_xp
+    user["forge_level"] = new_level
+    leveled_up = new_level > old_level
+
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "inventory": inventory, "ryo": user["ryo"],
+        "forge_xp": forge_xp, "forge_level": new_level}})
+
+    return {
+        "profile": public_user(user),
+        "produced": {"id": out_id, "name": recipe["output"]["name"], "qty": recipe["output"]["qty"]},
+        "forge_xp_gained": recipe["forge_xp"],
+        "forge_leveled_up": leveled_up,
+        "forge_new_level": new_level,
+    }
+
+
 @api_router.post("/game/gear/summon")
 async def gear_summon(body: GearSummonIn, user: dict = Depends(get_current_user)):
     """Armory summon — pulls gear (Rare+) using Gems or Gear Tickets.
@@ -2453,6 +2527,15 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
     inventory = user.get("inventory", {})
     for iid, qty in r["items"].items():
         inventory[iid] = inventory.get(iid, 0) + qty
+
+    # Forge material drops — Tsukuyomi bosses drop high-tier materials.
+    tsuku_chapter = 30 + boss.get("index", 1) * 3   # map boss index to a high chapter
+    _fc_done = (user.get("tsukuyomi_fc") or {}).get(body.boss_id, [])
+    _is_fc = body.difficulty not in _fc_done
+    forge_drops = gd.roll_forge_drops(tsuku_chapter, True, "tsukuyomi_dreamlord", _is_fc)
+    if forge_drops:
+        for iid, qty in forge_drops.items():
+            inventory[iid] = inventory.get(iid, 0) + qty
 
     # RARE drop — a single random piece of the boss's signature gear set.
     gear_reward = None
