@@ -11,6 +11,7 @@ import HeroStatsTab from "@/components/admin/HeroStatsTab";
 import StagesTab from "@/components/admin/StagesTab";
 import DashboardTab from "@/components/admin/DashboardTab";
 import GearTab from "@/components/admin/GearTab";
+import TsukuyomiTab from "@/components/admin/TsukuyomiTab";
 
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
 const RARITIES = ["R", "SR", "SSR", "UR", "GR"];
@@ -64,7 +65,7 @@ export default function Admin() {
       </div>
 
       <div className="flex items-center gap-2 mb-6 flex-wrap">
-        {[["dashboard", `Dashboard (${catalog.length})`], ["generate", "AI Generator"], ["art", "Art Studio"], ["manage", `Manage Heroes`], ["balance", "Balance"], ["herostats", "Hero Stats"], ["stages", "Stages & Bosses"], ["gear", "Gear"], ["players", "Players"], ["economy", "Economy"]].map(([id, lbl]) => (
+        {[["dashboard", `Dashboard (${catalog.length})`], ["generate", "AI Generator"], ["art", "Art Studio"], ["manage", `Manage Heroes`], ["balance", "Balance"], ["herostats", "Hero Stats"], ["stages", "Stages & Bosses"], ["gear", "Gear"], ["tsukuyomi", "Tsukuyomi"], ["players", "Players"], ["economy", "Economy"]].map(([id, lbl]) => (
           <button key={id} data-testid={`admin-tab-${id}`} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${tab === id ? "bg-chakra text-[#05050A]" : "text-slate-600 bg-black/[0.04] hover:bg-black/10"}`}>
             {lbl}
@@ -78,6 +79,7 @@ export default function Admin() {
         : tab === "balance" ? <BalanceTab />
         : tab === "herostats" ? <HeroStatsTab />
         : tab === "stages" ? <StagesTab />
+        : tab === "tsukuyomi" ? <TsukuyomiTab />
         : tab === "players" ? <Players />
         : tab === "economy" ? <Economy />
         : <Manage catalog={catalog} banner={banner} onChanged={refreshCatalog} />}

@@ -2641,6 +2641,26 @@ def _tsukuyomi_boss_defs() -> list:
 TSUKUYOMI_BOSSES = _tsukuyomi_boss_defs()
 TSUKUYOMI_BY_ID = {b["id"]: b for b in TSUKUYOMI_BOSSES}
 
+# Admin-managed portrait overrides for Tsukuyomi bosses (boss_id -> portrait URL).
+# When set, the override is used instead of the underlying hero template's portrait.
+_TSUKUYOMI_PORTRAIT_OVERRIDES: dict = {}
+
+
+def load_tsukuyomi_portraits(overrides: dict):
+    global _TSUKUYOMI_PORTRAIT_OVERRIDES
+    _TSUKUYOMI_PORTRAIT_OVERRIDES = dict(overrides or {})
+
+
+def set_tsukuyomi_portrait(boss_id: str, portrait: str):
+    _TSUKUYOMI_PORTRAIT_OVERRIDES[boss_id] = portrait
+
+
+def clear_tsukuyomi_portrait(boss_id: str) -> bool:
+    if boss_id in _TSUKUYOMI_PORTRAIT_OVERRIDES:
+        _TSUKUYOMI_PORTRAIT_OVERRIDES.pop(boss_id, None)
+        return True
+    return False
+
 
 def tsukuyomi_enemies(boss: dict, difficulty: str = "normal") -> list:
     diff = TSUKU_DIFF_BY_ID.get(difficulty, TSUKUYOMI_DIFFICULTIES[0])
@@ -2701,8 +2721,11 @@ def tsukuyomi_gear_drop(boss: dict, difficulty: str = "normal") -> dict:
 
 
 def tsukuyomi_boss_public(boss: dict) -> dict:
+    portrait = _TSUKUYOMI_PORTRAIT_OVERRIDES.get(boss["id"], boss["portrait"])
     return {
         **boss,
+        "portrait": portrait,
+        "portrait_overridden": boss["id"] in _TSUKUYOMI_PORTRAIT_OVERRIDES,
         "difficulties": [
             {**d, "recommended_power": tsukuyomi_recommended_power(boss, d["id"]),
              "enemies": tsukuyomi_enemies(boss, d["id"])}

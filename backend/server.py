@@ -2606,7 +2606,9 @@ async def load_catalog_config():
         custom = (cfg or {}).get("custom_heroes", [])
         overrides = (cfg or {}).get("portrait_overrides", {})
         hero_overrides = (cfg or {}).get("hero_overrides", {})
+        tsuku_portraits = (cfg or {}).get("tsukuyomi_portrait_overrides", {})
         gd.load_dynamic(custom, overrides, hero_overrides)
+        gd.load_tsukuyomi_portraits(tsuku_portraits)
     except Exception as e:
         logger.warning("Could not load dynamic catalog config (%s); using static catalog", e)
 
@@ -2615,7 +2617,8 @@ async def persist_catalog_config():
     await db.game_config.update_one(
         {"_id": "catalog"},
         {"$set": {"custom_heroes": gd._CUSTOM_HEROES, "portrait_overrides": gd._PORTRAIT_OVERRIDES,
-                  "hero_overrides": gd._HERO_OVERRIDES}},
+                  "hero_overrides": gd._HERO_OVERRIDES,
+                  "tsukuyomi_portrait_overrides": gd._TSUKUYOMI_PORTRAIT_OVERRIDES}},
         upsert=True,
     )
 
@@ -2852,6 +2855,55 @@ async def admin_reset_portrait(hid: str, _: dict = Depends(get_admin_user)):
     (CUSTOM_DIR / f"{hid}.png").unlink(missing_ok=True)
     await persist_catalog_config()
     return {"hero": _hero_public(gd.CATALOG_BY_ID[hid])}
+
+
+@api_router.get("/admin/tsukuyomi")
+async def admin_list_tsukuyomi(_: dict = Depends(get_admin_user)):
+    """List all Tsukuyomi nightmare bosses with their current portrait info."""
+    return {
+        "bosses": [
+            {
+                "id": b["id"], "index": b["index"], "name": b["name"],
+                "template_id": b["template_id"], "rarity": b["rarity"],
+                "element": b["element"],
+                "portrait": gd._TSUKUYOMI_PORTRAIT_OVERRIDES.get(b["id"], b["portrait"]),
+                "default_portrait": b["portrait"],
+                "portrait_overridden": b["id"] in gd._TSUKUYOMI_PORTRAIT_OVERRIDES,
+            }
+            for b in gd.TSUKUYOMI_BOSSES
+        ],
+    }
+
+
+@api_router.post("/admin/tsukuyomi/portrait")
+async def admin_tsukuyomi_portrait(body: PortraitUploadIn, _: dict = Depends(get_admin_user)):
+    """Upload a custom portrait for a Tsukuyomi nightmare boss."""
+    boss = gd.TSUKUYOMI_BY_ID.get(body.template_id)
+    if not boss:
+        raise HTTPException(status_code=404, detail="Tsukuyomi boss not found")
+    portrait = _save_portrait_png(f"tsuku_{body.template_id}", body.image)
+    gd.set_tsukuyomi_portrait(body.template_id, portrait)
+    await persist_catalog_config()
+    return {
+        "id": boss["id"], "name": boss["name"],
+        "portrait": portrait, "portrait_overridden": True,
+    }
+
+
+@api_router.delete("/admin/tsukuyomi/{boss_id}/portrait")
+async def admin_reset_tsukuyomi_portrait(boss_id: str, _: dict = Depends(get_admin_user)):
+    """Reset a Tsukuyomi boss portrait back to the hero template's default."""
+    boss = gd.TSUKUYOMI_BY_ID.get(boss_id)
+    if not boss:
+        raise HTTPException(status_code=404, detail="Tsukuyomi boss not found")
+    if not gd.clear_tsukuyomi_portrait(boss_id):
+        raise HTTPException(status_code=400, detail="This boss has no overridden portrait")
+    (CUSTOM_DIR / f"tsuku_{boss_id}.png").unlink(missing_ok=True)
+    await persist_catalog_config()
+    return {
+        "id": boss["id"], "name": boss["name"],
+        "portrait": boss["portrait"], "portrait_overridden": False,
+    }
 
 
 @api_router.delete("/admin/hero/{hid}")
