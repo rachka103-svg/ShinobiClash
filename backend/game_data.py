@@ -2103,6 +2103,92 @@ _PORTRAIT_OVERRIDES = {}
 _HERO_OVERRIDES = {}
 
 
+# ---------------------------------------------------------------------------
+# Skill Description Generator — produces clean, player-facing descriptions
+# that replace internal effect terminology (atk_down, curse_dot, etc.) with
+# readable text ("reduce ATK by 20% for 2 turns").
+# ---------------------------------------------------------------------------
+_MAGIC_ROLES = {"Mage", "Healer", "Support", "Control"}
+
+_EFFECT_LABELS = {
+    "burn":        lambda e: f"{_chance(e)}chance to Burn",
+    "poison":      lambda e: f"{_chance(e)}chance to Poison",
+    "bleed":       lambda e: f"{_chance(e)}chance to Bleed",
+    "stun":        lambda e: f"{_chance(e)}chance to Stun for {_dur(e)} turn(s)",
+    "freeze":      lambda e: f"{_chance(e)}chance to Freeze for {_dur(e)} turn(s)",
+    "atk_down":    lambda e: f"{_chance(e)}chance to reduce ATK by {e.get('value', 0)}% for {_dur(e)} turns",
+    "def_down":    lambda e: f"{_chance(e)}chance to reduce DEF by {e.get('value', 0)}% for {_dur(e)} turns",
+    "shock":       lambda e: f"{_chance(e)}chance to Shock",
+    "extra_turn":  lambda e: f"{_chance(e)}chance to act again",
+    "regen":       lambda e: f"Regen {e.get('value', 10)}% HP/turn for {_dur(e)} turns",
+    "immunity":    lambda e: f"Immunity for {_dur(e)} turns",
+    "evade":       lambda e: f"{e.get('value', 30)}% Evade for {_dur(e)} turns",
+    "def_up":      lambda e: f"DEF Up {e.get('value', 20)}% for {_dur(e)} turns",
+    "atk_up":      lambda e: f"ATK Up {e.get('value', 20)}% for {_dur(e)} turns",
+    "spd_up":      lambda e: f"SPD Up {e.get('value', 15)}% for {_dur(e)} turns",
+    "team_atk_up": lambda e: f"Team ATK Up {e.get('value', 20)}% for {_dur(e)} turns",
+    "team_def_up": lambda e: f"Team DEF Up {e.get('value', 15)}% for {_dur(e)} turns",
+    "taunt":       lambda e: f"Taunt for {_dur(e)} turns",
+    "damage_reflect": lambda e: f"Damage Reflect {e.get('value', 20)}% for {_dur(e)} turns",
+    "cleanse":     lambda e: "Cleanse debuffs",
+    "dispel":      lambda e: "Dispel buffs",
+    "revive_ally": lambda e: f"Revive ally at {e.get('hp_pct', 30)}% HP",
+}
+
+
+def _chance(e):
+    c = e.get("chance", 100)
+    return f"{c}% " if c < 100 else ""
+
+
+def _dur(e):
+    return e.get("duration", 2)
+
+
+def _skill_description(jutsu, role):
+    """Generate a clean, player-facing description from jutsu data."""
+    jtype = jutsu.get("type", "attack")
+    power = jutsu.get("power", 0)
+    is_magic = role in _MAGIC_ROLES
+    dmg_type = "Magic" if is_magic else "Physical"
+    effects = jutsu.get("effects", [])
+
+    parts = []
+
+    if jtype in ("attack", "aoe"):
+        parts.append(f"{power}% {dmg_type} Damage")
+    elif jtype == "heal":
+        parts.append(f"Restore HP ({power}% ATK)")
+    elif jtype == "aoe_heal":
+        parts.append(f"Restore HP to all allies ({power}% ATK)")
+    elif jtype == "shield":
+        parts.append(f"Grant Shield ({power}% DEF)")
+    elif jtype == "taunt":
+        parts.append("Taunt enemies")
+    elif jtype == "team_buff":
+        parts.append("Grant team buffs")
+    elif jtype == "cleanse":
+        parts.append("Cleanse debuffs")
+    elif jtype == "revive":
+        parts.append("Revive a fallen ally")
+    else:
+        parts.append(f"{power}% {dmg_type} Damage")
+
+    # DEF penetration on the jutsu itself
+    pen = jutsu.get("def_penetration", 0)
+    if pen:
+        parts.append(f"+ {pen}% DEF Penetration")
+
+    # Effect suffixes
+    for eff in effects:
+        et = eff.get("type", "")
+        label_fn = _EFFECT_LABELS.get(et)
+        if label_fn:
+            parts.append(f"+ {label_fn(eff)}")
+
+    return " ".join(parts)
+
+
 def _finalize_kit(n):
     """Ensure every hero has a separate automatic signature passive and that
     GR heroes carry an Ascendant active skill. Passive abilities are deliberately
@@ -2112,6 +2198,9 @@ def _finalize_kit(n):
         return
     role = n.get("role", "Attacker")
     element = n.get("element", "Fire")
+    # Regenerate clean player-facing skill descriptions
+    for j in jutsus:
+        j["description"] = _skill_description(j, role)
     # Legacy safety: remove any passive accidentally stored as a selectable jutsu.
     n["jutsus"] = [j for j in jutsus if j.get("type") != "passive"]
     jutsus = n["jutsus"]
@@ -2580,6 +2669,21 @@ ITEMS.update({
 # never the whole set), and supports a difficulty selector that slightly
 # raises the rare rate. Runs on the exact same client battle engine.
 # ===========================================================================
+
+# Centralized Tsukuyomi scaling configuration — tune progression here without
+# touching combat code. Level curve and gear bonuses ensure Stage 1 is the
+# weakest encounter and Stage 25 is the strongest, with all stats scaling.
+TSUKU_SCALING_CONFIG = {
+    "base_level": 10,               # Stage 1 base level
+    "level_per_stage": 8,           # Level increase per stage (Stage 25 = 202)
+    "gear_hp_per_stage": 3.0,       # HP gear bonus per stage index
+    "gear_atk_per_stage": 2.5,      # ATK gear bonus per stage index
+    "gear_def_per_stage": 2.0,      # DEF gear bonus per stage index
+    "gear_spd_per_stage": 1.2,      # SPD gear bonus per stage index
+    "adds_start_stage": 8,          # First add appears at this stage (normal diff)
+    "second_add_start_stage": 18,   # Second add appears at this stage (normal diff)
+}
+
 TSUKUYOMI_DIFFICULTIES = [
     {"id": "normal",    "name": "Normal",    "power_mult": 1.0, "rate_bonus": 0.00, "reward_mult": 1.0, "color": "#00E5FF"},
     {"id": "hard",      "name": "Hard",      "power_mult": 1.7, "rate_bonus": 0.02, "reward_mult": 1.6, "color": "#FFCA28"},
@@ -2604,7 +2708,11 @@ _TSUKU_LORE = [
 
 
 def _tsukuyomi_boss_defs() -> list:
-    ranked = sorted(CATALOG_BY_ID.values(), key=lambda t: (-RARITY_ORDER.get(t["rarity"], 0), t["name"]))
+    # Deterministic progression: weakest heroes first, strongest last.
+    # Sort by actual computed power at a reference level so the ordering
+    # reflects real stat strength, not just rarity labels. This ensures
+    # Stage 1 is the weakest encounter and Stage 25 is the strongest.
+    ranked = sorted(CATALOG_BY_ID.values(), key=lambda t: (ninja_power(t["id"], 50), t["name"]))
     if not ranked:
         return []
     picks = [ranked[i % len(ranked)] for i in range(25)]
@@ -2615,13 +2723,14 @@ def _tsukuyomi_boss_defs() -> list:
         idx = i + 1
         rng = _random.Random(7000 + idx)
         adds = rng.sample(all_ids, min(2, len(all_ids)))
-        # Tsukuyomi bosses use the powerful 3-phase Dreamlord mechanic,
-        # significantly higher base levels, and boss-tier generated gear.
+        # Gear bonuses scale linearly with stage index — all stats increase,
+        # not just HP. The Dreamlord mechanic provides phase-based escalation.
+        cfg = TSUKU_SCALING_CONFIG
         boss_gear = {
-            "hp_pct": 25 + idx * 3,
-            "atk_pct": 20 + idx * 2,
-            "def_pct": 18 + idx * 2,
-            "spd_pct": 10 + idx,
+            "hp_pct": round(cfg["gear_hp_per_stage"] * idx),
+            "atk_pct": round(cfg["gear_atk_per_stage"] * idx),
+            "def_pct": round(cfg["gear_def_per_stage"] * idx),
+            "spd_pct": round(cfg["gear_spd_per_stage"] * idx),
         }
         out.append({
             "id": f"tsuku_{idx}",
@@ -2631,7 +2740,7 @@ def _tsukuyomi_boss_defs() -> list:
             "portrait": t["portrait"],
             "element": t["element"],
             "rarity": t["rarity"],
-            "base_level": 25 + i * 7,  # significantly higher base levels
+            "base_level": cfg["base_level"] + (idx - 1) * cfg["level_per_stage"],
             "rare_chance": round(min(0.10, 0.05 + (i // 5) * 0.0125), 4),
             "gear_set": set_keys[i % len(set_keys)],
             "gear_set_name": GEAR_SETS[set_keys[i % len(set_keys)]]["name"],
@@ -2670,6 +2779,8 @@ def clear_tsukuyomi_portrait(boss_id: str) -> bool:
 
 def tsukuyomi_enemies(boss: dict, difficulty: str = "normal") -> list:
     diff = TSUKU_DIFF_BY_ID.get(difficulty, TSUKUYOMI_DIFFICULTIES[0])
+    cfg = TSUKU_SCALING_CONFIG
+    idx = boss.get("index", 1)
     lvl = max(1, round(boss["base_level"] * diff["power_mult"]))
     # Boss gets powerful generated gear; adds get scaled gear based on difficulty
     boss_gear = boss.get("boss_gear") or {"hp_pct": 25, "atk_pct": 20, "def_pct": 18, "spd_pct": 10}
@@ -2685,15 +2796,34 @@ def tsukuyomi_enemies(boss: dict, difficulty: str = "normal") -> list:
     add_lvl = max(1, round(lvl * 0.85))
     add_gear = {"hp_pct": round(15 * diff_mult), "atk_pct": round(12 * diff_mult),
                 "def_pct": round(10 * diff_mult), "spd_pct": round(5 * diff_mult)}
+    # Adds appear based on stage index and difficulty — later stages get more adds
     if difficulty == "hard":
         enemies.append({"template_id": boss["adds"][0], "level": add_lvl, "gear_bonus": add_gear})
     elif difficulty == "nightmare":
         enemies += [{"template_id": a, "level": add_lvl, "gear_bonus": add_gear} for a in boss["adds"]]
+    elif difficulty == "normal":
+        # Normal: first add from adds_start_stage, second from second_add_start_stage
+        if idx >= cfg["adds_start_stage"]:
+            enemies.append({"template_id": boss["adds"][0], "level": add_lvl, "gear_bonus": add_gear})
+        if idx >= cfg["second_add_start_stage"]:
+            enemies.append({"template_id": boss["adds"][1], "level": add_lvl, "gear_bonus": add_gear})
     return enemies
 
 
+def _enemy_power_with_gear(enemy: dict) -> int:
+    """Compute recommended power including gear bonuses — reflects the
+    actual enemy stat profile rather than just base stats."""
+    s = compute_stats(enemy["template_id"], enemy["level"])
+    g = enemy.get("gear_bonus") or {}
+    hp = s["hp"] * (1 + g.get("hp_pct", 0) / 100)
+    atk = s["atk"] * (1 + g.get("atk_pct", 0) / 100)
+    df = s["def"] * (1 + g.get("def_pct", 0) / 100)
+    spd = s["spd"] * (1 + g.get("spd_pct", 0) / 100)
+    return round(hp * 0.4 + atk * 2.2 + df * 1.6 + spd * 1.2 + s["chakra"] * 1.0)
+
+
 def tsukuyomi_recommended_power(boss: dict, difficulty: str = "normal") -> int:
-    return sum(ninja_power(e["template_id"], e["level"]) for e in tsukuyomi_enemies(boss, difficulty))
+    return sum(_enemy_power_with_gear(e) for e in tsukuyomi_enemies(boss, difficulty))
 
 
 def tsukuyomi_rewards(boss: dict, difficulty: str = "normal") -> dict:

@@ -9,13 +9,13 @@ import { spireFloorConfig, pickRarity } from "./spireConfig";
 
 const BASE_CRIT_CHANCE = 0.16;
 const BASE_CRIT_MULTIPLIER = 1.65;
-const MIN_DAMAGE_RATIO = 0.12;
 
-// No single hit can exceed this fraction of the target's max HP. Prevents
-// extreme level-gap one-shots (e.g. high-level nightmare bosses hitting for
-// millions against a team of ~70k power) while leaving normal-level fights
-// untouched (most hits are well below this ceiling).
-const PER_HIT_HP_CAP = 0.4;
+// Defense mitigation constant — tuned against the game's stat scale so
+// normal attacks remain meaningful while high DEF provides strong protection.
+// Formula: defenseMultiplier = DEF_CONSTANT / (DEF_CONSTANT + effectiveDef)
+// At DEF_CONSTANT=1000: a target with 500 DEF takes 33% reduced damage,
+// 1000 DEF takes 50% reduced, 2000 DEF takes 67% reduced (diminishing returns).
+const DEF_CONSTANT = 1000;
 
 const DOT_TYPES = new Set([
   "burn",
@@ -345,8 +345,10 @@ export function rollDamage(
   const atk = effectiveAtk(actor);
   const def = effectiveDef(target);
 
+  // --- Raw Damage ---
+  // Effective ATK × Skill Power Multiplier × Element Multiplier
   const base =
-    ((jutsu.power || 0) / 100) *
+    ((jutsu.power || 100) / 100) *
     atk;
 
   const mult = elementMultiplier(
@@ -355,15 +357,36 @@ export function rollDamage(
     advantage || {}
   );
 
-  let raw =
-    base * mult -
-    def * 0.8;
+  const rawDamage = base * mult;
 
-  raw = Math.max(
-    raw,
-    base * MIN_DAMAGE_RATIO
+  // --- Defense Penetration ---
+  // Jutsu-level penetration + passive penetration, capped at 75%.
+  const jutsuPen = (jutsu.def_penetration || 0) / 100;
+  const passivePen =
+    (actor.passive?.params?.def_penetration || 0) / 100;
+  const totalPenetration = Math.min(
+    0.75,
+    jutsuPen + passivePen
   );
 
+  const mitigatedDef =
+    def * (1 - totalPenetration);
+
+  // --- Defense Multiplier (diminishing returns) ---
+  // DEF_CONSTANT / (DEF_CONSTANT + effective DEF after penetration)
+  const defenseMultiplier =
+    DEF_CONSTANT /
+    (DEF_CONSTANT + Math.max(0, mitigatedDef));
+
+  // --- Damage Reduction Ignore ---
+  // Jutsu can ignore a percentage of the target's damage reduction.
+  const reductionIgnorePct =
+    (jutsu.dmg_reduction_ignore || 0) / 100;
+  const baseReduction = getDamageReduction(target);
+  const reduction =
+    baseReduction * (1 - reductionIgnorePct);
+
+  // --- Variance & Crit ---
   const variance =
     0.9 + Math.random() * 0.2;
 
@@ -376,30 +399,27 @@ export function rollDamage(
       ? getCritMultiplier(actor)
       : 1;
 
-  const reduction =
-    getDamageReduction(target);
-
+  // --- Final Damage ---
+  // Raw × Defense Multiplier × Variance × Crit × (1 - Reduction)
+  // Minimum of 1 — never zero, but no artificial floor ratio.
   const dmg = Math.max(
     1,
     Math.round(
-      raw *
+      rawDamage *
+        defenseMultiplier *
         variance *
         critMultiplier *
         (1 - reduction)
     )
   );
 
-  // Per-hit cap relative to target HP — prevents one-shots from extreme
-  // level/power gaps without affecting normal battles.
-  const hitCap = Math.round(
-    (target.maxHp || dmg) * PER_HIT_HP_CAP
-  );
-
   return {
-    dmg: Math.min(dmg, hitCap),
+    dmg,
     crit,
     mult,
     reduction,
+    defenseMultiplier,
+    penetration: totalPenetration,
   };
 }
 
@@ -1090,6 +1110,19 @@ export function resolveDamage(
     if (reflectDmg > 0) {
       actor.hp = Math.max(0, actor.hp - reflectDmg);
     }
+  }
+
+  // Shock — target takes increased damage while shocked.
+  // The shock value is a percentage (e.g. 50 = +50% damage taken).
+  const shockStatus = target.statuses?.find(
+    (s) =>
+      s.effectType === "shock" &&
+      (s.duration ?? 0) > 0
+  );
+  if (shockStatus && dmg > 0) {
+    const shockBonus = (shockStatus.value || 50) / 100;
+    dmg = Math.round(dmg * (1 + shockBonus));
+    notes.push("shock");
   }
 
   return {
@@ -1785,7 +1818,7 @@ export function applyJutsuEffects(
                 .charAt(0)
                 .toUpperCase()}${et.slice(
                 1
-              )} applied!`,
+              )}!`,
           }
         )
       );
@@ -2128,6 +2161,12 @@ export function tickStatuses(actor) {
 
       dmg += tick;
 
+      const dotLabel =
+        s.effectType === "burn" ? "Burn" :
+        s.effectType === "poison" ? "Poison" :
+        s.effectType === "bleed" ? "Bleed" :
+        s.effectType;
+
       events.push(
         makeEvent(
           "DOT_TRIGGERED",
@@ -2137,6 +2176,8 @@ export function tickStatuses(actor) {
             value: tick,
             effectType:
               s.effectType,
+            text:
+              `${dotLabel}! -${tick}`,
           }
         )
       );
@@ -2154,9 +2195,49 @@ export function tickStatuses(actor) {
       ) ||
       DEBUFF_TYPES.has(
         s.effectType
-      ) ||
+      )
+    ) {
+      const debuffLabel =
+        s.effectType === "stun" ? "Stunned!" :
+        s.effectType === "freeze" ? "Frozen!" :
+        s.effectType === "atk_down" ? "ATK Down!" :
+        s.effectType === "def_down" ? "DEF Down!" :
+        s.effectType;
+
+      events.push(
+        makeEvent(
+          "DEBUFF_TICK",
+          {
+            targetUid:
+              actor.uid,
+            text:
+              debuffLabel,
+          }
+        )
+      );
+
+      s.duration -= 1;
+
+      if (s.duration > 0) {
+        keep.push(s);
+      }
+    }
+
+    else if (
       s.effectType === "shock"
     ) {
+      events.push(
+        makeEvent(
+          "DEBUFF_TICK",
+          {
+            targetUid:
+              actor.uid,
+            text:
+              `Shock! (+${s.value || 50}% dmg taken)`,
+          }
+        )
+      );
+
       s.duration -= 1;
 
       if (s.duration > 0) {

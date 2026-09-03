@@ -522,17 +522,19 @@ export default function Battle() {
       );
       const stunned = !!ccStatus;
 
-      const { dmg: dotDmg } = tickStatuses(actor);
+      const { dmg: dotDmg, events: tickEvents } = tickStatuses(actor);
+
+      // Use the events from tickStatuses — they carry the correct
+      // effectType and damage values for DOT/debuff display.
+      evs.push(...tickEvents);
+
+      // Log status tick text (Burn! -150, Shock! +50% dmg taken, etc.)
+      tickEvents.forEach((e) => {
+        if (e.text) pushLog(e.text);
+      });
 
       if (dotDmg > 0 && actor.alive) {
         actor.hp = Math.max(0, actor.hp - dotDmg);
-
-        evs.push(
-          makeEvent("DOT_TRIGGERED", {
-            targetUid: actor.uid,
-            value: dotDmg,
-          })
-        );
 
         if (actor.hp === 0) {
           const revived = resolveDeath(actor, evs);
