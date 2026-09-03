@@ -279,7 +279,7 @@ const frame = rarityFrame(effectiveRarity);
           <div className="absolute inset-x-0 top-0 h-28 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${element.color}40, transparent)` }} />
           <div className="absolute inset-0 bg-gradient-to-t from-[#FFFFFF] via-transparent to-transparent pointer-events-none" />
           {frame.useGold && <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />}
-          {frame.cornerLevel >= 2 && <DecoCorners rarity={template.rarity} size={22} />}
+          {frame.cornerLevel >= 2 && <DecoCorners rarity={effectiveRarity} size={22} />}
           {owned && (
             <span className="absolute top-4 left-4 z-10 flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/90 text-ink text-xs font-bold" data-testid="detail-owned-badge">
               <Check className="w-3.5 h-3.5" /> OWNED

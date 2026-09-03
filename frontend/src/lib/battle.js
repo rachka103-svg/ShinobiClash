@@ -9,7 +9,13 @@ import { spireFloorConfig, pickRarity } from "./spireConfig";
 
 const BASE_CRIT_CHANCE = 0.16;
 const BASE_CRIT_MULTIPLIER = 1.65;
-const MIN_DAMAGE_RATIO = 0.18;
+const MIN_DAMAGE_RATIO = 0.12;
+
+// No single hit can exceed this fraction of the target's max HP. Prevents
+// extreme level-gap one-shots (e.g. high-level nightmare bosses hitting for
+// millions against a team of ~70k power) while leaving normal-level fights
+// untouched (most hits are well below this ceiling).
+const PER_HIT_HP_CAP = 0.4;
 
 const DOT_TYPES = new Set([
   "burn",
@@ -301,7 +307,7 @@ export function rollDamage(
 
   let raw =
     base * mult -
-    def * 0.6;
+    def * 0.8;
 
   raw = Math.max(
     raw,
@@ -333,8 +339,14 @@ export function rollDamage(
     )
   );
 
+  // Per-hit cap relative to target HP — prevents one-shots from extreme
+  // level/power gaps without affecting normal battles.
+  const hitCap = Math.round(
+    (target.maxHp || dmg) * PER_HIT_HP_CAP
+  );
+
   return {
-    dmg,
+    dmg: Math.min(dmg, hitCap),
     crit,
     mult,
     reduction,

@@ -24,7 +24,6 @@ import {
   checkBossPhaseTransitions,
   makeEvent,
   spireEnemies,
-  isStunned,
   computeStats,
   applyEnemyGear,
 } from "@/lib/battle";
@@ -475,6 +474,17 @@ export default function Battle() {
       // Start-of-turn status resolution
       const evs = [];
 
+      // Capture CC state BEFORE tickStatuses — otherwise a duration-1 stun
+      // is decremented to 0 the instant the actor's turn begins, so the
+      // actor never actually skips a turn (stun/freeze did nothing).
+      const ccStatus = actor.statuses?.find(
+        (s) =>
+          (s.effectType === "stun" ||
+            s.effectType === "freeze") &&
+          (s.duration ?? 0) > 0
+      );
+      const stunned = !!ccStatus;
+
       const { dmg: dotDmg } = tickStatuses(actor);
 
       if (dotDmg > 0 && actor.alive) {
@@ -519,17 +529,11 @@ export default function Battle() {
         actor.chakra + 20
       );
 
-      // Stun / Freeze
-      if (isStunned(actor)) {
-        const stunStatus = actor.statuses.find(
-          (s) =>
-            (s.effectType === "stun" ||
-              s.effectType === "freeze") &&
-            (s.duration ?? 0) > 0
-        );
-
+      // Stun / Freeze — uses the CC state captured before tickStatuses so
+      // the stun actually consumes the turn it was applied for.
+      if (stunned) {
         const statusName =
-          stunStatus?.effectType === "freeze"
+          ccStatus?.effectType === "freeze"
             ? "FROZEN"
             : "STUNNED";
 
