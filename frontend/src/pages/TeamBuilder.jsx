@@ -15,8 +15,8 @@ import api, { formatApiErrorDetail } from "@/lib/api";
 
 const EL_ICON = { Fire: Flame, Water: Droplet, Wind: WindIcon, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: Sun };
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
-const RARITY_KEYS = ["GR", "UR", "SSR", "SR", "R"];
-const RARITY_RANK = { R: 0, SR: 1, SSR: 2, UR: 3, GR: 4 };
+const RARITY_KEYS = ["GR", "LR", "UR", "SSR", "SR", "R"];
+const RARITY_RANK = { R: 0, SR: 1, SSR: 2, UR: 3, LR: 4, GR: 5 };
 const ascensionCost = (rarity, asc) => ({
   ascension_crystal: 5 + asc * 5 + RARITY_RANK[rarity] * 3,
   ryo: 500 + asc * 400 + RARITY_RANK[rarity] * 300,
@@ -49,7 +49,7 @@ export default function TeamBuilder() {
   useEffect(() => { setTeam((user?.team || []).slice(0, cap)); }, [user?.id, JSON.stringify(user?.team), cap]);
 
   const owned = useMemo(
-    () => (user?.ninjas || []).map((inst) => ({ ...inst, ...catalogById[inst.template_id], rarity: catalogById[inst.template_id]?.rarity })).filter((o) => o.name),
+    () => (user?.ninjas || []).map((inst) => ({ ...inst, ...catalogById[inst.template_id], rarity: inst.rarity || inst.evolved_rarity || catalogById[inst.template_id]?.rarity })).filter((o) => o.name),
     [user?.ninjas, catalogById]
   );
   const ownedById = useMemo(() => Object.fromEntries(owned.map((o) => [o.instance_id, o])), [owned]);

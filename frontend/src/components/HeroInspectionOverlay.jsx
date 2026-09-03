@@ -25,7 +25,7 @@ const STAT_META = {
 const STAT_ORDER = ["hp", "atk", "def", "spd", "chakra", "crit_rate", "crit_damage", "accuracy", "resistance"];
 const STAT_MAX = { hp: 5000, atk: 700, def: 360, spd: 190, chakra: 200, crit_rate: 20, crit_damage: 220, accuracy: 98, resistance: 30 };
 
-const STAR_COUNT = { R: 2, SR: 3, SSR: 4, UR: 5, GR: 5 };
+const STAR_COUNT = { R: 2, SR: 3, SSR: 4, UR: 5, LR: 6, GR: 6 };
 const ELEMENT_ICON = { Fire: Flame, Water: Droplet, Wind: Wind, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: SunIcon };
 
 const SKILL_TYPE_ICON = { attack: Sword, aoe: Zap, heal: Heart, buff: Sparkles };

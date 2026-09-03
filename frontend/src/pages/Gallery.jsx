@@ -7,7 +7,7 @@ import HeroDetailModal from "@/components/HeroDetailModal";
 import { RARITY, ELEMENT } from "@/lib/styles";
 
 const RARITY_FILTERS = ["All", "GR", "UR", "SSR", "SR", "R"];
-const RARITY_ORDER = { GR: 4, UR: 3, SSR: 2, SR: 1, R: 0 };
+const RARITY_ORDER = { GR: 5, LR: 4, UR: 3, SSR: 2, SR: 1, R: 0 };
 
 export default function Gallery() {
   const { user } = useAuth();

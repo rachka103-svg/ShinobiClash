@@ -44,7 +44,7 @@ const TAG_LABEL = {
 
 const ELEMENT_ICON = { Fire: Flame, Water: Droplet, Wind: WindIcon, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: Sun };
 const STAR_COUNT = { R: 2, SR: 3, SSR: 4, UR: 5, GR: 5 };
-const RARITY_ORDER = { R: 0, SR: 1, SSR: 2, UR: 3, GR: 4 };
+const RARITY_ORDER = { R: 0, SR: 1, SSR: 2, UR: 3, LR: 4, GR: 5 };
 
 // Next weekly reset (Mon 00:00 UTC) — a genuine live countdown, not fake data.
 const nextWeeklyReset = () => {

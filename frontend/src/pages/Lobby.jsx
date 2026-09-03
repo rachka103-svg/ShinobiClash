@@ -19,7 +19,9 @@ export default function Lobby() {
     .filter(Boolean);
   const leader = teamInstances[0];
   const leaderTpl = leader ? catalogById[leader.template_id] : null;
-  const leaderRarity = leaderTpl ? RARITY[leaderTpl.rarity] || RARITY.R : null;
+  // Use the instance's evolved rarity (post-transform), not the template's base.
+  const leaderRarityKey = leader?.rarity || leader?.evolved_rarity || leaderTpl?.rarity || "R";
+  const leaderRarity = RARITY[leaderRarityKey] || RARITY.R;
   const leaderElement = leaderTpl ? ELEMENT[leaderTpl.element] || {} : {};
   const clearedCount = user?.cleared_stages?.length || 0;
   const nextStage = stages.find((s) => !user?.cleared_stages?.includes(s.id));
@@ -57,7 +59,7 @@ export default function Lobby() {
     }
   };
 
-  const leaderFrame = leaderTpl ? rarityFrame(leaderTpl.rarity) : null;
+  const leaderFrame = leaderTpl ? rarityFrame(leaderRarityKey) : null;
 
   return (
     <div
@@ -80,7 +82,7 @@ export default function Lobby() {
         <div className="absolute inset-0 pointer-events-none" style={{ background: vignetteInset }} />
         <div className="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none" style={{ background: scrimBottom("0.96") }} />
         {leaderFrame?.useGold && <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />}
-        {leaderFrame && leaderFrame.cornerLevel >= 2 && <DecoCorners rarity={leaderTpl.rarity} size={22} />}
+        {leaderFrame && leaderFrame.cornerLevel >= 2 && <DecoCorners rarity={leaderRarityKey} size={22} />}
 
         <div className="absolute top-3 right-3 z-10 text-right">
           <p className="text-[10px] uppercase tracking-widest text-slate-500">Sensei Rank</p>

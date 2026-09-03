@@ -49,7 +49,8 @@ export const RARITY = {
   SR: { label: "SR", color: "#29B6F6", name: "Rare", tier: 1 },
   SSR: { label: "SSR", color: "#AB47BC", name: "Epic", tier: 2 },
   UR: { label: "UR", color: "#FFCA28", name: "Legendary", tier: 3 },
-  GR: { label: "GR", color: "#64FFDA", name: "Ascendant", tier: 4 },
+  LR: { label: "LR", color: "#FF5252", name: "Mythic", tier: 4 },
+  GR: { label: "GR", color: "#64FFDA", name: "Ascendant", tier: 5 },
 };
 
 // ---- Elements — communicate identity through color, not labels alone ---
@@ -134,7 +135,7 @@ export const STROKE = {
 };
 
 // Which rarities receive the gold prestige treatment on their frame.
-export const GOLD_RARITIES = ["UR", "GR"];
+export const GOLD_RARITIES = ["UR", "LR", "GR"];
 // GR gets the Godly treatment (even more ornate than gold).
 export const GODLY_RARITIES = ["GR"];
 
