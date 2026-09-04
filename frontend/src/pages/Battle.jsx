@@ -1829,6 +1829,7 @@ export default function Battle() {
                 }
                 flip
                 subdued
+                isBoss={mode === "bosshunt" || !!c.bossMechanicId}
               />
             ))}
           </div>
