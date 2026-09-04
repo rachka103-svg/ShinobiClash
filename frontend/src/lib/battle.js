@@ -98,6 +98,27 @@ const UTILITY_TYPES = new Set([
 ]);
 
 // ============================================================
+// CRIT NORMALIZATION
+// ============================================================
+// The backend stores crit stats as whole-number percentages:
+//   crit_rate = 6  → 6%   chance
+//   crit_damage = 145 → 145% multiplier
+// The battle engine uses decimal format:
+//   critChance = 0.06,  critMultiplier = 1.45
+// These helpers convert percentage → decimal exactly once at the
+// architecture boundary. They are idempotent: values already in
+// decimal format (critChance ≤ 1, critMultiplier ≤ 10) pass through
+// unchanged, so double-conversion cannot occur.
+
+function normalizeCritChance(v) {
+  return v > 1 ? v / 100 : v;
+}
+
+function normalizeCritMultiplier(v) {
+  return v > 10 ? v / 100 : v;
+}
+
+// ============================================================
 // STAT CALCULATION
 // ============================================================
 
@@ -106,6 +127,11 @@ export function computeStats(template, level, ascension = 0) {
 
   const gl = 1 + 0.09 * (level - 1);
   const ga = 1 + 0.12 * ascension;
+
+  // Crit stats come from the backend as percentages (e.g. 6, 145).
+  // Normalize to decimal (0.06, 1.45) at this boundary.
+  const rawCritChance = b.critChance ?? b.crit_rate;
+  const rawCritMult = b.critMultiplier ?? b.crit_damage;
 
   return {
     hp: Math.round(b.hp * gl * ga),
@@ -127,14 +153,14 @@ export function computeStats(template, level, ascension = 0) {
     chakra: b.chakra,
 
     critChance:
-      b.critChance ??
-      b.crit_rate ??
-      BASE_CRIT_CHANCE,
+      rawCritChance != null
+        ? normalizeCritChance(rawCritChance)
+        : BASE_CRIT_CHANCE,
 
     critMultiplier:
-      b.critMultiplier ??
-      b.crit_damage ??
-      BASE_CRIT_MULTIPLIER,
+      rawCritMult != null
+        ? normalizeCritMultiplier(rawCritMult)
+        : BASE_CRIT_MULTIPLIER,
   };
 }
 
@@ -739,13 +765,18 @@ export function buildCombatant(
     def: s.def,
     spd: s.spd,
 
+    // Normalize crit values from backend percentage format (e.g. 6, 145)
+    // to the decimal format (0.06, 1.45) used by the battle engine.
+    // Values already in decimal format pass through unchanged.
     critChance:
-      s.critChance ??
-      BASE_CRIT_CHANCE,
+      s.critChance != null
+        ? normalizeCritChance(s.critChance)
+        : BASE_CRIT_CHANCE,
 
     critMultiplier:
-      s.critMultiplier ??
-      BASE_CRIT_MULTIPLIER,
+      s.critMultiplier != null
+        ? normalizeCritMultiplier(s.critMultiplier)
+        : BASE_CRIT_MULTIPLIER,
 
     shield: 0,
 
