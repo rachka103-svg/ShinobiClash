@@ -1661,6 +1661,24 @@ export default function Battle() {
     (c) => c.side === "enemy"
   );
 
+  // Identify the main boss for boss-fight modes (tsukuyomi, boss hunt,
+  // campaign boss stages, or any enemy carrying a boss mechanic) and
+  // center it on the battlefield, flanking any additional enemies left/right.
+  const bossEnemy =
+    enemies.find((c) => c.bossMechanicId) ||
+    (mode === "bosshunt" ||
+    mode === "tsukuyomi" ||
+    (mode === "campaign" && stage?.is_boss)
+      ? enemies[0]
+      : null);
+
+  const arrangedEnemies = (() => {
+    if (!bossEnemy || enemies.length <= 1) return enemies;
+    const others = enemies.filter((c) => c.uid !== bossEnemy.uid);
+    const mid = Math.ceil(others.length / 2);
+    return [...others.slice(0, mid), bossEnemy, ...others.slice(mid)];
+  })();
+
   const activeActor =
     combs.find(
       (c) => c.uid === activeUid
@@ -1839,7 +1857,7 @@ export default function Battle() {
         <div className="flex-1 flex flex-col justify-center min-w-0">
           {/* Enemies */}
           <div className="flex justify-center gap-3 sm:gap-5 px-4 mb-2">
-            {enemies.map((c) => (
+            {arrangedEnemies.map((c) => (
               <BattleFighter
                 key={c.uid}
                 c={c}
@@ -1861,7 +1879,7 @@ export default function Battle() {
                 }
                 flip
                 subdued
-                isBoss={mode === "bosshunt" || !!c.bossMechanicId}
+                isBoss={c.uid === bossEnemy?.uid || !!c.bossMechanicId}
               />
             ))}
           </div>
