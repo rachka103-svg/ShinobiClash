@@ -1794,7 +1794,7 @@ export default function Battle() {
       </div>
 
       {/* Battlefield */}
-      <div className="absolute inset-0 z-10 flex pt-10 pb-36">
+      <div className="absolute inset-0 z-10 flex pt-10 pb-20">
         {/* Turn order */}
         <BattleTurnOrder
           combs={combs}
@@ -1806,7 +1806,7 @@ export default function Battle() {
         {/* Center battlefield */}
         <div className="flex-1 flex flex-col justify-center min-w-0">
           {/* Enemies */}
-          <div className="flex justify-center gap-3 sm:gap-5 px-4 mb-3">
+          <div className="flex justify-center gap-3 sm:gap-5 px-4 mb-2">
             {enemies.map((c) => (
               <BattleFighter
                 key={c.uid}
@@ -1835,7 +1835,7 @@ export default function Battle() {
           </div>
 
           {/* Minimal turn indicator */}
-          <div className="text-center my-2">
+          <div className="text-center my-1">
             {phase === "select" &&
               activeActor &&
               !auto && (
@@ -1863,7 +1863,7 @@ export default function Battle() {
           </div>
 
           {/* Allies */}
-          <div className="flex justify-center gap-3 sm:gap-5 px-4 mt-3">
+          <div className="flex justify-center gap-3 sm:gap-5 px-4 mt-2">
             {allies.map((c) => (
               <BattleFighter
                 key={c.uid}

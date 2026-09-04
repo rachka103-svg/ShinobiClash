@@ -36,9 +36,10 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
   const rarityColor = RARITY[c.rarity]?.color || elColor;
 
   // ---- Boss sizing (responsive via clamp) ----
-  const bossW = "clamp(170px, 28vw, 310px)";
-  const bossH = "clamp(210px, 42vh, 390px)";
-  const bossContainerW = "clamp(190px, 30vw, 330px)";
+  // Height targets ~35% of battle viewport so the complete card stays visible on all devices
+  const bossW = "clamp(150px, 26vw, 290px)";
+  const bossH = "clamp(150px, 35vh, 320px)";
+  const bossContainerW = "clamp(170px, 28vw, 310px)";
 
   // ---- Regular sizing ----
   const regW = 112;
