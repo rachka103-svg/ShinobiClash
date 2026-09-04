@@ -778,7 +778,11 @@ def get_hero_kit(hero_id, name, element, rarity, role):
     if kit is None:
         return None
     # Apply rarity scaling
-    return _scale_kit(kit, rarity, role)
+    kit = _scale_kit(kit, rarity, role)
+    # Auto-generate structured descriptions with target counts
+    from skill_descriptions import apply_descriptions
+    apply_descriptions(kit, role)
+    return kit
 
 
 def get_hero_passive(hero_id, role):

@@ -121,6 +121,38 @@ function pickAiAction(actor, arr) {
   return { jutsu, targetUid };
 }
 
+/**
+ * Apply team buff effects (team_atk_up, team_def_up) from offensive skills
+ * to all alive allies.  These effects are skipped in applyJutsuEffects for
+ * offensive skills to avoid double-application, so they must be applied here.
+ */
+function _applyTeamBuffsFromOffensive(actor, arr, jutsu, events) {
+  const teamBuffEffects = (jutsu.effects || []).filter(
+    (e) => e.type === "team_atk_up" || e.type === "team_def_up"
+  );
+  if (!teamBuffEffects.length) return;
+
+  const allies = arr.filter((c) => c.side === actor.side && c.alive);
+  for (const eff of teamBuffEffects) {
+    if (eff.chance != null && eff.chance < 100 && Math.random() * 100 > eff.chance) continue;
+    const dur = eff.duration || 2;
+    const val = eff.value || 0;
+    const et = eff.type;
+    for (const ally of allies) {
+      ally.statuses = ally.statuses || [];
+      ally.statuses.push({
+        id: `${et}_${ally.uid}_${Date.now()}`,
+        effectType: et,
+        source: actor.uid,
+        duration: dur,
+        value: val,
+      });
+    }
+    const label = et === "team_atk_up" ? "Team ATK Up!" : "Team DEF Up!";
+    events.push(makeEvent("BUFF_APPLIED", { actorUid: actor.uid, text: label }));
+  }
+}
+
 export default function Battle() {
   const { mode = "campaign", id } = useParams();
   const navigate = useNavigate();
@@ -866,6 +898,9 @@ export default function Battle() {
 
           applyDamage(t);
         }
+
+        // Apply team buff effects (team_atk_up, team_def_up) to all allies
+        _applyTeamBuffsFromOffensive(act, arr, jutsu, newEvents);
       }
 
       // ---------- AOE ----------
@@ -884,6 +919,9 @@ export default function Battle() {
         );
 
         enemiesArr.forEach(applyDamage);
+
+        // Apply team buff effects (team_atk_up, team_def_up) to all allies
+        _applyTeamBuffsFromOffensive(act, arr, jutsu, newEvents);
       }
 
       // ---------- HEAL ----------
@@ -917,6 +955,30 @@ export default function Battle() {
               value: heal,
             })
           );
+
+          // Apply heal effects — ally buffs go to the healed ally,
+          // enemy-targeted effects (freeze, stun, etc.) go to a random enemy
+          if (jutsu.effects?.length) {
+            const allyEffects = jutsu.effects.filter(
+              (e) => !["stun", "freeze", "burn", "poison", "bleed", "atk_down", "def_down", "shock", "dispel"].includes(e.type)
+            );
+            const enemyEffects = jutsu.effects.filter(
+              (e) => ["stun", "freeze", "burn", "poison", "bleed", "atk_down", "def_down", "shock", "dispel"].includes(e.type)
+            );
+            if (allyEffects.length) {
+              t.statuses = t.statuses || [];
+              const effEvents = applyJutsuEffects(act, t, { ...jutsu, effects: allyEffects });
+              newEvents.push(...effEvents);
+            }
+            if (enemyEffects.length) {
+              const enemies = arr.filter((c) => c.side !== act.side && c.alive);
+              if (enemies.length) {
+                const enemy = enemies[Math.floor(Math.random() * enemies.length)];
+                const effEvents = applyJutsuEffects(act, enemy, { ...jutsu, effects: enemyEffects });
+                newEvents.push(...effEvents);
+              }
+            }
+          }
         }
       }
 
@@ -996,11 +1058,36 @@ export default function Battle() {
       // ---------- TAUNT ----------
       else if (jutsu.type === "taunt") {
         act.statuses = act.statuses || [];
-        // Apply taunt and any self-buff effects (def_up, regen, etc.)
-        if (jutsu.effects?.length) {
-          const effEvents = applyJutsuEffects(act, act, jutsu);
+        // Separate self-buff effects from enemy-targeted CC effects.
+        // CC effects (stun, freeze) on taunt skills should hit a random
+        // enemy, not the caster.
+        const selfEffects = (jutsu.effects || []).filter(
+          (e) => !["stun", "freeze"].includes(e.type)
+        );
+        const ccEffects = (jutsu.effects || []).filter(
+          (e) => ["stun", "freeze"].includes(e.type)
+        );
+
+        // Apply self-buff effects (taunt, def_up, regen, etc.)
+        if (selfEffects.length) {
+          const selfJutsu = { ...jutsu, effects: selfEffects };
+          const effEvents = applyJutsuEffects(act, act, selfJutsu);
           newEvents.push(...effEvents);
         }
+
+        // Apply CC effects to a random alive enemy
+        if (ccEffects.length) {
+          const enemies = arr.filter(
+            (c) => c.side !== act.side && c.alive
+          );
+          if (enemies.length) {
+            const target = enemies[Math.floor(Math.random() * enemies.length)];
+            const ccJutsu = { ...jutsu, effects: ccEffects };
+            const ccEvents = applyJutsuEffects(act, target, ccJutsu);
+            newEvents.push(...ccEvents);
+          }
+        }
+
         addFloat(act.uid, "TAUNT!", "#FF5722");
         pushLog(`${act.name} taunts all enemies!`);
         newEvents.push(makeEvent("BUFF_APPLIED", { actorUid: act.uid, targetUid: act.uid, text: "Taunt!" }));

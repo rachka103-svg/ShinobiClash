@@ -1947,11 +1947,25 @@ export function applyJutsuEffects(
     }
 
     // ---- BUFF effects — applied to the target (ally or self) ----
+    // For offensive skills (attack/aoe), self-buffs (spd_up, evade,
+    // damage_reflect, etc.) go to the actor, not the enemy target.
+    // Team buffs (team_atk_up, team_def_up) on offensive skills are
+    // skipped here — they are applied to all allies in Battle.jsx.
+    // For support skills the target is already an ally.
     else if (BUFF_TYPES.has(et)) {
-      // Check immunity — don't apply debuffs to immune targets,
-      // but buffs are always allowed
-      target.statuses.push({
-        id: `${et}_${target.uid}_${Date.now()}`,
+      const isOffensive = jutsu.type === "attack" || jutsu.type === "aoe";
+      const isTeamBuff = et === "team_atk_up" || et === "team_def_up";
+
+      if (isOffensive && isTeamBuff) {
+        // Handled in Battle.jsx — skip here to avoid double-application
+        continue;
+      }
+
+      const buffTarget = isOffensive ? actor : target;
+
+      buffTarget.statuses = buffTarget.statuses || [];
+      buffTarget.statuses.push({
+        id: `${et}_${buffTarget.uid}_${Date.now()}`,
         effectType: et,
         source: actor.uid,
         duration: dur,
@@ -1974,7 +1988,7 @@ export function applyJutsuEffects(
       events.push(
         makeEvent("BUFF_APPLIED", {
           actorUid: actor.uid,
-          targetUid: target.uid,
+          targetUid: buffTarget.uid,
           text: label,
         })
       );

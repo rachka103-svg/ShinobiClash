@@ -1069,6 +1069,10 @@ def _hero_jutsus(hid, name, element, rarity, role):
     # Rarity mastery tunes the kit further for high rarities.
     kit = _apply_rarity_mastery(kit, rarity, role, ri)
 
+    # Auto-generate structured descriptions with target counts
+    from skill_descriptions import apply_descriptions
+    apply_descriptions({"skills": kit}, role)
+
     return kit
 
 
