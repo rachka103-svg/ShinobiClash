@@ -114,6 +114,7 @@ export default function BossHunt() {
   const elemColor = ELEMENT[selectedBoss.element]?.color || "#9E9E9E";
   const ElemIcon = ELEMENT_ICONS[selectedBoss.element] || Skull;
   const diffColor = selectedBoss.difficulty === "NIGHTMARE" ? "#D500F9" : "#FF5722";
+  const canFight = teamHeroes.length > 0 && !!bossTemplate;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#05050A]">
@@ -124,11 +125,11 @@ export default function BossHunt() {
       />
       {/* Subtle dark gradient overlay for readability */}
       <div className="fixed inset-0" style={{
-        background: "linear-gradient(180deg, rgba(5,5,10,0.45) 0%, rgba(5,5,10,0.20) 30%, rgba(5,5,10,0.35) 60%, rgba(5,5,10,0.75) 100%)"
+        background: "linear-gradient(180deg, rgba(5,5,10,0.50) 0%, rgba(5,5,10,0.15) 25%, rgba(5,5,10,0.30) 55%, rgba(5,5,10,0.80) 100%)"
       }} />
       {/* Red ambient glow */}
       <div className="fixed inset-0 pointer-events-none" style={{
-        background: "radial-gradient(70% 50% at 50% 20%, rgba(139,0,0,0.15) 0%, transparent 60%)"
+        background: "radial-gradient(70% 50% at 50% 20%, rgba(139,0,0,0.18) 0%, transparent 60%)"
       }} />
 
       {/* ===== CONTENT LAYER ===== */}
@@ -157,9 +158,10 @@ export default function BossHunt() {
         </div>
 
         {/* ===== MAIN CONTENT ===== */}
-        <div className="flex-1 flex flex-col lg:flex-row gap-3 px-4 sm:px-6 pb-4 max-w-[1600px] mx-auto w-full">
+        <div className="flex-1 flex flex-col lg:flex-row gap-4 px-4 sm:px-6 max-w-[1600px] mx-auto w-full">
+
           {/* ===== LEFT: BOSS SELECTOR ===== */}
-          <div className="lg:w-56 flex-shrink-0 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">
+          <div className="lg:w-52 flex-shrink-0 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 order-1">
             {bosses.map((boss, i) => {
               const tmpl = catalogById[boss.template_id];
               const isSelected = i === selectedIdx;
@@ -169,10 +171,10 @@ export default function BossHunt() {
                 <button
                   key={boss.id}
                   onClick={() => setSelectedIdx(i)}
-                  className={`flex-shrink-0 lg:w-full w-40 text-left rounded-xl overflow-hidden border transition-all duration-300 ${
+                  className={`flex-shrink-0 lg:w-full w-36 text-left rounded-xl overflow-hidden border transition-all duration-300 ${
                     isSelected
                       ? "bg-white/10 border-2"
-                      : "bg-black/40 border border-white/10 hover:border-white/20 opacity-60"
+                      : "bg-black/40 border border-white/10 hover:border-white/25 opacity-80"
                   }`}
                   style={isSelected ? { borderColor: bColor, boxShadow: `0 0 16px ${bColor}44` } : {}}
                 >
@@ -181,7 +183,7 @@ export default function BossHunt() {
                       <img
                         src={tmpl.portrait}
                         alt={boss.name}
-                        className={`w-12 h-12 rounded-lg object-cover ${isSelected ? "" : "grayscale brightness-75"}`}
+                        className={`w-12 h-12 rounded-lg object-cover ${isSelected ? "" : "grayscale-[40%] brightness-90"}`}
                         style={isSelected ? { boxShadow: `0 0 8px ${bColor}66` } : {}}
                       />
                     )}
@@ -189,7 +191,7 @@ export default function BossHunt() {
                       <div className="text-[9px] font-bold tracking-wider" style={{ color: bColor }}>
                         {RARITY_LABELS[bRarity] || bRarity}
                       </div>
-                      <h3 className={`font-display text-sm tracking-wide truncate ${isSelected ? "text-white" : "text-slate-400"}`}>
+                      <h3 className={`font-display text-sm tracking-wide truncate ${isSelected ? "text-white" : "text-slate-300"}`}>
                         {boss.name}
                       </h3>
                       <p className="text-[10px] text-slate-500 truncate">{boss.title || ""}</p>
@@ -200,24 +202,30 @@ export default function BossHunt() {
             })}
           </div>
 
-          {/* ===== CENTER: GIANT BOSS CARD ===== */}
-          <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-2">
+          {/* ===== CENTER: GIANT BOSS CARD + TEAM + CTA ===== */}
+          <div className="flex-1 flex flex-col items-center justify-start min-h-0 order-2 lg:order-2 gap-4 py-2">
+            {/* --- Boss Card --- */}
             {bossTemplate?.portrait && (
               <div
-                className="relative rounded-2xl overflow-hidden"
+                className="relative rounded-2xl overflow-hidden boss-float"
                 style={{
-                  width: "min(320px, 50vw)",
-                  maxHeight: "52vh",
-                  boxShadow: `0 0 40px ${rarityColor}33, 0 20px 60px rgba(0,0,0,0.6)`,
+                  width: "min(420px, 58vw)",
+                  maxHeight: "58vh",
+                  boxShadow: `0 0 50px ${rarityColor}44, 0 0 80px ${rarityColor}22, 0 20px 60px rgba(0,0,0,0.7)`,
                   border: `2px solid ${frame.strokeColor}`,
-                  animation: "bossGlow 3s ease-in-out infinite alternate",
+                  animation: "bossGlow 3s ease-in-out infinite alternate, bossFloat 6s ease-in-out infinite",
                 }}
               >
+                {/* Animated border ring */}
+                <div className="absolute inset-0 pointer-events-none rounded-2xl" style={{
+                  boxShadow: `inset 0 0 20px ${rarityColor}33`,
+                  animation: "bossBorderRotate 4s linear infinite",
+                }} />
                 <img
                   src={bossTemplate.portrait}
                   alt={selectedBoss.name}
                   className="w-full h-full object-cover"
-                  style={{ maxHeight: "52vh" }}
+                  style={{ maxHeight: "58vh" }}
                 />
                 {/* Bottom gradient scrim */}
                 <div className="absolute inset-0" style={{
@@ -259,19 +267,68 @@ export default function BossHunt() {
             )}
 
             {/* Escalation warning */}
-            <div className="mt-3 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-950/40 border border-red-500/20">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-950/40 border border-red-500/20">
               <TrendingUp className="w-4 h-4 text-fox" />
               <span className="text-xs text-red-300/90 font-display tracking-wide">
                 Damage escalates +10% every 10 turns
               </span>
             </div>
+
+            {/* --- Player Team (confronting the boss) --- */}
+            <div className="w-full flex flex-col items-center gap-2 pt-2">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-display">
+                Your Team
+              </div>
+              <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
+                {teamHeroes.length > 0 ? (
+                  teamHeroes.map(({ inst, tmpl }, i) => {
+                    const tRarity = tmpl.rarity;
+                    const tColor = RARITY[tRarity]?.color || "#9E9E9E";
+                    return (
+                      <div
+                        key={i}
+                        className="flex-shrink-0 w-16 sm:w-20 rounded-lg overflow-hidden border bg-black/50 backdrop-blur-sm transition-transform hover:scale-105"
+                        style={{ borderColor: tColor + "44", boxShadow: `0 0 12px ${tColor}22` }}
+                      >
+                        {tmpl.portrait && (
+                          <img src={tmpl.portrait} alt={tmpl.name} className="w-full h-16 sm:h-20 object-cover" />
+                        )}
+                        <div className="p-1">
+                          <p className="text-[9px] text-white font-display tracking-wide truncate">{tmpl.name}</p>
+                          <p className="text-[8px] text-slate-400">Lv.{inst.level}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-slate-500">No team set — visit Hero roster to build your team.</p>
+                )}
+              </div>
+            </div>
+
+            {/* --- Enter Battle CTA --- */}
+            <button
+              onClick={() => launchBattle(selectedBoss)}
+              className="group relative px-10 py-4 rounded-xl font-display text-2xl tracking-[0.15em] text-white overflow-hidden transition-all duration-300 hover:scale-105 active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, #B71C1C 0%, #E53935 40%, #FF1744 100%)",
+                boxShadow: "0 0 30px rgba(255,23,68,0.5), 0 0 60px rgba(183,28,28,0.3), 0 8px 32px rgba(0,0,0,0.6)",
+                border: "2px solid rgba(255,100,100,0.4)",
+                animation: "ctaPulse 2s ease-in-out infinite",
+              }}
+            >
+              <span className="relative flex items-center gap-2 justify-center">
+                <Swords className="w-6 h-6" />
+                ENTER BATTLE
+              </span>
+            </button>
           </div>
 
           {/* ===== RIGHT: BOSS INFO PANEL ===== */}
-          <div className="lg:w-64 flex-shrink-0 space-y-3">
+          <div className="lg:w-60 flex-shrink-0 space-y-3 order-3">
             {/* Boss Traits */}
-            <div className="rounded-xl bg-black/40 border border-white/10 p-3 backdrop-blur-sm">
-              <h4 className="text-[10px] uppercase tracking-[0.15em] text-slate-500 mb-2 font-display">Boss Traits</h4>
+            <div className="rounded-xl bg-black/45 border border-white/10 p-3 backdrop-blur-sm">
+              <h4 className="text-[10px] uppercase tracking-[0.15em] text-slate-400 mb-2 font-display">Boss Traits</h4>
               <div className="space-y-1.5">
                 {selectedBoss.traits?.map((trait, i) => (
                   <div key={i} className="text-xs text-slate-200 flex items-start gap-1.5">
@@ -284,8 +341,8 @@ export default function BossHunt() {
 
             {/* Weaknesses */}
             {selectedBoss.combat_summary?.vulnerabilities?.length > 0 && (
-              <div className="rounded-xl bg-black/40 border border-white/10 p-3 backdrop-blur-sm">
-                <h4 className="text-[10px] uppercase tracking-[0.15em] text-slate-500 mb-2 font-display">Weaknesses</h4>
+              <div className="rounded-xl bg-black/45 border border-white/10 p-3 backdrop-blur-sm">
+                <h4 className="text-[10px] uppercase tracking-[0.15em] text-slate-400 mb-2 font-display">Weaknesses</h4>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedBoss.combat_summary.vulnerabilities.map((vuln, i) => (
                     <span key={i} className="text-xs px-2 py-1 rounded-md bg-green-500/15 text-green-300 border border-green-500/20">
@@ -298,8 +355,8 @@ export default function BossHunt() {
 
             {/* Defenses */}
             {(selectedBoss.combat_summary?.immunities?.length > 0 || selectedBoss.combat_summary?.resistances?.length > 0) && (
-              <div className="rounded-xl bg-black/40 border border-white/10 p-3 backdrop-blur-sm">
-                <h4 className="text-[10px] uppercase tracking-[0.15em] text-slate-500 mb-2 font-display">Defenses</h4>
+              <div className="rounded-xl bg-black/45 border border-white/10 p-3 backdrop-blur-sm">
+                <h4 className="text-[10px] uppercase tracking-[0.15em] text-slate-400 mb-2 font-display">Defenses</h4>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedBoss.combat_summary.immunities?.map((imm, i) => (
                     <span key={`imm-${i}`} className="text-xs px-2 py-1 rounded-md bg-red-500/15 text-red-300 border border-red-500/20">
@@ -317,8 +374,8 @@ export default function BossHunt() {
 
             {/* Rewards */}
             {selectedBoss.rewards && (
-              <div className="rounded-xl bg-black/40 border border-white/10 p-3 backdrop-blur-sm">
-                <h4 className="text-[10px] uppercase tracking-[0.15em] text-slate-500 mb-2 font-display">Exclusive Rewards</h4>
+              <div className="rounded-xl bg-black/45 border border-white/10 p-3 backdrop-blur-sm">
+                <h4 className="text-[10px] uppercase tracking-[0.15em] text-slate-400 mb-2 font-display">Exclusive Rewards</h4>
                 <div className="grid grid-cols-4 gap-2">
                   {selectedBoss.rewards.items?.map((item, i) => {
                     const info = REWARD_LABELS[item] || { name: item, icon: "🎁" };
@@ -353,70 +410,28 @@ export default function BossHunt() {
           </div>
         </div>
 
-        {/* ===== BOTTOM: TEAM ROSTER + CTA ===== */}
-        <div className="relative z-10 px-4 sm:px-6 pb-4 pt-2">
-          <div className="max-w-[1600px] mx-auto">
-            <div className="flex flex-col lg:flex-row items-center gap-4">
-              {/* Team heroes */}
-              <div className="flex-1 flex items-center justify-center gap-2 overflow-x-auto pb-1">
-                {teamHeroes.length > 0 ? (
-                  teamHeroes.map(({ inst, tmpl }, i) => {
-                    const tRarity = tmpl.rarity;
-                    const tColor = RARITY[tRarity]?.color || "#9E9E9E";
-                    return (
-                      <div
-                        key={i}
-                        className="flex-shrink-0 w-16 sm:w-20 rounded-lg overflow-hidden border bg-black/50 backdrop-blur-sm"
-                        style={{ borderColor: tColor + "33" }}
-                      >
-                        {tmpl.portrait && (
-                          <img src={tmpl.portrait} alt={tmpl.name} className="w-full h-16 sm:h-20 object-cover" />
-                        )}
-                        <div className="p-1">
-                          <p className="text-[9px] text-white font-display tracking-wide truncate">{tmpl.name}</p>
-                          <p className="text-[8px] text-slate-400">Lv.{inst.level}</p>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-xs text-slate-500">No team set — visit Hero roster to build your team.</p>
-                )}
-              </div>
-
-              {/* Enter Battle CTA */}
-              <button
-                onClick={() => launchBattle(selectedBoss)}
-                className="flex-shrink-0 group relative px-8 py-4 rounded-xl font-display text-xl tracking-[0.15em] text-white overflow-hidden transition-all duration-300 hover:scale-105"
-                style={{
-                  background: "linear-gradient(135deg, #8B0000 0%, #cc0000 50%, #FF2400 100%)",
-                  boxShadow: "0 0 24px rgba(139,0,0,0.4), 0 8px 32px rgba(0,0,0,0.5)",
-                  border: "1px solid rgba(255,100,100,0.3)",
-                  animation: "ctaPulse 2s ease-in-out infinite",
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <Swords className="w-5 h-5" />
-                  ENTER BATTLE
-                </span>
-              </button>
-            </div>
-            <p className="text-center text-[10px] text-slate-500 mt-2 tracking-wide">
-              Prepare. Focus. End the Legend.
-            </p>
-          </div>
-        </div>
+        {/* Bottom spacer for breathing room */}
+        <div className="h-4" />
       </div>
 
       {/* ===== ANIMATIONS ===== */}
       <style>{`
         @keyframes bossGlow {
-          0% { box-shadow: 0 0 30px ${rarityColor}22, 0 20px 60px rgba(0,0,0,0.6); }
-          100% { box-shadow: 0 0 50px ${rarityColor}44, 0 20px 60px rgba(0,0,0,0.6); }
+          0% { box-shadow: 0 0 40px ${rarityColor}33, 0 0 70px ${rarityColor}11, 0 20px 60px rgba(0,0,0,0.7); }
+          100% { box-shadow: 0 0 60px ${rarityColor}55, 0 0 100px ${rarityColor}22, 0 20px 60px rgba(0,0,0,0.7); }
+        }
+        @keyframes bossFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        @keyframes bossBorderRotate {
+          0% { box-shadow: inset 0 0 20px ${rarityColor}33; }
+          50% { box-shadow: inset 0 0 30px ${rarityColor}55; }
+          100% { box-shadow: inset 0 0 20px ${rarityColor}33; }
         }
         @keyframes ctaPulse {
-          0%, 100% { box-shadow: 0 0 24px rgba(139,0,0,0.4), 0 8px 32px rgba(0,0,0,0.5); }
-          50% { box-shadow: 0 0 36px rgba(255,36,0,0.5), 0 8px 32px rgba(0,0,0,0.5); }
+          0%, 100% { box-shadow: 0 0 30px rgba(255,23,68,0.5), 0 0 60px rgba(183,28,28,0.3), 0 8px 32px rgba(0,0,0,0.6); }
+          50% { box-shadow: 0 0 45px rgba(255,23,68,0.7), 0 0 90px rgba(183,28,28,0.4), 0 8px 32px rgba(0,0,0,0.6); }
         }
       `}</style>
     </div>

@@ -80,6 +80,20 @@ const BIOME_CONFIG = {
  *   shake   — triggers screen-shake class on the wrapper
  */
 export default function BattlefieldEnv({ element = "Dark", region = null, shake = false, shrine = false }) {
+  // Deterministic particle positions (stable across re-renders) — must be
+  // called unconditionally (before any early return) per React hooks rules.
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 18 }).map((_, i) => ({
+        left: `${(i * 5.5 + 3) % 100}%`,
+        size: 2 + ((i * 3) % 4),
+        duration: 8 + ((i * 7) % 12),
+        delay: `${(i * 1.3) % 10}s`,
+        drift: `${((i % 5) - 2) * 15}px`,
+      })),
+    []
+  );
+
   // Boss Hunt uses the shrine background image
   if (shrine) {
     return (
@@ -109,19 +123,6 @@ export default function BattlefieldEnv({ element = "Dark", region = null, shake 
   const biome = BIOME_CONFIG[biomeKey] || BIOME_CONFIG.shadow;
   const elColor = (element && PARTICLE_CLASS[element]) ? biome.accent : biome.accent;
   const particleClass = biome.particle || PARTICLE_CLASS[element] || PARTICLE_CLASS.Dark;
-
-  // Deterministic particle positions (stable across re-renders)
-  const particles = useMemo(
-    () =>
-      Array.from({ length: 18 }).map((_, i) => ({
-        left: `${(i * 5.5 + 3) % 100}%`,
-        size: 2 + ((i * 3) % 4),
-        duration: 8 + ((i * 7) % 12),
-        delay: `${(i * 1.3) % 10}s`,
-        drift: `${((i % 5) - 2) * 15}px`,
-      })),
-    []
-  );
 
   return (
     <div className={`absolute inset-0 overflow-hidden ${shake ? "screen-shake" : ""}`} data-testid="battlefield-env" data-biome={biomeKey}>
