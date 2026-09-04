@@ -428,7 +428,8 @@ export default function Battle() {
           null, // combatModifiers — allies don't have enemy combat modifiers
           Object.keys(synergyBonuses).length > 0 ? synergyBonuses : null
         )
-      );
+      )
+      .filter(Boolean);
 
     const enemies = enemiesDef.map((e) => {
       const template = catalogById[e.template_id];
@@ -460,7 +461,7 @@ export default function Battle() {
         e.reforge || null,
         e.combat_modifiers || null
       );
-    });
+    }).filter(Boolean);
 
     // Campaign boss mechanics
     if (

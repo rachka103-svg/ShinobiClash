@@ -641,6 +641,10 @@ export function buildCombatant(
   combatModifiers = null,
   synergyBonuses = null
 ) {
+  if (!template) {
+    console.error("[buildCombatant] Missing template for uid:", uid, "side:", side);
+    return null;
+  }
   const s =
     statsOverride ||
     computeStats(

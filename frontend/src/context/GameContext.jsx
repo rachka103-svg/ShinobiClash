@@ -29,6 +29,7 @@ export function GameProvider({ children }) {
   const [reforgeMaxPerJutsu, setReforgeMaxPerJutsu] = useState(2);
   const [productionCategories, setProductionCategories] = useState([]);
   const [forgeMaxLevel, setForgeMaxLevel] = useState(200);
+  const [enemyTemplates, setEnemyTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [catalogError, setCatalogError] = useState(null);
 
@@ -55,7 +56,11 @@ export function GameProvider({ children }) {
     setForgeMaxLevel(data.forge_max_level || 200);
     const map = {};
     data.ninjas.forEach((n) => { map[n.id] = n; });
+    // Merge enemy templates (nightmare bosses) into catalogById so battle
+    // can resolve them — but NOT into catalog (player gallery stays clean).
+    (data.enemy_templates || []).forEach((t) => { map[t.id] = t; });
     setCatalogById(map);
+    setEnemyTemplates(data.enemy_templates || []);
   }, []);
 
   const refreshCatalog = useCallback(async () => {
@@ -90,7 +95,7 @@ export function GameProvider({ children }) {
     <GameContext.Provider value={{
       catalog, catalogById, advantage, stages, chapters, bossMechanics, items, trials, summonCost, goldSummonX10Cost, gemCosts, banner,
       summonRates, summonRatesRyo, pityConfig, gearConfig, craftRecipes, fusionRecipes, expTomeGoldCost, dungeons,
-      reforgeModifiers, reforgeMaxPerJutsu, productionCategories, forgeMaxLevel,
+      reforgeModifiers, reforgeMaxPerJutsu, productionCategories, forgeMaxLevel, enemyTemplates,
       loading, catalogError, retryCatalog: loadInitialData, refreshCatalog,
     }}>
       {children}

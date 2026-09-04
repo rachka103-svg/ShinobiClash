@@ -51,6 +51,7 @@ export const RARITY = {
   UR: { label: "UR", color: "#FFCA28", name: "Legendary", tier: 3 },
   LR: { label: "LR", color: "#FF5252", name: "Mythic", tier: 4 },
   GR: { label: "GR", color: "#64FFDA", name: "Ascendant", tier: 5 },
+  MYTHIC: { label: "MYTHIC", color: "#E040FB", name: "Eternal", tier: 6 },
 };
 
 // ---- Elements — communicate identity through color, not labels alone ---
