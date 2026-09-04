@@ -79,7 +79,32 @@ const BIOME_CONFIG = {
  *   region  — campaign region name (selects the biome)
  *   shake   — triggers screen-shake class on the wrapper
  */
-export default function BattlefieldEnv({ element = "Dark", region = null, shake = false }) {
+export default function BattlefieldEnv({ element = "Dark", region = null, shake = false, shrine = false }) {
+  // Boss Hunt uses the shrine background image
+  if (shrine) {
+    return (
+      <div className={`absolute inset-0 overflow-hidden ${shake ? "screen-shake" : ""}`} data-testid="battlefield-env" data-biome="shrine">
+        {/* Shrine background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url(/bosshunt-shrine.png)" }}
+        />
+        {/* Dark overlay for readability */}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(5,5,10,0.35) 0%, rgba(5,5,10,0.15) 40%, rgba(5,5,10,0.55) 100%)" }} />
+        {/* Red ambient glow from the moon */}
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(80% 50% at 50% 25%, rgba(139,0,0,0.12) 0%, transparent 60%)" }} />
+        {/* Fog layers */}
+        <div className="absolute bottom-0 left-0 w-full h-[35%] fog-drift-slow" style={{ background: "linear-gradient(to top, rgba(15,10,10,0.6), transparent)", filter: "blur(20px)" }} />
+        <div className="absolute bottom-[10%] left-0 w-full h-[20%] fog-drift" style={{ background: "linear-gradient(to top, rgba(139,0,0,0.08), transparent)", filter: "blur(15px)" }} />
+        {/* Cinematic vignette */}
+        <div className="cine-vignette" />
+        {/* Top/bottom cinematic darkening */}
+        <div className="absolute top-0 left-0 w-full h-20 pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(5,5,10,0.7), transparent)" }} />
+        <div className="absolute bottom-0 left-0 w-full h-32 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(5,5,10,0.6), transparent)" }} />
+      </div>
+    );
+  }
+
   const biomeKey = (region && REGION_BIOME[region]) || "shadow";
   const biome = BIOME_CONFIG[biomeKey] || BIOME_CONFIG.shadow;
   const elColor = (element && PARTICLE_CLASS[element]) ? biome.accent : biome.accent;

@@ -1099,15 +1099,20 @@ async def boss_hunt_list():
         bosses.append({
             "id": boss["id"],
             "name": boss["name"],
+            "title": boss.get("title", ""),
             "template_id": boss["template_id"],
             "element": boss["element"],
+            "rarity": boss.get("rarity", ""),
+            "level": boss.get("level", 60),
             "difficulty": boss["difficulty"],
             "traits": boss["traits"],
             "strategy": boss["strategy"],
             "vulnerability_hint": boss["vulnerability_hint"],
             "archetype": boss["archetype"],
             "boss_mechanic": boss.get("boss_mechanic"),
+            "escalating_damage": boss.get("escalating_damage", False),
             "combat_summary": summary,
+            "rewards": boss.get("rewards", {}),
         })
     return {"bosses": bosses}
 
@@ -1160,13 +1165,14 @@ async def boss_hunt_complete(body: dict, user: dict = Depends(get_current_user))
     rewards = {"ryo": 0, "gems": 0, "exp": 0, "hero_exp": []}
 
     if result == "win":
-        difficulty_mult = {
-            "HARD": 1.0, "EXTREME": 1.5, "NIGHTMARE": 2.0,
-        }.get(boss_config.get("difficulty", "HARD"), 1.0)
+        rarity_mult = {
+            "UR": 1.5, "LR": 2.5, "GR": 4.0,
+        }.get(boss_config.get("rarity", "UR"), 1.0)
 
-        rewards["ryo"] = round(800 * difficulty_mult)
-        rewards["gems"] = round(30 * difficulty_mult)
-        rewards["exp"] = round(300 * difficulty_mult)
+        base_rewards = boss_config.get("rewards", {})
+        rewards["ryo"] = round(base_rewards.get("ryo", 800) * rarity_mult)
+        rewards["gems"] = round(base_rewards.get("gems", 30) * rarity_mult)
+        rewards["exp"] = round(base_rewards.get("exp", 300) * rarity_mult)
 
         # Apply rewards
         user["ryo"] = user.get("ryo", 0) + rewards["ryo"]

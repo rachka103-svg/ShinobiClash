@@ -493,6 +493,9 @@ export default function Battle() {
         enemies[0].bossMechanicId = bhEnemy.boss_mechanic;
       }
       enemies[0].bossPhaseIndex = -1;
+      // Escalating damage: every 10 rounds, boss damage +10%
+      enemies[0].escalatingDamage = bhEnemy?.escalating_damage || false;
+      enemies[0].escalationMult = 1.0;
     }
 
     const all = [...allies, ...enemies];
@@ -572,7 +575,17 @@ export default function Battle() {
         ord = buildOrder(work);
         p = 0;
 
-        setRound((r) => r + 1);
+        const newRound = round + 1;
+        setRound(newRound);
+
+        // Boss Hunt escalation: every 10 rounds, boss damage +10%
+        if (mode === "bosshunt" && newRound % 10 === 0) {
+          for (const e of work) {
+            if (e.side === "enemy" && e.escalatingDamage) {
+              e.escalationMult = (e.escalationMult || 1.0) + 0.10;
+            }
+          }
+        }
       }
 
       orderRef.current = ord;
@@ -780,12 +793,21 @@ export default function Battle() {
           advantage
         );
 
-        const {
+        let {
           dmg,
           crit,
           mult,
           notes,
         } = result;
+
+        // Boss Hunt escalating damage
+        if (act.escalatingDamage && act.escalationMult > 1.0 && dmg > 0) {
+          const escalatedDmg = Math.round(dmg * act.escalationMult);
+          if (escalatedDmg > dmg) {
+            notes.push(`ESCALATION +${Math.round((act.escalationMult - 1) * 100)}%`);
+          }
+          dmg = escalatedDmg;
+        }
 
         // --- Immunity / Resistance feedback ---
         if (result.immune) {
@@ -1645,6 +1667,7 @@ export default function Battle() {
             ? stage?.region
             : null
         }
+        shrine={mode === "bosshunt"}
       />
 
       {/* Battle entry */}
