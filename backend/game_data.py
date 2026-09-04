@@ -1775,15 +1775,30 @@ def level_cap(rarity: str, ascension: int) -> int:
     return min(HERO_MAX_LEVEL, 100 + ascension * ASCENSION_STEP)
 
 
+# ---------------------------------------------------------------------------
+# Centralized team slot unlock configuration.
+# Slots 1–3 are always available. Slot 4 unlocks at Lv.100, slot 5 at Lv.200.
+# 5 is the permanent maximum — no 6th player combat slot ever exists.
+# ---------------------------------------------------------------------------
+TEAM_SLOT_UNLOCKS = {4: 100, 5: 200}
+MAX_TEAM_SIZE = 5
+
+
 def max_team_size(level: int) -> int:
-    """Squad starts at 3 slots; unlocks a 4th at Lv.10 and a 5th at Lv.20 (max 5)."""
-    return min(5, 3 + max(0, level) // 10)
+    """Squad starts at 3 slots; unlocks 4th at Lv.100 and 5th at Lv.200 (max 5)."""
+    size = 3
+    for slot, req_level in sorted(TEAM_SLOT_UNLOCKS.items()):
+        if level >= req_level:
+            size = slot
+    return min(MAX_TEAM_SIZE, size)
 
 
 def next_slot_level(level: int) -> Optional[int]:
     """Player level at which the next squad slot unlocks, or None if maxed."""
-    cap = max_team_size(level)
-    return None if cap >= 5 else (cap - 2) * 10
+    for slot, req_level in sorted(TEAM_SLOT_UNLOCKS.items()):
+        if level < req_level:
+            return req_level
+    return None
 
 
 def max_level(rarity: str) -> int:

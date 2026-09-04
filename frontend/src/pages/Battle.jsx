@@ -399,6 +399,7 @@ export default function Battle() {
 
     // --- Evaluate team synergy ---
     const allyTemplates = (user.team || [])
+      .slice(0, user.team_cap || 5)
       .map((tid) => user.ninjas.find((n) => n.instance_id === tid))
       .filter(Boolean)
       .map((inst) => catalogById[inst.template_id])
@@ -407,6 +408,7 @@ export default function Battle() {
     const synergyBonuses = synergyResult.bonuses;
 
     const allies = (user.team || [])
+      .slice(0, user.team_cap || 5)
       .map((tid) =>
         user.ninjas.find((n) => n.instance_id === tid)
       )
@@ -1668,6 +1670,7 @@ export default function Battle() {
             : null
         }
         shrine={mode === "bosshunt"}
+        mode={mode}
       />
 
       {/* Battle entry */}

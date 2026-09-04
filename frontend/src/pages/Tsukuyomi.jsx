@@ -168,11 +168,14 @@ export default function Tsukuyomi() {
   return (
     <div
       className="h-full max-w-6xl mx-auto px-3 sm:px-6 py-3 flex flex-col overflow-hidden relative"
-      style={{ background: "radial-gradient(120% 90% at 50% 0%, #1a0b2e 0%, #0B0B12 55%, #050508 100%)" }}
       data-testid="tsukuyomi-page"
     >
+      {/* Background image */}
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url(/bg-tsukuyomi.png)" }} />
+      {/* Dark overlay for readability */}
+      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(11,5,20,0.55) 0%, rgba(11,5,20,0.35) 40%, rgba(11,5,20,0.75) 100%)" }} />
       {/* ambient nebula glow */}
-      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 50% 35%, rgba(181,62,255,0.18), transparent 70%)" }} />
+      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 50% at 50% 35%, rgba(181,62,255,0.15), transparent 70%)" }} />
 
       {/* Header */}
       <div className="relative z-10 flex items-center justify-between gap-2 shrink-0 mb-3">

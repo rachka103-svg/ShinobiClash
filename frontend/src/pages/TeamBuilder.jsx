@@ -46,6 +46,11 @@ export default function TeamBuilder() {
 
   const cap = user?.team_cap || 3;
   const nextSlotLevel = user?.next_slot_level || null;
+  const playerLevel = user?.level || 1;
+
+  // Centralized slot unlock config — mirrors backend TEAM_SLOT_UNLOCKS
+  const SLOT_UNLOCKS = { 4: 100, 5: 200 };
+  const MAX_SLOTS = 5;
 
   useEffect(() => { setTeam((user?.team || []).slice(0, cap)); }, [user?.id, JSON.stringify(user?.team), cap]);
 
@@ -138,7 +143,21 @@ export default function TeamBuilder() {
     } finally { setPBusy(false); }
   };
 
-  const slots = Array.from({ length: cap });
+  // ---- Slot unlock notification ----
+  // Detects when the player crosses Lv.100 or Lv.200 and shows a one-time toast.
+  useEffect(() => {
+    const checkUnlock = (slotNum, unlockLevel, title, msg) => {
+      const key = `slot${slotNum}_unlocked`;
+      if (playerLevel >= unlockLevel && !localStorage.getItem(key)) {
+        localStorage.setItem(key, "1");
+        toast.success(title, { description: msg, duration: 6000 });
+      }
+    };
+    checkUnlock(4, 100, "TEAM SLOT IV UNLOCKED", "Your formation has expanded. You can now deploy a 4th hero in battle.");
+    checkUnlock(5, 200, "TEAM SLOT V UNLOCKED", "Your ultimate formation is complete. You can now deploy your 5th hero in battle. This is the FINAL combat slot.");
+  }, [playerLevel]);
+
+  const slots = Array.from({ length: MAX_SLOTS });
 
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-6 py-5" data-testid="team-page">
@@ -149,11 +168,6 @@ export default function TeamBuilder() {
           <p className="text-slate-500 mt-1.5" data-testid="team-counter">
             Tap a hero to view details · tap <span className="text-chakra">+</span> to add to your squad. <span className="text-chakra font-semibold">({team.length}/{cap})</span>
           </p>
-          {nextSlotLevel && (
-            <p className="flex items-center gap-1.5 text-xs text-amber-400/90 mt-1" data-testid="next-slot-hint">
-              <Lock className="w-3.5 h-3.5" /> Reach Lv.{nextSlotLevel} to unlock a {cap + 1}th squad slot
-            </p>
-          )}
         </div>
         <div className="flex items-center gap-3">
           <div className="glass-panel px-4 py-2.5 flex items-center gap-2.5">
@@ -175,8 +189,34 @@ export default function TeamBuilder() {
       </div>
 
       {/* ===================== Squad slots ===================== */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5 sm:gap-3 mb-4">
         {slots.map((_, i) => {
+          // Locked slot (slot 4 before Lv.100, slot 5 before Lv.200)
+          if (i >= cap) {
+            const unlockLevel = SLOT_UNLOCKS[i + 1];
+            if (!unlockLevel) return null;
+            const progress = Math.min(100, (playerLevel / unlockLevel) * 100);
+            const slotNumeral = ["I", "II", "III", "IV", "V"][i];
+            return (
+              <div key={i} className="aspect-[3/4.2] rounded-2xl border border-slate-600/30 bg-slate-900/40 flex flex-col items-center justify-center gap-2 p-3 text-center" data-testid={`squad-slot-locked-${i}`}>
+                <div className="w-12 h-12 rounded-full border border-slate-600/40 flex items-center justify-center bg-slate-800/40">
+                  <Lock className="w-6 h-6 text-slate-500" />
+                </div>
+                <span className="font-display text-xs tracking-widest text-slate-400">{slotNumeral} HERO SLOT</span>
+                <span className="text-[10px] text-slate-500">UNLOCKS AT LV.{unlockLevel}</span>
+                <div className="w-full mt-1">
+                  <div className="flex items-center justify-between text-[8px] text-slate-500 mb-0.5">
+                    <span>Lv.{playerLevel}</span>
+                    <span>Lv.{unlockLevel}</span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-slate-800/60 overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${progress}%`, background: "linear-gradient(90deg, #6366f1, #818cf8)" }} />
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          // Active slot (empty or filled)
           const hero = teamTmpls[i];
           if (!hero) {
             return (
@@ -189,15 +229,6 @@ export default function TeamBuilder() {
           }
           return <SquadSlotCard key={hero.instance_id} hero={hero} index={i} onView={() => setDetailId(hero.instance_id)} onRemove={() => toggle(hero.instance_id)} />;
         })}
-
-        {/* Locked next slot */}
-        {nextSlotLevel && (
-          <div className="aspect-[3/4.2] rounded-2xl border border-black/10 bg-black/[0.03] flex flex-col items-center justify-center gap-3 text-slate-500" data-testid="squad-slot-locked">
-            <div className="w-16 h-16 rounded-full border border-black/10 flex items-center justify-center"><Plus className="w-7 h-7" /></div>
-            <span className="text-sm font-semibold text-slate-600">Unlock {cap + 1}th Slot</span>
-            <span className="flex items-center gap-1.5 text-xs text-amber-400/90"><Lock className="w-3.5 h-3.5" /> Reach Lv.{nextSlotLevel}</span>
-          </div>
-        )}
       </div>
 
       {/* ===================== Squad Synergy ===================== */}
