@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Swords, Skull, Zap, ChevronRight, Flame, Droplet, Wind, Mountain, Sun, Moon, Sparkles, TrendingUp } from "lucide-react";
+import { Swords, Skull, Zap, ChevronRight, Flame, Droplet, Wind, Mountain, Sun, Moon, Sparkles, TrendingUp, Hand } from "lucide-react";
 import { useGame } from "@/context/GameContext";
 import { useAuth } from "@/context/AuthContext";
 import { rarityFrame, glow, RARITY, ELEMENT } from "@/lib/theme";
@@ -24,6 +24,25 @@ const REWARD_LABELS = {
   boss_card: { name: "Boss Card", icon: "🃏" },
 };
 
+/** Deterministic ember particle positions — stable across re-renders. */
+function useParticles(count, seed) {
+  return useMemo(() => {
+    const arr = [];
+    for (let i = 0; i < count; i++) {
+      const s = (i + 1) * (seed || 7);
+      arr.push({
+        left: `${((s * 13.7) % 100)}%`,
+        size: 2 + ((s * 3) % 4),
+        duration: 4 + ((s * 7) % 8),
+        delay: `${((s * 1.3) % 10) * 0.5}s`,
+        drift: `${(((s % 5) - 2) * 12)}px`,
+        opacity: 0.3 + ((s % 7) * 0.08),
+      });
+    }
+    return arr;
+  }, [count, seed]);
+}
+
 export default function BossHunt() {
   const navigate = useNavigate();
   const { catalogById, catalog } = useGame();
@@ -43,6 +62,11 @@ export default function BossHunt() {
   }, []);
 
   const selectedBoss = bosses[selectedIdx];
+
+  // Particle hooks must run unconditionally (before any early return)
+  const particleSeed = selectedIdx + 1;
+  const emberParticles = useParticles(24, particleSeed);
+  const sparkParticles = useParticles(12, particleSeed * 3);
 
   const launchBattle = (boss) => {
     const template = catalogById[boss.template_id];
@@ -125,11 +149,16 @@ export default function BossHunt() {
       />
       {/* Subtle dark gradient overlay for readability */}
       <div className="fixed inset-0" style={{
-        background: "linear-gradient(180deg, rgba(5,5,10,0.50) 0%, rgba(5,5,10,0.15) 25%, rgba(5,5,10,0.30) 55%, rgba(5,5,10,0.80) 100%)"
+        background: "linear-gradient(180deg, rgba(5,5,10,0.50) 0%, rgba(5,5,10,0.10) 25%, rgba(5,5,10,0.25) 50%, rgba(5,5,10,0.80) 100%)"
       }} />
       {/* Red ambient glow */}
       <div className="fixed inset-0 pointer-events-none" style={{
         background: "radial-gradient(70% 50% at 50% 20%, rgba(139,0,0,0.18) 0%, transparent 60%)"
+      }} />
+      {/* Element-tinted ambient glow behind boss area */}
+      <div className="fixed inset-0 pointer-events-none" style={{
+        background: `radial-gradient(50% 40% at 50% 35%, ${elemColor}15 0%, transparent 70%)`,
+        animation: "ambientPulse 5s ease-in-out infinite alternate",
       }} />
 
       {/* ===== CONTENT LAYER ===== */}
@@ -203,66 +232,160 @@ export default function BossHunt() {
           </div>
 
           {/* ===== CENTER: GIANT BOSS CARD + TEAM + CTA ===== */}
-          <div className="flex-1 flex flex-col items-center justify-start min-h-0 order-2 lg:order-2 gap-4 py-2">
-            {/* --- Boss Card --- */}
+          <div className="flex-1 flex flex-col items-center justify-start min-h-0 order-2 lg:order-2 gap-3 py-2">
+
+            {/* --- Boss Card with heavy effects --- */}
             {bossTemplate?.portrait && (
-              <div
-                className="relative rounded-2xl overflow-hidden boss-float"
-                style={{
-                  width: "min(420px, 58vw)",
-                  maxHeight: "58vh",
-                  boxShadow: `0 0 50px ${rarityColor}44, 0 0 80px ${rarityColor}22, 0 20px 60px rgba(0,0,0,0.7)`,
-                  border: `2px solid ${frame.strokeColor}`,
-                  animation: "bossGlow 3s ease-in-out infinite alternate, bossFloat 6s ease-in-out infinite",
-                }}
-              >
-                {/* Animated border ring */}
-                <div className="absolute inset-0 pointer-events-none rounded-2xl" style={{
-                  boxShadow: `inset 0 0 20px ${rarityColor}33`,
-                  animation: "bossBorderRotate 4s linear infinite",
-                }} />
-                <img
-                  src={bossTemplate.portrait}
-                  alt={selectedBoss.name}
-                  className="w-full h-full object-cover"
-                  style={{ maxHeight: "58vh" }}
+              <div className="relative" style={{ width: "clamp(280px, 62vw, 520px)" }}>
+                {/* Pulsing aura behind card */}
+                <div
+                  className="absolute -inset-8 rounded-full pointer-events-none"
+                  style={{
+                    background: `radial-gradient(circle, ${rarityColor}22 0%, ${elemColor}11 40%, transparent 70%)`,
+                    animation: "auraPulse 4s ease-in-out infinite alternate",
+                  }}
                 />
-                {/* Bottom gradient scrim */}
-                <div className="absolute inset-0" style={{
-                  background: "linear-gradient(to top, rgba(5,5,10,0.95) 0%, rgba(5,5,10,0.3) 50%, transparent 80%)"
-                }} />
-                {/* Level badge */}
-                <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/70 border border-white/15">
-                  <span className="font-display text-sm tracking-wider" style={{ color: rarityColor }}>
-                    LV.{selectedBoss.level}
-                  </span>
+
+                {/* Lightning crack overlay (behind card) */}
+                <div
+                  className="absolute -inset-4 pointer-events-none rounded-2xl"
+                  style={{
+                    background: `radial-gradient(circle at 50% 50%, ${elemColor}00 30%, ${elemColor}08 60%, transparent 80%)`,
+                    animation: "lightningFlash 7s ease-in-out infinite",
+                  }}
+                />
+
+                {/* Floating ember particles (behind card) */}
+                <div className="absolute -inset-6 pointer-events-none overflow-hidden">
+                  {emberParticles.map((p, i) => (
+                    <span
+                      key={`ember-${i}`}
+                      className="absolute rounded-full"
+                      style={{
+                        left: p.left,
+                        bottom: "0%",
+                        width: p.size,
+                        height: p.size,
+                        background: elemColor,
+                        opacity: p.opacity,
+                        boxShadow: `0 0 ${p.size * 2}px ${elemColor}`,
+                        animation: `emberRise ${p.duration}s ease-in infinite`,
+                        animationDelay: p.delay,
+                        "--drift": p.drift,
+                      }}
+                    />
+                  ))}
                 </div>
-                {/* Rarity badge */}
-                <div className="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-black/70 border" style={{ borderColor: rarityColor + "44" }}>
-                  <span className="font-display text-sm tracking-wider" style={{ color: rarityColor }}>
-                    {bossRarity}
-                  </span>
-                </div>
-                {/* Boss name and title */}
-                <div className="absolute bottom-0 left-0 right-0 p-4">
-                  <h2 className="font-display text-3xl tracking-wider text-white" style={{ textShadow: `0 0 20px ${rarityColor}88` }}>
-                    {selectedBoss.name}
-                  </h2>
-                  <p className="text-xs tracking-[0.15em] uppercase text-slate-300 mt-0.5">
-                    {selectedBoss.title}
-                  </p>
-                  {/* Element + Difficulty */}
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="flex items-center gap-1 text-xs" style={{ color: elemColor }}>
-                      <ElemIcon className="w-3.5 h-3.5" />
-                      {selectedBoss.element}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs" style={{ color: diffColor }}>
-                      <Skull className="w-3.5 h-3.5" />
-                      {selectedBoss.difficulty}
+
+                {/* The actual boss card — clickable to launch battle */}
+                <button
+                  onClick={() => canFight && launchBattle(selectedBoss)}
+                  className="relative block w-full rounded-2xl overflow-hidden boss-float group cursor-pointer transition-transform"
+                  style={{
+                    maxHeight: "clamp(360px, 62vh, 620px)",
+                    boxShadow: `0 0 50px ${rarityColor}44, 0 0 100px ${rarityColor}22, 0 0 140px ${elemColor}15, 0 20px 60px rgba(0,0,0,0.7)`,
+                    border: `3px solid ${frame.strokeColor}`,
+                    animation: "bossGlow 3s ease-in-out infinite alternate, bossFloat 6s ease-in-out infinite",
+                  }}
+                >
+                  {/* Animated inner border glow */}
+                  <div className="absolute inset-0 pointer-events-none rounded-2xl z-20" style={{
+                    boxShadow: `inset 0 0 25px ${rarityColor}44, inset 0 0 50px ${elemColor}11`,
+                    animation: "bossBorderPulse 4s ease-in-out infinite",
+                  }} />
+
+                  {/* Boss artwork */}
+                  <img
+                    src={bossTemplate.portrait}
+                    alt={selectedBoss.name}
+                    className="w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    style={{ maxHeight: "clamp(360px, 62vh, 620px)" }}
+                  />
+
+                  {/* Bottom gradient scrim */}
+                  <div className="absolute inset-0 z-10" style={{
+                    background: "linear-gradient(to top, rgba(5,5,10,0.95) 0%, rgba(5,5,10,0.3) 45%, transparent 70%, rgba(5,5,10,0.2) 100%)"
+                  }} />
+
+                  {/* Top gradient for badge readability */}
+                  <div className="absolute top-0 left-0 right-0 h-20 z-10" style={{
+                    background: "linear-gradient(to bottom, rgba(5,5,10,0.7), transparent)"
+                  }} />
+
+                  {/* Spark particles (on top of image) */}
+                  <div className="absolute inset-0 pointer-events-none z-15 overflow-hidden">
+                    {sparkParticles.map((p, i) => (
+                      <span
+                        key={`spark-${i}`}
+                        className="absolute rounded-full"
+                        style={{
+                          left: p.left,
+                          top: `${(i * 8) % 80 + 10}%`,
+                          width: p.size - 1,
+                          height: p.size - 1,
+                          background: rarityColor,
+                          opacity: p.opacity * 0.7,
+                          boxShadow: `0 0 ${p.size * 3}px ${rarityColor}`,
+                          animation: `sparkFlicker ${p.duration}s ease-in-out infinite`,
+                          animationDelay: p.delay,
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Level badge */}
+                  <div className="absolute top-3 left-3 z-20 px-3 py-1.5 rounded-lg bg-black/70 border border-white/15 backdrop-blur-sm">
+                    <span className="font-display text-base tracking-wider" style={{ color: rarityColor, textShadow: `0 0 10px ${rarityColor}` }}>
+                      LV.{selectedBoss.level}
                     </span>
                   </div>
-                </div>
+                  {/* Rarity badge */}
+                  <div className="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-lg bg-black/70 border backdrop-blur-sm" style={{ borderColor: rarityColor + "66" }}>
+                    <span className="font-display text-base tracking-wider" style={{ color: rarityColor, textShadow: `0 0 10px ${rarityColor}` }}>
+                      {bossRarity}
+                    </span>
+                  </div>
+
+                  {/* Boss name and title */}
+                  <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 z-20">
+                    <h2 className="font-display text-3xl sm:text-4xl tracking-wider text-white" style={{ textShadow: `0 0 20px ${rarityColor}aa, 0 2px 4px rgba(0,0,0,0.8)` }}>
+                      {selectedBoss.name}
+                    </h2>
+                    <p className="text-xs sm:text-sm tracking-[0.15em] uppercase text-slate-300 mt-1">
+                      {selectedBoss.title}
+                    </p>
+                    {/* Element + Difficulty */}
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="flex items-center gap-1 text-xs sm:text-sm" style={{ color: elemColor, textShadow: `0 0 8px ${elemColor}88` }}>
+                        <ElemIcon className="w-4 h-4" />
+                        {selectedBoss.element}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs sm:text-sm" style={{ color: diffColor, textShadow: `0 0 8px ${diffColor}88` }}>
+                        <Skull className="w-4 h-4" />
+                        {selectedBoss.difficulty}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tap-to-battle hint (mobile/tablet) */}
+                  {canFight && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 lg:opacity-0 transition-opacity duration-300">
+                      <div className="px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center gap-2">
+                        <Swords className="w-4 h-4 text-red-400" />
+                        <span className="text-sm font-display tracking-wider text-white">TAP TO CHALLENGE</span>
+                      </div>
+                    </div>
+                  )}
+                </button>
+
+                {/* Glow ring beneath card (ground reflection) */}
+                <div
+                  className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-[80%] h-6 rounded-full pointer-events-none"
+                  style={{
+                    background: `radial-gradient(ellipse, ${rarityColor}33 0%, transparent 70%)`,
+                    filter: "blur(8px)",
+                  }}
+                />
               </div>
             )}
 
@@ -275,7 +398,7 @@ export default function BossHunt() {
             </div>
 
             {/* --- Player Team (confronting the boss) --- */}
-            <div className="w-full flex flex-col items-center gap-2 pt-2">
+            <div className="w-full flex flex-col items-center gap-2 pt-1">
               <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-display">
                 Your Team
               </div>
@@ -287,11 +410,11 @@ export default function BossHunt() {
                     return (
                       <div
                         key={i}
-                        className="flex-shrink-0 w-16 sm:w-20 rounded-lg overflow-hidden border bg-black/50 backdrop-blur-sm transition-transform hover:scale-105"
-                        style={{ borderColor: tColor + "44", boxShadow: `0 0 12px ${tColor}22` }}
+                        className="flex-shrink-0 w-14 sm:w-20 rounded-lg overflow-hidden border bg-black/50 backdrop-blur-sm transition-transform hover:scale-105"
+                        style={{ borderColor: tColor + "55", boxShadow: `0 0 12px ${tColor}22` }}
                       >
                         {tmpl.portrait && (
-                          <img src={tmpl.portrait} alt={tmpl.name} className="w-full h-16 sm:h-20 object-cover" />
+                          <img src={tmpl.portrait} alt={tmpl.name} className="w-full h-14 sm:h-20 object-cover" />
                         )}
                         <div className="p-1">
                           <p className="text-[9px] text-white font-display tracking-wide truncate">{tmpl.name}</p>
@@ -306,10 +429,10 @@ export default function BossHunt() {
               </div>
             </div>
 
-            {/* --- Enter Battle CTA --- */}
+            {/* --- Enter Battle CTA (desktop primary, also works on mobile) --- */}
             <button
-              onClick={() => launchBattle(selectedBoss)}
-              className="group relative px-10 py-4 rounded-xl font-display text-2xl tracking-[0.15em] text-white overflow-hidden transition-all duration-300 hover:scale-105 active:scale-95"
+              onClick={() => canFight && launchBattle(selectedBoss)}
+              className="group relative px-8 sm:px-10 py-3 sm:py-4 rounded-xl font-display text-xl sm:text-2xl tracking-[0.15em] text-white overflow-hidden transition-all duration-300 hover:scale-105 active:scale-95"
               style={{
                 background: "linear-gradient(135deg, #B71C1C 0%, #E53935 40%, #FF1744 100%)",
                 boxShadow: "0 0 30px rgba(255,23,68,0.5), 0 0 60px rgba(183,28,28,0.3), 0 8px 32px rgba(0,0,0,0.6)",
@@ -318,7 +441,7 @@ export default function BossHunt() {
               }}
             >
               <span className="relative flex items-center gap-2 justify-center">
-                <Swords className="w-6 h-6" />
+                <Swords className="w-5 h-5 sm:w-6 sm:h-6" />
                 ENTER BATTLE
               </span>
             </button>
@@ -417,21 +540,43 @@ export default function BossHunt() {
       {/* ===== ANIMATIONS ===== */}
       <style>{`
         @keyframes bossGlow {
-          0% { box-shadow: 0 0 40px ${rarityColor}33, 0 0 70px ${rarityColor}11, 0 20px 60px rgba(0,0,0,0.7); }
-          100% { box-shadow: 0 0 60px ${rarityColor}55, 0 0 100px ${rarityColor}22, 0 20px 60px rgba(0,0,0,0.7); }
+          0% { box-shadow: 0 0 40px ${rarityColor}33, 0 0 80px ${rarityColor}11, 0 0 120px ${elemColor}08, 0 20px 60px rgba(0,0,0,0.7); }
+          100% { box-shadow: 0 0 60px ${rarityColor}55, 0 0 100px ${rarityColor}22, 0 0 160px ${elemColor}15, 0 20px 60px rgba(0,0,0,0.7); }
         }
         @keyframes bossFloat {
           0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-6px); }
+          50% { transform: translateY(-8px); }
         }
-        @keyframes bossBorderRotate {
-          0% { box-shadow: inset 0 0 20px ${rarityColor}33; }
-          50% { box-shadow: inset 0 0 30px ${rarityColor}55; }
-          100% { box-shadow: inset 0 0 20px ${rarityColor}33; }
+        @keyframes bossBorderPulse {
+          0%, 100% { box-shadow: inset 0 0 25px ${rarityColor}44, inset 0 0 50px ${elemColor}11; }
+          50% { box-shadow: inset 0 0 35px ${rarityColor}66, inset 0 0 70px ${elemColor}22; }
         }
         @keyframes ctaPulse {
           0%, 100% { box-shadow: 0 0 30px rgba(255,23,68,0.5), 0 0 60px rgba(183,28,28,0.3), 0 8px 32px rgba(0,0,0,0.6); }
           50% { box-shadow: 0 0 45px rgba(255,23,68,0.7), 0 0 90px rgba(183,28,28,0.4), 0 8px 32px rgba(0,0,0,0.6); }
+        }
+        @keyframes auraPulse {
+          0% { opacity: 0.5; transform: scale(1); }
+          100% { opacity: 0.9; transform: scale(1.08); }
+        }
+        @keyframes ambientPulse {
+          0% { opacity: 0.6; }
+          100% { opacity: 1; }
+        }
+        @keyframes lightningFlash {
+          0%, 90%, 100% { opacity: 0; }
+          92%, 94% { opacity: 0.8; }
+          93% { opacity: 0.3; }
+        }
+        @keyframes emberRise {
+          0% { transform: translateY(0) translateX(0); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 0.6; }
+          100% { transform: translateY(-200px) translateX(var(--drift, 0px)); opacity: 0; }
+        }
+        @keyframes sparkFlicker {
+          0%, 100% { opacity: 0; transform: scale(0.5); }
+          50% { opacity: 0.8; transform: scale(1.2); }
         }
       `}</style>
     </div>
