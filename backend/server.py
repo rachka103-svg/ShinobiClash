@@ -216,6 +216,7 @@ class BattleCompleteIn(BaseModel):
     result: str  # "win" | "lose"
     participants: List[str] = []  # instance_ids that fought
     survivors: List[str] = []     # instance_ids still alive at the end
+    difficulty: str = "normal"    # "normal" | "hard" | "difficult" | "extreme"
 
 
 class SummonIn(BaseModel):
@@ -1509,7 +1510,11 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
     cleared = user.get("cleared_stages", [])
     first_clear = body.stage_id not in cleared
     chapter = stage.get("chapter", 1)
-    base_exp = stage["rewards"]["exp"]
+    # Difficulty exp multiplier — enemies are scaled client-side, but exp
+    # rewards are scaled server-side. Extreme is capped at x25 (not x100).
+    _diff_exp_mult = {"normal": 1, "hard": 2, "difficult": 10, "extreme": 25}
+    exp_mult = _diff_exp_mult.get(body.difficulty, 1)
+    base_exp = round(stage["rewards"]["exp"] * exp_mult)
     rewards = {"ryo": stage["rewards"]["ryo"], "gems": 0, "exp": base_exp, "ninja": None, "hero_exp": [], "items": {}}
 
     user["ryo"] = user.get("ryo", 0) + rewards["ryo"]

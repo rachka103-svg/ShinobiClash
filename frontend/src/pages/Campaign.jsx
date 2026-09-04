@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Play, Zap, ChevronDown, Scroll } from "lucide-react";
+import { Play, Zap, ChevronDown, Scroll, Skull } from "lucide-react";
 import { LockIcon, CheckIcon, CrownIcon, SwordsIcon } from "@/components/GameIcons";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
-import { startBattle, ENERGY_COST } from "@/lib/energy";
+import { startBattle, ENERGY_COST, DIFFICULTIES } from "@/lib/energy";
 import { RARITY } from "@/lib/styles";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -30,9 +30,11 @@ export default function Campaign() {
   const navigate = useNavigate();
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [difficulty, setDifficulty] = useState("normal");
 
   const cleared = user?.cleared_stages || [];
   const energyLow = (user?.energy?.current ?? 0) < ENERGY_COST.campaign;
+  const playerLevel = user?.level || 1;
 
   useEffect(() => {
     if (selectedChapter != null || stages.length === 0) return;
@@ -55,7 +57,7 @@ export default function Campaign() {
     setBusy(true);
     try {
       if (energyLow) { toast.error("Not enough Energy — refill in the Shop or wait for regen."); return; }
-      await startBattle({ mode: "campaign", id: stage.id, navigate, setUser });
+      await startBattle({ mode: "campaign", id: stage.id, navigate, setUser, difficulty });
     } finally {
       setBusy(false);
     }
@@ -109,6 +111,34 @@ export default function Campaign() {
       </div>
 
       {chapterMeta && <p className="text-xs text-slate-500 italic mb-3 max-w-xl">{chapterMeta.lore}</p>}
+
+      {/* Difficulty selector — replay cleared stages at higher difficulty for more EXP */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap" data-testid="difficulty-selector">
+        <span className="text-[10px] uppercase tracking-widest text-slate-500 flex items-center gap-1"><Skull className="w-3 h-3" /> Difficulty</span>
+        {DIFFICULTIES.map((d) => {
+          const unlocked = playerLevel >= d.unlockLevel;
+          const active = difficulty === d.id;
+          return (
+            <button
+              key={d.id}
+              data-testid={`difficulty-${d.id}`}
+              disabled={!unlocked}
+              onClick={() => setDifficulty(d.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                active
+                  ? "bg-chakra text-[#05050A]"
+                  : unlocked
+                  ? "bg-white/[0.06] text-slate-400 hover:bg-white/[0.1] border border-white/10"
+                  : "bg-white/[0.02] text-slate-600 border border-white/5 cursor-not-allowed"
+              }`}
+            >
+              {d.label}
+              {!unlocked && <span className="ml-1 text-[9px]">Lv{d.unlockLevel}</span>}
+              {unlocked && d.id !== "normal" && <span className="ml-1 text-[9px] opacity-70">EXP ×{d.expMult}</span>}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Stage list */}
       <div className="space-y-2.5 pb-4" data-testid="campaign-stage-list">

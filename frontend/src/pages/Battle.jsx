@@ -30,6 +30,7 @@ import {
   isImmune,
   applyJutsuEffects,
 } from "@/lib/battle";
+import { getDifficulty } from "@/lib/energy";
 import { evaluateTeamSynergy } from "@/lib/teamSynergy";
 import { getCombatModifiers, computeLifesteal, combatModifiersSummary } from "@/lib/combatModifiers";
 import api from "@/lib/api";
@@ -192,6 +193,12 @@ export default function Battle() {
       : null;
 
   const floor = mode === "spire" ? parseInt(id, 10) : null;
+
+  // Campaign difficulty — stashed by Campaign.jsx before navigation.
+  const difficultyCfg =
+    mode === "campaign"
+      ? getDifficulty(sessionStorage.getItem("campaign_difficulty") || "normal")
+      : getDifficulty("normal");
 
   const stage =
     mode === "campaign"
@@ -462,6 +469,17 @@ export default function Battle() {
         e.combat_modifiers || null
       );
     }).filter(Boolean);
+
+    // Campaign difficulty scaling — multiply enemy HP/ATK/DEF by the
+    // difficulty tier's stat multiplier (Hard ×2, Difficult ×10, Extreme ×100).
+    if (mode === "campaign" && difficultyCfg.mult > 1) {
+      for (const e of enemies) {
+        e.maxHp = Math.round(e.maxHp * difficultyCfg.mult);
+        e.hp = e.maxHp;
+        e.atk = Math.round(e.atk * difficultyCfg.mult);
+        e.def = Math.round(e.def * difficultyCfg.mult);
+      }
+    }
 
     // Campaign boss mechanics
     if (
@@ -1452,6 +1470,7 @@ export default function Battle() {
             result,
             participants,
             survivors,
+            difficulty: difficultyCfg.id,
           },
         ],
 
