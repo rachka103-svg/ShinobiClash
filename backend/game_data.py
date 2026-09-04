@@ -1102,8 +1102,8 @@ _HERO_DEFS = [
     ("loki", "Loki", "Trickster Unbound", "Dark", "UR", "Assassin", "The trickster whose chains will shatter at Ragnarok."),
     ("hephaestus", "Hephaestus", "Divine Artificer", "Fire", "UR", "Attacker", "Greatest smith of the gods, whose forge never cools."),
     ("leviathan", "Leviathan", "Serpent of the Abyss", "Water", "UR", "Tank", "The great sea monster no weapon of man can pierce."),
-    ("brahma", "Brahma", "Creator of Worlds", "Light", "LR", "Support", "The creator god who shaped the universe from nothing."),
-    ("apep", "Apep", "Chaos Serpent", "Dark", "LR", "Assassin", "The eternal chaos serpent who devours the sun each night."),
+    ("brahma", "Brahma", "Creator of Worlds", "Light", "GR", "Support", "The creator god who shaped the universe from nothing."),
+    ("apep", "Apep", "Chaos Serpent", "Dark", "GR", "Assassin", "The eternal chaos serpent who devours the sun each night."),
 ]
 
 # Backfill the original 12 heroes with extended base_stats and ultimate abilities
@@ -1157,14 +1157,14 @@ _HERO_DEFS_V2 = [
     ("odin", "Odin", "All-Father", "Lightning", "UR", "Support", "Stormcall Legion", "The all-father, who traded an eye for infinite wisdom."),
     ("sekhmet", "Sekhmet", "Lioness of War", "Fire", "UR", "Assassin", "Emberforge Pantheon", "Lioness war-goddess whose breath once brought plague to enemies of Egypt."),
     ("inari", "Inari", "Fox of Fortune", "Light", "UR", "Mage", "Radiant Choir", "A shapeshifting kitsune deity of prosperity, rice, and cunning magic."),
-    ("ra", "Ra", "Sun Sovereign", "Light", "GR", "Mage", "Celestial Ascendancy", "The sun god who sails the sky each day to hold back eternal night."),
+    ("ra", "Ra", "Sun Sovereign", "Light", "LR", "Mage", "Celestial Ascendancy", "The sun god who sails the sky each day to hold back eternal night."),
     ("fenrir", "Fenrir", "The Bound Wolf", "Dark", "GR", "Bruiser", "Nightveil Syndicate", "A monstrous wolf prophesied to break its chains at the end of the world."),
-    ("perun", "Perun", "Thunder Warlord", "Lightning", "GR", "Attacker", "Stormcall Legion", "Slavic god of thunder who rides the storm astride a fiery chariot."),
-    ("tlaloc", "Tlaloc", "Rainstorm Sovereign", "Water", "GR", "Control", "Tidebound Covenant", "Aztec god of rain and storm, both life-giver and destroyer."),
-    ("izanami", "Izanami", "Queen of the Underworld", "Dark", "GR", "Healer", "Abyssal Depths Cabal", "Goddess of creation and death, ruling the underworld with tragic grace."),
-    ("ymir", "Ymir", "Primordial Giant", "Earth", "LR", "Tank", "Ironroot Dominion", "The first giant, from whose bones and flesh the world itself was formed."),
-    ("chronos", "Chronos", "Warden of Ages", "Dark", "MYTHIC", "Control", "Abyssal Depths Cabal", "The primordial embodiment of time, who can unravel a battle's very pace."),
-    ("yggdrasil_spirit", "Yggdrasil", "Heart of the World Tree", "Earth", "MYTHIC", "Support", "Celestial Ascendancy", "The spirit of the world tree, whose roots and branches sustain all realms."),
+    ("perun", "Perun", "Thunder Warlord", "Lightning", "LR", "Attacker", "Stormcall Legion", "Slavic god of thunder who rides the storm astride a fiery chariot."),
+    ("tlaloc", "Tlaloc", "Rainstorm Sovereign", "Water", "LR", "Control", "Tidebound Covenant", "Aztec god of rain and storm, both life-giver and destroyer."),
+    ("izanami", "Izanami", "Queen of the Underworld", "Dark", "LR", "Healer", "Abyssal Depths Cabal", "Goddess of creation and death, ruling the underworld with tragic grace."),
+    ("ymir", "Ymir", "Primordial Giant", "Earth", "GR", "Tank", "Ironroot Dominion", "The first giant, from whose bones and flesh the world itself was formed."),
+    ("chronos", "Chronos", "Warden of Ages", "Dark", "LR", "Control", "Abyssal Depths Cabal", "The primordial embodiment of time, who can unravel a battle's very pace."),
+    ("yggdrasil_spirit", "Yggdrasil", "Heart of the World Tree", "Earth", "LR", "Support", "Celestial Ascendancy", "The spirit of the world tree, whose roots and branches sustain all realms."),
 ]
 
 for _hid, _name, _title, _el, _rar, _role, _fac, _lore in _HERO_DEFS_V2:
@@ -1285,7 +1285,7 @@ CATALOG_BY_ID = {n["id"]: n for n in NINJA_CATALOG}
 # Legacy N drops to R; the old top tiers (LR / MYTHIC) fold up into GR.
 # Base stats keep their authored values so no existing hero is nerfed.
 # ---------------------------------------------------------------------------
-RARITY_REMAP = {"N": "R", "R": "R", "SR": "SR", "SSR": "SSR", "UR": "UR", "GR": "GR", "LR": "GR", "MYTHIC": "GR"}
+RARITY_REMAP = {"N": "R", "R": "R", "SR": "SR", "SSR": "SSR", "UR": "UR", "GR": "GR", "LR": "LR", "MYTHIC": "GR"}
 for _n in NINJA_CATALOG:
     _n["rarity"] = RARITY_REMAP.get(_n["rarity"], _n["rarity"])
 CATALOG_BY_ID = {n["id"]: n for n in NINJA_CATALOG}
