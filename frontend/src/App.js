@@ -24,6 +24,7 @@ import Forge from "@/pages/Forge";
 import Dungeons from "@/pages/Dungeons";
 import BattleHub from "@/pages/BattleHub";
 import Tsukuyomi from "@/pages/Tsukuyomi";
+import BossHunt from "@/pages/BossHunt";
 import Shop from "@/pages/Shop";
 
 const LoadingScreen = () => (
@@ -131,6 +132,7 @@ function AppRoutes() {
       <Route path="/summon" element={<Protected><Summon /></Protected>} />
       <Route path="/forge" element={<Protected><Forge /></Protected>} />
       <Route path="/dungeons" element={<Protected><Dungeons /></Protected>} />
+      <Route path="/boss-hunt" element={<Protected><BossHunt /></Protected>} />
       <Route path="/leaderboard" element={<Protected><Leaderboard /></Protected>} />
       <Route path="/admin" element={<AdminOnly><Admin /></AdminOnly>} />
       <Route path="/battle/:mode/:id" element={<Protected bare><Battle /></Protected>} />

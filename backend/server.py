@@ -1143,6 +1143,50 @@ async def combat_modifiers_catalog():
     return {"archetypes": archetypes}
 
 
+@api_router.post("/game/boss-hunt/complete")
+async def boss_hunt_complete(body: dict, user: dict = Depends(get_current_user)):
+    """Complete a Boss Hunt battle and award rewards."""
+    from boss_configs import get_boss_hunt_config
+
+    boss_id = body.get("boss_id", "")
+    result = body.get("result", "lose")
+    participants = body.get("participants", [])
+    survivors = body.get("survivors", [])
+
+    boss_config = get_boss_hunt_config(boss_id)
+    if not boss_config:
+        raise FastAPIException(status_code=404, detail="Boss Hunt boss not found")
+
+    rewards = {"ryo": 0, "gems": 0, "exp": 0, "hero_exp": []}
+
+    if result == "win":
+        difficulty_mult = {
+            "HARD": 1.0, "EXTREME": 1.5, "NIGHTMARE": 2.0,
+        }.get(boss_config.get("difficulty", "HARD"), 1.0)
+
+        rewards["ryo"] = round(800 * difficulty_mult)
+        rewards["gems"] = round(30 * difficulty_mult)
+        rewards["exp"] = round(300 * difficulty_mult)
+
+        # Apply rewards
+        user["ryo"] = user.get("ryo", 0) + rewards["ryo"]
+        user["gems"] = user.get("gems", 0) + rewards["gems"]
+
+        # Track cleared bosses
+        cleared_bosses = user.get("cleared_bosses", [])
+        if boss_id not in cleared_bosses:
+            cleared_bosses.append(boss_id)
+            # First-clear bonus
+            rewards["gems"] += 50
+            rewards["first_clear"] = True
+
+        await db.users.update_one({"_id": user["_id"]}, {
+            "$set": {"ryo": user["ryo"], "gems": user["gems"], "cleared_bosses": cleared_bosses},
+        })
+
+    return {"result": result, "rewards": rewards, "profile": public_user(user)}
+
+
 @api_router.get("/game/profile")
 async def profile(user: dict = Depends(get_current_user)):
     return public_user(user)

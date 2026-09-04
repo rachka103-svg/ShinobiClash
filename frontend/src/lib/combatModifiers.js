@@ -87,15 +87,20 @@ export function computeDamageModifier(baseDamage, damageType, targetMods, jutsuE
   }
 
   // --- Ailment-specific resistance/amplification ---
+  // Read both `ailment_amplification` (increases ailment damage taken)
+  // and `ailment_vulnerability` (same effect, alternate naming used by
+  // the dual_immune archetype and Boss Hunt configs).
   if (damageType === "ailment") {
     const ailmentType = targetMods._current_ailment_type || "";
     if (ailmentType) {
       const ailRes = (targetMods.ailment_resistance || {})[ailmentType] || 0;
       const ailAmp = (targetMods.ailment_amplification || {})[ailmentType] || 0;
+      const ailVuln = (targetMods.ailment_vulnerability || {})[ailmentType] || 0;
+      const totalAmp = ailAmp + ailVuln;
       reduction += ailRes;
-      reduction -= ailAmp;
+      reduction -= totalAmp;
       if (ailRes > 0) notes.push(`${ailmentType.toUpperCase()} RESIST`);
-      if (ailAmp > 0) notes.push(`${ailmentType.toUpperCase()} AMP`);
+      if (totalAmp > 0) notes.push(`${ailmentType.toUpperCase()} VULN`);
     }
   }
 
@@ -229,6 +234,9 @@ export function combatModifiersSummary(mods) {
 
   for (const [ail, val] of Object.entries(mods.ailment_amplification || {})) {
     if (val > 0) vulnerabilities.push(`${ail.charAt(0).toUpperCase() + ail.slice(1)} Amplification`);
+  }
+  for (const [ail, val] of Object.entries(mods.ailment_vulnerability || {})) {
+    if (val > 0) vulnerabilities.push(`${ail.charAt(0).toUpperCase() + ail.slice(1)} Vulnerability`);
   }
   for (const [ail, val] of Object.entries(mods.ailment_resistance || {})) {
     if (val > 0) resistances.push(`${ail.charAt(0).toUpperCase() + ail.slice(1)} Resistance`);

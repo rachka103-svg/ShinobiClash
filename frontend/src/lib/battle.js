@@ -492,6 +492,18 @@ export function rollDamage(
     )
   );
 
+  // --- Synergy elemental damage bonus ---
+  // Apply team synergy damage bonus for the jutsu's element (e.g.
+  // fire_damage_pct = 15 → +15% fire damage). Applied before combat
+  // modifier resistances so resistances still reduce the bonus portion.
+  const synBonuses = actor._synergyDamageBonuses;
+  if (synBonuses) {
+    const elemKey = (jutsu.element || actor.element || "").toLowerCase() + "_damage_pct";
+    if (synBonuses[elemKey]) {
+      dmg = Math.round(dmg * (1 + synBonuses[elemKey] / 100));
+    }
+  }
+
   // --- Global Combat Modifiers ---
   // Apply damage-type resistances, immunities, and additional reductions
   // from the centralized combat modifiers system.
@@ -1901,17 +1913,21 @@ export function applyJutsuEffects(
   for (
     const eff of jutsu.effects
   ) {
-    if (
-      eff.chance != null &&
-      eff.chance < 100 &&
-      Math.random() * 100 >
-        eff.chance
-    ) {
-      continue;
-    }
-
     const et =
       eff.type;
+
+    // --- Chance roll (with synergy CC effectiveness bonus) ---
+    let chance = eff.chance;
+    if (chance != null && chance < 100) {
+      // Apply synergy CC effectiveness bonus to stun/freeze chances
+      const synBonuses = actor._synergyDamageBonuses;
+      if (synBonuses?.cc_effectiveness_pct && CC_TYPES.has(et)) {
+        chance = Math.min(100, chance * (1 + synBonuses.cc_effectiveness_pct / 100));
+      }
+      if (Math.random() * 100 > chance) {
+        continue;
+      }
+    }
 
     // --- Combat modifier debuff resistance ---
     // Check if the target resists this debuff/status effect
@@ -1962,6 +1978,15 @@ export function applyJutsuEffects(
         et === "poison"
       ) {
         multiplier *= 1.35;
+      }
+
+      // Apply synergy DoT damage bonus (e.g. burn_damage_pct = 20 → +20%)
+      const synBonuses = actor._synergyDamageBonuses;
+      if (synBonuses) {
+        const dotKey = et + "_damage_pct";
+        if (synBonuses[dotKey]) {
+          multiplier *= (1 + synBonuses[dotKey] / 100);
+        }
       }
 
       const mag =
@@ -2640,6 +2665,15 @@ export function applyBattleStartPassives(
         }
         if (bonuses.crit_chance_pct) {
           c.critChance = (c.critChance || 0.06) + bonuses.crit_chance_pct / 100;
+        }
+        // Apply damage reduction synergy as a combat modifier on allies
+        if (bonuses.damage_reduction_pct) {
+          c.combatModifiers = {
+            ...c.combatModifiers,
+            damage_reduction: Math.min(0.75,
+              (c.combatModifiers.damage_reduction || 0) + bonuses.damage_reduction_pct / 100
+            ),
+          };
         }
         // Store damage-type bonuses for use during damage resolution
         c._synergyDamageBonuses = bonuses;

@@ -185,6 +185,12 @@ export default function Battle() {
       ? JSON.parse(sessionStorage.getItem("tsukuyomi_fight") || "null")
       : null;
 
+  // Boss Hunt fights are launched from the Boss Hunt page.
+  const bossHuntFight =
+    mode === "bosshunt"
+      ? JSON.parse(sessionStorage.getItem("bosshunt_boss") || "null")
+      : null;
+
   const floor = mode === "spire" ? parseInt(id, 10) : null;
 
   const stage =
@@ -208,6 +214,8 @@ export default function Battle() {
       ? arenaOpponent?.team || []
       : mode === "tsukuyomi"
       ? tsukuFight?.enemies || []
+      : mode === "bosshunt"
+      ? bossHuntFight?.enemies || []
       : stage?.enemies || [];
 
   const title =
@@ -219,6 +227,8 @@ export default function Battle() {
       ? `ARENA · vs ${arenaOpponent?.name || "???"}`
       : mode === "tsukuyomi"
       ? tsukuFight?.boss?.name || "TSUKUYOMI"
+      : mode === "bosshunt"
+      ? bossHuntFight?.name || "BOSS HUNT"
       : stage?.name || "BATTLE";
 
   const ready =
@@ -230,6 +240,8 @@ export default function Battle() {
       ? !!arenaOpponent && Object.keys(catalogById).length > 0
       : mode === "tsukuyomi"
       ? !!tsukuFight && Object.keys(catalogById).length > 0
+      : mode === "bosshunt"
+      ? !!bossHuntFight && Object.keys(catalogById).length > 0
       : !!stage;
 
   const backTo =
@@ -239,6 +251,8 @@ export default function Battle() {
       ? "/arena"
       : mode === "tsukuyomi"
       ? "/tsukuyomi"
+      : mode === "bosshunt"
+      ? "/boss-hunt"
       : mode === "trial"
       ? "/dungeons"
       : "/spire";
@@ -466,6 +480,18 @@ export default function Battle() {
       enemies[0].bossMechanicId =
         tsukuFight.boss.boss_mechanic;
 
+      enemies[0].bossPhaseIndex = -1;
+    }
+
+    // Boss Hunt boss mechanics
+    if (
+      mode === "bosshunt" &&
+      enemies[0]
+    ) {
+      const bhEnemy = bossHuntFight?.enemies?.[0];
+      if (bhEnemy?.boss_mechanic) {
+        enemies[0].bossMechanicId = bhEnemy.boss_mechanic;
+      }
       enemies[0].bossPhaseIndex = -1;
     }
 
@@ -1003,10 +1029,13 @@ export default function Battle() {
         );
 
         if (t) {
+          const healMult = act._synergyDamageBonuses?.healing_pct
+            ? 1 + act._synergyDamageBonuses.healing_pct / 100
+            : 1;
           const heal = Math.round(
-            (jutsu.power / 100) *
+            ((jutsu.power / 100) *
               act.atk +
-              jutsu.power
+              jutsu.power) * healMult
           );
 
           t.hp = Math.min(
@@ -1090,7 +1119,10 @@ export default function Battle() {
         const allies = arr.filter((c) => c.side === act.side && c.alive);
         newEvents.push(makeEvent("SKILL", { actorUid: act.uid, jutsuId: jutsu.id }));
         allies.forEach((ally) => {
-          const heal = Math.round((jutsu.power || 100) / 100 * act.atk + (jutsu.power || 100));
+          const healMult = act._synergyDamageBonuses?.healing_pct
+            ? 1 + act._synergyDamageBonuses.healing_pct / 100
+            : 1;
+          const heal = Math.round(((jutsu.power || 100) / 100 * act.atk + (jutsu.power || 100)) * healMult);
           ally.hp = Math.min(ally.maxHp, ally.hp + heal);
           addFloat(ally.uid, `+${heal}`, "#00E676");
           newEvents.push(makeEvent("HEAL", { actorUid: act.uid, targetUid: ally.uid, value: heal }));
@@ -1436,6 +1468,16 @@ export default function Battle() {
           {
             opponent_user_id:
               arenaOpponent?.user_id,
+            result,
+            participants,
+            survivors,
+          },
+        ],
+
+        bosshunt: [
+          "/game/boss-hunt/complete",
+          {
+            boss_id: bossHuntFight?.boss_id,
             result,
             participants,
             survivors,
@@ -1870,6 +1912,9 @@ export default function Battle() {
             : mode === "tsukuyomi"
             ? () =>
                 navigate("/tsukuyomi")
+            : mode === "bosshunt"
+            ? () =>
+                navigate("/boss-hunt")
             : () => {
                 const idx =
                   stages.findIndex(
