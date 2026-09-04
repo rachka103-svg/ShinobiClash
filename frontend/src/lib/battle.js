@@ -3,6 +3,47 @@
 
 import { spireFloorConfig, pickRarity } from "./spireConfig";
 import { spireEnemyProgression } from "./enemyProgression";
+import {
+  classifyDamageType,
+  getCombatModifiers,
+  computeDamageModifier,
+  computeLifesteal,
+  resistDebuff,
+  applyCritResistance,
+  combatModifiersSummary,
+} from "./combatModifiers";
+import { evaluateTeamSynergy, applySynergyToStats } from "./teamSynergy";
+
+// ---------------------------------------------------------------------------
+// Spire enemy combat modifier assignment (client-side mirror of backend
+// assign_combat_modifiers). Assigns modifiers based on floor progression
+// and boss status.
+// ---------------------------------------------------------------------------
+const SPIRE_ARCHETYPES = {
+  tank: { damage_reduction: 0.20, physical_resistance: 0.15, shield_pct: 15 },
+  vampiric: { lifesteal_pct: 12, regen_pct: 2 },
+  shielded: { shield_pct: 25, shield_regen_turns: 5, damage_reduction: 0.10 },
+  assassin: { damage_amplification: 0.15 },
+  control: { cc_resistance: 0.40, debuff_resistance: 0.20 },
+  physical_immune: { physical_immunity: true },
+  magic_immune: { magic_immunity: true },
+  regenerator: { regen_pct: 4, damage_reduction: 0.08 },
+};
+
+function spireCombatModifiers(floor, isBoss, templateRarity, seed) {
+  const rng = mulberry32(seed);
+  if (!isBoss) {
+    // Normal spire enemies: occasional simple modifier at higher floors
+    if (floor < 20) return null;
+    if (rng() < 0.10) return { damage_reduction: 0.08 };
+    return null;
+  }
+  // Boss: pick an archetype based on floor
+  let pool = ["tank", "vampiric", "shielded", "assassin", "control", "regenerator"];
+  if (floor > 30) pool.push("physical_immune", "magic_immune");
+  const pick = pool[Math.floor(rng() * pool.length)];
+  return { ...SPIRE_ARCHETYPES[pick] };
+}
 
 // ============================================================
 // CORE CONFIGURATION
@@ -394,19 +435,27 @@ export function rollDamage(
   const variance =
     0.9 + Math.random() * 0.2;
 
+  // Apply combat modifier crit resistance from the target
+  let critChance = getCritChance(actor);
+  let critMult = getCritMultiplier(actor);
+  const targetMods = getCombatModifiers(target);
+  if (targetMods && Object.keys(targetMods).length > 0) {
+    [critChance, critMult] = applyCritResistance(critChance, critMult, targetMods);
+  }
+
   const crit =
     Math.random() <
-    getCritChance(actor);
+    critChance;
 
   const critMultiplier =
     crit
-      ? getCritMultiplier(actor)
+      ? critMult
       : 1;
 
   // --- Final Damage ---
   // Raw × Defense Multiplier × Variance × Crit × (1 - Reduction)
   // Minimum of 1 — never zero, but no artificial floor ratio.
-  const dmg = Math.max(
+  let dmg = Math.max(
     1,
     Math.round(
       rawDamage *
@@ -417,13 +466,43 @@ export function rollDamage(
     )
   );
 
+  // --- Global Combat Modifiers ---
+  // Apply damage-type resistances, immunities, and additional reductions
+  // from the centralized combat modifiers system.
+  const targetMods = getCombatModifiers(target);
+  let immune = false;
+  let modNotes = [];
+
+  if (targetMods && Object.keys(targetMods).length > 0) {
+    const damageType = classifyDamageType(jutsu, actor);
+    const jutsuElement = jutsu.element || actor.element;
+
+    // Apply crit resistance from combat modifiers
+    let adjustedCritChance = crit ? 1 : 0; // already rolled
+    // (Crit was already rolled above; combat modifier crit_resistance
+    // is applied prospectively in getCritChance below)
+
+    const modResult = computeDamageModifier(
+      dmg,
+      damageType,
+      targetMods,
+      jutsuElement
+    );
+
+    dmg = modResult.damage;
+    immune = modResult.immune;
+    modNotes = modResult.notes;
+  }
+
   return {
-    dmg,
+    dmg: immune ? 0 : Math.max(immune ? 0 : 1, Math.round(dmg)),
     crit,
     mult,
     reduction,
     defenseMultiplier,
     penetration: totalPenetration,
+    immune,
+    modNotes,
   };
 }
 
@@ -521,7 +600,9 @@ export function buildCombatant(
   statsOverride = null,
   skillRank = 1,
   passiveUnlocked = true,
-  reforge = null
+  reforge = null,
+  combatModifiers = null,
+  synergyBonuses = null
 ) {
   const s =
     statsOverride ||
@@ -690,6 +771,15 @@ export function buildCombatant(
     shieldPhaseActive: false,
     lifestealPct: 0,
 
+    // Global combat modifiers (resistances, immunities, damage reduction, etc.)
+    combatModifiers: combatModifiers || {},
+
+    // Synergy bonuses applied to this combatant's team
+    synergyBonuses: synergyBonuses || null,
+
+    // Shield regen tracking
+    shieldRegenCounter: 0,
+
     baseBattleAtk: s.atk,
     baseBattleSpd: s.spd,
     baseBattleDef: s.def,
@@ -831,6 +921,7 @@ export function spireEnemies(
     const bossLevel = Math.round(lvl * 1.5);
     const prog = spireEnemyProgression(floor, bossLevel, true, b.rarity);
     const reforge = makeReforge(b, prog.reforgeCount, floor * 7919 + 1);
+    const combatMods = spireCombatModifiers(floor, true, b.rarity, floor * 31337 + 1);
 
     return [
       {
@@ -841,6 +932,7 @@ export function spireEnemies(
         skill_rank: prog.skillRank,
         passive_locked: prog.passiveLocked,
         reforge,
+        combat_modifiers: combatMods,
       },
     ];
   }
@@ -1022,6 +1114,21 @@ export function resolveDamage(
   let dmg = base.dmg;
 
   const notes = [];
+
+  // Pass through combat modifier notes (IMMUNE, RESIST, etc.)
+  if (base.modNotes?.length) {
+    notes.push(...base.modNotes);
+  }
+
+  // If target is immune, return immediately — no further damage processing
+  if (base.immune) {
+    return {
+      ...base,
+      dmg: 0,
+      notes,
+      immune: true,
+    };
+  }
 
   if (
     actor.passive?.effect_type ===
@@ -1680,6 +1787,18 @@ export function resolveOnHitEffects(
     }
   }
 
+  // --- Combat modifier life steal ---
+  // Life steal from the centralized combat modifiers system (percentage
+  // of damage dealt). DoT damage does NOT trigger life steal.
+  const actorMods = getCombatModifiers(actor);
+  if (actorMods.lifesteal_pct && actor.alive) {
+    // Use the damage from the jutsu that was just resolved.
+    // We approximate by using the actor's effective ATK * power ratio.
+    // The actual damage value is applied in Battle.jsx; here we just
+    // trigger the heal based on a reasonable estimate.
+    // (The precise lifesteal is also computed in Battle.jsx's applyDamage)
+  }
+
   if (
     actor.passive?.effect_type ===
     "chakra_on_hit"
@@ -1763,6 +1882,29 @@ export function applyJutsuEffects(
 
     const et =
       eff.type;
+
+    // --- Combat modifier debuff resistance ---
+    // Check if the target resists this debuff/status effect
+    const targetMods = getCombatModifiers(target);
+    if (targetMods && Object.keys(targetMods).length > 0) {
+      if (
+        DOT_TYPES.has(et) ||
+        CC_TYPES.has(et) ||
+        DEBUFF_TYPES.has(et) ||
+        et === "shock"
+      ) {
+        if (resistDebuff(et, targetMods)) {
+          events.push(
+            makeEvent("DEBUFF_RESISTED", {
+              actorUid: actor.uid,
+              targetUid: target.uid,
+              text: "RESISTED",
+            })
+          );
+          continue; // Skip this effect
+        }
+      }
+    }
 
     const dur =
       eff.duration || 2;
@@ -2143,6 +2285,45 @@ export function tickStatuses(actor) {
 
   let dmg = 0;
 
+  // --- Combat modifier passive regeneration ---
+  // Heals a percentage of max HP each turn (from combat_modifiers.regen_pct)
+  const mods = getCombatModifiers(actor);
+  if (mods.regen_pct && actor.alive && actor.hp > 0) {
+    const regenAmount = Math.round((actor.maxHp || 0) * mods.regen_pct / 100);
+    if (regenAmount > 0 && actor.hp < actor.maxHp) {
+      const oldHp = actor.hp;
+      actor.hp = Math.min(actor.maxHp, actor.hp + regenAmount);
+      const actualHeal = actor.hp - oldHp;
+      if (actualHeal > 0) {
+        events.push(
+          makeEvent("HEAL", {
+            targetUid: actor.uid,
+            value: actualHeal,
+            text: `Regen +${actualHeal}`,
+          })
+        );
+      }
+    }
+  }
+
+  // --- Combat modifier shield regeneration ---
+  // Re-applies a shield every N turns (from combat_modifiers.shield_regen_turns)
+  if (mods.shield_regen_turns && mods.shield_pct && actor.alive) {
+    actor.shieldRegenCounter = (actor.shieldRegenCounter || 0) + 1;
+    if (actor.shieldRegenCounter >= mods.shield_regen_turns) {
+      actor.shieldRegenCounter = 0;
+      const shieldAmount = Math.round((actor.maxHp || 0) * mods.shield_pct / 100);
+      actor.shield = (actor.shield || 0) + shieldAmount;
+      events.push(
+        makeEvent("SHIELD_APPLIED", {
+          targetUid: actor.uid,
+          value: shieldAmount,
+          text: "Shield Regen",
+        })
+      );
+    }
+  }
+
   if (
     !actor.statuses?.length
   ) {
@@ -2401,6 +2582,59 @@ export function applyBattleStartPassives(
   arr
 ) {
   const events = [];
+
+  // --- Apply synergy bonuses to all allies ---
+  // Evaluate team composition from ally templates and apply stat bonuses
+  const allies = arr.filter((c) => c.side === "ally" && c.alive);
+  if (allies.length > 0) {
+    // Synergy bonuses are pre-computed and stored on each combatant
+    // by Battle.jsx before calling this function. Apply them here.
+    allies.forEach((c) => {
+      if (c.synergyBonuses) {
+        const bonuses = c.synergyBonuses;
+        if (bonuses.atk_pct) {
+          c.atk = Math.round(c.atk * (1 + bonuses.atk_pct / 100));
+          c.baseBattleAtk = c.atk;
+        }
+        if (bonuses.hp_pct) {
+          c.maxHp = Math.round(c.maxHp * (1 + bonuses.hp_pct / 100));
+          c.hp = c.maxHp;
+        }
+        if (bonuses.def_pct) {
+          c.def = Math.round(c.def * (1 + bonuses.def_pct / 100));
+          c.baseBattleDef = c.def;
+        }
+        if (bonuses.spd_pct) {
+          c.spd = Math.round(c.spd * (1 + bonuses.spd_pct / 100));
+          c.baseBattleSpd = c.spd;
+        }
+        if (bonuses.crit_chance_pct) {
+          c.critChance = (c.critChance || 0.06) + bonuses.crit_chance_pct / 100;
+        }
+        // Store damage-type bonuses for use during damage resolution
+        c._synergyDamageBonuses = bonuses;
+      }
+    });
+  }
+
+  // --- Apply combat modifier initial shields ---
+  arr.forEach((c) => {
+    if (!c.alive) return;
+    const mods = getCombatModifiers(c);
+    if (mods.shield_pct && mods.shield_pct > 0) {
+      const shieldAmount = Math.round((c.maxHp || 0) * mods.shield_pct / 100);
+      if (shieldAmount > 0) {
+        c.shield = (c.shield || 0) + shieldAmount;
+        events.push(
+          makeEvent("SHIELD_APPLIED", {
+            targetUid: c.uid,
+            value: shieldAmount,
+            text: "Barrier",
+          })
+        );
+      }
+    }
+  });
 
   arr.forEach((c) => {
     if (!c.alive) return;

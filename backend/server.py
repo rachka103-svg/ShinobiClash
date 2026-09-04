@@ -1083,6 +1083,66 @@ async def stages():
     return {"stages": enriched_stages, "boss_mechanics": gd.BOSS_MECHANICS, "chapters": chapters}
 
 
+# ---------------------------------------------------------------------------
+# Boss Hunt — global combat depth expansion endpoints
+# ---------------------------------------------------------------------------
+@api_router.get("/game/boss-hunt")
+async def boss_hunt_list():
+    """Returns all Boss Hunt boss configurations with their combat modifiers,
+    traits, and strategy hints for the UI."""
+    from boss_configs import get_all_boss_hunt_configs
+    from combat_modifiers import combat_modifiers_summary
+    bosses = []
+    for boss in get_all_boss_hunt_configs():
+        mods = boss.get("combat_modifiers", {})
+        summary = combat_modifiers_summary(mods)
+        bosses.append({
+            "id": boss["id"],
+            "name": boss["name"],
+            "template_id": boss["template_id"],
+            "element": boss["element"],
+            "difficulty": boss["difficulty"],
+            "traits": boss["traits"],
+            "strategy": boss["strategy"],
+            "vulnerability_hint": boss["vulnerability_hint"],
+            "archetype": boss["archetype"],
+            "boss_mechanic": boss.get("boss_mechanic"),
+            "combat_summary": summary,
+        })
+    return {"bosses": bosses}
+
+
+@api_router.get("/game/team-synergy")
+async def team_synergy(user: dict = Depends(get_current_user)):
+    """Evaluates the player's current team composition and returns active
+    synergies + bonuses for the Team Builder UI."""
+    from team_synergy import get_synergy_bonuses_for_team
+    result = get_synergy_bonuses_for_team(user.get("team", []), user)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Combat modifiers catalog — for UI display and debugging
+# ---------------------------------------------------------------------------
+@api_router.get("/game/combat-modifiers")
+async def combat_modifiers_catalog():
+    """Returns the enemy archetype catalog and combat modifier definitions
+    for documentation and UI purposes."""
+    from combat_modifiers import ENEMY_ARCHETYPES, combat_modifiers_summary
+    archetypes = []
+    for aid, arch in ENEMY_ARCHETYPES.items():
+        summary = combat_modifiers_summary(arch.get("modifiers", {}))
+        archetypes.append({
+            "id": aid,
+            "name": arch["name"],
+            "modifiers": arch["modifiers"],
+            "traits": arch.get("traits", []),
+            "weakness_hint": arch.get("weakness_hint", ""),
+            "summary": summary,
+        })
+    return {"archetypes": archetypes}
+
+
 @api_router.get("/game/profile")
 async def profile(user: dict = Depends(get_current_user)):
     return public_user(user)

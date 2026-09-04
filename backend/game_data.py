@@ -1624,12 +1624,15 @@ def enrich_stage_enemies(stage: dict) -> dict:
     """Enrich a stage's enemies with full RPG progression from the centralized
     enemy_progression system. Called at API serve time (not module load) to
     avoid circular imports. Adds evolved rarity, ascension, real gear stats,
-    skill rank, passive status, and reforge to each enemy."""
+    skill rank, passive status, reforge, and combat modifiers to each enemy."""
     from enemy_progression import get_enemy_progression, build_enemy, compute_enemy_stats
+    from combat_modifiers import assign_combat_modifiers
+    from boss_configs import get_boss_combat_modifiers
     chapter = stage.get("chapter", 1)
     is_boss = stage.get("is_boss", False)
+    boss_mechanic = stage.get("boss_mechanic")
     enriched_enemies = []
-    for e in stage.get("enemies", []):
+    for idx, e in enumerate(stage.get("enemies", [])):
         # Skip already-enriched enemies (idempotent)
         if "stats_override" in e:
             enriched_enemies.append(e)
@@ -1638,15 +1641,25 @@ def enrich_stage_enemies(stage: dict) -> dict:
         if not tmpl:
             enriched_enemies.append(e)
             continue
+        is_stage_boss = is_boss and idx == 0
         prog = get_enemy_progression(
             mode="campaign", chapter=chapter, stage=6,
-            is_boss=(is_boss and e == stage["enemies"][0]),
+            is_boss=is_stage_boss,
             base_level=e["level"],
         )
-        built = build_enemy(tmpl, prog)
+        built = build_enemy(tmpl, prog, is_boss=is_stage_boss)
         built["level"] = e["level"]
         built["progression"]["level"] = e["level"]
         built["stats_override"] = compute_enemy_stats(tmpl, {**prog, "level": e["level"]})
+
+        # For boss stages with a boss mechanic, merge mechanic-based combat modifiers
+        if is_stage_boss and boss_mechanic:
+            mechanic_mods = get_boss_combat_modifiers(boss_mechanic)
+            if mechanic_mods:
+                existing_mods = built.get("combat_modifiers", {})
+                merged = {**existing_mods, **mechanic_mods}
+                built["combat_modifiers"] = merged
+
         enriched_enemies.append(built)
     return {**stage, "enemies": enriched_enemies}
 
@@ -2835,10 +2848,19 @@ def tsukuyomi_enemies(boss: dict, difficulty: str = "normal") -> list:
     )
     boss_tmpl = CATALOG_BY_ID.get(boss["template_id"])
     if boss_tmpl:
-        boss_enemy = build_enemy(boss_tmpl, boss_prog)
+        boss_enemy = build_enemy(boss_tmpl, boss_prog, is_boss=True)
         boss_enemy["level"] = lvl
         boss_enemy["progression"]["level"] = lvl
         boss_enemy["stats_override"] = compute_enemy_stats(boss_tmpl, {**boss_prog, "level": lvl})
+
+        # Attach boss mechanic combat modifiers
+        from combat_modifiers import get_boss_combat_modifiers
+        mechanic_id = boss.get("boss_mechanic")
+        if mechanic_id:
+            mechanic_mods = get_boss_combat_modifiers(mechanic_id)
+            if mechanic_mods:
+                existing = boss_enemy.get("combat_modifiers", {})
+                boss_enemy["combat_modifiers"] = {**existing, **mechanic_mods}
     else:
         boss_enemy = {"template_id": boss["template_id"], "level": lvl}
     enemies = [boss_enemy]

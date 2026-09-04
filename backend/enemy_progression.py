@@ -566,16 +566,31 @@ def compute_enemy_reforge(progression: dict, template: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Build a complete enemy dict ready for the frontend
 # ---------------------------------------------------------------------------
-def build_enemy(template: dict, progression: dict) -> dict:
+def build_enemy(template: dict, progression: dict, is_boss: bool = False, is_elite: bool = False, archetype_override: str = None) -> dict:
     """Build a complete enemy definition dict with full progression.
 
     This produces the enemy dict that the frontend Battle.jsx consumes,
-    including pre-computed stats, skill rank, passive status, and reforge
-    modifiers — all derived from real RPG systems.
+    including pre-computed stats, skill rank, passive status, reforge
+    modifiers, and combat modifiers — all derived from real RPG systems.
+
+    Combat modifiers (resistances, immunities, damage reduction, life steal,
+    shields, etc.) are assigned based on progression score and enemy tier
+    (normal/elite/boss) using the centralized combat_modifiers system.
     """
+    from combat_modifiers import assign_combat_modifiers
+
     stats = compute_enemy_stats(template, progression)
     reforge = compute_enemy_reforge(progression, template)
     evolved_rarity = resolve_evolved_rarity(template, progression)
+
+    # Assign combat modifiers based on progression and tier
+    seed = hash((template["id"], progression.get("score", 0), is_boss, is_elite))
+    combat_mods = assign_combat_modifiers(
+        progression, template,
+        is_boss=is_boss, is_elite=is_elite,
+        archetype_override=archetype_override,
+        seed=seed,
+    )
 
     enemy = {
         "template_id": template["id"],
@@ -587,6 +602,10 @@ def build_enemy(template: dict, progression: dict) -> dict:
         "passive_locked": not progression["passive_unlocked"],
         "reforge": reforge if reforge else None,
     }
+
+    # Attach combat modifiers if any were assigned
+    if combat_mods:
+        enemy["combat_modifiers"] = combat_mods
 
     enemy["progression"] = {
         "level": progression["level"],

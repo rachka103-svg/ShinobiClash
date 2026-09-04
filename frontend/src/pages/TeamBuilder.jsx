@@ -12,6 +12,7 @@ import { DecoCorners } from "@/components/RarityFx";
 import HeroDetailModal from "@/components/HeroDetailModal";
 import { useAudio } from "@/context/AudioContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import { evaluateTeamSynergy, TEAM_SYNERGIES } from "@/lib/teamSynergy";
 
 const EL_ICON = { Fire: Flame, Water: Droplet, Wind: WindIcon, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: Sun };
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
@@ -63,17 +64,20 @@ export default function TeamBuilder() {
   const teamTmpls = team.map((uid) => ownedById[uid]).filter(Boolean);
   const teamPower = teamTmpls.reduce((s, n) => s + (n.power || 0), 0);
 
-  // ---- Synergy (data-driven preview) ----
+  // ---- Synergy (real team synergy evaluation) ----
   const synergy = useMemo(() => {
-    const count = (key) => teamTmpls.reduce((m, t) => { const k = t[key] || "?"; m[k] = (m[k] || 0) + 1; return m; }, {});
-    const top = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1])[0] || ["—", 0];
-    const [elName, elC] = top(count("element"));
-    const [roleName, roleC] = top(count("role"));
-    const [facName, facC] = top(count("faction"));
-    const elPct = elC >= 2 ? elC * 5 : 0;
-    const rolePct = roleC >= 2 ? roleC * 5 : 0;
-    const facPct = facC >= 2 ? 8 : 0;
-    return { elName, elPct, roleName, roleC, rolePct, facName, facPct, total: elPct + rolePct + facPct };
+    const result = evaluateTeamSynergy(teamTmpls);
+    const active = result.active;
+    const bonuses = result.bonuses;
+    // Build a compact summary for the total bonus display
+    const bonusLabels = [];
+    if (bonuses.atk_pct) bonusLabels.push(`+${bonuses.atk_pct}% ATK`);
+    if (bonuses.hp_pct) bonusLabels.push(`+${bonuses.hp_pct}% HP`);
+    if (bonuses.def_pct) bonusLabels.push(`+${bonuses.def_pct}% DEF`);
+    if (bonuses.damage_reduction_pct) bonusLabels.push(`+${bonuses.damage_reduction_pct}% DMG Reduction`);
+    if (bonuses.crit_chance_pct) bonusLabels.push(`+${bonuses.crit_chance_pct}% Crit`);
+    if (bonuses.healing_pct) bonusLabels.push(`+${bonuses.healing_pct}% Healing`);
+    return { active, bonuses, bonusLabels, total: bonusLabels.length };
   }, [teamTmpls]);
 
   const filtered = useMemo(() => {
@@ -202,16 +206,41 @@ export default function TeamBuilder() {
           <h2 className="font-display text-xl tracking-wide text-ink">SQUAD SYNERGY</h2>
           <Info className="w-4 h-4 text-slate-500" />
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Synergy icon={ELEMENT[synergy.elName]?.icon ? (EL_ICON[synergy.elName] || Sparkles) : Sparkles} color={ELEMENT[synergy.elName]?.color || "#00E676"}
-            label="Element Bonus" main={`${synergy.elName} ${synergy.elPct ? `+${synergy.elPct}% ATK` : "—"}`} />
-          <Synergy icon={Swords} color="#00E5FF" label="Role Bonus" main={synergy.rolePct ? `${synergy.roleC} ${synergy.roleName}s +${synergy.rolePct}% ATK` : "—"} />
-          <Synergy icon={Shield} color="#D500F9" label="Faction Bonus" main={synergy.facPct ? `${synergy.facName} +${synergy.facPct}% HP` : "—"} />
-          <div className="text-center lg:text-right">
-            <p className="font-display text-4xl leading-none" style={{ color: GOLD.base, textShadow: `0 0 18px ${GOLD.base}66` }}>+{synergy.total}%</p>
-            <p className="text-[10px] uppercase tracking-widest text-slate-500 mt-1">Total Bonus applied to squad stats</p>
+        {synergy.active.length === 0 ? (
+          <p className="text-sm text-slate-500 py-2">No active synergies — mix elements, roles, or status specialists to unlock bonuses.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {synergy.active.map((s) => (
+              <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/[0.04] border border-black/10"
+                title={s.label}>
+                <span className="text-lg">{s.icon}</span>
+                <div className="leading-tight">
+                  <p className="text-sm font-semibold text-ink">{s.name}</p>
+                  <p className="text-[10px] text-slate-500">{s.label}</p>
+                </div>
+                <div className="flex flex-wrap gap-1 ml-1">
+                  {Object.entries(s.bonuses).map(([k, v]) => (
+                    <span key={k} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-chakra/15 text-chakra">
+                      +{v}{k.endsWith("_pct") ? "%" : ""} {k.replace(/_pct$/, "").replace(/_/g, " ").toUpperCase()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        )}
+        {synergy.bonusLabels.length > 0 && (
+          <div className="flex items-center gap-2 pt-2 border-t border-black/10">
+            <span className="text-[10px] uppercase tracking-widest text-slate-500">Total Bonuses:</span>
+            <div className="flex flex-wrap gap-1.5">
+              {synergy.bonusLabels.map((label, i) => (
+                <span key={i} className="text-xs font-semibold px-2 py-0.5 rounded-lg" style={{ color: GOLD.base, background: `${GOLD.base}15` }}>
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ===================== Collection ===================== */}

@@ -30,6 +30,8 @@ import {
   isImmune,
   applyJutsuEffects,
 } from "@/lib/battle";
+import { evaluateTeamSynergy } from "@/lib/teamSynergy";
+import { getCombatModifiers, computeLifesteal, combatModifiersSummary } from "@/lib/combatModifiers";
 import api from "@/lib/api";
 
 let _uid = 0;
@@ -381,6 +383,15 @@ export default function Battle() {
   useEffect(() => {
     if (!ready || !user || Object.keys(catalogById).length === 0) return;
 
+    // --- Evaluate team synergy ---
+    const allyTemplates = (user.team || [])
+      .map((tid) => user.ninjas.find((n) => n.instance_id === tid))
+      .filter(Boolean)
+      .map((inst) => catalogById[inst.template_id])
+      .filter(Boolean);
+    const synergyResult = evaluateTeamSynergy(allyTemplates);
+    const synergyBonuses = synergyResult.bonuses;
+
     const allies = (user.team || [])
       .map((tid) =>
         user.ninjas.find((n) => n.instance_id === tid)
@@ -397,7 +408,9 @@ export default function Battle() {
           inst.stats || null,
           inst.skill_rank || 1,
           !inst.passive_locked,
-          inst.reforge || null
+          inst.reforge || null,
+          null, // combatModifiers — allies don't have enemy combat modifiers
+          Object.keys(synergyBonuses).length > 0 ? synergyBonuses : null
         )
       );
 
@@ -428,7 +441,8 @@ export default function Battle() {
         gearedStats,
         e.skill_rank || 1,
         e.passive_locked == null ? true : !e.passive_locked,
-        e.reforge || null
+        e.reforge || null,
+        e.combat_modifiers || null
       );
     });
 
@@ -733,20 +747,36 @@ export default function Battle() {
       };
 
       const applyDamage = (target) => {
-        const {
-          dmg,
-          crit,
-          mult,
-          notes,
-        } = resolveDamage(
+        const result = resolveDamage(
           act,
           target,
           jutsu,
           advantage
         );
 
+        const {
+          dmg,
+          crit,
+          mult,
+          notes,
+        } = result;
+
+        // --- Immunity / Resistance feedback ---
+        if (result.immune) {
+          addFloat(target.uid, "IMMUNE", "#94A3B8");
+          newEvents.push(
+            makeEvent("IMMUNE", {
+              actorUid: act.uid,
+              targetUid: target.uid,
+              text: "IMMUNE",
+            })
+          );
+          return; // No damage applied
+        }
+
         let remaining = dmg;
 
+        let shieldAbsorbed = 0;
         if (target.shield > 0) {
           const absorbed = Math.min(
             target.shield,
@@ -755,6 +785,7 @@ export default function Battle() {
 
           target.shield -= absorbed;
           remaining -= absorbed;
+          shieldAbsorbed = absorbed;
         }
 
         target.hp = Math.max(
@@ -793,23 +824,33 @@ export default function Battle() {
           }
         }
 
+        // --- Combat feedback floaters ---
+        const hasResistNotes = notes.some((n) =>
+          n.includes("RESIST") || n.includes("REDUCTION")
+        );
+
         const color = notes.includes("execute")
           ? "#E040FB"
+          : result.immune
+          ? "#94A3B8"
+          : hasResistNotes
+          ? "#64748B"
           : mult > 1
           ? "#FFCA28"
           : mult < 1
           ? "#94A3B8"
           : "#FF1744";
 
-        addFloat(
-          target.uid,
-          `${crit ? "CRIT " : ""}${
-            notes.includes("execute")
-              ? "EXECUTE "
-              : ""
-          }-${dmg}`,
-          color
-        );
+        let floatText = "";
+        if (shieldAbsorbed > 0 && remaining > 0) {
+          floatText = `${crit ? "CRIT " : ""}${notes.includes("execute") ? "EXECUTE " : ""}-${dmg}`;
+        } else if (shieldAbsorbed > 0 && remaining === 0) {
+          floatText = `SHIELD -${shieldAbsorbed}`;
+        } else {
+          floatText = `${crit ? "CRIT " : ""}${notes.includes("execute") ? "EXECUTE " : ""}${hasResistNotes ? "RESIST " : ""}-${dmg}`;
+        }
+
+        addFloat(target.uid, floatText, color);
 
         newEvents.push(
           makeEvent(
@@ -828,6 +869,30 @@ export default function Battle() {
           () => setShakeUid(null),
           ms(300)
         );
+
+        // --- Combat modifier life steal ---
+        // Apply life steal from the attacker's combat modifiers (percentage
+        // of damage dealt). DoT does not trigger this.
+        const actorMods = getCombatModifiers(act);
+        if (actorMods.lifesteal_pct && act.alive && dmg > 0) {
+          const lifestealHeal = computeLifesteal(dmg, actorMods, false);
+          if (lifestealHeal > 0) {
+            const oldHp = act.hp;
+            act.hp = Math.min(act.maxHp, act.hp + lifestealHeal);
+            const actualHeal = act.hp - oldHp;
+            if (actualHeal > 0) {
+              addFloat(act.uid, `+${actualHeal}`, "#00E676");
+              newEvents.push(
+                makeEvent("HEAL", {
+                  actorUid: act.uid,
+                  targetUid: act.uid,
+                  value: actualHeal,
+                  text: `Life Steal +${actualHeal}`,
+                })
+              );
+            }
+          }
+        }
 
         if (target.hp === 0) {
           const revived = resolveDeath(
