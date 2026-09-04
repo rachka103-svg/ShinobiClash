@@ -390,6 +390,14 @@ html, body {
 }
 .godly-border { animation: godlyBorder 3s linear infinite; }
 
+/* Crimson border (LR / LLR) — intense red pulsing border, completely distinct
+   from gold UR and mint-cyan GR */
+@keyframes crimsonBorder {
+    0%, 100% { border-color: #FF1744; box-shadow: 0 0 12px #FF174444, 0 0 24px #FF174433, inset 0 0 10px #FF174422; }
+    50%      { border-color: #FF5252; box-shadow: 0 0 20px #FF174466, 0 0 40px #FF174444, inset 0 0 18px #FF174433; }
+}
+.crimson-border { animation: crimsonBorder 1.8s ease-in-out infinite; }
+
 @keyframes sparkleFloat {
     0%   { transform: translateY(10px) scale(0.4); opacity: 0; }
     25%  { opacity: 1; }

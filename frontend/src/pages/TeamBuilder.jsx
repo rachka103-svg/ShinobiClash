@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
-import { RARITY, ELEMENT, rarityFrame, GOLD } from "@/lib/theme";
+import { RARITY, ELEMENT, rarityFrame, GOLD, CRIMSON } from "@/lib/theme";
 import { DecoCorners } from "@/components/RarityFx";
 import HeroDetailModal from "@/components/HeroDetailModal";
 import { useAudio } from "@/context/AudioContext";
@@ -16,8 +16,8 @@ import { evaluateTeamSynergy, TEAM_SYNERGIES } from "@/lib/teamSynergy";
 
 const EL_ICON = { Fire: Flame, Water: Droplet, Wind: WindIcon, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: Sun };
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
-const RARITY_KEYS = ["GR", "LR", "UR", "SSR", "SR", "R"];
-const RARITY_RANK = { R: 0, SR: 1, SSR: 2, UR: 3, LR: 4, GR: 5 };
+const RARITY_KEYS = ["GR", "LLR", "LR", "UR", "SSR", "SR", "R"];
+const RARITY_RANK = { R: 0, SR: 1, SSR: 2, UR: 3, LR: 4, LLR: 4, GR: 5 };
 const ascensionCost = (rarity, asc) => ({
   ascension_crystal: 5 + asc * 5 + RARITY_RANK[rarity] * 3,
   ryo: 500 + asc * 400 + RARITY_RANK[rarity] * 300,
@@ -353,7 +353,7 @@ const SquadSlotCard = ({ hero, index, onView, onRemove }) => {
   return (
     <div data-testid={`squad-slot-${index}`}
       className="relative aspect-[3/4.2] rounded-2xl overflow-hidden text-left group cursor-pointer"
-      style={{ border: `${fr.strokeWidth}px solid ${fr.useGold ? GOLD.stroke : r.color}`, boxShadow: `0 0 34px ${(fr.useGold ? GOLD.base : r.color)}33` }}
+      style={{ border: `${fr.strokeWidth}px solid ${fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color}`, boxShadow: `0 0 34px ${(fr.useCrimson ? CRIMSON.base : fr.useGold ? GOLD.base : r.color)}33` }}
       onClick={onView}>
       <img src={hero.portrait} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" />
       <div className="absolute inset-0" style={{ background: `linear-gradient(to top, #05050Af2 6%, #05050A66 42%, transparent 70%)` }} />
@@ -387,7 +387,7 @@ const CollectionCard = ({ hero, slot, squadFull, onView, onToggle }) => {
   return (
     <div data-testid={`team-card-${hero.template_id}`}
       className="relative aspect-[3/4] rounded-xl overflow-hidden text-left group transition-transform active:scale-95 cursor-pointer"
-      style={{ border: `${selected ? 2 : fr.strokeWidth}px solid ${selected ? "#00E5FF" : (fr.useGold ? GOLD.stroke : r.color + "aa")}`, boxShadow: selected ? "0 0 22px #00E5FF66" : `0 0 12px ${r.color}22` }}
+      style={{ border: `${selected ? 2 : fr.strokeWidth}px solid ${selected ? "#00E5FF" : (fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color + "aa")}`, boxShadow: selected ? "0 0 22px #00E5FF66" : `0 0 12px ${r.color}22` }}
       onClick={onView}>
       <img src={hero.portrait} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" loading="lazy" />
       <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #05050Af5 8%, #05050A55 45%, transparent 72%)" }} />

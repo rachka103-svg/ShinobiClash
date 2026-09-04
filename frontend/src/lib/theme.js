@@ -42,14 +42,15 @@ export const ACCENT = {
   gold: "#FFCA28",   // premium / reward / ascension
 };
 
-// ---- Rarity — 5 canonical tiers, strong & unmistakable at a glance ------
-// R < SR < SSR < UR < GR, with GR as the pinnacle (and the pity target).
+// ---- Rarity — canonical tiers, strong & unmistakable at a glance ------
+// R < SR < SSR < UR < LR < LLR < GR, with GR as the pinnacle (and the pity target).
 export const RARITY = {
   R: { label: "R", color: "#9E9E9E", name: "Common", tier: 0 },
   SR: { label: "SR", color: "#29B6F6", name: "Rare", tier: 1 },
   SSR: { label: "SSR", color: "#AB47BC", name: "Epic", tier: 2 },
   UR: { label: "UR", color: "#FFCA28", name: "Legendary", tier: 3 },
-  LR: { label: "LR", color: "#FF5252", name: "Mythic", tier: 4 },
+  LR: { label: "LR", color: "#FF1744", name: "Mythic", tier: 4 },
+  LLR: { label: "LLR", color: "#D50000", name: "Limited Mythic", tier: 4 },
   GR: { label: "GR", color: "#64FFDA", name: "Ascendant", tier: 5 },
   MYTHIC: { label: "MYTHIC", color: "#E040FB", name: "Eternal", tier: 6 },
 };
@@ -129,6 +130,18 @@ export const GODLY = {
   hairline: "rgba(100,255,218,0.4)",
 };
 
+/** CRIMSON — the distinct all-red prestige treatment for LR / LLR.
+ *  LR and LLR are completely visually distinct from the gold UR and the
+ *  mint-cyan GR: every frame element (border, corners, glow, sparkles)
+ *  uses crimson red. */
+export const CRIMSON = {
+  base: "#FF1744",
+  bright: "#FF5252",
+  dim: "rgba(255,23,68,0.22)",
+  hairline: "rgba(255,23,68,0.38)",
+  stroke: "rgba(255,23,68,0.75)",
+};
+
 export const STROKE = {
   soft: "rgba(255,255,255,0.08)",
   base: "rgba(255,255,255,0.12)",
@@ -136,7 +149,9 @@ export const STROKE = {
 };
 
 // Which rarities receive the gold prestige treatment on their frame.
-export const GOLD_RARITIES = ["UR", "LR", "GR"];
+export const GOLD_RARITIES = ["UR"];
+// LR / LLR get the all-red Crimson treatment — completely distinct from gold.
+export const CRIMSON_RARITIES = ["LR", "LLR"];
 // GR gets the Godly treatment (even more ornate than gold).
 export const GODLY_RARITIES = ["GR"];
 
@@ -158,18 +173,20 @@ export const rarityFrame = (key) => {
   const r = RARITY[key] || RARITY.R;
   const t = r.tier;
   const isGodly = GODLY_RARITIES.includes(key);
+  const useCrimson = CRIMSON_RARITIES.includes(key);
   const useGold = GOLD_RARITIES.includes(key);
-  // UR now gets the full gold ornamentation (cornerLevel 4) that GR used to
-  // have; GR gets a new Godly level (5) with even more corner studs.
-  const cornerLevel = t >= 4 ? 5 : t >= 3 ? 4 : t >= 2 ? 2 : t >= 1 ? 1 : 0;
+  // LR / LLR get cornerLevel 6 (crimson); GR keeps 5 (godly);
+  // UR gets 4 (gold); SSR gets 2; SR gets 1.
+  const cornerLevel = isGodly ? 5 : useCrimson ? 6 : t >= 3 ? 4 : t >= 2 ? 2 : t >= 1 ? 1 : 0;
   return {
     tier: t,
     rarityColor: r.color,
     useGold,
+    useCrimson,
     isGodly,
     cornerLevel,
-    strokeColor: isGodly ? GODLY.stroke : useGold ? GOLD.stroke : `${r.color}66`,
-    strokeWidth: isGodly ? 3 : t >= 3 ? 2 : 1,
-    cornerColor: isGodly ? GODLY.base : useGold ? GOLD.base : r.color,
+    strokeColor: isGodly ? GODLY.stroke : useCrimson ? CRIMSON.stroke : useGold ? GOLD.stroke : `${r.color}66`,
+    strokeWidth: isGodly ? 3 : useCrimson ? 3 : t >= 3 ? 2 : 1,
+    cornerColor: isGodly ? GODLY.base : useCrimson ? CRIMSON.base : useGold ? GOLD.base : r.color,
   };
 };

@@ -15,7 +15,7 @@ import TsukuyomiTab from "@/components/admin/TsukuyomiTab";
 import EnemyGalleryTab from "@/components/admin/EnemyGalleryTab";
 
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
-const RARITIES = ["R", "SR", "SSR", "UR", "GR"];
+const RARITIES = ["R", "SR", "SSR", "UR", "LR", "LLR", "GR"];
 const ROLES = ["Attacker", "Tank", "Support", "Assassin", "Mage", "Healer", "Control", "Bruiser"];
 const ART_STYLES = ["anime", "painterly", "cel-shaded", "semi-realistic", "dark fantasy", "chibi"];
 const SURPRISE_POSES = [

@@ -29,8 +29,8 @@ export const SPIRE_BOSS_FLOORS = new Set(
 );
 export const SPIRE_MILESTONE_FLOORS = new Set([100, 250, 500, 750, 1000]);
 
-const RARITY_ORDER = { R: 0, SR: 1, SSR: 2, UR: 3, LR: 4, GR: 5 };
-const RARITIES = ["R", "SR", "SSR", "UR", "GR"];
+const RARITY_ORDER = { R: 0, SR: 1, SSR: 2, UR: 3, LR: 4, LLR: 4, GR: 5 };
+const RARITIES = ["R", "SR", "SSR", "UR", "LR", "LLR", "GR"];
 
 function phaseIndex(floor) {
   for (let i = 0; i < SPIRE_PHASES.length; i++) {

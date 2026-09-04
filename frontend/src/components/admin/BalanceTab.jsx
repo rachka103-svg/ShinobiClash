@@ -3,7 +3,7 @@ import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
-const RARITIES = ["R", "SR", "SSR", "UR", "GR"];
+const RARITIES = ["R", "SR", "SSR", "UR", "LR", "LLR", "GR"];
 const SCALAR_FIELDS = [
   { key: "energy_max_default", label: "Max Energy", step: 1 },
   { key: "energy_regen_seconds", label: "Energy Regen (sec/point)", step: 1 },

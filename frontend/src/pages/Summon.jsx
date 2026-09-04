@@ -609,6 +609,8 @@ export default function Summon() {
             {[
               { key: "ALL", label: "All Rarities" },
               { key: "GR", label: "GR" },
+              { key: "LLR", label: "Limited Mythic" },
+              { key: "LR", label: "Mythic" },
               { key: "UR", label: "Legendary" },
               { key: "SSR", label: "Epic" },
               { key: "SR", label: "Rare" },
