@@ -86,10 +86,10 @@ def stepup_rates() -> dict:
     counts = {}
     for t in gd.CATALOG_BY_ID.values():
         counts[t["rarity"]] = counts.get(t["rarity"], 0) + 1
-    total = sum(weights[r] * c for r, c in counts.items())
+    total = sum(weights.get(r, 0) * c for r, c in counts.items())
     if total <= 0:
         return {}
-    return {r: round(weights[r] * c / total * 100, 3)
+    return {r: round(weights.get(r, 0) * c / total * 100, 3)
             for r, c in sorted(counts.items(), key=lambda kv: gd.RARITY_ORDER[kv[0]])}
 
 
