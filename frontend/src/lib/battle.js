@@ -469,7 +469,6 @@ export function rollDamage(
   // --- Global Combat Modifiers ---
   // Apply damage-type resistances, immunities, and additional reductions
   // from the centralized combat modifiers system.
-  const targetMods = getCombatModifiers(target);
   let immune = false;
   let modNotes = [];
 
