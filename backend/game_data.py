@@ -2274,6 +2274,9 @@ def _rebuild_catalog():
         _finalize_kit(n)
     NINJA_CATALOG = merged
     CATALOG_BY_ID = {n["id"]: n for n in merged}
+    # Re-merge nightmare boss templates so stat lookups survive catalog rebuilds.
+    for _nb in NIGHTMARE_BOSS_BY_ID.values():
+        CATALOG_BY_ID[_nb["id"]] = _nb
 
 
 def load_dynamic(custom_heroes, overrides, hero_overrides=None):
@@ -2761,24 +2764,74 @@ _TSUKU_LORE = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Original Nightmare Boss Templates — 25 standalone boss enemies that are
+# NOT part of the playable hero roster. Each is an original dream-beast with
+# its own name, element, rarity, role, stats, and combat kit. Portraits
+# default to a placeholder; the admin panel can upload custom art per boss.
+# ---------------------------------------------------------------------------
+_NIGHTMARE_BOSS_DEFS = [
+    # id, name, element, rarity, role, lore
+    ("nm_hollow_spawn",    "Hollow Spawn",       "Dark",      "R",      "Assassin",  "A shapeless thing born from the first dream ever dreamt."),
+    ("nm_ash_revenant",    "Ash Revenant",       "Fire",      "R",      "Attacker",  "It rises from the cinders of burned-away memories."),
+    ("nm_tide_wraith",     "Tide Wraith",         "Water",     "R",      "Mage",      "A drowned soul that pulls dreamers into the deep dark."),
+    ("nm_gale_phantom",    "Gale Phantom",        "Wind",      "SR",     "Control",   "It howls through sleeping minds, scattering thoughts like leaves."),
+    ("nm_stone_husk",      "Stone Husk",          "Earth",     "SR",     "Tank",      "A petrified nightmare too heavy for the dream to dissolve."),
+    ("nm_spark_shade",     "Spark Shade",         "Lightning", "SR",     "Attacker",  "Flickering static that jolts dreamers into cold sweats."),
+    ("nm_moonlit_horror",  "Moonlit Horror",      "Dark",      "SSR",    "Assassin",  "It hunts in the pale glow of a moon that does not exist."),
+    ("nm_cinder_beast",    "Cinder Beast",        "Fire",      "SSR",    "Bruiser",   "A smouldering predator that feeds on the warmth of hope."),
+    ("nm_frost_terror",    "Frost Terror",        "Water",     "SSR",    "Mage",      "It freezes the blood of anyone who meets its gaze."),
+    ("nm_storm_nightmare", "Storm Nightmare",     "Wind",      "SSR",    "Control",   "A cyclone of regret that tears through the dreamscape."),
+    ("nm_iron_dread",      "Iron Dread",          "Earth",     "UR",     "Tank",      "An armored colossus forged from the weight of unspoken fears."),
+    ("nm_bolt_fiend",      "Bolt Fiend",          "Lightning", "UR",     "Attacker",  "A crackling demon that strikes faster than thought itself."),
+    ("nm_shadow_sovereign","Shadow Sovereign",    "Dark",      "UR",     "Assassin",  "It rules the space between dreams where nothing is real."),
+    ("nm_flame_calamity",  "Flame Calamity",      "Fire",      "UR",     "Mage",      "A living inferno that reduces dreams to white ash."),
+    ("nm_tide_leviathan",  "Tide Leviathan",       "Water",     "UR",     "Tank",      "A vast serpent that drowns entire dreamscapes in a single breath."),
+    ("nm_gale_apocalypse", "Gale Apocalypse",     "Wind",      "LR",     "Control",   "The final storm that unmade the first dreamer's mind."),
+    ("nm_earth_titan",     "Earth Titan",         "Earth",     "LR",     "Bruiser",   "A mountain given will, crushing dreamers beneath its tread."),
+    ("nm_lightning_god",   "Lightning God",       "Lightning", "LR",     "Attacker",  "A false deity of the dreamscape that smites with borrowed thunder."),
+    ("nm_dark_overlord",   "Dark Overlord",       "Dark",      "LR",     "Assassin",  "The tyrant of the nightmare realm, devourer of lucid minds."),
+    ("nm_solar_eclipse",   "Solar Eclipse",       "Light",     "LR",     "Support",   "A blotted sun that casts healing light into consuming shadow."),
+    ("nm_inferno_lord",    "Inferno Lord",        "Fire",      "GR",     "Mage",      "A crowned flame-king whose dreamscape burns for eternity."),
+    ("nm_abyss_queen",     "Abyss Queen",         "Water",     "GR",     "Healer",    "She mends nightmare-spawn with the cold of the deepest trench."),
+    ("nm_void_emperor",    "Void Emperor",        "Dark",      "GR",     "Control",   "An emptiness wearing a crown, commanding the silence between dreams."),
+    ("nm_celestial_dread", "Celestial Dread",    "Light",     "GR",     "Support",   "A fallen star that blesses nightmares with annihilating radiance."),
+    ("nm_eternal_nightmare","Eternal Nightmare", "Dark",      "MYTHIC", "Assassin",  "The final dream — the one from which no sleeper wakes."),
+]
+
+NIGHTMARE_BOSS_TEMPLATES = []
+for _hid, _name, _el, _rar, _role, _lore in _NIGHTMARE_BOSS_DEFS:
+    NIGHTMARE_BOSS_TEMPLATES.append({
+        "id": _hid, "name": _name, "title": _name, "element": _el, "rarity": _rar,
+        "role": _role, "lore": _lore, "base_stats": _hero_stats(_rar, _role),
+        "jutsus": _hero_jutsus(_hid, _name, _el, _rar, _role),
+        "passive": _passive_for(_hid, _role),
+        "portrait": "/heroes/_placeholder.png",
+        "is_nightmare_boss": True,
+    })
+NIGHTMARE_BOSS_BY_ID = {t["id"]: t for t in NIGHTMARE_BOSS_TEMPLATES}
+
+# Merge nightmare boss templates into CATALOG_BY_ID so the progression /
+# stat-computation pipeline can resolve them by template_id. They are NOT
+# added to NINJA_CATALOG, so they never appear as summonable heroes.
+for _nb in NIGHTMARE_BOSS_TEMPLATES:
+    CATALOG_BY_ID[_nb["id"]] = _nb
+
+
 def _tsukuyomi_boss_defs() -> list:
-    # Deterministic progression: weakest heroes first, strongest last.
-    # Sort by actual computed power at a reference level so the ordering
-    # reflects real stat strength, not just rarity labels. This ensures
-    # Stage 1 is the weakest encounter and Stage 25 is the strongest.
-    ranked = sorted(CATALOG_BY_ID.values(), key=lambda t: (ninja_power(t["id"], 50), t["name"]))
-    if not ranked:
+    # Use the original nightmare boss templates directly — these are
+    # standalone dream-beasts, NOT heroes from the playable roster.
+    templates = NIGHTMARE_BOSS_TEMPLATES
+    if not templates:
         return []
-    picks = [ranked[i % len(ranked)] for i in range(25)]
     set_keys = list(GEAR_SETS.keys())
-    all_ids = list(CATALOG_BY_ID.keys())
+    # Adds are sampled from the regular hero catalog for variety.
+    hero_ids = [hid for hid in CATALOG_BY_ID.keys() if not CATALOG_BY_ID[hid].get("is_nightmare_boss")]
     out = []
-    for i, t in enumerate(picks):
+    for i, t in enumerate(templates):
         idx = i + 1
         rng = _random.Random(7000 + idx)
-        adds = rng.sample(all_ids, min(2, len(all_ids)))
-        # Gear bonuses scale linearly with stage index — all stats increase,
-        # not just HP. The Dreamlord mechanic provides phase-based escalation.
+        adds = rng.sample(hero_ids, min(2, len(hero_ids))) if hero_ids else []
         cfg = TSUKU_SCALING_CONFIG
         boss_gear = {
             "hp_pct": round(cfg["gear_hp_per_stage"] * idx),
@@ -2854,7 +2907,7 @@ def tsukuyomi_enemies(boss: dict, difficulty: str = "normal") -> list:
         boss_enemy["stats_override"] = compute_enemy_stats(boss_tmpl, {**boss_prog, "level": lvl})
 
         # Attach boss mechanic combat modifiers
-        from combat_modifiers import get_boss_combat_modifiers
+        from boss_configs import get_boss_combat_modifiers
         mechanic_id = boss.get("boss_mechanic")
         if mechanic_id:
             mechanic_mods = get_boss_combat_modifiers(mechanic_id)
