@@ -264,6 +264,7 @@ export default function Tsukuyomi() {
                         <Clock className="w-6 h-6" style={{ color: "#64748b" }} />
                       </div>
                     )}
+                  </div>
 
                   {/* Status indicator — top right */}
                   {isCenter && (
