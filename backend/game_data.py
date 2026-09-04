@@ -431,7 +431,7 @@ def _kit_tank(hid, element, el, first, ri):
             "chakra_gain": 0,
             "element": element,
             "effects": [
-                _effect("stun", chance=22 + min(ri * 2, 18), duration=1),
+                _effect("stun", chance=3 + ri * 3, duration=1),
             ],
             "description": "A devastating blow with a chance to stun the target.",
         },
@@ -471,7 +471,7 @@ def _kit_assassin(hid, element, el, first, ri):
             "effects": [
                 _effect(
                     "bleed",
-                    chance=70 + min(ri * 3, 25),
+                    chance=5 + ri * 4,
                     duration=3,
                     value=24 + ri * 2,
                 ),
@@ -514,7 +514,7 @@ def _kit_mage(hid, element, el, first, ri):
             "effects": [
                 _effect(
                     "burn" if element in ("Fire", "Light") else "poison",
-                    chance=75 + min(ri * 2, 20),
+                    chance=5 + ri * 4,
                     duration=3,
                     value=22 + ri * 2,
                 ),
@@ -594,7 +594,7 @@ def _kit_control(hid, element, el, first, ri):
             "effects": [
                 _effect(
                     control_effect,
-                    chance=55 + min(ri * 3, 25),
+                    chance=3 + ri * 3,
                     duration=1,
                 ),
             ],
@@ -611,7 +611,7 @@ def _kit_control(hid, element, el, first, ri):
             "effects": [
                 _effect(
                     "def_down",
-                    chance=75,
+                    chance=8 + ri * 4,
                     duration=2,
                     value=18 + ri * 2,
                 ),
@@ -644,7 +644,7 @@ def _kit_bruiser(hid, element, el, first, ri):
             "effects": [
                 _effect(
                     "bleed",
-                    chance=60 + min(ri * 3, 25),
+                    chance=5 + ri * 4,
                     duration=3,
                     value=20 + ri * 2,
                 ),
@@ -864,6 +864,26 @@ def _add_ascendant_skill(kit, hid, name, element, el, role, ri):
 # ============================================================
 
 
+# Status effect types whose application chance should be capped by rarity.
+_STATUS_EFFECT_TYPES = frozenset({"burn", "poison", "bleed", "stun", "freeze", "atk_down", "def_down", "shock", "dispel"})
+# Max status-effect chance per rarity tier. R heroes get 5-15%, scaling up
+# to 60% for MYTHIC so high-rarity enemies feel dangerous without making
+# low-rarity fights a CC chain.
+_RARITY_EFFECT_CAP = {"N": 10, "R": 15, "SR": 20, "SSR": 25, "UR": 30, "LR": 35, "GR": 45, "MYTHIC": 60}
+
+
+def _normalize_effect_chances(kit, rarity):
+    """Cap status-effect application chances to rarity-appropriate levels."""
+    cap = _RARITY_EFFECT_CAP.get(rarity, 15)
+    skills = kit if isinstance(kit, list) else kit.get("skills", [])
+    for skill in skills:
+        for effect in skill.get("effects", []):
+            if effect.get("type") in _STATUS_EFFECT_TYPES:
+                if effect.get("chance", 0) > cap:
+                    effect["chance"] = cap
+    return kit
+
+
 def _apply_rarity_mastery(kit, rarity, role, ri):
     """
     Enhances a generated hero kit based on rarity.
@@ -892,7 +912,7 @@ def _apply_rarity_mastery(kit, rarity, role, ri):
                 if effect.get("chance", 0) < 100:
                     effect["chance"] = min(
                         100,
-                        effect["chance"] + 10
+                        effect["chance"] + 5
                     )
 
     # --------------------------------------------------------
@@ -1015,13 +1035,18 @@ def _apply_rarity_mastery(kit, rarity, role, ri):
                     int(skill.get("chakra_cost", 0) * 0.85)
                 )
 
-            # Status effects become almost unavoidable.
+            # Status effects become more reliable.
             for effect in skill.get("effects", []):
                 if effect.get("chance", 0) > 0:
                     effect["chance"] = min(
                         100,
-                        effect["chance"] + 15
+                        effect["chance"] + 10
                     )
+
+    # Normalize: cap status-effect chances to rarity-appropriate levels so
+    # lower-rarity heroes can't chain-CC enemies and high-rarity heroes feel
+    # meaningfully more reliable without being guaranteed.
+    _normalize_effect_chances(kit, rarity)
 
     return kit
 
@@ -1188,22 +1213,29 @@ for _n in NINJA_CATALOG:
 # deterministically from hero identity/role/element and scale upward by rarity.
 # ---------------------------------------------------------------------------
 _ROLE_EFFECTS = {
-    "Attacker": [("burn", 38, 3, 28), ("bleed", 38, 3, 30), ("def_down", 45, 2, 18)],
-    "Tank": [("stun", 24, 1, 0), ("def_down", 55, 2, 20), ("atk_down", 55, 2, 18)],
-    "Support": [("atk_down", 45, 2, 15), ("def_down", 45, 2, 15), ("burn", 30, 2, 20)],
-    "Assassin": [("bleed", 55, 3, 34), ("poison", 42, 3, 26), ("def_down", 50, 2, 22)],
-    "Mage": [("burn", 52, 3, 34), ("poison", 48, 3, 30), ("def_down", 55, 2, 20)],
-    "Healer": [("atk_down", 40, 2, 16), ("freeze", 20, 1, 0), ("def_down", 42, 2, 15)],
-    "Control": [("stun", 40, 1, 0), ("freeze", 40, 1, 0), ("atk_down", 60, 2, 22)],
-    "Bruiser": [("bleed", 48, 3, 30), ("stun", 28, 1, 0), ("def_down", 50, 2, 18)],
+    "Attacker": [("burn", 8, 3, 28), ("bleed", 10, 3, 30), ("def_down", 12, 2, 18)],
+    "Tank": [("stun", 5, 1, 0), ("def_down", 12, 2, 20), ("atk_down", 10, 2, 18)],
+    "Support": [("atk_down", 10, 2, 15), ("def_down", 10, 2, 15), ("burn", 8, 2, 20)],
+    "Assassin": [("bleed", 12, 3, 34), ("poison", 10, 3, 26), ("def_down", 12, 2, 22)],
+    "Mage": [("burn", 12, 3, 34), ("poison", 10, 3, 30), ("def_down", 12, 2, 20)],
+    "Healer": [("atk_down", 8, 2, 16), ("freeze", 5, 1, 0), ("def_down", 8, 2, 15)],
+    "Control": [("stun", 8, 1, 0), ("freeze", 8, 1, 0), ("atk_down", 12, 2, 22)],
+    "Bruiser": [("bleed", 10, 3, 30), ("stun", 5, 1, 0), ("def_down", 10, 2, 18)],
 }
+
+# Rarity-based bonus and cap for identity effects — keeps R heroes at 5-15%
+# while allowing GR/MYTHIC enemies to feel dangerous.
+_IDENTITY_RARITY_BONUS = {"N": 0, "R": 0, "SR": 3, "SSR": 6, "UR": 10, "LR": 14, "GR": 18, "MYTHIC": 22}
+_IDENTITY_RARITY_CAP = {"N": 10, "R": 15, "SR": 20, "SSR": 25, "UR": 30, "LR": 35, "GR": 45, "MYTHIC": 60}
 
 def _identity_effect(hero, slot):
     pool = _ROLE_EFFECTS.get(hero.get("role"), _ROLE_EFFECTS["Attacker"])
     seed = sum(ord(c) for c in hero["id"]) + slot * 7
     et, chance, duration, value = pool[seed % len(pool)]
-    rarity_bonus = {"R": 0, "SR": 3, "SSR": 7, "UR": 11, "GR": 16}.get(hero.get("rarity"), 0)
-    effect = {"type": et, "chance": min(85, chance + rarity_bonus), "duration": duration}
+    rarity = hero.get("rarity", "R")
+    rarity_bonus = _IDENTITY_RARITY_BONUS.get(rarity, 0)
+    cap = _IDENTITY_RARITY_CAP.get(rarity, 15)
+    effect = {"type": et, "chance": min(cap, chance + rarity_bonus), "duration": duration}
     if value:
         effect["value"] = value + rarity_bonus // 2
     return effect
@@ -2675,11 +2707,13 @@ ITEMS.update({
 # weakest encounter and Stage 25 is the strongest, with all stats scaling.
 TSUKU_SCALING_CONFIG = {
     "base_level": 10,               # Stage 1 base level
-    "level_per_stage": 8,           # Level increase per stage (Stage 25 = 202)
-    "gear_hp_per_stage": 3.0,       # HP gear bonus per stage index
-    "gear_atk_per_stage": 2.5,      # ATK gear bonus per stage index
-    "gear_def_per_stage": 2.0,      # DEF gear bonus per stage index
-    "gear_spd_per_stage": 1.2,      # SPD gear bonus per stage index
+    "level_per_stage": 20,           # Level increase per stage — ensures Stage N+1
+                                     # normal exceeds Stage N nightmare (2.6× mult).
+                                     # Stage 25 normal = 490, nightmare = 1274.
+    "gear_hp_per_stage": 5.0,       # HP gear bonus per stage index
+    "gear_atk_per_stage": 4.0,      # ATK gear bonus per stage index
+    "gear_def_per_stage": 3.5,      # DEF gear bonus per stage index
+    "gear_spd_per_stage": 2.0,      # SPD gear bonus per stage index
     "adds_start_stage": 8,          # First add appears at this stage (normal diff)
     "second_add_start_stage": 18,   # Second add appears at this stage (normal diff)
 }
@@ -2838,7 +2872,7 @@ def tsukuyomi_rewards(boss: dict, difficulty: str = "normal") -> dict:
     }
     if difficulty == "nightmare":
         items["lunar_essence"] = 1
-    rare_chance = round(min(0.60, boss["rare_chance"] + diff["rate_bonus"]), 4)
+    rare_chance = round(min(0.15, boss["rare_chance"] + diff["rate_bonus"]), 4)
     return {"ryo": ryo, "hero_exp": hero_exp, "items": items, "rare_chance": rare_chance}
 
 
@@ -2856,29 +2890,49 @@ def tsukuyomi_gear_drop(boss: dict, difficulty: str = "normal") -> dict:
     return g
 
 
-def tsukuyomi_boss_status(boss: dict, highest_cleared: int = 0) -> dict:
+def tsukuyomi_boss_status(boss: dict, progress: dict = None, highest_cleared: int = 0) -> str:
     """Determine the sequential unlock status of a Tsukuyomi stage.
 
+    A stage is fully cleared only when ALL difficulties (normal, hard,
+    nightmare) have been beaten. The next stage unlocks exclusively when
+    the previous stage is fully cleared — having enough power alone does
+    NOT bypass the sequential gate.
+
     Returns one of: 'cleared', 'available', 'locked'.
-    - cleared: the player has cleared this stage (index <= highest_cleared)
-    - available: the next stage to play (index == highest_cleared + 1)
-    - locked: not yet unlocked (index > highest_cleared + 1)
+    - cleared: all three difficulties beaten (progress[boss_id] == 'nightmare')
+    - available: stage 1, or previous stage fully cleared, or partially cleared
+    - locked: previous stage not yet fully cleared
     """
     idx = boss.get("index", 1)
-    if idx <= highest_cleared:
+    progress = progress or {}
+    boss_id = boss["id"]
+
+    # Fully cleared = nightmare (the highest difficulty) is done
+    if progress.get(boss_id) == "nightmare":
         return "cleared"
-    elif idx == highest_cleared + 1:
+
+    # Stage 1 is always playable
+    if idx == 1:
         return "available"
-    else:
-        return "locked"
+
+    # If this stage already has any progress it was previously unlocked
+    if boss_id in progress:
+        return "available"
+
+    # Otherwise unlock only when the previous stage is fully cleared
+    prev_id = f"tsuku_{idx - 1}"
+    if progress.get(prev_id) == "nightmare":
+        return "available"
+
+    return "locked"
 
 
-def tsukuyomi_boss_public(boss: dict, highest_cleared: int = 0) -> dict:
+def tsukuyomi_boss_public(boss: dict, progress: dict = None, highest_cleared: int = 0) -> dict:
     portrait = _TSUKUYOMI_PORTRAIT_OVERRIDES.get(boss["id"], boss["portrait"])
-    status = tsukuyomi_boss_status(boss, highest_cleared)
+    status = tsukuyomi_boss_status(boss, progress, highest_cleared)
     lock_requirement = None
     if status == "locked":
-        lock_requirement = f"Clear Nightmare {boss.get('index', 1) - 1} to unlock"
+        lock_requirement = f"Clear all difficulties of Nightmare {boss.get('index', 1) - 1} to unlock"
     return {
         **boss,
         "portrait": portrait,
@@ -2972,13 +3026,13 @@ def skill_public(rarity: str, rank: int) -> dict:
 REFORGE_MAX_PER_JUTSU = 2
 
 REFORGE_MODIFIERS = {
-    "burn":         {"id": "burn",    "name": "Ember Reforge",     "desc": "Chance to inflict Burn (fire DoT).",     "effect": {"type": "burn", "chance": 30, "duration": 3, "value": 40}},
-    "poison":       {"id": "poison",  "name": "Venom Reforge",     "desc": "Chance to inflict Poison (DoT).",      "effect": {"type": "poison", "chance": 30, "duration": 3, "value": 35}},
-    "bleed":        {"id": "bleed",   "name": "Razor Reforge",     "desc": "Chance to inflict Bleed (DoT).",        "effect": {"type": "bleed", "chance": 30, "duration": 3, "value": 38}},
-    "stun":         {"id": "stun",    "name": "Static Reforge",    "desc": "Chance to Stun (skip target's turn).",  "effect": {"type": "stun", "chance": 18, "duration": 1}},
-    "freeze":       {"id": "freeze",  "name": "Frost Reforge",     "desc": "Chance to Freeze (skip target's turn).","effect": {"type": "freeze", "chance": 18, "duration": 1}},
-    "atk_down":     {"id": "atk_down", "name": "Demoralize Reforge", "desc": "Chance to lower target ATK.",        "effect": {"type": "atk_down", "chance": 35, "duration": 2, "value": 20}},
-    "def_down":     {"id": "def_down", "name": "Piercing Reforge",  "desc": "Chance to lower target DEF.",        "effect": {"type": "def_down", "chance": 35, "duration": 2, "value": 20}},
+    "burn":         {"id": "burn",    "name": "Ember Reforge",     "desc": "Chance to inflict Burn (fire DoT).",     "effect": {"type": "burn", "chance": 8, "duration": 3, "value": 40}},
+    "poison":       {"id": "poison",  "name": "Venom Reforge",     "desc": "Chance to inflict Poison (DoT).",      "effect": {"type": "poison", "chance": 8, "duration": 3, "value": 35}},
+    "bleed":        {"id": "bleed",   "name": "Razor Reforge",     "desc": "Chance to inflict Bleed (DoT).",        "effect": {"type": "bleed", "chance": 8, "duration": 3, "value": 38}},
+    "stun":         {"id": "stun",    "name": "Static Reforge",    "desc": "Chance to Stun (skip target's turn).",  "effect": {"type": "stun", "chance": 5, "duration": 1}},
+    "freeze":       {"id": "freeze",  "name": "Frost Reforge",     "desc": "Chance to Freeze (skip target's turn).","effect": {"type": "freeze", "chance": 5, "duration": 1}},
+    "atk_down":     {"id": "atk_down", "name": "Demoralize Reforge", "desc": "Chance to lower target ATK.",        "effect": {"type": "atk_down", "chance": 10, "duration": 2, "value": 20}},
+    "def_down":     {"id": "def_down", "name": "Piercing Reforge",  "desc": "Chance to lower target DEF.",        "effect": {"type": "def_down", "chance": 10, "duration": 2, "value": 20}},
     "extra_damage": {"id": "extra_damage", "name": "Power Reforge", "desc": "+12% jutsu damage.",                  "bonus_power_pct": 12},
 }
 

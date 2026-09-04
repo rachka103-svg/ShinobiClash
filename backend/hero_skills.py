@@ -37,12 +37,12 @@ def _scale_kit(kit, rarity, role):
             if s.get("chakra_cost", 0) > 0:
                 s["power"] = int(s.get("power", 0) * 1.05)
 
-    # SSR+ — effect chances +10%
+    # SSR+ — effect chances +5%
     if ri >= 3:
         for s in kit["skills"]:
             for e in s.get("effects", []):
                 if e.get("chance", 0) < 100:
-                    e["chance"] = min(100, e["chance"] + 10)
+                    e["chance"] = min(100, e["chance"] + 5)
 
     # UR+ — chakra costs -10%, chakra gain +5
     if ri >= 4:
@@ -95,6 +95,26 @@ def _scale_kit(kit, rarity, role):
                 if s["type"] in ("attack", "aoe"):
                     s["power"] = int(s.get("power", 0) * 1.12)
 
+    # Normalize: cap status-effect chances to rarity-appropriate levels so
+    # low-rarity heroes can't chain-CC and high-rarity heroes feel dangerous.
+    _normalize_effect_chances(kit, rarity)
+
+    return kit
+
+
+# Status effect types whose application chance should be capped by rarity.
+_STATUS_EFFECT_TYPES = frozenset({"burn", "poison", "bleed", "stun", "freeze", "atk_down", "def_down", "shock", "dispel"})
+_RARITY_EFFECT_CAP = {"N": 10, "R": 15, "SR": 20, "SSR": 25, "UR": 30, "LR": 35, "GR": 45, "MYTHIC": 60}
+
+
+def _normalize_effect_chances(kit, rarity):
+    """Cap status-effect application chances to rarity-appropriate levels."""
+    cap = _RARITY_EFFECT_CAP.get(rarity, 15)
+    for skill in kit.get("skills", []):
+        for effect in skill.get("effects", []):
+            if effect.get("type") in _STATUS_EFFECT_TYPES:
+                if effect.get("chance", 0) > cap:
+                    effect["chance"] = cap
     return kit
 
 

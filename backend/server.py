@@ -1163,10 +1163,11 @@ def _validate_battle_target(mode: str, target_id: str, user: dict = None) -> Non
         raise HTTPException(status_code=404, detail="Nightmare not found")
     if mode == "tsukuyomi" and user is not None:
         boss = gd.TSUKUYOMI_BY_ID.get(target_id)
+        progress = user.get("tsukuyomi") or {}
         highest_cleared = user.get("tsukuyomi_highest_cleared", 0)
-        status = gd.tsukuyomi_boss_status(boss, highest_cleared)
+        status = gd.tsukuyomi_boss_status(boss, progress, highest_cleared)
         if status == "locked":
-            raise HTTPException(status_code=403, detail=f"Clear Nightmare {boss['index'] - 1} to unlock this stage")
+            raise HTTPException(status_code=403, detail=f"Clear all difficulties of Nightmare {boss['index'] - 1} to unlock this stage")
     if mode == "spire":
         try:
             if int(target_id) < 1:
@@ -2509,7 +2510,7 @@ async def tsukuyomi_list(user: dict = Depends(get_current_user)):
     progress = user.get("tsukuyomi") or {}
     highest_cleared = user.get("tsukuyomi_highest_cleared", 0)
     return {
-        "bosses": [gd.tsukuyomi_boss_public(b, highest_cleared) for b in gd.TSUKUYOMI_BOSSES],
+        "bosses": [gd.tsukuyomi_boss_public(b, progress, highest_cleared) for b in gd.TSUKUYOMI_BOSSES],
         "difficulties": gd.TSUKUYOMI_DIFFICULTIES,
         "progress": progress,
         "first_clears": user.get("tsukuyomi_fc") or {},
@@ -2573,10 +2574,10 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
     user["tsukuyomi"] = tsuku
 
     # Sequential progression: update highest cleared stage index.
-    # A stage counts as cleared when beaten on any difficulty.
+    # A stage counts as fully cleared only when ALL difficulties are beaten.
     boss_idx = boss.get("index", 1)
     highest_cleared = user.get("tsukuyomi_highest_cleared", 0)
-    if boss_idx > highest_cleared:
+    if tsuku.get(body.boss_id) == "nightmare" and boss_idx > highest_cleared:
         highest_cleared = boss_idx
     user["tsukuyomi_highest_cleared"] = highest_cleared
 
