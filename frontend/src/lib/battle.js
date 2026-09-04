@@ -2,6 +2,7 @@
 // Mirrors backend stat formulas and contains battle-side mechanics.
 
 import { spireFloorConfig, pickRarity } from "./spireConfig";
+import { spireEnemyProgression } from "./enemyProgression";
 
 // ============================================================
 // CORE CONFIGURATION
@@ -149,22 +150,25 @@ export function hasStatus(
 export function applyEnemyGear(stats, gearBonus) {
   if (!gearBonus) return stats;
 
+  // Mirrors the backend apply_gear_to_stats formula:
+  //   (base + flat) * (1 + pct / 100)
+  // Supports both flat and percentage bonuses from real gear pieces.
   return {
     ...stats,
     hp: Math.round(
-      stats.hp *
+      (stats.hp + (gearBonus.hp_flat || 0)) *
         (1 + (gearBonus.hp_pct || 0) / 100)
     ),
     atk: Math.round(
-      stats.atk *
+      (stats.atk + (gearBonus.atk_flat || 0)) *
         (1 + (gearBonus.atk_pct || 0) / 100)
     ),
     def: Math.round(
-      stats.def *
+      (stats.def + (gearBonus.def_flat || 0)) *
         (1 + (gearBonus.def_pct || 0) / 100)
     ),
     spd: Math.round(
-      stats.spd *
+      (stats.spd + (gearBonus.spd_flat || 0)) *
         (1 + (gearBonus.spd_pct || 0) / 100)
     ),
   };
@@ -759,6 +763,25 @@ export function spireEnemies(
   const probs =
     cfg.rarityProbs;
 
+  // Helper: generate deterministic reforge modifiers for a template's jutsus
+  const reforgeModKeys = Object.keys(REFORGE_MODIFIERS);
+  function makeReforge(template, reforgeCount, seedVal) {
+    if (reforgeCount <= 0) return null;
+    const reforgeRng = mulberry32(seedVal);
+    const result = {};
+    for (const j of (template.jutsus || [])) {
+      if ((j.chakra_cost || 0) <= 0) continue;
+      const mods = [];
+      const available = [...reforgeModKeys];
+      for (let r = 0; r < reforgeCount && available.length; r++) {
+        const idx = Math.floor(reforgeRng() * available.length);
+        mods.push(available.splice(idx, 1)[0]);
+      }
+      if (mods.length) result[j.id] = mods;
+    }
+    return Object.keys(result).length ? result : null;
+  }
+
   if (cfg.isBoss) {
     const bossRoll =
       0.3 + rng() * 0.7;
@@ -805,12 +828,19 @@ export function spireEnemies(
         )
       ] || catalog[0];
 
+    const bossLevel = Math.round(lvl * 1.5);
+    const prog = spireEnemyProgression(floor, bossLevel, true, b.rarity);
+    const reforge = makeReforge(b, prog.reforgeCount, floor * 7919 + 1);
+
     return [
       {
         template_id: b.id,
-        level: Math.round(
-          lvl * 1.5
-        ),
+        level: bossLevel,
+        ascension: prog.ascension,
+        gear_bonus: prog.gearBonus,
+        skill_rank: prog.skillRank,
+        passive_locked: prog.passiveLocked,
+        reforge,
       },
     ];
   }
@@ -841,19 +871,19 @@ export function spireEnemies(
       pool = catalog;
     }
 
-    out.push({
-      template_id:
-        pool[
-          Math.floor(
-            rng() * pool.length
-          )
-        ].id,
+    const tmpl = pool[Math.floor(rng() * pool.length)];
+    const enemyLevel = lvl + Math.floor(rng() * 3);
+    const prog = spireEnemyProgression(floor, enemyLevel, false, tmpl.rarity);
+    const reforge = makeReforge(tmpl, prog.reforgeCount, floor * 7919 + i * 31 + 1);
 
-      level:
-        lvl +
-        Math.floor(
-          rng() * 3
-        ),
+    out.push({
+      template_id: tmpl.id,
+      level: enemyLevel,
+      ascension: prog.ascension,
+      gear_bonus: prog.gearBonus,
+      skill_rank: prog.skillRank,
+      passive_locked: prog.passiveLocked,
+      reforge,
     });
   }
 

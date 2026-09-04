@@ -1073,10 +1073,11 @@ async def stages():
     # "your squad vs. this fight" without re-deriving formulas) and a short
     # `chapters` list of {chapter, name, lore} for the chapter navigator.
     # Neither touches STAGES itself — no stage/chapter data is invented.
-    enriched_stages = [
-        {**s, "recommended_power": sum(gd.ninja_power(e["template_id"], e["level"]) for e in s["enemies"])}
-        for s in gd.STAGES
-    ]
+    enriched_stages = []
+    for s in gd.STAGES:
+        enriched = gd.enrich_stage_enemies(s)
+        rp = sum(gd._enemy_power_with_gear(e) for e in enriched["enemies"])
+        enriched_stages.append({**enriched, "recommended_power": rp})
     chapter_nums = sorted(set(s["chapter"] for s in gd.STAGES))
     chapters = [{"chapter": c, **gd.chapter_meta(c)} for c in chapter_nums]
     return {"stages": enriched_stages, "boss_mechanics": gd.BOSS_MECHANICS, "chapters": chapters}

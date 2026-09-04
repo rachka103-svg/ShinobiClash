@@ -404,15 +404,19 @@ export default function Battle() {
     const enemies = enemiesDef.map((e) => {
       const template = catalogById[e.template_id];
 
-      const baseStats = computeStats(
-        template,
-        e.level,
-        e.ascension || 0
-      );
+      // Enemies with the new progression system carry pre-computed
+      // stats_override (evolved rarity + ascension + gear + crystals),
+      // skill_rank, passive_locked, and reforge — all derived from real
+      // RPG systems on the backend. Legacy enemies fall back to the
+      // old computeStats + applyEnemyGear path.
+      const statsOverride = e.stats_override || null;
 
-      const gearedStats = e.gear_bonus
-        ? applyEnemyGear(baseStats, e.gear_bonus)
-        : baseStats;
+      const gearedStats = !statsOverride && e.gear_bonus
+        ? applyEnemyGear(
+            computeStats(template, e.level, e.ascension || 0),
+            e.gear_bonus
+          )
+        : statsOverride;
 
       return buildCombatant(
         nextUid(),
@@ -421,7 +425,10 @@ export default function Battle() {
         e.level,
         e.ascension || 0,
         null,
-        gearedStats
+        gearedStats,
+        e.skill_rank || 1,
+        e.passive_locked == null ? true : !e.passive_locked,
+        e.reforge || null
       );
     });
 

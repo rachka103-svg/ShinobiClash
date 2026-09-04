@@ -1467,52 +1467,30 @@ BOSS_MECHANICS = {
 
 
 def _enemy_gear_bonuses(chapter: int, is_boss: bool, stage_rng) -> dict:
-    """Generate stat bonuses representing enemy equipment. Scales with
-    chapter progression — early enemies have little/no gear, mid-game enemies
-    get meaningful bonuses, late-game enemies have competitive gear sets.
-    Returns a dict of percentage bonuses {hp_pct, atk_pct, def_pct, spd_pct}."""
-    if chapter <= 2:
-        # Early game: mostly no gear, occasional basic common gear
-        if is_boss:
-            return {"hp_pct": 5, "atk_pct": 3, "def_pct": 3, "spd_pct": 0}
-        return {} if stage_rng.random() > 0.2 else {"hp_pct": 3, "atk_pct": 2, "def_pct": 2, "spd_pct": 0}
-    elif chapter <= 5:
-        # Early-mid: basic gear appears, bosses get rare gear
-        base = 5 + chapter * 2
-        if is_boss:
-            return {"hp_pct": base + 8, "atk_pct": base + 5, "def_pct": base + 3, "spd_pct": 3}
-        return {"hp_pct": base, "atk_pct": base - 1, "def_pct": base - 2, "spd_pct": 2} if stage_rng.random() > 0.3 else {}
-    elif chapter <= 10:
-        # Mid game: consistent gear, epic gear on bosses
-        base = 15 + (chapter - 5) * 3
-        if is_boss:
-            return {"hp_pct": base + 12, "atk_pct": base + 8, "def_pct": base + 6, "spd_pct": 5}
-        return {"hp_pct": base, "atk_pct": base - 2, "def_pct": base - 3, "spd_pct": 3}
-    elif chapter <= 20:
-        # Late game: strong gear, complete sets on bosses
-        base = 30 + (chapter - 10) * 3
-        if is_boss:
-            return {"hp_pct": base + 15, "atk_pct": base + 12, "def_pct": base + 10, "spd_pct": 8}
-        return {"hp_pct": base, "atk_pct": base - 3, "def_pct": base - 4, "spd_pct": 5}
-    else:
-        # End game: top-tier gear on everything
-        base = 60 + min(40, (chapter - 20) * 2)
-        if is_boss:
-            return {"hp_pct": base + 20, "atk_pct": base + 15, "def_pct": base + 12, "spd_pct": 10}
-        return {"hp_pct": base, "atk_pct": base - 5, "def_pct": base - 6, "spd_pct": 7}
+    """Legacy gear bonus — kept for backward compatibility with any code
+    that still calls it directly. New enemy generation uses the centralized
+    enemy_progression system which computes REAL gear stats from actual
+    gear pieces, enhancement levels, set bonuses, and crystals."""
+    # Delegate to the progression system for consistent values
+    from enemy_progression import get_enemy_progression, compute_enemy_gear_bonus
+    prog = get_enemy_progression(
+        mode="campaign", chapter=chapter, is_boss=is_boss,
+        base_level=max(1, chapter * 5),
+    )
+    # Return only the pct portion for backward-compatible callers
+    bonus = compute_enemy_gear_bonus(prog, {"id": "_legacy", "rarity": "R", "role": "Attacker"})
+    return {k: v for k, v in bonus.items() if k.endswith("_pct")}
 
 
-def _build_enemy_team(chapter, candidates, pool_by_rarity, stage_rng, count, base_level) -> list:
+def _build_enemy_team(chapter, candidates, pool_by_rarity, stage_rng, count, base_level, stage_i=1) -> list:
     """Build an enemy team with intelligent composition that scales with
     chapter progression. Early chapters use random attackers; mid/late
     chapters form synergistic teams with tanks, healers, supports, and
-    damage dealers."""
+    damage dealers. Progression enrichment is deferred to API call time
+    via enrich_stage_enemies() to avoid circular imports at module load."""
     if chapter <= 3 or count <= 1:
-        # Early game: simple random composition
         return [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
 
-    # Mid/late game: build a synergistic team
-    # Categorize available heroes by role
     by_role = {}
     for tid in candidates:
         tmpl = CATALOG_BY_ID.get(tid)
@@ -1520,44 +1498,38 @@ def _build_enemy_team(chapter, candidates, pool_by_rarity, stage_rng, count, bas
             continue
         by_role.setdefault(tmpl["role"], []).append(tid)
 
-    # Ensure we have at least some roles available; fall back to candidates
     tanks = by_role.get("Tank", []) or by_role.get("Bruiser", []) or candidates
     healers = by_role.get("Healer", []) or by_role.get("Support", []) or []
     supports = by_role.get("Support", []) or by_role.get("Control", []) or []
     damage = by_role.get("Attacker", []) or by_role.get("Assassin", []) or by_role.get("Mage", []) or candidates
     control = by_role.get("Control", []) or by_role.get("Mage", []) or []
-    assassins = by_role.get("Assassin", []) or damage
 
-    team = []
+    raw = []
     if count >= 3 and chapter >= 7:
-        # Synergistic composition: Tank + Healer/Support + Damage
-        team.append({"template_id": stage_rng.choice(tanks), "level": base_level + stage_rng.randint(0, 2)})
+        raw.append({"template_id": stage_rng.choice(tanks), "level": base_level + stage_rng.randint(0, 2)})
         if healers and chapter >= 10:
-            team.append({"template_id": stage_rng.choice(healers), "level": base_level + stage_rng.randint(0, 1)})
+            raw.append({"template_id": stage_rng.choice(healers), "level": base_level + stage_rng.randint(0, 1)})
         elif supports:
-            team.append({"template_id": stage_rng.choice(supports), "level": base_level + stage_rng.randint(0, 1)})
+            raw.append({"template_id": stage_rng.choice(supports), "level": base_level + stage_rng.randint(0, 1)})
         else:
-            team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
-        # Fill remaining slots with damage/control
+            raw.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
         for _ in range(count - 2):
             if chapter >= 15 and control and stage_rng.random() > 0.6:
-                team.append({"template_id": stage_rng.choice(control), "level": base_level + stage_rng.randint(0, 2)})
+                raw.append({"template_id": stage_rng.choice(control), "level": base_level + stage_rng.randint(0, 2)})
             else:
-                team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+                raw.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
     elif count >= 2 and chapter >= 5:
-        # Basic composition: mix of roles
-        team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+        raw.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
         if tanks and stage_rng.random() > 0.4:
-            team.append({"template_id": stage_rng.choice(tanks), "level": base_level + stage_rng.randint(0, 2)})
+            raw.append({"template_id": stage_rng.choice(tanks), "level": base_level + stage_rng.randint(0, 2)})
         else:
-            team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+            raw.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
         for _ in range(count - 2):
-            team.append({"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)})
+            raw.append({"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)})
     else:
-        # Fallback: random
-        team = [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
+        raw = [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
 
-    return team
+    return raw
 
 
 def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rarity, stage_rng) -> dict:
@@ -1565,19 +1537,16 @@ def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rari
     boss_candidates = [tid for r in boss_band for tid in pool_by_rarity.get(r, [])] or candidates
     boss_tid = stage_rng.choice(boss_candidates)
     mech_id = "sealed_titan" if chapter % 2 == 0 else "abyssal_warden"
-    # Boss level scales more aggressively in mid/late game
     boss_level_mult = 1.6 if chapter <= 5 else (1.8 + (chapter - 5) * 0.03)
     boss_level = round(base_level * boss_level_mult)
-    boss_gear = _enemy_gear_bonuses(chapter, True, stage_rng)
-    enemies = [{"template_id": boss_tid, "level": boss_level, "gear_bonus": boss_gear}]
-    # Late-game bosses get supporting adds
+    enemies = [{"template_id": boss_tid, "level": boss_level}]
     if chapter >= 8:
         add_band = _rarity_band_for_chapter(chapter)
         add_candidates = [tid for r in add_band for tid in pool_by_rarity.get(r, [])] or candidates
         add_count = min(2, 1 + (chapter - 8) // 5)
-        add_gear = _enemy_gear_bonuses(chapter, False, stage_rng)
+        add_level = round(boss_level * 0.85)
         for _ in range(add_count):
-            enemies.append({"template_id": stage_rng.choice(add_candidates), "level": round(boss_level * 0.85), "gear_bonus": add_gear})
+            enemies.append({"template_id": stage_rng.choice(add_candidates), "level": add_level})
     return {
         "id": sid, "chapter": chapter, "name": f"{CATALOG_BY_ID[boss_tid]['name']}'s Last Stand",
         "region": region, "enemies": enemies, "is_boss": True,
@@ -1589,11 +1558,7 @@ def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rari
 
 def _build_normal_stage(sid, chapter, i, region, base_level, candidates, stage_rng) -> dict:
     count = min(3, 2 + i // 3)
-    enemies = _build_enemy_team(chapter, candidates, {}, stage_rng, count, base_level)
-    # Apply enemy gear bonuses
-    gear = _enemy_gear_bonuses(chapter, False, stage_rng)
-    for e in enemies:
-        e["gear_bonus"] = gear
+    enemies = _build_enemy_team(chapter, candidates, {}, stage_rng, count, base_level, stage_i=i)
     return {
         "id": sid, "chapter": chapter, "name": f"{region} Skirmish {i}",
         "region": region, "enemies": enemies, "is_boss": False,
@@ -1653,6 +1618,37 @@ for _ch in range(1, 5):
     STAGES.extend(generate_campaign_stages(_ch, _ch, stages_per_chapter=12, start_i=4))
 STAGES.extend(generate_campaign_stages(5, 100, stages_per_chapter=12))
 STAGES_BY_ID = {s["id"]: s for s in STAGES}
+
+
+def enrich_stage_enemies(stage: dict) -> dict:
+    """Enrich a stage's enemies with full RPG progression from the centralized
+    enemy_progression system. Called at API serve time (not module load) to
+    avoid circular imports. Adds evolved rarity, ascension, real gear stats,
+    skill rank, passive status, and reforge to each enemy."""
+    from enemy_progression import get_enemy_progression, build_enemy, compute_enemy_stats
+    chapter = stage.get("chapter", 1)
+    is_boss = stage.get("is_boss", False)
+    enriched_enemies = []
+    for e in stage.get("enemies", []):
+        # Skip already-enriched enemies (idempotent)
+        if "stats_override" in e:
+            enriched_enemies.append(e)
+            continue
+        tmpl = CATALOG_BY_ID.get(e.get("template_id"))
+        if not tmpl:
+            enriched_enemies.append(e)
+            continue
+        prog = get_enemy_progression(
+            mode="campaign", chapter=chapter, stage=6,
+            is_boss=(is_boss and e == stage["enemies"][0]),
+            base_level=e["level"],
+        )
+        built = build_enemy(tmpl, prog)
+        built["level"] = e["level"]
+        built["progression"]["level"] = e["level"]
+        built["stats_override"] = compute_enemy_stats(tmpl, {**prog, "level": e["level"]})
+        enriched_enemies.append(built)
+    return {**stage, "enemies": enriched_enemies}
 
 
 # ---------------------------------------------------------------------------
@@ -2615,6 +2611,13 @@ TRIALS_BY_ID.update({t["id"]: t for t in DUNGEON_TRIALS})
 
 
 def dungeon_recommended_power(entry: dict) -> int:
+    """Recommended power for trial dungeons. Uses the full progression
+    power calculation when enemies have progression data, otherwise falls
+    back to the base ninja_power."""
+    from enemy_progression import team_recommended_power
+    has_progression = any("stats_override" in e for e in entry["enemies"])
+    if has_progression:
+        return team_recommended_power(entry["enemies"], CATALOG_BY_ID)
     return sum(ninja_power(e["template_id"], e["level"]) for e in entry["enemies"])
 
 
@@ -2816,41 +2819,70 @@ def clear_tsukuyomi_portrait(boss_id: str) -> bool:
 
 
 def tsukuyomi_enemies(boss: dict, difficulty: str = "normal") -> list:
+    """Build Tsukuyomi enemy list with full RPG progression. Each enemy
+    receives evolved rarity, ascension, real gear, crystals, skill rank,
+    and passives from the centralized progression system."""
+    from enemy_progression import get_enemy_progression, build_enemy, compute_enemy_stats
     diff = TSUKU_DIFF_BY_ID.get(difficulty, TSUKUYOMI_DIFFICULTIES[0])
     cfg = TSUKU_SCALING_CONFIG
     idx = boss.get("index", 1)
     lvl = max(1, round(boss["base_level"] * diff["power_mult"]))
-    # Boss gets powerful generated gear; adds get scaled gear based on difficulty
-    boss_gear = boss.get("boss_gear") or {"hp_pct": 25, "atk_pct": 20, "def_pct": 18, "spd_pct": 10}
-    # Scale boss gear with difficulty
-    diff_mult = diff["power_mult"]
-    scaled_boss_gear = {
-        "hp_pct": round(boss_gear["hp_pct"] * diff_mult),
-        "atk_pct": round(boss_gear["atk_pct"] * diff_mult),
-        "def_pct": round(boss_gear["def_pct"] * diff_mult),
-        "spd_pct": round(boss_gear["spd_pct"] * diff_mult),
-    }
-    enemies = [{"template_id": boss["template_id"], "level": lvl, "gear_bonus": scaled_boss_gear}]
+
+    # Boss gets full progression with is_boss=True
+    boss_prog = get_enemy_progression(
+        mode="tsukuyomi", stage=idx, difficulty=difficulty,
+        is_boss=True, base_level=lvl,
+    )
+    boss_tmpl = CATALOG_BY_ID.get(boss["template_id"])
+    if boss_tmpl:
+        boss_enemy = build_enemy(boss_tmpl, boss_prog)
+        boss_enemy["level"] = lvl
+        boss_enemy["progression"]["level"] = lvl
+        boss_enemy["stats_override"] = compute_enemy_stats(boss_tmpl, {**boss_prog, "level": lvl})
+    else:
+        boss_enemy = {"template_id": boss["template_id"], "level": lvl}
+    enemies = [boss_enemy]
+
     add_lvl = max(1, round(lvl * 0.85))
-    add_gear = {"hp_pct": round(15 * diff_mult), "atk_pct": round(12 * diff_mult),
-                "def_pct": round(10 * diff_mult), "spd_pct": round(5 * diff_mult)}
+
     # Adds appear based on stage index and difficulty — later stages get more adds
+    add_tids = []
     if difficulty == "hard":
-        enemies.append({"template_id": boss["adds"][0], "level": add_lvl, "gear_bonus": add_gear})
+        add_tids = [boss["adds"][0]]
     elif difficulty == "nightmare":
-        enemies += [{"template_id": a, "level": add_lvl, "gear_bonus": add_gear} for a in boss["adds"]]
+        add_tids = list(boss["adds"])
     elif difficulty == "normal":
-        # Normal: first add from adds_start_stage, second from second_add_start_stage
         if idx >= cfg["adds_start_stage"]:
-            enemies.append({"template_id": boss["adds"][0], "level": add_lvl, "gear_bonus": add_gear})
+            add_tids.append(boss["adds"][0])
         if idx >= cfg["second_add_start_stage"]:
-            enemies.append({"template_id": boss["adds"][1], "level": add_lvl, "gear_bonus": add_gear})
+            add_tids.append(boss["adds"][1])
+
+    for add_tid in add_tids:
+        add_tmpl = CATALOG_BY_ID.get(add_tid)
+        if add_tmpl:
+            add_prog = get_enemy_progression(
+                mode="tsukuyomi", stage=idx, difficulty=difficulty,
+                is_boss=False, base_level=add_lvl,
+            )
+            add_enemy = build_enemy(add_tmpl, add_prog)
+            add_enemy["level"] = add_lvl
+            add_enemy["progression"]["level"] = add_lvl
+            add_enemy["stats_override"] = compute_enemy_stats(add_tmpl, {**add_prog, "level": add_lvl})
+        else:
+            add_enemy = {"template_id": add_tid, "level": add_lvl}
+        enemies.append(add_enemy)
+
     return enemies
 
 
 def _enemy_power_with_gear(enemy: dict) -> int:
-    """Compute recommended power including gear bonuses — reflects the
-    actual enemy stat profile rather than just base stats."""
+    """Compute recommended power reflecting the enemy's FULL build —
+    evolved rarity, ascension, gear, crystals, skill rank, and reforges.
+    Falls back to legacy calculation for enemies without progression data."""
+    if "stats_override" in enemy and "progression" in enemy:
+        from enemy_progression import team_recommended_power
+        return team_recommended_power([enemy], CATALOG_BY_ID)
+    # Legacy fallback: base stats + gear_bonus percentages
     s = compute_stats(enemy["template_id"], enemy["level"])
     g = enemy.get("gear_bonus") or {}
     hp = s["hp"] * (1 + g.get("hp_pct", 0) / 100)
@@ -2861,7 +2893,10 @@ def _enemy_power_with_gear(enemy: dict) -> int:
 
 
 def tsukuyomi_recommended_power(boss: dict, difficulty: str = "normal") -> int:
-    return sum(_enemy_power_with_gear(e) for e in tsukuyomi_enemies(boss, difficulty))
+    """Recommended power reflecting the enemy's actual build — evolved
+    rarity, ascension, gear, crystals, skill rank, and reforges."""
+    enemies = tsukuyomi_enemies(boss, difficulty)
+    return sum(_enemy_power_with_gear(e) for e in enemies)
 
 
 def tsukuyomi_rewards(boss: dict, difficulty: str = "normal") -> dict:
