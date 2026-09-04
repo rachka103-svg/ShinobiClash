@@ -34,6 +34,7 @@ export default function Tsukuyomi() {
   const navigate = useNavigate();
   const [bosses, setBosses] = useState([]);
   const [progress, setProgress] = useState({});
+  const [highestCleared, setHighestCleared] = useState(0);
   const [energyCost, setEnergyCost] = useState(12);
   const [index, setIndex] = useState(() => { try { return Number(localStorage.getItem("sc_tsuku_idx")) || 0; } catch { return 0; } });
   const [dir, setDir] = useState(0);
@@ -49,8 +50,19 @@ export default function Tsukuyomi() {
       if (!alive) return;
       setBosses(data.bosses || []);
       setProgress(data.progress || {});
+      setHighestCleared(data.highest_cleared || 0);
       setEnergyCost(data.energy_cost || 0);
-      setIndex((i) => Math.max(0, Math.min((data.bosses || []).length - 1, i)));
+      // Auto-navigate to the current available stage (highest_cleared + 1)
+      // unless the player has a saved position that is still unlocked.
+      const hc = data.highest_cleared || 0;
+      const availableIdx = Math.min(hc, (data.bosses || []).length - 1); // index 0-based, stage = idx+1
+      setIndex((i) => {
+        const saved = Math.max(0, Math.min((data.bosses || []).length - 1, i));
+        // If saved stage is cleared or available, keep it; otherwise jump to available
+        const savedBoss = (data.bosses || [])[saved];
+        if (savedBoss && savedBoss.status !== "locked") return saved;
+        return availableIdx;
+      });
       setLoading(false);
     }).catch((e) => {
       toast.error(formatApiErrorDetail(e?.response?.data?.detail) || "Failed to load nightmares");
@@ -69,6 +81,8 @@ export default function Tsukuyomi() {
   const energyLow = (user?.energy?.current ?? 0) < energyCost;
   const rareChance = diff ? Math.min(60, Math.round((boss.rare_chance + diff.rate_bonus) * 100)) : 0;
   const ready = teamPower >= (diff?.recommended_power ?? Infinity);
+  const isLocked = boss?.status === "locked";
+  const isCleared = boss?.status === "cleared";
 
   const go = (d) => {
     setDir(d);
@@ -116,6 +130,10 @@ export default function Tsukuyomi() {
 
   const startNightmare = async () => {
     if (!boss || !diff) return;
+    if (isLocked) {
+      toast.error(boss.lock_requirement || "This stage is locked");
+      return;
+    }
     setBusy(true);
     try {
       localStorage.setItem("sc_tsuku_idx", String(index));
@@ -212,6 +230,7 @@ export default function Tsukuyomi() {
               const scale = isCenter ? 1 : off === -1 || off === 1 ? 0.78 : 0.62;
               const opacity = isCenter ? 1 : off === -1 || off === 1 ? 0.5 : 0.28;
               const dim = !isCenter;
+              const sideLocked = b.status === "locked";
 
               return (
                 <motion.button
@@ -240,12 +259,22 @@ export default function Tsukuyomi() {
                       style={{ filter: dim ? "saturate(0.5) brightness(0.5)" : "saturate(0.85) brightness(0.78) contrast(1.05)" }} />
                     <div className="absolute inset-0" style={{ background: "radial-gradient(120% 90% at 60% 20%, rgba(181,62,255,0.30), transparent 55%)" }} />
                     <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(11,11,18,0.35) 0%, rgba(11,11,18,0.10) 35%, rgba(11,11,18,0.92) 82%, #0B0B12 100%)" }} />
-                  </div>
+                    {sideLocked && (
+                      <div className="absolute inset-0 flex items-center justify-center z-20" style={{ background: "rgba(5,5,8,0.75)" }}>
+                        <Clock className="w-6 h-6" style={{ color: "#64748b" }} />
+                      </div>
+                    )}
 
-                  {/* Star (cleared indicator) — top right */}
+                  {/* Status indicator — top right */}
                   {isCenter && (
                     <div className="absolute top-2.5 right-2.5 z-10" data-testid="tsukuyomi-star">
-                      <Star className="w-5 h-5" style={{ color: bCleared ? GOLD.base : "rgba(255,255,255,0.35)", fill: bCleared ? GOLD.base : "transparent" }} />
+                      {b.status === "locked" ? (
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold tracking-widest" style={{ background: "rgba(255,255,255,0.08)", color: "#64748b", border: "1px solid rgba(255,255,255,0.15)" }}>
+                          <Clock className="w-3 h-3" /> LOCKED
+                        </div>
+                      ) : (
+                        <Star className="w-5 h-5" style={{ color: bCleared ? GOLD.base : b.status === "available" ? NEON : "rgba(255,255,255,0.35)", fill: bCleared ? GOLD.base : "transparent" }} />
+                      )}
                     </div>
                   )}
 
@@ -254,6 +283,16 @@ export default function Tsukuyomi() {
                     {isCenter && bCleared && (
                       <span className="inline-flex self-start items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold tracking-widest mb-1.5" style={{ background: "rgba(0,230,118,0.15)", color: "#00E676", border: "1px solid rgba(0,230,118,0.4)" }} data-testid="tsukuyomi-cleared-badge">
                         <Trophy className="w-3 h-3" /> {bCleared.toUpperCase()} CLEARED
+                      </span>
+                    )}
+                    {isCenter && !bCleared && b.status === "available" && (
+                      <span className="inline-flex self-start items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold tracking-widest mb-1.5" style={{ background: `${NEON}1f`, color: NEON, border: `1px solid ${NEON}55` }} data-testid="tsukuyomi-available-badge">
+                        <Sparkles className="w-3 h-3" /> AVAILABLE
+                      </span>
+                    )}
+                    {isCenter && b.status === "locked" && (
+                      <span className="inline-flex self-start items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold tracking-widest mb-1.5" style={{ background: "rgba(100,116,139,0.15)", color: "#94A3B8", border: "1px solid rgba(100,116,139,0.3)" }} data-testid="tsukuyomi-locked-badge">
+                        <Clock className="w-3 h-3" /> {b.lock_requirement}
                       </span>
                     )}
                     <h2 className="font-display leading-[0.9] truncate" style={{ fontSize: isCenter ? "1.75rem" : "1.15rem", color: "#FFFFFF" }} data-testid="tsukuyomi-boss-name">{bTitle}</h2>
@@ -317,7 +356,7 @@ export default function Tsukuyomi() {
             style={{
               width: i === index ? 22 : 7,
               height: 7,
-              background: i === index ? NEON : "rgba(255,255,255,0.18)",
+              background: i === index ? NEON : b.status === "cleared" ? "#00E676" : b.status === "locked" ? "rgba(100,116,139,0.3)" : "rgba(255,255,255,0.18)",
               boxShadow: i === index ? `0 0 10px ${NEON}` : "none",
             }} />
         ))}
@@ -346,8 +385,8 @@ export default function Tsukuyomi() {
         <div className="hidden sm:block shrink-0 pr-3 border-r" style={{ borderColor: "rgba(255,255,255,0.10)" }}>
           <p className="text-[8px] uppercase tracking-widest" style={{ color: "#94A3B8" }}>Current Nightmare</p>
           <p className="font-display text-base leading-none mt-0.5" style={{ color: "#FFFFFF" }}>NIGHTMARE {index + 1}</p>
-          <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: clearedDiff ? "#00E676" : "#94A3B8" }}>
-            {clearedDiff ? <><Trophy className="w-3 h-3" /> {clearedDiff} Cleared</> : "Not cleared"}
+          <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: isLocked ? "#64748b" : clearedDiff ? "#00E676" : isCleared ? "#00E676" : NEON }}>
+            {isLocked ? <><Clock className="w-3 h-3" /> Locked</> : clearedDiff ? <><Trophy className="w-3 h-3" /> {clearedDiff} Cleared</> : isCleared ? <><Trophy className="w-3 h-3" /> Cleared</> : <><Sparkles className="w-3 h-3" /> Available</>}
           </p>
         </div>
 
@@ -371,15 +410,16 @@ export default function Tsukuyomi() {
         </span>
 
         {/* CTA */}
-        <button onClick={startNightmare} disabled={busy || energyLow} data-testid="tsukuyomi-fight-button"
+        <button onClick={startNightmare} disabled={busy || energyLow || isLocked} data-testid="tsukuyomi-fight-button"
           className="flex-1 min-w-0 ml-auto py-3 rounded-xl font-display text-base sm:text-lg tracking-widest flex items-center justify-center gap-2 transition-all disabled:opacity-40"
-          style={{ background: `linear-gradient(135deg, ${NEON}, #7C2DFF)`, border: `1.5px solid ${NEON}`, boxShadow: `0 0 24px ${NEON}66`, color: "#FFFFFF" }}>
-          {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Swords className="w-5 h-5" />}
-          <span className="truncate">ENTER NIGHTMARE</span>
-          {energyCost > 0 && <span className="inline-flex items-center gap-1 text-xs" style={{ color: "#00E676" }}><Zap className="w-3.5 h-3.5" />{energyCost}</span>}
+          style={{ background: isLocked ? "rgba(100,116,139,0.15)" : `linear-gradient(135deg, ${NEON}, #7C2DFF)`, border: `1.5px solid ${isLocked ? "rgba(100,116,139,0.3)" : NEON}`, boxShadow: isLocked ? "none" : `0 0 24px ${NEON}66`, color: isLocked ? "#64748b" : "#FFFFFF" }}>
+          {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : isLocked ? <Clock className="w-5 h-5" /> : <Swords className="w-5 h-5" />}
+          <span className="truncate">{isLocked ? "LOCKED" : "ENTER NIGHTMARE"}</span>
+          {!isLocked && energyCost > 0 && <span className="inline-flex items-center gap-1 text-xs" style={{ color: "#00E676" }}><Zap className="w-3.5 h-3.5" />{energyCost}</span>}
         </button>
       </div>
-      {energyCost > 0 && energyLow && <p className="relative z-10 text-[11px] text-center mt-1.5" style={{ color: ORANGE }} data-testid="tsukuyomi-energy-low">Not enough Energy — refill in the Shop or wait for regen.</p>}
+      {energyCost > 0 && energyLow && !isLocked && <p className="relative z-10 text-[11px] text-center mt-1.5" style={{ color: ORANGE }} data-testid="tsukuyomi-energy-low">Not enough Energy — refill in the Shop or wait for regen.</p>}
+      {isLocked && <p className="relative z-10 text-[11px] text-center mt-1.5" style={{ color: "#94A3B8" }} data-testid="tsukuyomi-locked-msg">{boss.lock_requirement}</p>}
 
       {/* Gear-set Collection tracker */}
       <Dialog open={collectionOpen} onOpenChange={setCollectionOpen}>

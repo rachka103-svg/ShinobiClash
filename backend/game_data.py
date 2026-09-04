@@ -2856,12 +2856,35 @@ def tsukuyomi_gear_drop(boss: dict, difficulty: str = "normal") -> dict:
     return g
 
 
-def tsukuyomi_boss_public(boss: dict) -> dict:
+def tsukuyomi_boss_status(boss: dict, highest_cleared: int = 0) -> dict:
+    """Determine the sequential unlock status of a Tsukuyomi stage.
+
+    Returns one of: 'cleared', 'available', 'locked'.
+    - cleared: the player has cleared this stage (index <= highest_cleared)
+    - available: the next stage to play (index == highest_cleared + 1)
+    - locked: not yet unlocked (index > highest_cleared + 1)
+    """
+    idx = boss.get("index", 1)
+    if idx <= highest_cleared:
+        return "cleared"
+    elif idx == highest_cleared + 1:
+        return "available"
+    else:
+        return "locked"
+
+
+def tsukuyomi_boss_public(boss: dict, highest_cleared: int = 0) -> dict:
     portrait = _TSUKUYOMI_PORTRAIT_OVERRIDES.get(boss["id"], boss["portrait"])
+    status = tsukuyomi_boss_status(boss, highest_cleared)
+    lock_requirement = None
+    if status == "locked":
+        lock_requirement = f"Clear Nightmare {boss.get('index', 1) - 1} to unlock"
     return {
         **boss,
         "portrait": portrait,
         "portrait_overridden": boss["id"] in _TSUKUYOMI_PORTRAIT_OVERRIDES,
+        "status": status,
+        "lock_requirement": lock_requirement,
         "difficulties": [
             {**d, "recommended_power": tsukuyomi_recommended_power(boss, d["id"]),
              "enemies": tsukuyomi_enemies(boss, d["id"])}

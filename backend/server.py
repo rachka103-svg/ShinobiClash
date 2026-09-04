@@ -1152,14 +1152,21 @@ async def claim_login_reward(user: dict = Depends(get_current_user)):
     return {"profile": public_user(user), "reward": reward, "day": new_day}
 
 
-def _validate_battle_target(mode: str, target_id: str) -> None:
-    """Raises 404/400 if the requested stage/trial/boss/floor doesn't exist."""
+def _validate_battle_target(mode: str, target_id: str, user: dict = None) -> None:
+    """Raises 404/400/403 if the requested stage/trial/boss/floor doesn't exist
+    or is locked."""
     if mode == "campaign" and target_id not in gd.STAGES_BY_ID:
         raise HTTPException(status_code=404, detail="Stage not found")
     if mode == "trial" and target_id not in gd.TRIALS_BY_ID:
         raise HTTPException(status_code=404, detail="Trial not found")
     if mode == "tsukuyomi" and target_id not in gd.TSUKUYOMI_BY_ID:
         raise HTTPException(status_code=404, detail="Nightmare not found")
+    if mode == "tsukuyomi" and user is not None:
+        boss = gd.TSUKUYOMI_BY_ID.get(target_id)
+        highest_cleared = user.get("tsukuyomi_highest_cleared", 0)
+        status = gd.tsukuyomi_boss_status(boss, highest_cleared)
+        if status == "locked":
+            raise HTTPException(status_code=403, detail=f"Clear Nightmare {boss['index'] - 1} to unlock this stage")
     if mode == "spire":
         try:
             if int(target_id) < 1:
@@ -1176,7 +1183,7 @@ async def battle_start(body: BattleStartIn, user: dict = Depends(get_current_use
     mode = body.mode
     if mode not in gd.ENERGY_COST:
         raise HTTPException(status_code=400, detail="Invalid battle mode")
-    _validate_battle_target(mode, body.id)
+    _validate_battle_target(mode, body.id, user)
 
     cost = gd.ENERGY_COST[mode]
     new_energy = gd.spend_energy(user.get("energy"), cost)
@@ -2496,14 +2503,18 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
 @api_router.get("/game/tsukuyomi")
 async def tsukuyomi_list(user: dict = Depends(get_current_user)):
     """The Infinite Nightmare — 25 escalating bosses with basic + rare (gear-set)
-    drops and a difficulty selector. Progress is tracked per boss + difficulty."""
+    drops and a difficulty selector. Progress is tracked per boss + difficulty.
+    Stages unlock sequentially: a stage is only playable after the previous one
+    is cleared."""
     progress = user.get("tsukuyomi") or {}
+    highest_cleared = user.get("tsukuyomi_highest_cleared", 0)
     return {
-        "bosses": [gd.tsukuyomi_boss_public(b) for b in gd.TSUKUYOMI_BOSSES],
+        "bosses": [gd.tsukuyomi_boss_public(b, highest_cleared) for b in gd.TSUKUYOMI_BOSSES],
         "difficulties": gd.TSUKUYOMI_DIFFICULTIES,
         "progress": progress,
         "first_clears": user.get("tsukuyomi_fc") or {},
         "energy_cost": gd.ENERGY_COST["tsukuyomi"],
+        "highest_cleared": highest_cleared,
     }
 
 
@@ -2561,6 +2572,14 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
         tsuku[body.boss_id] = body.difficulty
     user["tsukuyomi"] = tsuku
 
+    # Sequential progression: update highest cleared stage index.
+    # A stage counts as cleared when beaten on any difficulty.
+    boss_idx = boss.get("index", 1)
+    highest_cleared = user.get("tsukuyomi_highest_cleared", 0)
+    if boss_idx > highest_cleared:
+        highest_cleared = boss_idx
+    user["tsukuyomi_highest_cleared"] = highest_cleared
+
     # FIRST-CLEAR BONUS — one-time per (boss, difficulty).
     fc = user.get("tsukuyomi_fc") or {}
     done = fc.get(body.boss_id, [])
@@ -2586,6 +2605,7 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
         "ryo": user["ryo"], "gems": user.get("gems", 0), "wins": user["wins"], "ninjas": user["ninjas"], "inventory": inventory,
         "gear": user.get("gear", []), "crystals": user.get("crystals", []),
         "daily": user["daily"], "tsukuyomi": tsuku, "tsukuyomi_fc": fc,
+        "tsukuyomi_highest_cleared": highest_cleared,
         "level": user["level"], "exp": user["exp"]}})
     return {"profile": public_user(user), "result": "win",
             "rewards": {"ryo": r["ryo"], "items": r["items"], "hero_exp": hero_exp,
@@ -2593,7 +2613,8 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
                         "gear_set_name": boss["gear_set_name"], "first_clear_bonus": first_clear_bonus,
                         "crystal": crystal_reward,
                         "crystal_chance": round(r["rare_chance"] * ex.CRYSTAL_DROP_FRACTION, 4)},
-            "level_up": level_up}
+            "level_up": level_up,
+            "highest_cleared": highest_cleared}
 
 
 @api_router.get("/game/shop")
