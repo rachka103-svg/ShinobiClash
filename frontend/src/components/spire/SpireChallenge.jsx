@@ -32,10 +32,11 @@ function RewardSlot({ children, label }) {
   );
 }
 
-export default function SpireChallenge({ floor, enemies, catalogById, isBoss, ryoReward, onChallenge }) {
+export default function SpireChallenge({ floor, enemies, catalogById, isBoss, ryoReward, onChallenge, recPower, pathCfg }) {
   const cfg = spireFloorConfig(floor);
-  const recPower = Math.round(floor * 600 * cfg.statMult);
   const difficulty = Math.min(5, cfg.phaseIdx);
+  const accent = pathCfg?.accent || PURPLE;
+  const restriction = pathCfg?.element ? `${pathCfg.element} heroes only` : "No Restrictions";
 
   // Unique enemy elements for the "Enemy Elements" row.
   const elements = enemies
@@ -140,7 +141,7 @@ export default function SpireChallenge({ floor, enemies, catalogById, isBoss, ry
             </div>
             <div className="flex items-center justify-between py-2" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
               <span className="text-slate-400">Restrictions</span>
-              <span className="text-slate-300 text-xs">No Restrictions</span>
+              <span className="text-xs" style={{ color: pathCfg?.element ? accent : "#cbd5e1" }}>{restriction}</span>
             </div>
           </div>
         </div>

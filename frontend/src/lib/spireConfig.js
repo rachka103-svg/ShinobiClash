@@ -5,6 +5,45 @@
 
 export const SPIRE_MAX_FLOOR = 1000;
 
+// Elemental Spire paths — each is an independent climb sharing the same
+// interface, battle system and reward curve.  `element` is the restriction
+// placed on the player's team; `enemyElements` defines the weighted pool
+// used to generate enemy compositions for that path.
+export const SPIRE_PATHS = [
+  { id: "normal",  label: "Dragon's Back", icon: "🏰", accent: "#a855f7", element: null,
+    enemyElements: null },
+  { id: "fire",    label: "Fire Spire",    icon: "🔥", accent: "#FF5722", element: "Fire",
+    enemyElements: { primary: ["Water"], secondary: ["Earth"], neutral: ["Lightning", "Wind", "Light", "Dark"] } },
+  { id: "water",   label: "Water Spire",   icon: "💧", accent: "#29B6F6", element: "Water",
+    enemyElements: { primary: ["Earth"], secondary: ["Fire"], neutral: ["Lightning", "Wind", "Light", "Dark"] } },
+  { id: "earth",   label: "Earth Spire",   icon: "🌍", accent: "#A1887F", element: "Earth",
+    enemyElements: { primary: ["Fire"], secondary: ["Water"], neutral: ["Lightning", "Wind", "Light", "Dark"] } },
+  { id: "light",   label: "Light Spire",   icon: "☀️", accent: "#FFD54F", element: "Light",
+    enemyElements: { primary: ["Dark"], neutral: ["Fire", "Water", "Earth", "Lightning", "Wind"] } },
+  { id: "dark",    label: "Dark Spire",    icon: "🌑", accent: "#7C4DFF", element: "Dark",
+    enemyElements: { primary: ["Light"], neutral: ["Fire", "Water", "Earth", "Lightning", "Wind"] } },
+];
+
+export function getSpirePath(id) {
+  return SPIRE_PATHS.find((p) => p.id === id) || SPIRE_PATHS[0];
+}
+
+/** Weighted pick of an element array for a given path.  Uses the provided
+ *  rng (mulberry32) so generation stays deterministic per (path, floor). */
+export function pickPathElement(pathCfg, rng) {
+  if (!pathCfg?.enemyElements) return null;
+  const { primary, secondary, neutral } = pathCfg.enemyElements;
+  const roll = rng();
+  if (secondary) {
+    if (roll < 0.45) return primary;
+    if (roll < 0.75) return secondary;
+    return neutral;
+  }
+  // Light/Dark — no secondary, 60% primary / 40% neutral
+  if (roll < 0.60) return primary;
+  return neutral;
+}
+
 // [name, min, max, lvlStart, lvlEnd, multStart, multEnd, rewardMult]
 export const SPIRE_PHASES = [
   ["Onboarding",        1,   50,    2,   30,  1.0,  1.3, 1.0],

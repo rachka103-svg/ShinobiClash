@@ -29,7 +29,7 @@ function NodeIcon({ state, boss, floor }) {
   return <span className="font-display text-xl leading-none">{floor}</span>;
 }
 
-export default function SpireProgression({ cleared, floor, onSelect }) {
+export default function SpireProgression({ cleared, floor, onSelect, pathLabel = "Dragon's Back", accent = PURPLE }) {
   const maxAttempt = cleared + 1;
   const floors = buildFloors(cleared);
 
@@ -49,10 +49,10 @@ export default function SpireProgression({ cleared, floor, onSelect }) {
 
       {/* header chip */}
       <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
-        <span className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: "rgba(168,85,247,0.16)", border: "1px solid rgba(168,85,247,0.4)" }}>
-          <Castle className="w-4 h-4" style={{ color: PURPLE }} />
+        <span className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: `${accent}26`, border: `1px solid ${accent}66` }}>
+          <Castle className="w-4 h-4" style={{ color: accent }} />
         </span>
-        <span className="text-[10px] uppercase tracking-[0.25em] text-purple-300/80">Dragon's Back</span>
+        <span className="text-[10px] uppercase tracking-[0.25em]" style={{ color: `${accent}cc` }}>{pathLabel}</span>
       </div>
 
       {/* vertical glowing spine — brighter near the current floor */}
@@ -63,8 +63,8 @@ export default function SpireProgression({ cleared, floor, onSelect }) {
           top: "70px",
           bottom: "44px",
           transform: "translateX(-50%)",
-          background: "linear-gradient(180deg, rgba(168,85,247,0.15) 0%, rgba(168,85,247,0.85) 40%, rgba(168,85,247,0.9) 55%, rgba(168,85,247,0.2) 100%)",
-          boxShadow: "0 0 10px rgba(168,85,247,0.55)",
+          background: `linear-gradient(180deg, ${accent}26 0%, ${accent}d9 40%, ${accent}e6 55%, ${accent}33 100%)`,
+          boxShadow: `0 0 10px ${accent}8c`,
         }}
       />
 
@@ -76,7 +76,7 @@ export default function SpireProgression({ cleared, floor, onSelect }) {
           const isMilestone = SPIRE_MILESTONE_FLOORS.has(f);
           const selected = f === floor;
           const canPick = f <= maxAttempt;
-          const color = state === "cleared" ? GREEN : state === "current" ? PURPLE : "#475568";
+          const color = state === "cleared" ? GREEN : state === "current" ? accent : "#475568";
 
           return (
             <motion.button

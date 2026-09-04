@@ -1,7 +1,7 @@
 // Client-side turn-based combat helpers.
 // Mirrors backend stat formulas and contains battle-side mechanics.
 
-import { spireFloorConfig, pickRarity } from "./spireConfig";
+import { spireFloorConfig, pickRarity, getSpirePath, pickPathElement } from "./spireConfig";
 import { spireEnemyProgression } from "./enemyProgression";
 import {
   classifyDamageType,
@@ -883,13 +883,21 @@ function mulberry32(a) {
 
 export function spireEnemies(
   floor,
-  catalog
+  catalog,
+  path = "normal"
 ) {
+  // Incorporate the path into the seed so each elemental path generates
+  // different enemy compositions for the same floor number.
+  let pathHash = 0;
+  for (let i = 0; i < path.length; i++) {
+    pathHash = ((pathHash << 5) - pathHash + path.charCodeAt(i)) | 0;
+  }
   const rng = mulberry32(
-    (floor * 2654435761) >>>
+    ((floor * 2654435761) ^ pathHash) >>>
       0
   );
 
+  const pathCfg = getSpirePath(path);
   const cfg =
     spireFloorConfig(floor);
 
@@ -941,9 +949,18 @@ export function spireEnemies(
           c.rarity === bossRarity
       );
 
-    const pool =
-      bossPool.length
-        ? bossPool
+    // For elemental paths, restrict the boss to the path's primary
+    // counter element(s) for thematic consistency.
+    let pool = bossPool;
+    if (pathCfg.enemyElements) {
+      const bossEls = pickPathElement(pathCfg, rng);
+      const elPool = bossPool.filter((c) => bossEls.includes(c.element));
+      if (elPool.length) pool = elPool;
+    }
+
+    const fallback =
+      pool.length
+        ? pool
         : catalog.filter((c) =>
             [
               "SSR",
@@ -953,8 +970,8 @@ export function spireEnemies(
           );
 
     const src =
-      pool.length
-        ? pool
+      fallback.length
+        ? fallback
         : catalog;
 
     const b =
@@ -1004,6 +1021,13 @@ export function spireEnemies(
         (c) =>
           c.rarity === rarity
       );
+
+    // Elemental path: filter by the weighted element pool for this path
+    if (pathCfg.enemyElements) {
+      const els = pickPathElement(pathCfg, rng);
+      const elPool = pool.filter((c) => els.includes(c.element));
+      if (elPool.length) pool = elPool;
+    }
 
     if (!pool.length) {
       pool = catalog;

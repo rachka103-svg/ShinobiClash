@@ -19,13 +19,18 @@ export function getDifficulty(id) {
   return DIFFICULTIES.find((d) => d.id === id) || DIFFICULTIES[0];
 }
 
-export async function startBattle({ mode, id, navigate, setUser, difficulty }) {
+export async function startBattle({ mode, id, navigate, setUser, difficulty, spirePath }) {
   try {
-    const { data } = await api.post("/game/battle/start", { mode, id: String(id) });
+    const payload = { mode, id: String(id) };
+    if (spirePath && mode === "spire") payload.spire_path = spirePath;
+    const { data } = await api.post("/game/battle/start", payload);
     if (data.profile) setUser(data.profile);
     // Stash difficulty so Battle.jsx can scale enemies and pass it to /complete.
     if (difficulty) sessionStorage.setItem("campaign_difficulty", difficulty);
     else sessionStorage.removeItem("campaign_difficulty");
+    // Stash spire path so Battle.jsx can generate path-specific enemies
+    if (spirePath && mode === "spire") sessionStorage.setItem("spire_path", spirePath);
+    else sessionStorage.removeItem("spire_path");
     navigate(`/battle/${mode}/${id}`);
   } catch (e) {
     toast.error(formatApiErrorDetail(e?.response?.data?.detail) || "Unable to start battle");

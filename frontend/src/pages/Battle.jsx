@@ -200,6 +200,12 @@ export default function Battle() {
       ? getDifficulty(sessionStorage.getItem("campaign_difficulty") || "normal")
       : getDifficulty("normal");
 
+  // Spire path — stashed by Spire.jsx before navigation ("normal" | "fire" | etc.)
+  const spirePath =
+    mode === "spire"
+      ? (sessionStorage.getItem("spire_path") || "normal")
+      : "normal";
+
   const stage =
     mode === "campaign"
       ? stages.find((s) => s.id === id)
@@ -213,7 +219,7 @@ export default function Battle() {
   const enemiesDef =
     mode === "spire"
       ? catalog.length
-        ? spireEnemies(floor, catalog)
+        ? spireEnemies(floor, catalog, spirePath)
         : []
       : mode === "trial"
       ? trial?.enemies || []
@@ -227,7 +233,9 @@ export default function Battle() {
 
   const title =
     mode === "spire"
-      ? `SPIRE · FLOOR ${floor}`
+      ? spirePath !== "normal"
+        ? `${spirePath.toUpperCase()} SPIRE · FLOOR ${floor}`
+        : `SPIRE · FLOOR ${floor}`
       : mode === "trial"
       ? trial?.name || "TRIAL"
       : mode === "arena"
@@ -1481,6 +1489,7 @@ export default function Battle() {
             result,
             participants,
             survivors,
+            spire_path: spirePath,
           },
         ],
 

@@ -289,11 +289,13 @@ class SpireCompleteIn(BaseModel):
     result: str
     participants: List[str] = []
     survivors: List[str] = []
+    spire_path: str = "normal"  # "normal" | "fire" | "water" | "earth" | "light" | "dark"
 
 
 class BattleStartIn(BaseModel):
     mode: str  # "campaign" | "spire" | "trial"
     id: str
+    spire_path: str = "normal"  # "normal" | "fire" | "water" | "earth" | "light" | "dark"
 
 
 class ArenaBattleStartIn(BaseModel):
@@ -814,6 +816,7 @@ def public_user(user: dict) -> dict:
         "team": user.get("team", []),
         "cleared_stages": user.get("cleared_stages", []),
         "spire_floor": user.get("spire_floor", 0),
+        "spire_floors": user.get("spire_floors", {}),
         "wins": user.get("wins", 0),
         "losses": user.get("losses", 0),
         "team_power": team_power,
@@ -1265,6 +1268,26 @@ async def claim_login_reward(user: dict = Depends(get_current_user)):
     return {"profile": public_user(user), "reward": reward, "day": new_day}
 
 
+_SPIRE_PATH_ELEMENTS = {"fire": "Fire", "water": "Water", "earth": "Earth", "light": "Light", "dark": "Dark"}
+
+
+def _validate_spire_element(path: str, user: dict) -> None:
+    """Ensures every hero in the player's active team matches the elemental
+    Spire's required element.  Enforced server-side so it cannot be bypassed
+    via direct API calls, saved formations, or client tampering."""
+    required = _SPIRE_PATH_ELEMENTS.get(path)
+    if not required:
+        return
+    team = user.get("team", [])
+    for iid in team:
+        inst = next((n for n in user.get("ninjas", []) if n.get("instance_id") == iid), None)
+        if not inst:
+            continue
+        tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
+        if tmpl and tmpl.get("element") != required:
+            raise HTTPException(status_code=403, detail=f"{required.upper()} SPIRE requires a {required}-only team")
+
+
 def _validate_battle_target(mode: str, target_id: str, user: dict = None) -> None:
     """Raises 404/400/403 if the requested stage/trial/boss/floor doesn't exist
     or is locked."""
@@ -1298,6 +1321,10 @@ async def battle_start(body: BattleStartIn, user: dict = Depends(get_current_use
     if mode not in gd.ENERGY_COST:
         raise HTTPException(status_code=400, detail="Invalid battle mode")
     _validate_battle_target(mode, body.id, user)
+
+    # Elemental Spire: enforce element-only team restriction at battle start
+    if mode == "spire" and body.spire_path != "normal":
+        _validate_spire_element(body.spire_path, user)
 
     cost = gd.ENERGY_COST[mode]
     new_energy = gd.spend_energy(user.get("energy"), cost)
@@ -2536,7 +2563,19 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     floor = body.floor
     if floor < 1:
         raise HTTPException(status_code=400, detail="Invalid floor")
-    current = user.get("spire_floor", 0)
+    path = body.spire_path or "normal"
+
+    # Enforce element-only team restriction server-side
+    if path != "normal":
+        _validate_spire_element(path, user)
+
+    # Per-path floor progress — each elemental path tracks independently
+    if path == "normal":
+        current = user.get("spire_floor", 0)
+    else:
+        spire_floors = user.get("spire_floors", {})
+        current = spire_floors.get(path, 0)
+
     if body.result != "win":
         return {"profile": public_user(user), "rewards": None, "result": "lose", "floor": floor}
     advancing = floor == current + 1
@@ -2554,9 +2593,18 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     inventory = user.get("inventory", {})
     for iid, qty in r["items"].items():
         inventory[iid] = inventory.get(iid, 0) + qty
+    # Elemental essence — small per-path reward identity, no new currency system
+    if path != "normal" and advancing:
+        essence_id = f"{path}_essence"
+        inventory[essence_id] = inventory.get(essence_id, 0) + (3 if r.get("boss") else 1)
     user["inventory"] = inventory
     if advancing:
-        user["spire_floor"] = floor
+        if path == "normal":
+            user["spire_floor"] = floor
+        else:
+            spire_floors = user.get("spire_floors", {})
+            spire_floors[path] = floor
+            user["spire_floors"] = spire_floors
     bump_mission(user, "spire_win")
     bump_mission(user, "any_win")
     total_levels = sum(h["levels"] for h in hero_exp)
@@ -2565,10 +2613,12 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     level_up = await grant_player_exp(user, r.get("hero_exp_base", 0))
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"], "inventory": inventory,
-        "spire_floor": user.get("spire_floor", current), "daily": user["daily"],
+        "spire_floor": user.get("spire_floor", current), "spire_floors": user.get("spire_floors", {}), "daily": user["daily"],
         "level": user["level"], "exp": user["exp"]}})
     rewards = {"ryo": r["ryo"], "gems": gems_gained, "items": r["items"], "hero_exp": hero_exp,
                "boss": r["boss"], "milestone": r.get("milestone", False), "advancing": advancing}
+    if path != "normal" and advancing:
+        rewards["essence"] = f"{path}_essence"
     return {"profile": public_user(user), "rewards": rewards, "result": "win", "floor": floor, "advancing": advancing, "level_up": level_up}
 
 
