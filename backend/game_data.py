@@ -2289,9 +2289,15 @@ def _rebuild_catalog():
         _finalize_kit(n)
     NINJA_CATALOG = merged
     CATALOG_BY_ID = {n["id"]: n for n in merged}
-    # Re-merge nightmare boss templates so stat lookups survive catalog rebuilds.
+    # Re-merge nightmare boss templates so stat lookups survive catalog rebuilds,
+    # applying any admin portrait/field overrides on top of the static template.
     for _nb in NIGHTMARE_BOSS_BY_ID.values():
-        CATALOG_BY_ID[_nb["id"]] = _nb
+        nb = dict(_nb)
+        if nb["id"] in _PORTRAIT_OVERRIDES:
+            nb["portrait"] = _PORTRAIT_OVERRIDES[nb["id"]]
+        if nb["id"] in _HERO_OVERRIDES:
+            nb.update(_HERO_OVERRIDES[nb["id"]])
+        CATALOG_BY_ID[nb["id"]] = nb
 
 
 def load_dynamic(custom_heroes, overrides, hero_overrides=None):

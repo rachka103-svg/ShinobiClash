@@ -1010,7 +1010,7 @@ async def catalog():
             "trials": gd.TRIALS + gd.DUNGEON_TRIALS,
             "banner": banner_info(), "factions": gd.FACTIONS, "roles": gd.ROLES,
             "tags": gd.TAGS, "rarities": gd.RARITIES,
-            "enemy_templates": gd.NIGHTMARE_BOSS_TEMPLATES,
+            "enemy_templates": [gd.CATALOG_BY_ID.get(t["id"], t) for t in gd.NIGHTMARE_BOSS_TEMPLATES],
             "gem_costs": {
                 "summon": gd.GEM_SUMMON_COST,
                 "energy_refill_per_point": gd.GEM_ENERGY_REFILL_COST_PER_POINT,
