@@ -10,18 +10,21 @@ import { ELEMENT } from "@/lib/styles";
  *   data — { key, actorName, jutsuName, element, portrait } or null
  *   onDone — callback when the cinematic finishes
  */
-export default function BattleUltimate({ data, onDone }) {
+export default function BattleUltimate({ data, onDone, duration = 1200 }) {
   const [active, setActive] = useState(false);
 
   useEffect(() => {
-    if (!data) return;
+    if (!data || duration <= 0) {
+      onDone?.();
+      return;
+    }
     setActive(true);
     const t = setTimeout(() => {
       setActive(false);
       onDone?.();
-    }, 1200);
+    }, duration);
     return () => clearTimeout(t);
-  }, [data?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data?.key, duration]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const el = ELEMENT[data?.element] || {};
   const elColor = el.color || "#7C4DFF";

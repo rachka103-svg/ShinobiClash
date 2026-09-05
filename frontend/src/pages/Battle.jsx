@@ -9,6 +9,7 @@ import BattleEntry from "@/components/cinematic/BattleEntry";
 import BattleAttackFx from "@/components/cinematic/BattleAttackFx";
 import BattleUltimate from "@/components/cinematic/BattleUltimate";
 import BattleVictory from "@/components/cinematic/BattleVictory";
+import { getCinematicMode, getCinematicDuration } from "@/lib/cinematicMode";
 import LevelUpOverlay from "@/components/LevelUpOverlay";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
@@ -562,9 +563,16 @@ export default function Battle() {
 
     setPhase("intro");
 
+    const introMode = getCinematicMode({
+      speed: speedRef.current,
+      auto: autoRef.current,
+      type: "intro",
+    });
+    const introDuration = getCinematicDuration(introMode, 2800, speedRef.current);
+
     const t = setTimeout(
       () => beginTurnAt(0, all, initialOrder),
-      ms(900)
+      Math.max(60, introDuration)
     );
 
     return () => clearTimeout(t);
@@ -776,12 +784,20 @@ export default function Battle() {
       const isUltimate =
         jutsu.chakra_cost >= 70;
 
-      setCinematicAction({
-        key: actionCounterRef.current,
-        jutsuName: jutsu.name,
-        element: actor.element,
-        isAoe: jutsu.type === "aoe",
+      const atkMode = getCinematicMode({
+        speed: speedRef.current,
+        auto: autoRef.current,
+        type: "attack",
       });
+
+      if (atkMode !== "DISABLED") {
+        setCinematicAction({
+          key: actionCounterRef.current,
+          jutsuName: jutsu.name,
+          element: actor.element,
+          isAoe: jutsu.type === "aoe",
+        });
+      }
 
       let arr = cloneArr(combRef.current);
 
@@ -1317,9 +1333,16 @@ export default function Battle() {
 
       // ---------- ULTIMATE ----------
 
+      const ultMode = getCinematicMode({
+        speed: speedRef.current,
+        auto: autoRef.current,
+        type: "ultimate",
+      });
+
       if (
         isUltimate &&
-        cinemaRef.current
+        cinemaRef.current &&
+        ultMode !== "DISABLED"
       ) {
         setUltimateData({
           key: actionCounterRef.current,
@@ -1329,9 +1352,11 @@ export default function Battle() {
           portrait: actor.portrait,
         });
 
+        const ultDuration = getCinematicDuration(ultMode, 1200, speedRef.current);
+
         setTimeout(
           () => advance(arr),
-          ms(1200)
+          ultDuration
         );
       } else {
         advance(arr);
@@ -1699,6 +1724,14 @@ export default function Battle() {
   const dominantElement =
     enemies[0]?.element || "Dark";
 
+  // Cinematic modes for current speed/auto state
+  const introMode = getCinematicMode({ speed, auto, type: "intro" });
+  const introDuration = getCinematicDuration(introMode, 2800, speed);
+  const attackMode = getCinematicMode({ speed, auto, type: "attack" });
+  const attackDuration = getCinematicDuration(attackMode, 600, speed);
+  const ultMode = getCinematicMode({ speed, auto, type: "ultimate" });
+  const ultDuration = getCinematicDuration(ultMode, 1200, speed);
+
   return (
     <div
       className={`fixed inset-0 overflow-hidden ${
@@ -1721,7 +1754,7 @@ export default function Battle() {
       />
 
       {/* Battle entry */}
-      {cinema && (
+      {cinema && introMode !== "DISABLED" && (
         <BattleEntry
           title={title}
           chapter={
@@ -1733,6 +1766,7 @@ export default function Battle() {
               ? `FLOOR ${floor}`
               : mode.toUpperCase()
           }
+          duration={introDuration}
           onDone={() =>
             setIntroDone(true)
           }
@@ -1740,9 +1774,10 @@ export default function Battle() {
       )}
 
       {/* Attack effects */}
-      {cinema && (
+      {cinema && attackMode !== "DISABLED" && (
         <BattleAttackFx
           action={cinematicAction}
+          duration={attackDuration}
           onShake={(strength) => {
             setScreenShake(true);
 
@@ -1758,9 +1793,10 @@ export default function Battle() {
       )}
 
       {/* Ultimate cinematic */}
-      {cinema && (
+      {cinema && ultMode !== "DISABLED" && (
         <BattleUltimate
           data={ultimateData}
+          duration={ultDuration}
           onDone={() =>
             setUltimateData(null)
           }

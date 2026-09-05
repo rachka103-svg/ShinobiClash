@@ -10,15 +10,15 @@ import { ELEMENT } from "@/lib/styles";
  *   action — { key, jutsuName, element, actorUid, targetUid, isCrit, isAoe } or null
  *   onShake — callback to trigger screen shake on parent
  */
-export default function BattleAttackFx({ action, onShake }) {
+export default function BattleAttackFx({ action, onShake, duration = 600 }) {
   const [fx, setFx] = useState(null);
 
   useEffect(() => {
-    if (!action) return;
+    if (!action || duration <= 0) return;
     setFx({ ...action, id: action.key });
-    const t = setTimeout(() => setFx(null), 600);
+    const t = setTimeout(() => setFx(null), duration);
     return () => clearTimeout(t);
-  }, [action?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [action?.key, duration]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Trigger screen shake on parent
   useEffect(() => {
