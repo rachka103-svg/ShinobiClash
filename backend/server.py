@@ -1482,7 +1482,7 @@ def _roll_battle_item_drops(user: dict, chapter: int, first_clear: bool) -> dict
 def _roll_battle_gear_drop(user: dict, chapter: int) -> Optional[dict]:
     """Campaign battles from Chapter 2+ have a flat chance to drop a gear
     piece (the long-term equipment loop), capped by GEAR_INVENTORY_CAP."""
-    if chapter < 2 or len(user.get("gear", [])) >= GEAR_INVENTORY_CAP or rng.random() >= 0.14:
+    if chapter < 2 or len(user.get("gear", [])) >= GEAR_INVENTORY_CAP or rng.random() >= 0.07:
         return None
     g = gd.roll_gear(min_tier=1, max_tier=min(1 + chapter // 3, 5), luck=min(0.5, chapter * 0.04))
     user.setdefault("gear", []).append(g)

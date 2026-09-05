@@ -2873,7 +2873,7 @@ def _tsukuyomi_boss_defs() -> list:
             "element": t["element"],
             "rarity": t["rarity"],
             "base_level": cfg["base_level"] + (idx - 1) * cfg["level_per_stage"],
-            "rare_chance": round(min(0.10, 0.05 + (i // 5) * 0.0125), 4),
+            "rare_chance": round(min(0.06, 0.01 + (i // 5) * 0.0125), 4),
             "gear_set": set_keys[i % len(set_keys)],
             "gear_set_name": GEAR_SETS[set_keys[i % len(set_keys)]]["name"],
             "gear_set_color": GEAR_SETS[set_keys[i % len(set_keys)]]["color"],
@@ -3011,7 +3011,7 @@ def tsukuyomi_rewards(boss: dict, difficulty: str = "normal") -> dict:
     }
     if difficulty == "nightmare":
         items["lunar_essence"] = 1
-    rare_chance = round(min(0.15, boss["rare_chance"] + diff["rate_bonus"]), 4)
+    rare_chance = round(min(0.10, boss["rare_chance"] + diff["rate_bonus"]), 4)
     return {"ryo": ryo, "hero_exp": hero_exp, "items": items, "rare_chance": rare_chance}
 
 
