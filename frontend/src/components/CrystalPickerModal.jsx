@@ -15,6 +15,33 @@ const MOD_LABELS = {
   shield_pct: (v) => `Shield ${v}% Max HP`,
   cc_resistance: (v) => `CC Resist ${Math.round(v * 100)}%`,
   debuff_resistance: (v) => `Debuff Resist ${Math.round(v * 100)}%`,
+  physical_resistance: (v) => `Phys Resist ${Math.round(v * 100)}%`,
+  magic_resistance: (v) => `Magic Resist ${Math.round(v * 100)}%`,
+  physical_damage_reduction: (v) => `Phys DMG −${Math.round(v * 100)}%`,
+  magic_damage_reduction: (v) => `Magic DMG −${Math.round(v * 100)}%`,
+  crit_resistance: (v) => `Crit Resist ${Math.round(v * 100)}%`,
+  crit_damage_reduction: (v) => `Crit DMG −${Math.round(v * 100)}%`,
+  // Dict-based modifiers (sub-key, sub-value)
+  ailment_resistance: (sk, sv) => `${sk.toUpperCase()} Resist ${Math.round(sv * 100)}%`,
+  ailment_amplification: (sk, sv) => `${sk.toUpperCase()} Vuln ${Math.round(sv * 100)}%`,
+  elemental_resistance: (sk, sv) => `${sk} Resist ${Math.round(sv * 100)}%`,
+  elemental_vulnerability: (sk, sv) => `${sk} Vuln ${Math.round(sv * 100)}%`,
+  status_resistance: (sk, sv) => `${sk.toUpperCase()} Resist ${Math.round(sv * 100)}%`,
+};
+
+const DRAWBACK_MODS = new Set(["ailment_amplification", "elemental_vulnerability", "ailment_vulnerability"]);
+
+const formatMod = (key, value) => {
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value).map(([sk, sv]) => ({
+      label: MOD_LABELS[key] ? MOD_LABELS[key](sk, sv) : `${key} ${sk} ${sv}`,
+      drawback: DRAWBACK_MODS.has(key),
+    }));
+  }
+  return [{
+    label: MOD_LABELS[key] ? MOD_LABELS[key](value) : `${key} ${value}`,
+    drawback: DRAWBACK_MODS.has(key),
+  }];
 };
 
 /**
@@ -86,9 +113,9 @@ export default function CrystalPickerModal({ open, onClose, gearId, gearName }) 
                   </div>
                   {c.combat_modifiers && Object.keys(c.combat_modifiers).length > 0 && (
                     <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1">
-                      {Object.entries(c.combat_modifiers).map(([k, v]) => (
-                        <span key={k} className="text-[10px] font-semibold" style={{ color: c.tier_color }}>
-                          {MOD_LABELS[k] ? MOD_LABELS[k](v) : `${k} ${v}`}
+                      {Object.entries(c.combat_modifiers).flatMap(([k, v]) => formatMod(k, v)).map((item, i) => (
+                        <span key={i} className="text-[10px] font-semibold" style={{ color: item.drawback ? "#FF6B6B" : c.tier_color }}>
+                          {item.label}
                         </span>
                       ))}
                     </div>

@@ -343,6 +343,12 @@ _COMBAT_MOD_CAPS = {
     "shield_pct": 30,
     "cc_resistance": 0.30,
     "debuff_resistance": 0.25,
+    "physical_resistance": 0.30,
+    "magic_resistance": 0.30,
+    "physical_damage_reduction": 0.30,
+    "magic_damage_reduction": 0.30,
+    "crit_resistance": 0.30,
+    "crit_damage_reduction": 0.30,
 }
 
 
