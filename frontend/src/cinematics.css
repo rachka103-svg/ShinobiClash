@@ -141,7 +141,16 @@
 }
 .ground-shadow { animation: groundShadowPulse 3.5s ease-in-out infinite; }
 
-/* ---- Turn Announcement ---- */
+/* ---- Turn Announcement (contained top banner) ---- */
+@keyframes turnAnnounceBannerIn {
+  0%   { opacity: 0; transform: translateY(-15px); }
+  15%  { opacity: 1; transform: translateY(0); }
+  80%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+.turn-announce-banner { animation: turnAnnounceBannerIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* Legacy — kept for backward compat */
 @keyframes turnAnnounceIn {
   0%   { opacity: 0; transform: translateY(20px) scale(0.9); }
   15%  { opacity: 1; transform: translateY(0) scale(1); }
@@ -523,3 +532,50 @@
 .el-particle-dark { background: #7C4DFF; box-shadow: 0 0 6px #7C4DFF, 0 0 12px #9575CD; }
 .el-particle-earth { background: #A1887F; box-shadow: 0 0 6px #A1887F, 0 0 12px #BCAAA4; }
 .el-particle-light { background: #FFD54F; box-shadow: 0 0 6px #FFD54F, 0 0 12px #FFE082; }
+
+/* ---- Contained Ultimate Cinematic (non-obstructive) ---- */
+@keyframes ultBannerIn {
+  0%   { opacity: 0; transform: translateY(-20px) scale(0.95); }
+  20%  { opacity: 1; transform: translateY(0) scale(1); }
+  85%  { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-15px) scale(0.98); }
+}
+.ult-banner-in { animation: ultBannerIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes ultNameCont {
+  0%   { opacity: 0; transform: scale(1.2); letter-spacing: 0.3em; filter: blur(6px); }
+  25%  { opacity: 1; transform: scale(1.05); letter-spacing: 0.15em; filter: blur(1px); }
+  60%  { opacity: 1; transform: scale(1); letter-spacing: 0.08em; filter: blur(0); }
+  100% { opacity: 0; transform: scale(0.95); filter: blur(3px); }
+}
+.ult-name-cont { animation: ultNameCont 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes ultLineCont {
+  0%, 10% { width: 0; opacity: 0; }
+  25%     { width: 200px; opacity: 1; }
+  85%     { width: 200px; opacity: 1; }
+  100%    { width: 0; opacity: 0; }
+}
+.ult-line-cont { animation: ultLineCont 1.2s ease-out forwards; }
+
+@keyframes ultThumbGlow {
+  0%   { opacity: 0; transform: scale(0.8); }
+  20%  { opacity: 1; transform: scale(1); }
+  85%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.9); }
+}
+.ult-thumb-glow { animation: ultThumbGlow 1.2s ease-out forwards; }
+
+@keyframes ultVignettePulse {
+  0%   { opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.ult-vignette { animation: ultVignettePulse 1.2s ease-in-out forwards; }
+
+@keyframes ultEnergyFillCont {
+  0%   { opacity: 0; }
+  40%  { opacity: 0.5; }
+  100% { opacity: 0; }
+}

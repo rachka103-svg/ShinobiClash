@@ -2,10 +2,9 @@ import { useEffect, useState, useMemo } from "react";
 import { ELEMENT } from "@/lib/styles";
 
 /**
- * BattleUltimate — mini-cinematic ultimate ability sequence.
- * When triggered: battle UI fades → letterbox bars appear → screen darkens →
- * character portrait expands → elemental energy fills screen → ability name
- * in large typography → screen distortion → particles → returns to battle.
+ * BattleUltimate — contained ultimate ability announcement.
+ * Shows a brief skill banner at the top of the screen with a small portrait
+ * and elemental effects. The battlefield remains fully visible underneath.
  *
  * Props:
  *   data — { key, actorName, jutsuName, element, portrait } or null
@@ -17,8 +16,6 @@ export default function BattleUltimate({ data, onDone }) {
   useEffect(() => {
     if (!data) return;
     setActive(true);
-    // Brief by design — the portrait flashes and clears as the attack lands,
-    // instead of lingering over the whole damage window.
     const t = setTimeout(() => {
       setActive(false);
       onDone?.();
@@ -29,17 +26,17 @@ export default function BattleUltimate({ data, onDone }) {
   const el = ELEMENT[data?.element] || {};
   const elColor = el.color || "#7C4DFF";
 
-  // Particle burst positions
+  // Particle burst — emanates from the banner, not center screen
   const particles = useMemo(
     () =>
-      Array.from({ length: 24 }).map((_, i) => {
-        const angle = (i / 24) * Math.PI * 2;
-        const dist = 100 + (i % 4) * 50;
+      Array.from({ length: 14 }).map((_, i) => {
+        const angle = (i / 14) * Math.PI * 2;
+        const dist = 40 + (i % 3) * 25;
         return {
           x: Math.cos(angle) * dist,
-          y: Math.sin(angle) * dist,
-          size: 4 + (i % 3) * 3,
-          delay: `${(i * 0.04) % 1}s`,
+          y: Math.sin(angle) * dist * 0.5,
+          size: 3 + (i % 2) * 2,
+          delay: `${(i * 0.03) % 0.5}s`,
         };
       }),
     [data?.key]
@@ -49,89 +46,73 @@ export default function BattleUltimate({ data, onDone }) {
 
   return (
     <div className="fixed inset-0 z-[150] pointer-events-none overflow-hidden" data-testid="ultimate-cinematic">
-      {/* Darkened background */}
-      <div className="absolute inset-0" style={{ background: "#05050A", animation: "victoryFadeIn 0.4s ease-in forwards" }} />
+      {/* Subtle top/bottom vignette — battlefield stays visible */}
+      <div
+        className="absolute inset-0 ult-vignette"
+        style={{
+          background: `radial-gradient(ellipse 120% 50% at 50% 0%, ${elColor}22 0%, transparent 50%), radial-gradient(ellipse 120% 50% at 50% 100%, ${elColor}11 0%, transparent 50%)`,
+        }}
+      />
 
-      {/* Letterbox bars */}
-      <div className="absolute top-0 left-0 w-full letterbox-in" style={{ background: "#000" }} />
-      <div className="absolute bottom-0 left-0 w-full letterbox-in" style={{ background: "#000" }} />
-
-      {/* Cinematic view label */}
-      <div className="absolute top-[14vh] left-0 w-full text-center">
-        <p className="font-display text-[10px] tracking-[0.5em] text-slate-600">CINEMATIC VIEW</p>
-      </div>
-
-      {/* Screen distortion wrapper */}
-      <div className="absolute inset-0 ult-distort flex items-center justify-center">
-        {/* Character portrait expansion */}
-        <div
-          className="relative ult-zoom"
-          style={{ width: "60%", maxWidth: 320, height: "60%", maxHeight: 420 }}
-        >
+      {/* Top skill banner */}
+      <div className="absolute top-0 left-0 right-0 flex flex-col items-center pt-12 sm:pt-16">
+        {/* Portrait + name row */}
+        <div className="flex items-center gap-3 ult-banner-in">
+          {/* Small portrait thumbnail */}
           <div
-            className="absolute inset-0 rounded-2xl overflow-hidden"
-            style={{ border: `2px solid ${elColor}`, boxShadow: `0 0 60px ${elColor}88, 0 0 120px ${elColor}44` }}
+            className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden shrink-0 ult-thumb-glow"
+            style={{ border: `2px solid ${elColor}`, boxShadow: `0 0 20px ${elColor}88` }}
           >
             <img src={data.portrait} alt={data.actorName} className="w-full h-full object-cover object-top" />
-            {/* Element tint overlay */}
-            <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, transparent 30%, ${elColor}33 100%)` }} />
           </div>
 
-          {/* Expanding energy rings */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="ult-energy rounded-full" style={{ width: 200, height: 200, background: `radial-gradient(circle, ${elColor}66 0%, transparent 70%)` }} />
-            <div className="ult-energy rounded-full" style={{ width: 300, height: 300, background: `radial-gradient(circle, ${elColor}44 0%, transparent 70%)`, animationDelay: "0.3s" }} />
+          {/* Actor name + jutsu name */}
+          <div className="flex flex-col">
+            <span className="font-display text-xs sm:text-sm text-white/70 tracking-wide">{data.actorName}</span>
+            <h2
+              className="ult-name-cont font-display text-2xl sm:text-4xl font-bold leading-none"
+              style={{ color: elColor, textShadow: `0 0 20px ${elColor}88, 0 0 40px ${elColor}44` }}
+            >
+              {data.jutsuName}
+            </h2>
           </div>
         </div>
 
-        {/* Particle burst */}
-        {particles.map((p, i) => (
-          <span
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              width: p.size,
-              height: p.size,
-              background: elColor,
-              boxShadow: `0 0 10px ${elColor}, 0 0 20px ${elColor}`,
-              animation: "ultParticleBurst 1.2s ease-out forwards",
-              animationDelay: p.delay,
-              "--px": `${p.x}px`,
-              "--py": `${p.y}px`,
-            }}
-          />
-        ))}
+        {/* Decorative line under banner */}
+        <div
+          className="ult-line-cont h-px mt-1.5"
+          style={{ background: `linear-gradient(90deg, transparent, ${elColor}, transparent)`, maxWidth: 300 }}
+        />
+
+        {/* Particle burst from banner area */}
+        <div className="relative">
+          {particles.map((p, i) => (
+            <span
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                width: p.size,
+                height: p.size,
+                background: elColor,
+                boxShadow: `0 0 8px ${elColor}`,
+                animation: `ultParticleBurst 0.8s ease-out forwards`,
+                animationDelay: p.delay,
+                left: 0,
+                top: 0,
+                "--px": `${p.x}px`,
+                "--py": `${p.y}px`,
+              }}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* Character name */}
-      <div className="absolute inset-x-0 top-[55%] text-center ult-char-name">
-        <p className="font-display text-xl sm:text-2xl text-white tracking-wider" style={{ textShadow: `0 0 16px ${elColor}` }}>
-          {data.actorName}
-        </p>
-      </div>
-
-      {/* Ability name — large typography */}
-      <div className="absolute inset-x-0 top-[64%] text-center">
-        <h2
-          className="ult-name font-display text-4xl sm:text-6xl"
-          style={{ color: elColor, textShadow: `0 0 30px ${elColor}, 0 0 60px ${elColor}66` }}
-        >
-          {data.jutsuName}
-        </h2>
-      </div>
-
-      {/* Decorative lines */}
-      <div className="absolute inset-x-0 top-[62%] flex flex-col items-center gap-1">
-        <div className="ult-line h-px" style={{ background: `linear-gradient(90deg, transparent, ${elColor}, transparent)` }} />
-        <div className="ult-line h-px" style={{ background: `linear-gradient(90deg, transparent, ${elColor}, transparent)`, animationDelay: "0.1s" }} />
-      </div>
-
-      {/* Full-screen energy flash at the end */}
+      {/* Brief energy flash at the end — subtle, doesn't cover battlefield */}
       <div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(circle at center, ${elColor}66 0%, transparent 60%)`,
-          animation: "ultEnergyFill 0.5s ease-out 0.7s forwards",
+          background: `radial-gradient(circle at 50% 20%, ${elColor}33 0%, transparent 40%)`,
+          animation: "ultEnergyFillCont 0.5s ease-out 0.7s forwards",
         }}
       />
     </div>

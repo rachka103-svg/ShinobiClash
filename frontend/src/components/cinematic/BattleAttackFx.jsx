@@ -2,12 +2,9 @@ import { useEffect, useState, useMemo } from "react";
 import { ELEMENT } from "@/lib/styles";
 
 /**
- * BattleAttackFx — cinematic attack visual effects overlay.
- * Watches the `action` prop for new actions and triggers:
- *   - Ability name flash (brief, centered)
- *   - Impact flash at screen center (full-screen radial burst)
- *   - Screen shake on the battlefield container
- *   - Elemental particle burst
+ * BattleAttackFx — non-obstructive attack visual effects.
+ * Shows a brief ability name banner at the top and a small impact flash.
+ * The battlefield, combatants, HP bars, and damage numbers remain fully visible.
  *
  * Props:
  *   action — { key, jutsuName, element, actorUid, targetUid, isCrit, isAoe } or null
@@ -19,7 +16,7 @@ export default function BattleAttackFx({ action, onShake }) {
   useEffect(() => {
     if (!action) return;
     setFx({ ...action, id: action.key });
-    const t = setTimeout(() => setFx(null), 1000);
+    const t = setTimeout(() => setFx(null), 600);
     return () => clearTimeout(t);
   }, [action?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -33,12 +30,12 @@ export default function BattleAttackFx({ action, onShake }) {
   const el = ELEMENT[fx?.element] || {};
   const elColor = el.color || "#7C4DFF";
 
-  // Particle burst positions
+  // Small particle burst
   const particles = useMemo(
     () =>
-      Array.from({ length: 12 }).map((_, i) => {
-        const angle = (i / 12) * Math.PI * 2;
-        const dist = 60 + (i % 3) * 30;
+      Array.from({ length: 8 }).map((_, i) => {
+        const angle = (i / 8) * Math.PI * 2;
+        const dist = 30 + (i % 2) * 20;
         return {
           x: Math.cos(angle) * dist,
           y: Math.sin(angle) * dist,
@@ -51,68 +48,74 @@ export default function BattleAttackFx({ action, onShake }) {
   if (!fx) return null;
 
   return (
-    <div className="absolute inset-0 z-25 pointer-events-none flex items-center justify-center" data-testid="attack-fx">
-      {/* Ability name flash */}
+    <div className="absolute inset-0 z-25 pointer-events-none" data-testid="attack-fx">
+      {/* Ability name — small banner at top, not center */}
       {fx.jutsuName && (
-        <div
-          key={`name-${fx.id}`}
-          className="absolute top-[28%] ability-name-flash font-display text-2xl sm:text-3xl tracking-wider text-white"
-          style={{ textShadow: `0 0 16px ${elColor}, 0 0 32px ${elColor}66` }}
-        >
-          {fx.jutsuName}
+        <div className="absolute top-10 sm:top-12 left-0 right-0 flex justify-center">
+          <div
+            key={`name-${fx.id}`}
+            className="ability-name-flash font-display text-lg sm:text-xl tracking-wide px-3 py-0.5 rounded-md"
+            style={{
+              color: "#fff",
+              textShadow: `0 0 12px ${elColor}, 0 0 24px ${elColor}66`,
+              background: `linear-gradient(180deg, ${elColor}22, transparent)`,
+            }}
+          >
+            {fx.jutsuName}
+          </div>
         </div>
       )}
 
-      {/* Impact flash */}
-      <div
-        key={`flash-${fx.id}`}
-        className="absolute impact-flash rounded-full"
-        style={{
-          width: 200,
-          height: 200,
-          background: `radial-gradient(circle, #ffffff 0%, ${elColor} 40%, transparent 70%)`,
-        }}
-      />
-
-      {/* Impact ring */}
-      <div
-        key={`ring-${fx.id}`}
-        className="absolute impact-ring rounded-full"
-        style={{
-          width: 120,
-          height: 120,
-          border: `3px solid ${elColor}`,
-          boxShadow: `0 0 20px ${elColor}`,
-        }}
-      />
-
-      {/* Elemental particle burst */}
-      {particles.map((p, i) => (
-        <span
-          key={`p-${fx.id}-${i}`}
-          className="absolute rounded-full"
+      {/* Impact flash — small, semi-transparent, positioned at upper-center */}
+      <div className="absolute inset-0 flex items-start justify-center pt-[22%]">
+        <div
+          key={`flash-${fx.id}`}
+          className="impact-flash rounded-full"
           style={{
-            width: 5,
-            height: 5,
-            background: elColor,
-            boxShadow: `0 0 8px ${elColor}, 0 0 16px ${elColor}`,
-            animation: `ultParticleBurst 0.6s ease-out forwards`,
-            animationDelay: p.delay,
-            "--px": `${p.x}px`,
-            "--py": `${p.y}px`,
+            width: 120,
+            height: 120,
+            background: `radial-gradient(circle, ${elColor}88 0%, ${elColor}33 40%, transparent 70%)`,
           }}
         />
-      ))}
+      </div>
 
-      {/* Brief darkening for impact */}
-      <div
-        key={`dark-${fx.id}`}
-        className="absolute inset-0"
-        style={{
-          background: "rgba(5,5,10,0.3)",
-          animation: "summonBrightFlash 0.4s ease-out forwards",
-        }}
-      />
+      {/* Impact ring */}
+      <div className="absolute inset-0 flex items-start justify-center pt-[22%]">
+        <div
+          key={`ring-${fx.id}`}
+          className="impact-ring rounded-full"
+          style={{
+            width: 80,
+            height: 80,
+            border: `2px solid ${elColor}`,
+            boxShadow: `0 0 12px ${elColor}`,
+          }}
+        />
+      </div>
+
+      {/* Elemental particle burst — small, from upper-center */}
+      <div className="absolute inset-0 flex items-start justify-center pt-[22%]">
+        <div className="relative">
+          {particles.map((p, i) => (
+            <span
+              key={`p-${fx.id}-${i}`}
+              className="absolute rounded-full"
+              style={{
+                width: 4,
+                height: 4,
+                background: elColor,
+                boxShadow: `0 0 6px ${elColor}`,
+                animation: `ultParticleBurst 0.5s ease-out forwards`,
+                animationDelay: p.delay,
+                "--px": `${p.x}px`,
+                "--py": `${p.y}px`,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* No darkening overlay — battlefield stays fully visible */}
     </div>
   );
 }
