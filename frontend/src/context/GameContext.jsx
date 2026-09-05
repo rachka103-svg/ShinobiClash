@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import { cachedFetch } from "@/lib/cache";
 
 const GameContext = createContext(null);
 
@@ -73,11 +74,16 @@ export function GameProvider({ children }) {
     setLoading(true);
     setCatalogError(null);
     try {
-      const [c, s] = await Promise.all([api.get("/game/catalog"), api.get("/game/stages")]);
-      applyCatalog(c.data);
-      setStages(s.data.stages);
-      setChapters(s.data.chapters || []);
-      setBossMechanics(s.data.boss_mechanics || {});
+      // Use cached fetch with revalidation — on warm cache the catalog
+      // and stages appear instantly, then refresh in the background.
+      const [c, s] = await Promise.all([
+        cachedFetch("/game/catalog", { ttl: 300_000, revalidate: true }, api),
+        cachedFetch("/game/stages", { ttl: 300_000, revalidate: true }, api),
+      ]);
+      applyCatalog(c);
+      setStages(s.stages);
+      setChapters(s.chapters || []);
+      setBossMechanics(s.boss_mechanics || {});
     } catch (err) {
       // Never let a failed/slow initial load crash the app — surface a
       // graceful, dismissible/retryable error instead of throwing.

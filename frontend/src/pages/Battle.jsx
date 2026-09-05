@@ -10,6 +10,7 @@ import BattleAttackFx from "@/components/cinematic/BattleAttackFx";
 import BattleUltimate from "@/components/cinematic/BattleUltimate";
 import BattleVictory from "@/components/cinematic/BattleVictory";
 import { getCinematicMode, getCinematicDuration } from "@/lib/cinematicMode";
+import { preloadBattleAssets, getBattleBackground } from "@/lib/preload";
 import LevelUpOverlay from "@/components/LevelUpOverlay";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
@@ -296,6 +297,10 @@ export default function Battle() {
 
   const [events, setEvents] = useState([]);
 
+  // Incremented on Retry to re-trigger the init effect without a full
+  // page reload — the battle shell stays mounted and state resets.
+  const [retryKey, setRetryKey] = useState(0);
+
   const [auto, setAutoState] = useState(() => {
     try {
       return localStorage.getItem("sc_battle_auto") === "1";
@@ -570,13 +575,48 @@ export default function Battle() {
     });
     const introDuration = getCinematicDuration(introMode, 2800, speedRef.current);
 
+    // Preload enemy/hero portraits and battle background for instant rendering
+    const portraits = all
+      .map((c) => c.portrait)
+      .filter(Boolean);
+    preloadBattleAssets({
+      portraits,
+      background: getBattleBackground(mode, stage?.region),
+    });
+
     const t = setTimeout(
       () => beginTurnAt(0, all, initialOrder),
       Math.max(60, introDuration)
     );
 
     return () => clearTimeout(t);
-  }, [mode, id, catalogById]);
+  }, [mode, id, catalogById, retryKey]);
+
+  // ---------- RETRY (in-place, no page reload) ----------
+
+  const handleRetry = useCallback(() => {
+    // Reset all battle state — the init effect re-runs via retryKey bump
+    setResultData(null);
+    setShowLevelUp(false);
+    setCombs([]);
+    setPhase("intro");
+    setActiveUid(null);
+    setRound(1);
+    setFloaters([]);
+    setLog([]);
+    setEvents([]);
+    setCinematicAction(null);
+    setUltimateData(null);
+    setScreenShake(false);
+    setAttackingUid(null);
+    setTargeting(null);
+    actionLockRef.current = false;
+    ptrRef.current = 0;
+    orderRef.current = [];
+    reportedRef.current = false;
+    _uid = 0;
+    setRetryKey((k) => k + 1);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const aliveSide = (arr, side) =>
     arr.some((c) => c.side === side && c.alive);
@@ -1576,6 +1616,25 @@ export default function Battle() {
 
           setResultData(data);
 
+          // Preload next stage assets while the victory screen is showing
+          if (mode === "campaign" && phase === "win") {
+            const idx = stages.findIndex((s) => s.id === id);
+            const nextStage = idx >= 0 && idx < stages.length - 1 ? stages[idx + 1] : null;
+            if (nextStage) {
+              const nextPortraits = (nextStage.enemies || [])
+                .map((e) => catalogById[e.template_id]?.portrait)
+                .filter(Boolean);
+              preloadBattleAssets({ portraits: nextPortraits });
+            }
+          } else if (mode === "spire" && phase === "win") {
+            // Preload next spire floor enemies
+            const nextEnemies = catalog.length ? spireEnemies(floor + 1, catalog, spirePath) : [];
+            const nextPortraits = nextEnemies
+              .map((e) => catalogById[e.template_id]?.portrait)
+              .filter(Boolean);
+            preloadBattleAssets({ portraits: nextPortraits, background: getBattleBackground("spire") });
+          }
+
           if (data.level_up) {
             setTimeout(
               () =>
@@ -2008,14 +2067,14 @@ export default function Battle() {
         onNext={
           mode === "spire"
             ? () =>
-                window.location.assign(
+                navigate(
                   `/battle/spire/${
                     floor + 1
                   }`
                 )
             : mode === "trial"
             ? () =>
-                window.location.reload()
+                handleRetry()
             : mode === "arena"
             ? () =>
                 navigate("/arena")
@@ -2039,11 +2098,11 @@ export default function Battle() {
                     : null;
 
                 if (next) {
-                  window.location.assign(
+                  navigate(
                     `/battle/campaign/${next.id}`
                   );
                 } else {
-                  window.location.assign(
+                  navigate(
                     "/campaign"
                   );
                 }
@@ -2052,9 +2111,7 @@ export default function Battle() {
         onLobby={() =>
           navigate("/")
         }
-        onRetry={() =>
-          window.location.reload()
-        }
+        onRetry={handleRetry}
       />
 
       <LevelUpOverlay

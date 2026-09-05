@@ -5,6 +5,8 @@ import { useGame } from "@/context/GameContext";
 import { useAuth } from "@/context/AuthContext";
 import { rarityFrame, glow, RARITY, ELEMENT } from "@/lib/theme";
 import api from "@/lib/api";
+import { cachedFetch } from "@/lib/cache";
+import { preloadBattleAssets, getBattleBackground } from "@/lib/preload";
 
 const ELEMENT_ICONS = {
   Fire: Flame, Water: Droplet, Wind: Wind, Earth: Mountain,
@@ -52,14 +54,20 @@ export default function BossHunt() {
   const [selectedIdx, setSelectedIdx] = useState(0);
 
   useEffect(() => {
-    api
-      .get("/game/boss-hunt")
-      .then(({ data }) => {
+    cachedFetch("/game/boss-hunt", { ttl: 60_000, revalidate: true }, api)
+      .then((data) => {
         setBosses(data.bosses || []);
         setLoading(false);
+
+        // Preload boss portraits and background
+        const portraits = (data.bosses || [])
+          .slice(0, 5)
+          .map((b) => catalogById[b.template_id]?.portrait)
+          .filter(Boolean);
+        preloadBattleAssets({ portraits, background: getBattleBackground("bosshunt") });
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedBoss = bosses[selectedIdx];
 

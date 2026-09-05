@@ -7,6 +7,7 @@ import { spireEnemies } from "@/lib/battle";
 import { spireFloorConfig, SPIRE_MAX_FLOOR, SPIRE_PATHS, getSpirePath } from "@/lib/spireConfig";
 import { computeStats } from "@/lib/battle";
 import { startBattle } from "@/lib/energy";
+import { preloadBattleAssets, getBattleBackground } from "@/lib/preload";
 import SpireProgression from "@/components/spire/SpireProgression";
 import SpireChallenge from "@/components/spire/SpireChallenge";
 import TrialDungeonCard from "@/components/spire/TrialDungeonCard";
@@ -142,7 +143,14 @@ export default function Spire() {
           ryoReward={ryoReward}
           recPower={recPower}
           pathCfg={pathCfg}
-          onChallenge={() => startBattle({ mode: "spire", id: floor, navigate, setUser, spirePath: path })}
+          onChallenge={() => {
+            // Preload enemy portraits before navigating
+            const portraits = enemies
+              .map((e) => catalogById[e.template_id]?.portrait)
+              .filter(Boolean);
+            preloadBattleAssets({ portraits, background: getBattleBackground("spire") });
+            startBattle({ mode: "spire", id: floor, navigate, setUser, spirePath: path });
+          }}
         />
       </div>
 

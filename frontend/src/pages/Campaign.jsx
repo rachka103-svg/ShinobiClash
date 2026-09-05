@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import { startBattle, ENERGY_COST, DIFFICULTIES } from "@/lib/energy";
+import { preloadBattleAssets, getBattleBackground } from "@/lib/preload";
 import { RARITY } from "@/lib/styles";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -151,6 +152,14 @@ export default function Campaign() {
               key={stage.id}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.02 * i }}
               onClick={() => launch(stage, state)}
+              onMouseEnter={() => {
+                if (locked) return;
+                // Preload enemy portraits for this stage on hover
+                const portraits = (stage.enemies || [])
+                  .map((e) => catalogById[e.template_id]?.portrait)
+                  .filter(Boolean);
+                preloadBattleAssets({ portraits });
+              }}
               disabled={locked || busy}
               data-testid={`stage-row-${stage.id}`}
               className="w-full text-left flex items-center gap-3 p-3 rounded-2xl border transition-all disabled:cursor-not-allowed group"
