@@ -9,7 +9,6 @@ import BattleEntry from "@/components/cinematic/BattleEntry";
 import BattleAttackFx from "@/components/cinematic/BattleAttackFx";
 import BattleUltimate from "@/components/cinematic/BattleUltimate";
 import BattleVictory from "@/components/cinematic/BattleVictory";
-import TsukuyomiVictory from "@/components/cinematic/TsukuyomiVictory";
 import LevelUpOverlay from "@/components/LevelUpOverlay";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
@@ -1958,81 +1957,69 @@ export default function Battle() {
       />
 
       {/* Victory / defeat */}
-      {mode === "tsukuyomi" ? (
-        <TsukuyomiVictory
-          open={phase === "win" || phase === "lose"}
-          result={{ ...resultData, difficulty: tsukuFight?.difficulty }}
-          mode={mode}
-          isWin={phase === "win"}
-          onBack={() => navigate(backTo)}
-          onNext={() => navigate("/tsukuyomi")}
-          onRetry={() => window.location.reload()}
-        />
-      ) : (
-        <BattleVictory
-          open={
-            phase === "win" ||
-            phase === "lose"
-          }
-          result={resultData}
-          mode={mode}
-          floor={floor}
-          isWin={phase === "win"}
-          onBack={() =>
-            navigate(backTo)
-          }
-          onNext={
-            mode === "spire"
-              ? () =>
+      <BattleVictory
+        open={
+          phase === "win" ||
+          phase === "lose"
+        }
+        result={resultData}
+        mode={mode}
+        floor={floor}
+        isWin={phase === "win"}
+        onBack={() =>
+          navigate(backTo)
+        }
+        onNext={
+          mode === "spire"
+            ? () =>
+                window.location.assign(
+                  `/battle/spire/${
+                    floor + 1
+                  }`
+                )
+            : mode === "trial"
+            ? () =>
+                window.location.reload()
+            : mode === "arena"
+            ? () =>
+                navigate("/arena")
+            : mode === "tsukuyomi"
+            ? () =>
+                navigate("/tsukuyomi")
+            : mode === "bosshunt"
+            ? () =>
+                navigate("/boss-hunt")
+            : () => {
+                const idx =
+                  stages.findIndex(
+                    (s) => s.id === id
+                  );
+
+                const next =
+                  idx >= 0 &&
+                  idx <
+                    stages.length - 1
+                    ? stages[idx + 1]
+                    : null;
+
+                if (next) {
                   window.location.assign(
-                    `/battle/spire/${
-                      floor + 1
-                    }`
-                  )
-              : mode === "trial"
-              ? () =>
-                  window.location.reload()
-              : mode === "arena"
-              ? () =>
-                  navigate("/arena")
-              : mode === "tsukuyomi"
-              ? () =>
-                  navigate("/tsukuyomi")
-              : mode === "bosshunt"
-              ? () =>
-                  navigate("/boss-hunt")
-              : () => {
-                  const idx =
-                    stages.findIndex(
-                      (s) => s.id === id
-                    );
-
-                  const next =
-                    idx >= 0 &&
-                    idx <
-                      stages.length - 1
-                      ? stages[idx + 1]
-                      : null;
-
-                  if (next) {
-                    window.location.assign(
-                      `/battle/campaign/${next.id}`
-                    );
-                  } else {
-                    window.location.assign(
-                      "/campaign"
-                    );
-                  }
+                    `/battle/campaign/${next.id}`
+                  );
+                } else {
+                  window.location.assign(
+                    "/campaign"
+                  );
                 }
-          }
-          onLobby={() =>
-            navigate("/")
-          }
-          onRetry={() =>
-            window.location.reload()
-          }
-        />
-      )}
+              }
+        }
+        onLobby={() =>
+          navigate("/")
+        }
+        onRetry={() =>
+          window.location.reload()
+        }
+      />
 
       <LevelUpOverlay
         open={showLevelUp}
