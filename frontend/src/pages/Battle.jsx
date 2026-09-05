@@ -440,7 +440,7 @@ export default function Battle() {
           inst.skill_rank || 1,
           !inst.passive_locked,
           inst.reforge || null,
-          null, // combatModifiers — allies don't have enemy combat modifiers
+          inst.crystal_combat_modifiers || null, // Boss Crysta combat modifiers
           Object.keys(synergyBonuses).length > 0 ? synergyBonuses : null
         )
       )

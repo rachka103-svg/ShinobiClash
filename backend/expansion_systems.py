@@ -25,6 +25,7 @@ from typing import Optional
 
 import game_data as gd
 import progression as prog
+import boss_crystas as bc_registry
 
 # ---------------------------------------------------------------------------
 # Shared rarity helpers — the ascension ladder is owned by progression.py
@@ -211,6 +212,10 @@ def roll_crystal(difficulty: str = "normal") -> dict:
 
 
 def crystal_main_value(crystal: dict) -> int:
+    # Boss Crystas carry their own stat_mult (scales with boss rarity).
+    if crystal.get("stat_mult"):
+        base = CRYSTAL_MAIN_BASE[crystal["main_stat"]]
+        return max(1, round(base * crystal["stat_mult"] * (1 + 0.08 * crystal.get("plus", 0))))
     tier = CRYSTAL_BY_ID.get(crystal["tier"], CRYSTAL_TIERS[0])
     base = CRYSTAL_MAIN_BASE[crystal["main_stat"]]
     return max(1, round(base * tier["mult"] * (1 + 0.08 * crystal.get("plus", 0))))
@@ -276,18 +281,29 @@ def apply_crystals_to_stats(base: dict, crystals: list) -> dict:
 
 
 def crystal_public(c: dict) -> dict:
+    is_boss = bool(c.get("boss_crysta_id"))
     tier = CRYSTAL_BY_ID.get(c["tier"], CRYSTAL_TIERS[0])
-    return {
+    out = {
         **c,
-        "tier_name": tier["name"],
-        "tier_color": tier["color"],
+        "tier_name": "Boss Crysta" if is_boss else tier["name"],
+        "tier_color": "#FF1744" if is_boss else tier["color"],
         "main_value": crystal_main_value(c),
         "score": crystal_score(c),
     }
+    if is_boss:
+        bc = bc_registry.BOSS_CRYSTAS_BY_ID.get(c["boss_crysta_id"])
+        if bc:
+            out["boss_crysta"] = {
+                "name": bc["name"],
+                "description": bc["description"],
+                "boss_name": bc["boss_name"],
+                "element": bc["element"],
+            }
+    return out
 
 
 def roll_crystal_drop(gear_rare_chance: float) -> Optional[dict]:
-    """Returns a new crystal if the drop roll succeeds, else None.
+    """Returns a new regular crystal if the drop roll succeeds, else None.
 
     `gear_rare_chance` is the boss's computed gear rare-drop rate (already
     scaled by boss index + difficulty). The crystal rolls at a fraction of
@@ -296,3 +312,56 @@ def roll_crystal_drop(gear_rare_chance: float) -> Optional[dict]:
     if gd.secure_rng.random() < chance:
         return roll_crystal("normal")
     return None
+
+
+def roll_boss_crysta(boss_id: str) -> Optional[dict]:
+    """Creates a Boss Crysta crystal instance for the given Tsukuyomi boss.
+    Returns None if no Boss Crysta is defined for that boss_id."""
+    bc = bc_registry.BOSS_CRYSTAS_BY_BOSS_ID.get(boss_id)
+    if not bc:
+        return None
+    return {
+        "crystal_id": str(_uuid.uuid4()),
+        "tier": "boss",
+        "main_stat": bc["main_stat"],
+        "stat_mult": bc["stat_mult"],
+        "plus": 0,
+        "subs": [{"stat": s[0], "value": s[1]} for s in bc["subs"]],
+        "socketed_in": None,
+        "locked": False,
+        "boss_crysta_id": bc["id"],
+        "combat_modifiers": dict(bc.get("combat_modifiers", {})),
+    }
+
+
+# Caps applied when aggregating combat modifiers from multiple Boss Crystas
+# equipped on the same hero — prevents overpowered stacking.
+_COMBAT_MOD_CAPS = {
+    "damage_reduction": 0.30,
+    "lifesteal_pct": 15,
+    "regen_pct": 8,
+    "shield_pct": 30,
+    "cc_resistance": 0.30,
+    "debuff_resistance": 0.25,
+}
+
+
+def extract_crystal_combat_modifiers(crystals: list) -> dict:
+    """Aggregates combat modifiers from socketed Boss Crystas on a hero.
+    Returns an empty dict if no Boss Crystas are socketed."""
+    mods = {}
+    for c in crystals:
+        cm = c.get("combat_modifiers")
+        if not cm:
+            continue
+        for key, val in cm.items():
+            if isinstance(val, dict):
+                mods.setdefault(key, {})
+                for k, v in val.items():
+                    mods[key][k] = mods[key].get(k, 0) + v
+            elif isinstance(val, (int, float)):
+                mods[key] = mods.get(key, 0) + val
+    for key, cap in _COMBAT_MOD_CAPS.items():
+        if key in mods and isinstance(mods[key], (int, float)):
+            mods[key] = min(cap, mods[key])
+    return mods

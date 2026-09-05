@@ -721,6 +721,9 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_gear: dic
     geared = gd.apply_gear_to_stats(star_stats, equipped) if equipped else star_stats
     socketed = [crystal_by_gear[g["gear_id"]] for g in equipped if g["gear_id"] in crystal_by_gear]
     final_stats = ex.apply_crystals_to_stats(geared, socketed) if socketed else geared
+    # Boss Crysta combat modifiers — aggregated from socketed Boss Crystas
+    crystal_mods = ex.extract_crystal_combat_modifiers(socketed) if socketed else {}
+    inst["crystal_combat_modifiers"] = crystal_mods if crystal_mods else None
     inst["rarity"] = rarity
     inst["native_rarity"] = native_rarity
     inst["evolved_rarity"] = inst.get("evolved_rarity") or native_rarity
@@ -2724,13 +2727,18 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
         user.setdefault("gear", []).append(g)
         gear_reward = gear_public(g)
 
-    # CRYSTAL drop — a super-rare bonus that scales with the boss's gear
-    # rare-drop chance (boss index + difficulty) at a fraction of that rate.
+    # BOSS CRYSTA drop — the signature crystal for this Nightmare boss.
+    # Drops at the same super-rare rate as the old crystal drop (a fraction
+    # of the boss's gear rare-drop chance) but always yields THIS boss's
+    # signature crystal, not a random one.
     crystal_reward = None
-    crystal_hit = ex.roll_crystal_drop(r["rare_chance"])
+    crystal_chance = r["rare_chance"] * ex.CRYSTAL_DROP_FRACTION
+    crystal_hit = rng.random() < crystal_chance
     if crystal_hit:
-        user.setdefault("crystals", []).append(crystal_hit)
-        crystal_reward = ex.crystal_public(crystal_hit)
+        bc_instance = ex.roll_boss_crysta(body.boss_id)
+        if bc_instance:
+            user.setdefault("crystals", []).append(bc_instance)
+            crystal_reward = ex.crystal_public(bc_instance)
 
     # progress: remember the highest difficulty cleared per boss
     tsuku = user.get("tsukuyomi") or {}
@@ -2780,7 +2788,7 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
                         "gear": gear_reward, "rare_hit": rare_hit, "rare_chance": r["rare_chance"],
                         "gear_set_name": boss["gear_set_name"], "first_clear_bonus": first_clear_bonus,
                         "crystal": crystal_reward,
-                        "crystal_chance": round(r["rare_chance"] * ex.CRYSTAL_DROP_FRACTION, 4)},
+                        "crystal_chance": round(crystal_chance, 4)},
             "level_up": level_up,
             "highest_cleared": highest_cleared}
 
