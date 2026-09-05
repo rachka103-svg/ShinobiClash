@@ -323,7 +323,7 @@ export default function Tsukuyomi() {
 
                     {/* Drop info */}
                     {isCenter && (
-                      <div className="grid grid-cols-3 gap-1.5 mt-2" data-testid="tsukuyomi-gear-drop">
+                      <div className="grid grid-cols-4 gap-1.5 mt-2" data-testid="tsukuyomi-gear-drop">
                         <div className="rounded-lg px-2 py-1.5" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                           <p className="text-[8px] uppercase tracking-widest flex items-center gap-0.5" style={{ color: "#94A3B8" }}><Percent className="w-2.5 h-2.5" /> Rare</p>
                           <p className="font-display text-sm leading-none mt-0.5" style={{ color: DIFF_COLOR[difficulty] }}>{bRare}%</p>
@@ -331,6 +331,10 @@ export default function Tsukuyomi() {
                         <div className="rounded-lg px-2 py-1.5" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                           <p className="text-[8px] uppercase tracking-widest flex items-center gap-0.5" style={{ color: "#94A3B8" }}><Gem className="w-2.5 h-2.5" /> Crystal</p>
                           <p className="font-display text-sm leading-none mt-0.5" style={{ color: "#D500F9" }}>{(bRare * 0.18).toFixed(1)}%</p>
+                        </div>
+                        <div className="rounded-lg px-2 py-1.5" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                          <p className="text-[8px] uppercase tracking-widest flex items-center gap-0.5" style={{ color: "#94A3B8" }}><Star className="w-2.5 h-2.5" /> Card</p>
+                          <p className="font-display text-sm leading-none mt-0.5" style={{ color: "#FFD700" }}>{(bDiff?.card_drop_chance != null ? (bDiff.card_drop_chance * 100).toFixed(1) : "0.5")}%</p>
                         </div>
                         <div className="rounded-lg px-2 py-1.5" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                           <p className="text-[8px] uppercase tracking-widest" style={{ color: "#94A3B8" }}>Materials</p>

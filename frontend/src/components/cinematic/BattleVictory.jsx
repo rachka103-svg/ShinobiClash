@@ -156,6 +156,12 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
               <Gem size={18} /> ★ {rewards.crystal.boss_crysta ? rewards.crystal.boss_crysta.name : `${rewards.crystal.tier_name} Crystal`} ({rewards.crystal.main_stat.toUpperCase()})
             </div>
           )}
+          {/* Boss card drop */}
+          {rewards.card && (
+            <div className="reward-reveal font-display text-lg mt-1 flex items-center gap-1.5" style={{ animationDelay: "1.9s", opacity: 0, animationFillMode: "forwards", color: "#FFD700", textShadow: "0 0 16px rgba(255,215,0,0.6)" }} data-testid="victory-boss-card">
+              <Star size={18} fill="currentColor" /> ★ {rewards.card.duplicate ? `${rewards.card.name} shards (+${rewards.card.shards_gained})` : `New ally: ${rewards.card.name}`}
+            </div>
+          )}
           {/* Level-up indicator */}
           {result?.level_up && (
             <div className="reward-reveal font-display text-xl mt-3 flex items-center gap-2" style={{ animationDelay: "2s", opacity: 0, animationFillMode: "forwards", color: "#00E5FF", textShadow: "0 0 20px rgba(0,229,255,0.6)" }} data-testid="victory-level-up-indicator">

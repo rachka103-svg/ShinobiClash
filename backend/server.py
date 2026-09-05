@@ -1601,6 +1601,8 @@ def _rarity_pool(min_rarity: str = None, exclude_top: bool = True,
     floor = gd.RARITY_ORDER[min_rarity] if min_rarity else -1
     out = []
     for tid, t in gd.CATALOG_BY_ID.items():
+        if t.get("is_nightmare_boss"):
+            continue
         ri = gd.RARITY_ORDER[t["rarity"]]
         if exclude_top and t["rarity"] == gd.TOP_RARITY:
             continue
@@ -1634,7 +1636,7 @@ def _roll_top_rarity_pity(pity: dict, currency: str, featured: Optional[str],
 
     chosen = None
     pity_note = None
-    tops = [tid for tid, t in gd.CATALOG_BY_ID.items() if t["rarity"] == top]
+    tops = [tid for tid, t in gd.CATALOG_BY_ID.items() if t["rarity"] == top and not t.get("is_nightmare_boss")]
     if featured_is_top:
         if pity.get("featured_guarantee"):
             chosen = featured; pity["featured_guarantee"] = False; pity_note = "featured_guaranteed"
@@ -2740,6 +2742,26 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
             user.setdefault("crystals", []).append(bc_instance)
             crystal_reward = ex.crystal_public(bc_instance)
 
+    # BOSS CARD drop — the nightmare boss itself as a playable hero card.
+    # Super-low chance per difficulty. Nightmare bosses are NOT summonable;
+    # this is the ONLY way to obtain their cards.
+    card_reward = None
+    card_chance = gd.TSUKUYOMI_CARD_DROP_CHANCE.get(body.difficulty, 0.005)
+    card_hit = rng.random() < card_chance
+    if card_hit:
+        boss_template_id = boss.get("template_id")
+        if boss_template_id and boss_template_id in gd.CATALOG_BY_ID:
+            tmpl, is_dupe, shards = _grant_summoned_hero(user, boss_template_id)
+            card_reward = {
+                "template_id": boss_template_id,
+                "name": tmpl["name"],
+                "rarity": tmpl["rarity"],
+                "element": tmpl["element"],
+                "portrait": tmpl["portrait"],
+                "duplicate": is_dupe,
+                "shards_gained": shards,
+            }
+
     # progress: remember the highest difficulty cleared per boss
     tsuku = user.get("tsukuyomi") or {}
     order = {"normal": 1, "hard": 2, "nightmare": 3}
@@ -2788,7 +2810,9 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
                         "gear": gear_reward, "rare_hit": rare_hit, "rare_chance": r["rare_chance"],
                         "gear_set_name": boss["gear_set_name"], "first_clear_bonus": first_clear_bonus,
                         "crystal": crystal_reward,
-                        "crystal_chance": round(crystal_chance, 4)},
+                        "crystal_chance": round(crystal_chance, 4),
+                        "card": card_reward,
+                        "card_chance": round(card_chance, 4)},
             "level_up": level_up,
             "highest_cleared": highest_cleared}
 

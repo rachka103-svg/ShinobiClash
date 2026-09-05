@@ -2762,6 +2762,10 @@ TSUKU_SCALING_CONFIG = {
     "second_add_start_stage": 18,   # Second add appears at this stage (normal diff)
 }
 
+# Boss card drop chance from Tsukuyomi battles — super low per difficulty.
+# Nightmare bosses are NOT summonable; their cards can only be obtained here.
+TSUKUYOMI_CARD_DROP_CHANCE = {"normal": 0.005, "hard": 0.01, "nightmare": 0.015}
+
 TSUKUYOMI_DIFFICULTIES = [
     {"id": "normal",    "name": "Normal",    "power_mult": 1.0, "rate_bonus": 0.00, "reward_mult": 1.0, "color": "#00E5FF"},
     {"id": "hard",      "name": "Hard",      "power_mult": 1.7, "rate_bonus": 0.02, "reward_mult": 1.6, "color": "#FFCA28"},
@@ -3076,7 +3080,8 @@ def tsukuyomi_boss_public(boss: dict, progress: dict = None, highest_cleared: in
         "lock_requirement": lock_requirement,
         "difficulties": [
             {**d, "recommended_power": tsukuyomi_recommended_power(boss, d["id"]),
-             "enemies": tsukuyomi_enemies(boss, d["id"])}
+             "enemies": tsukuyomi_enemies(boss, d["id"]),
+             "card_drop_chance": TSUKUYOMI_CARD_DROP_CHANCE.get(d["id"], 0.005)}
             for d in TSUKUYOMI_DIFFICULTIES
         ],
     }
@@ -3244,9 +3249,12 @@ BEGINNER_PULL_COUNT = 10
 
 
 def beginner_pool():
-    """Weighted (template_id, weight) list over ALL catalog heroes."""
+    """Weighted (template_id, weight) list over ALL catalog heroes.
+    Nightmare bosses are excluded — they are not summonable cards."""
     out = []
     for tid, t in CATALOG_BY_ID.items():
+        if t.get("is_nightmare_boss"):
+            continue
         out.append((tid, SUMMON_WEIGHTS.get(t["rarity"], 1)))
     return out
 
