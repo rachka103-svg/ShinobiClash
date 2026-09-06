@@ -68,7 +68,7 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={skip}
-          className="fixed inset-0 z-[200] flex flex-col bg-black/90 backdrop-blur-sm pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.75rem)]"
+          className="fixed inset-0 z-[200] flex flex-col bg-black/90 backdrop-blur-sm pt-3 sm:pt-4 pb-24 sm:pb-8"
           data-testid="summon-reveal-overlay"
         >
           {/* rarity-colored ceremony flash */}
