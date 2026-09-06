@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Coins, Gem, Zap, ArrowRight, Star, Sparkles, Ticket } from "lucide-react";
 import { CoinsIcon, GemsIcon } from "@/components/GameIcons";
+import CrystalDropBanner from "@/components/cinematic/CrystalDropBanner";
 
 const ITEM_META = {
   exp_tome_minor: { icon: Sparkles, color: "#9E9E9E", label: "Minor EXP Tome" },
@@ -28,15 +29,29 @@ const ITEM_META = {
  */
 export default function BattleVictory({ open, result, mode, floor, onBack, onNext, onLobby, onRetry, isWin }) {
   const [stage, setStage] = useState(0); // 0=hidden, 1=title, 2=rewards, 3=buttons
+  const [crystalBanner, setCrystalBanner] = useState(false);
 
   useEffect(() => {
-    if (!open) { setStage(0); return; }
-    // Sequence: title appears → rewards → buttons
+    if (!open) { setStage(0); setCrystalBanner(false); return; }
+    const rewards = result?.rewards;
+    if (rewards?.crystal?.boss_crysta) {
+      setCrystalBanner(true);
+      return;
+    }
     const t1 = setTimeout(() => setStage(1), 200);
     const t2 = setTimeout(() => setStage(2), 2000);
     const t3 = setTimeout(() => setStage(3), 3500);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (open && !crystalBanner && stage === 0 && result?.rewards?.crystal?.boss_crysta) {
+      const t1 = setTimeout(() => setStage(1), 200);
+      const t2 = setTimeout(() => setStage(2), 2000);
+      const t3 = setTimeout(() => setStage(3), 3500);
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    }
+  }, [crystalBanner, stage, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!open) return null;
 
@@ -52,6 +67,13 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
   }
 
   return (
+    <>
+    {/* Crystal Drop Banner — special rare-drop presentation */}
+    <CrystalDropBanner
+      crystal={crystalBanner ? rewards?.crystal : null}
+      onDismiss={() => setCrystalBanner(false)}
+    />
+
     <div className="fixed inset-0 z-[120] pointer-events-none overflow-hidden flex items-center justify-center" data-testid="cinematic-victory">
       {/* Darkened battlefield */}
       <div className="absolute inset-0 victory-fade" style={{ background: "rgba(5,5,10,0.92)", backdropFilter: "blur(4px)" }} />
@@ -212,5 +234,6 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
         </div>
       )}
     </div>
+    </>
   );
 }

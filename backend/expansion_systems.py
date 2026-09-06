@@ -298,6 +298,9 @@ def crystal_public(c: dict) -> dict:
                 "description": bc["description"],
                 "boss_name": bc["boss_name"],
                 "element": bc["element"],
+                "source": bc.get("source", "tsukuyomi"),
+                "rarity": bc.get("rarity", ""),
+                "combat_modifiers": bc.get("combat_modifiers", {}),
             }
     return out
 
@@ -315,8 +318,8 @@ def roll_crystal_drop(gear_rare_chance: float) -> Optional[dict]:
 
 
 def roll_boss_crysta(boss_id: str) -> Optional[dict]:
-    """Creates a Boss Crysta crystal instance for the given Tsukuyomi boss.
-    Returns None if no Boss Crysta is defined for that boss_id."""
+    """Creates a Boss Crysta crystal instance for the given Tsukuyomi or
+    Boss Hunt boss. Returns None if no Boss Crysta is defined for that boss_id."""
     bc = bc_registry.BOSS_CRYSTAS_BY_BOSS_ID.get(boss_id)
     if not bc:
         return None

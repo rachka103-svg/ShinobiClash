@@ -28,7 +28,8 @@ _RARITY_SUBS = {"R": 2, "SR": 3, "SSR": 3, "UR": 4, "LR": 4, "GR": 5, "MYTHIC": 
 
 
 def _bc(boss_id, boss_name, template_id, element, rarity,
-        crystal_name, description, main_stat, subs, combat_modifiers):
+        crystal_name, description, main_stat, subs, combat_modifiers,
+        source="tsukuyomi"):
     """Helper to build a Boss Crysta definition."""
     return {
         "id": f"bc_{template_id}",
@@ -39,7 +40,7 @@ def _bc(boss_id, boss_name, template_id, element, rarity,
         "rarity": rarity,
         "name": crystal_name,
         "type": "boss_crysta",
-        "source": "tsukuyomi",
+        "source": source,
         "description": description,
         "main_stat": main_stat,
         "stat_mult": _RARITY_MULT[rarity],
@@ -252,6 +253,42 @@ BOSS_CRYSTAS = [
         "atk",
         [("spd", 10), ("hp_pct", 8), ("def_pct", 7), ("spd_pct", 5)],
         {"lifesteal_pct": 8, "damage_reduction": 0.05, "ailment_amplification": {"curse_dot": 0.12}}),
+
+    # ═════════════════════════════════════════════════════════════════════
+    # BOSS HUNT CRYSTAS — endgame signature crystals from Boss Hunt bosses.
+    # Effects are independently designed (NOT based on boss class/role).
+    # Stronger than Tsukuyomi crystas, with meaningful tradeoffs.
+    # ═════════════════════════════════════════════════════════════════════
+
+    # BH-1 Shadow Trickster — SPD + Physical Resistance + Lightning Vulnerability
+    # Tradeoff: great physical defense, but exposed to Lightning damage
+    _bc("bh_shadow_trickster", "Shadow Trickster", "loki", "Dark", "UR",
+        "Shadow Trickster Crystal",
+        "The deceiver's shard. Turns aside steel, yet invites the thunder's judgment.",
+        "spd",
+        [("atk_pct", 6), ("hp_pct", 5), ("def_pct", 5)],
+        {"physical_resistance": 0.10, "elemental_vulnerability": {"Lightning": 0.08}},
+        source="boss_hunt"),
+
+    # BH-2 Burn Sovereign — DEF + Shield + Debuff Resistance + Earth Vulnerability
+    # Tradeoff: powerful defensive utility, but exposed to Earth damage
+    _bc("bh_burn_sovereign", "Burn Sovereign", "ra", "Light", "LR",
+        "Burn Sovereign Crystal",
+        "A sovereign's burning aegis. Shields the bearer and resists corruption, yet the earth claims its due.",
+        "def",
+        [("hp_pct", 7), ("atk_pct", 6), ("spd", 7), ("spd_pct", 4)],
+        {"shield_pct": 20, "debuff_resistance": 0.15, "elemental_vulnerability": {"Earth": 0.08}},
+        source="boss_hunt"),
+
+    # BH-3 Chaos Serpent — ATK + Lifesteal + Physical/Magic Resistance + Wind Vulnerability
+    # The ultimate crysta: massive sustain and dual resistance, but a real drawback
+    _bc("bh_chaos_serpent", "Chaos Serpent", "apep", "Dark", "GR",
+        "Chaos Serpent Crystal",
+        "The devourer's final gift. Sustains and shields from all sides, yet leaves the bearer exposed to the storm.",
+        "atk",
+        [("spd", 10), ("hp_pct", 8), ("def_pct", 7), ("spd_pct", 5)],
+        {"lifesteal_pct": 8, "physical_resistance": 0.08, "magic_resistance": 0.08, "elemental_vulnerability": {"Wind": 0.12}},
+        source="boss_hunt"),
 ]
 
 # ── Lookup indices ─────────────────────────────────────────────────────

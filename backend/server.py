@@ -1203,11 +1203,51 @@ async def boss_hunt_complete(body: dict, user: dict = Depends(get_current_user))
         inventory["boss_core"] = inventory.get("boss_core", 0) + boss_core_qty
         rewards["evolution_materials"] = {"boss_core": boss_core_qty}
 
+        # Signature Crysta drop — the boss's unique crystal.
+        # Uses the crystal_drop_rate from the boss config (very low, endgame).
+        crystal_reward = None
+        crystal_drop_rate = base_rewards.get("crystal_drop_rate", 1.0) / 100.0  # config stores as percentage
+        if rng.random() < crystal_drop_rate:
+            bc_instance = ex.roll_boss_crysta(boss_id)
+            if bc_instance:
+                user.setdefault("crystals", []).append(bc_instance)
+                crystal_reward = ex.crystal_public(bc_instance)
+                rewards["crystal"] = crystal_reward
+
         await db.users.update_one({"_id": user["_id"]}, {
-            "$set": {"ryo": user["ryo"], "gems": user["gems"], "cleared_bosses": cleared_bosses, "inventory": inventory},
+            "$set": {"ryo": user["ryo"], "gems": user["gems"], "cleared_bosses": cleared_bosses,
+                     "inventory": inventory, "crystals": user.get("crystals", [])},
         })
 
     return {"result": result, "rewards": rewards, "profile": public_user(user)}
+
+
+@api_router.get("/game/crystas/collection")
+async def crysta_collection(user: dict = Depends(get_current_user)):
+    """Returns all signature Crysta definitions with the user's collection
+    status (obtained/not obtained) for the collection UI."""
+    from boss_crystas import BOSS_CRYSTAS
+    owned_ids = set()
+    for c in user.get("crystals", []):
+        bcid = c.get("boss_crysta_id")
+        if bcid:
+            owned_ids.add(bcid)
+    collection = []
+    for bc in BOSS_CRYSTAS:
+        collection.append({
+            "id": bc["id"],
+            "name": bc["name"],
+            "boss_name": bc["boss_name"],
+            "boss_id": bc["boss_id"],
+            "element": bc["element"],
+            "rarity": bc["rarity"],
+            "source": bc.get("source", "tsukuyomi"),
+            "description": bc["description"],
+            "main_stat": bc["main_stat"],
+            "combat_modifiers": bc.get("combat_modifiers", {}),
+            "obtained": bc["id"] in owned_ids,
+        })
+    return {"crystas": collection, "total": len(collection), "obtained": len(owned_ids)}
 
 
 @api_router.get("/game/profile")
