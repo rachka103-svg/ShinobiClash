@@ -5,13 +5,9 @@ const ThemeContext = createContext(null);
 const STORAGE_KEY = "sc_theme";
 
 function getInitialTheme() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "light" || stored === "dark") return stored;
-  } catch {
-    /* storage unavailable — fall through to default */
-  }
-  return "light"; // Ivory & Ink is the app's default look
+  // Light mode has been removed — the cinematic dark "Neon Shadow" palette
+  // is the only theme. Ignore any previously stored light preference.
+  return "dark";
 }
 
 /**
@@ -35,8 +31,9 @@ export function ThemeProvider({ children }) {
     }
   }, [theme]);
 
-  const setTheme = useCallback((t) => setThemeState(t === "dark" ? "dark" : "light"), []);
-  const toggleTheme = useCallback(() => setThemeState((t) => (t === "dark" ? "light" : "dark")), []);
+  // Light mode removed — both setters keep the app on the dark theme.
+  const setTheme = useCallback(() => setThemeState("dark"), []);
+  const toggleTheme = useCallback(() => setThemeState("dark"), []);
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, isDark: theme === "dark" }}>
