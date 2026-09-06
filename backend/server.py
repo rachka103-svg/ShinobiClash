@@ -1627,6 +1627,17 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
     # gear drops — battles from Chapter 2 onward can drop gear (long-term loop)
     rewards["gear"] = _roll_battle_gear_drop(user, chapter)
 
+    # Regular crystal drop — rare drop from Campaign (Chipped → Astral tiers).
+    # Rarer than gear (7%): ~2% base, scaling slightly with chapter depth.
+    # Boss crystas are NOT obtainable here — only regular stat crystals.
+    crystal_reward = None
+    if chapter >= 2 and rng.random() < 0.02 + min(0.01, chapter * 0.0005):
+        _crystal_diff = {"normal": "normal", "hard": "hard", "difficult": "nightmare", "extreme": "nightmare"}.get(body.difficulty, "normal")
+        _crystal_inst = ex.roll_crystal(_crystal_diff)
+        user.setdefault("crystals", []).append(_crystal_inst)
+        crystal_reward = ex.crystal_public(_crystal_inst)
+        rewards["crystal"] = crystal_reward
+
     if first_clear:
         _apply_campaign_first_clear_bonus(user, stage, body.stage_id, cleared, ninjas, rewards)
 
@@ -1640,7 +1651,7 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
         {"_id": user["_id"]},
         {"$set": {"ryo": user["ryo"], "gems": user.get("gems", 0), "level": user["level"], "exp": user["exp"],
                   "ninjas": ninjas, "inventory": inventory, "cleared_stages": cleared, "wins": user["wins"],
-                  "daily": user["daily"], "gear": user.get("gear", [])}},
+                  "daily": user["daily"], "gear": user.get("gear", []), "crystals": user.get("crystals", [])}},
     )
     user["cleared_stages"] = cleared
     return {"profile": public_user(user), "rewards": rewards, "result": "win", "first_clear": first_clear, "level_up": level_up}
@@ -2686,6 +2697,16 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     if advancing:
         evo_qty = 1 + floor // 10
         inventory["evo_essence"] = inventory.get("evo_essence", 0) + evo_qty
+
+    # Regular crystal drop — rare drop from Endless Spire (Chipped → Astral).
+    # Drop rate scales with floor depth: ~3% base, +0.1% per floor (capped).
+    # Boss crystas are NOT obtainable here — only regular stat crystals.
+    spire_crystal = None
+    if advancing and rng.random() < min(0.08, 0.03 + floor * 0.001):
+        _spire_diff = "nightmare" if floor >= 50 else ("hard" if floor >= 20 else "normal")
+        _spire_inst = ex.roll_crystal(_spire_diff)
+        user.setdefault("crystals", []).append(_spire_inst)
+        spire_crystal = ex.crystal_public(_spire_inst)
     user["inventory"] = inventory
     if advancing:
         if path == "normal":
@@ -2702,10 +2723,12 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     level_up = await grant_player_exp(user, r.get("hero_exp_base", 0))
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"], "inventory": inventory,
+        "crystals": user.get("crystals", []),
         "spire_floor": user.get("spire_floor", current), "spire_floors": user.get("spire_floors", {}), "daily": user["daily"],
         "level": user["level"], "exp": user["exp"]}})
     rewards = {"ryo": r["ryo"], "gems": gems_gained, "items": r["items"], "hero_exp": hero_exp,
-               "boss": r["boss"], "milestone": r.get("milestone", False), "advancing": advancing}
+               "boss": r["boss"], "milestone": r.get("milestone", False), "advancing": advancing,
+               "crystal": spire_crystal}
     if path != "normal" and advancing:
         rewards["essence"] = f"{path}_essence"
     return {"profile": public_user(user), "rewards": rewards, "result": "win", "floor": floor, "advancing": advancing, "level_up": level_up}

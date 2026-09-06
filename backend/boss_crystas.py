@@ -23,7 +23,12 @@ Rarity still controls power level (stat_mult + number of substats).
 """
 
 # ── Rarity → stat_mult / n_subs mapping ─────────────────────────────────
-_RARITY_MULT = {"R": 3.0, "SR": 3.5, "SSR": 4.0, "UR": 4.5, "LR": 5.0, "GR": 5.5, "MYTHIC": 6.0}
+# Boss Crystas use a higher stat_mult than any regular crystal tier
+# (Astral = 4.8 is the best regular crystal). Even the weakest boss crysta
+# (R = 5.0) outclasses the best regular crystal, and the gap widens at
+# higher tiers. Boss crystas also carry combat modifiers that regular
+# crystals never have.
+_RARITY_MULT = {"R": 5.0, "SR": 5.5, "SSR": 6.0, "UR": 6.5, "LR": 7.0, "GR": 7.5, "MYTHIC": 8.0}
 _RARITY_SUBS = {"R": 2, "SR": 3, "SSR": 3, "UR": 4, "LR": 4, "GR": 5, "MYTHIC": 5}
 
 
