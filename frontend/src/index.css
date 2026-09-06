@@ -527,6 +527,21 @@ html, body { overflow-x: hidden; max-width: 100vw; }
   line-height: 1.05;
 }
 
+/* ==========================================================================
+   SUMMON RESULT CARD — fluid height for the 5×2 gacha result grid.
+   Cards keep consistent dimensions across all rarities; rarity controls
+   visual intensity (border, glow, beam) not physical size.
+   ========================================================================== */
+.summon-result-card {
+    height: clamp(80px, 15vh, 115px);
+}
+@media (min-width: 640px) {
+    .summon-result-card { height: clamp(120px, 25vh, 180px); }
+}
+@media (min-width: 1024px) {
+    .summon-result-card { height: clamp(150px, 30vh, 240px); }
+}
+
 /* ---- Short-viewport (height < 560px): compress battle & overlay chrome ---- */
 @media (max-height: 559px) {
     /* Battle header / command panels take less vertical real estate so the
