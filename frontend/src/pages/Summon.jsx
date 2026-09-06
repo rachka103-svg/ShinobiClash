@@ -8,6 +8,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
+import { useResponsiveLayout } from "@/hooks/useResponsive";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import { rarityFrame, GOLD, BG } from "@/lib/theme";
@@ -97,6 +98,7 @@ const Stars = ({ rarity, className = "w-3 h-3" }) => {
 export default function Summon() {
   const { user, setUser } = useAuth();
   const { catalog, catalogById, summonCost, goldSummonX10Cost, banner, gemCosts, summonRates, summonRatesRyo, pityConfig, gearConfig } = useGame();
+  const { isMobile } = useResponsiveLayout();
   const [mode, setMode] = useState("hero"); // hero | gear
   const [payMode, setPayMode] = useState("gems"); // gems | ryo  (hero altar)
   const [busy, setBusy] = useState(false);
@@ -234,7 +236,7 @@ export default function Summon() {
   return (
     <div
       data-testid="summon-page"
-      className="h-full max-w-6xl mx-auto px-3 sm:px-5 py-2.5 sm:py-3 flex flex-col overflow-y-auto lg:overflow-hidden min-w-0 relative"
+      className="h-full max-w-6xl mx-auto px-2.5 sm:px-4 lg:px-5 py-2 sm:py-2.5 lg:py-3 flex flex-col overflow-hidden min-w-0 relative"
     >
       {/* Sacred summoning chamber atmosphere — rotating circle + particles */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
@@ -263,7 +265,7 @@ export default function Summon() {
       </div>
 
       {/* Mode tabs */}
-      <div className="flex items-center gap-2 mb-2 shrink-0 relative z-10" data-testid="summon-tabs">
+      <div className="flex items-center gap-2 mb-1.5 lg:mb-2 shrink-0 relative z-10" data-testid="summon-tabs">
         {[["hero", "Hero Altar"], ["stepup", "Step-Up"], ["beginner", "Beginner"]].map(([id, lbl]) => (
           <button key={id} onClick={() => setMode(id)} data-testid={`summon-tab-${id}`}
             className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all ${mode === id ? "bg-chakra text-[#05050A]" : "bg-white/[0.04] text-slate-400 hover:text-white border border-white/10"}`}>
@@ -274,11 +276,11 @@ export default function Summon() {
 
       {/* ===================== Two-column body ===================== */}
       {mode === "beginner" ? <BeginnerSummon /> : mode === "stepup" ? <StepUpSummon /> : (
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 lg:gap-4 relative z-10">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2 lg:gap-4 relative z-10">
         {/* -------- LEFT: cinematic featured banner -------- */}
         {featuredHero ? (
           <div
-            className="relative rounded-2xl sm:rounded-3xl overflow-hidden flex-1 min-h-[260px] sm:min-h-[320px] lg:flex-none lg:basis-[60%] lg:h-full"
+            className="relative rounded-2xl sm:rounded-3xl overflow-hidden flex-1 min-h-[clamp(185px,24vh,300px)] lg:flex-none lg:basis-[60%] lg:h-full"
             style={{ border: `1px solid ${featRarity.color}55`, boxShadow: `0 0 60px ${featRarity.color}22` }}
             data-testid="summon-banner"
           >
@@ -299,42 +301,42 @@ export default function Summon() {
             <DecoCorners level={rarityFrame(featuredHero.rarity).useGold ? 4 : 3} color={rarityFrame(featuredHero.rarity).useGold ? GOLD.base : featRarity.color} size={24} />
 
             {/* Copy */}
-            <div className="relative z-10 h-full flex flex-col p-4 sm:p-6">
+            <div className="relative z-10 h-full flex flex-col p-3 sm:p-5 lg:p-6">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-widest" style={{ background: `${GOLD.base}18`, color: GOLD.base, border: `1px solid ${GOLD.base}66` }}>
-                  <Sparkles className="w-3.5 h-3.5" /> LIMITED SUMMON
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-md text-[9px] lg:text-[10px] font-extrabold tracking-widest" style={{ background: `${GOLD.base}18`, color: GOLD.base, border: `1px solid ${GOLD.base}66` }}>
+                  <Sparkles className="w-3 h-3 lg:w-3.5 lg:h-3.5" /> LIMITED SUMMON
                 </span>
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-300" data-testid="banner-countdown">
-                  <Clock className="w-3.5 h-3.5 text-chakra" /> {countdown}
+                <span className="inline-flex items-center gap-1.5 text-[10px] lg:text-[11px] text-slate-300" data-testid="banner-countdown">
+                  <Clock className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-chakra" /> {countdown}
                 </span>
               </div>
 
-              <div className="mt-3 max-w-[92%] sm:max-w-[70%]">
-                <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500 mb-1">Limited Summon Banner</p>
+              <div className="mt-2 lg:mt-3 max-w-[92%] sm:max-w-[70%]">
+                <p className="hidden sm:block text-[10px] uppercase tracking-[0.3em] text-slate-500 mb-1">Limited Summon Banner</p>
                 <h1 className="font-display leading-[0.86] tracking-wide">
-                  <span className="block text-3xl sm:text-5xl text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(180deg, #fff, ${featRarity.color})` }}>{theme.name.split(" ")[0]}</span>
-                  <span className="block text-2xl sm:text-4xl text-slate-200">{theme.name.split(" ").slice(1).join(" ")}</span>
+                  <span className="block text-2xl sm:text-4xl lg:text-5xl text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(180deg, #fff, ${featRarity.color})` }}>{theme.name.split(" ")[0]}</span>
+                  <span className="block text-xl sm:text-3xl lg:text-4xl text-slate-200">{theme.name.split(" ").slice(1).join(" ")}</span>
                 </h1>
-                <p className="text-sm text-slate-400 mt-2 max-w-md">{theme.tagline}</p>
+                <p className="hidden sm:block text-sm text-slate-400 mt-2 max-w-md">{theme.tagline}</p>
               </div>
 
               {/* Rate-up hero — pinned toward the bottom, gold-accented separator */}
               <div className="mt-auto">
-                <div className="flex items-center gap-2 mb-1">
-                  <Stars rarity={featuredHero.rarity} className="w-3.5 h-3.5" />
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400">Rate-Up Hero</p>
+                <div className="flex items-center gap-2 mb-0.5 lg:mb-1">
+                  <Stars rarity={featuredHero.rarity} className="w-3 h-3 lg:w-3.5 lg:h-3.5" />
+                  <p className="text-[9px] lg:text-[10px] uppercase tracking-[0.25em] text-slate-400">Rate-Up Hero</p>
                 </div>
-                <h2 className="font-display text-2xl sm:text-4xl text-white leading-none">{featuredHero.name}</h2>
-                <div className="flex items-center gap-2 mt-1.5 text-xs sm:text-sm" style={{ color: featRarity.color }}>
+                <h2 className="font-display text-xl sm:text-3xl lg:text-4xl text-white leading-none">{featuredHero.name}</h2>
+                <div className="flex items-center gap-1.5 lg:gap-2 mt-1 text-[11px] sm:text-sm" style={{ color: featRarity.color }}>
                   <span className="font-semibold">{featRarity.name}</span>
                   <span className="w-1 h-1 rounded-full bg-current opacity-60" />
                   <span className="flex items-center gap-1 text-slate-300">
-                    {(() => { const EIcon = ELEMENT_ICON[featuredHero.element] || Sparkles; return <EIcon className="w-3.5 h-3.5" style={{ color: featElement.color }} />; })()}
+                    {(() => { const EIcon = ELEMENT_ICON[featuredHero.element] || Sparkles; return <EIcon className="w-3 h-3 lg:w-3.5 lg:h-3.5" style={{ color: featElement.color }} />; })()}
                     {featuredHero.role}
                   </span>
                 </div>
                 {heroTags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
+                  <div className="hidden sm:flex flex-wrap gap-1.5 mt-2">
                     {heroTags.map((t) => (
                       <span key={t} className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/40">{t}</span>
                     ))}
@@ -342,20 +344,20 @@ export default function Summon() {
                 )}
 
                 {/* Featured mini-row */}
-                <div className="flex items-center gap-2 mt-3">
+                <div className="flex items-center gap-2 mt-2 lg:mt-3">
                   <div className="flex -space-x-2">
                     {featuredSet.slice(0, 5).map((h, i) => {
                       const r = RARITY[h.rarity] || RARITY.R;
                       return (
-                        <div key={h.id} className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-lg overflow-hidden shrink-0" style={{ border: `1.5px solid ${i === 0 ? GOLD.base : r.color}`, boxShadow: i === 0 ? `0 0 10px ${GOLD.base}66` : "none" }}>
+                        <div key={h.id} className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-lg overflow-hidden shrink-0" style={{ border: `1.5px solid ${i === 0 ? GOLD.base : r.color}`, boxShadow: i === 0 ? `0 0 10px ${GOLD.base}66` : "none" }}>
                           <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" loading="lazy" />
                           {i === 0 && <span className="absolute top-0 left-0 w-2 h-2 rounded-full bg-chakra" style={{ boxShadow: "0 0 6px #00E5FF" }} />}
                         </div>
                       );
                     })}
                   </div>
-                  <button onClick={() => setFeaturedOpen(true)} data-testid="view-all-featured" className="text-[11px] font-semibold text-chakra hover:text-white transition-colors inline-flex items-center gap-0.5">
-                    View Featured <ChevronRight className="w-3.5 h-3.5" />
+                  <button onClick={() => setFeaturedOpen(true)} data-testid="view-all-featured" className="text-[10px] lg:text-[11px] font-semibold text-chakra hover:text-white transition-colors inline-flex items-center gap-0.5">
+                    View Featured <ChevronRight className="w-3 h-3 lg:w-3.5 lg:h-3.5" />
                   </button>
                 </div>
               </div>
@@ -368,70 +370,72 @@ export default function Summon() {
         )}
 
         {/* -------- RIGHT: summoning panel -------- */}
-        <div className="shrink-0 lg:basis-[40%] lg:h-full lg:min-h-0 flex flex-col gap-2.5" data-testid="summon-control-rail">
-          {/* 1. Compact pity panel — UR + LR pity tracks */}
-          <div className="rounded-xl bg-white/[0.04] border border-white/10 p-3 shrink-0" data-testid="summon-pity-module">
+        <div className="shrink-0 lg:basis-[40%] lg:h-full lg:min-h-0 flex flex-col gap-2 lg:gap-2.5" data-testid="summon-control-rail">
+          {/* 1. Compact pity panel — UR + LR pity tracks (denser on mobile) */}
+          <div className="rounded-xl bg-white/[0.04] border border-white/10 p-2.5 lg:p-3 shrink-0" data-testid="summon-pity-module">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${pityColor}18`, border: `1px solid ${pityColor}55` }}>
-                  <Sparkles className="w-5 h-5" style={{ color: pityColor }} />
+              <div className="flex items-center gap-1.5 lg:gap-2 min-w-0">
+                <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${pityColor}18`, border: `1px solid ${pityColor}55` }}>
+                  <Sparkles className="w-3.5 h-3.5 lg:w-5 lg:h-5" style={{ color: pityColor }} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[9px] uppercase tracking-widest text-slate-400 leading-none">{pityRarity} Pity · Gems only</p>
-                  <p className="font-display text-2xl leading-none mt-0.5" style={{ color: pityColor }} data-testid="summon-pity-count-text">
-                    {pityCount}<span className="text-slate-500 text-base"> / {hardPity}</span>
+                  <p className="text-[8px] lg:text-[9px] uppercase tracking-widest text-slate-400 leading-none">{pityRarity} Pity · Gems</p>
+                  <p className="font-display text-lg lg:text-2xl leading-none mt-0.5" style={{ color: pityColor }} data-testid="summon-pity-count-text">
+                    {pityCount}<span className="text-slate-500 text-xs lg:text-base"> / {hardPity}</span>
                   </p>
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-[9px] uppercase tracking-widest text-slate-400 leading-none">To Guarantee</p>
-                <p className="font-display text-lg leading-none mt-0.5" style={{ color: GOLD.base }} data-testid="pulls-to-pity">{pullsToPity}</p>
+                <p className="text-[8px] lg:text-[9px] uppercase tracking-widest text-slate-400 leading-none">To Guarantee</p>
+                <p className="font-display text-sm lg:text-lg leading-none mt-0.5" style={{ color: GOLD.base }} data-testid="pulls-to-pity">{pullsToPity}</p>
               </div>
             </div>
-            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mt-2 relative">
+            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mt-1.5 lg:mt-2 relative">
               <div className="h-full rounded-full" style={{ width: `${Math.min(100, (pityCount / hardPity) * 100)}%`, background: `linear-gradient(90deg,#D500F9,${pityColor})` }} />
               <div className="absolute top-0 bottom-0 w-px bg-fox/80" style={{ left: `${(softPity / hardPity) * 100}%` }} title="Soft pity begins" />
             </div>
             {/* LR pity track */}
-            <div className="flex items-center justify-between gap-2 mt-2.5">
+            <div className="flex items-center justify-between gap-2 mt-1.5 lg:mt-2.5">
               <div className="flex items-center gap-1.5 min-w-0">
-                <p className="text-[9px] uppercase tracking-widest text-slate-400 leading-none">LR Pity</p>
-                <p className="font-display text-sm leading-none" style={{ color: lrColor }} data-testid="summon-lr-pity-count">
-                  {lrPityCount}<span className="text-slate-500 text-xs"> / {lrHardPity}</span>
+                <p className="text-[8px] lg:text-[9px] uppercase tracking-widest text-slate-400 leading-none">LR Pity</p>
+                <p className="font-display text-xs lg:text-sm leading-none" style={{ color: lrColor }} data-testid="summon-lr-pity-count">
+                  {lrPityCount}<span className="text-slate-500 text-[10px] lg:text-xs"> / {lrHardPity}</span>
                 </p>
               </div>
-              <p className="text-[9px] uppercase tracking-widest text-slate-400 leading-none">To LR: <span className="font-display text-sm" style={{ color: GOLD.base }} data-testid="pulls-to-lr-pity">{lrPullsToPity}</span></p>
+              <p className="text-[8px] lg:text-[9px] uppercase tracking-widest text-slate-400 leading-none">To LR: <span className="font-display text-xs lg:text-sm" style={{ color: GOLD.base }} data-testid="pulls-to-lr-pity">{lrPullsToPity}</span></p>
             </div>
             <div className="h-1 rounded-full bg-white/10 overflow-hidden mt-1">
               <div className="h-full rounded-full" style={{ width: `${Math.min(100, (lrPityCount / lrHardPity) * 100)}%`, background: `linear-gradient(90deg,${lrColor}88,${lrColor})` }} />
             </div>
-            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-              {inSoftPity && <span className="text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded bg-fox/15 text-fox border border-fox/40" data-testid="soft-pity-active-chip">SOFT PITY</span>}
-              {pity.featured_guarantee && <span className="text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300 border border-amber-400/40" data-testid="featured-guarantee-chip">NEXT GR = FEATURED</span>}
-            </div>
+            {(inSoftPity || pity.featured_guarantee) && (
+              <div className="flex items-center gap-1.5 mt-1.5 lg:mt-2 flex-wrap">
+                {inSoftPity && <span className="text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded bg-fox/15 text-fox border border-fox/40" data-testid="soft-pity-active-chip">SOFT PITY</span>}
+                {pity.featured_guarantee && <span className="text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300 border border-amber-400/40" data-testid="featured-guarantee-chip">NEXT GR = FEATURED</span>}
+              </div>
+            )}
           </div>
 
           {/* 2. Currency toggle + rates */}
           <div className="flex items-center justify-between gap-2 shrink-0">
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-white/[0.04] border border-white/10" data-testid="pay-mode-toggle">
+            <div className="flex items-center gap-1 p-0.5 lg:p-1 rounded-lg bg-white/[0.04] border border-white/10" data-testid="pay-mode-toggle">
               {["gems", "ryo"].map((c) => {
                 const active = payMode === c;
                 const Icon = c === "gems" ? Gem : Coins;
                 return (
                   <button key={c} onClick={() => setPayMode(c)} data-testid={`pay-${c}`}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${active ? "text-white" : "text-slate-400 hover:text-slate-200"}`}
+                    className={`inline-flex items-center gap-1 px-2.5 lg:px-3 py-1 lg:py-1.5 rounded-md text-[11px] lg:text-xs font-semibold transition-colors ${active ? "text-white" : "text-slate-400 hover:text-slate-200"}`}
                     style={active ? { background: c === "gems" ? "rgba(213,0,249,0.22)" : "rgba(255,202,40,0.18)", border: `1px solid ${c === "gems" ? "#D500F966" : "#FFCA2855"}` } : { border: "1px solid transparent" }}>
-                    <Icon className="w-3.5 h-3.5" style={{ color: c === "gems" ? "#D500F9" : "#FFCA28" }} /> {c === "gems" ? "Gems" : "Ryo"}
+                    <Icon className="w-3 h-3 lg:w-3.5 lg:h-3.5" style={{ color: c === "gems" ? "#D500F9" : "#FFCA28" }} /> {c === "gems" ? "Gems" : "Ryo"}
                   </button>
                 );
               })}
             </div>
-            <button onClick={() => setRatesOpen(true)} data-testid="summon-rates-open-button" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-chakra transition-colors">
-              <Info className="w-3.5 h-3.5" /> Rates
+            <button onClick={() => setRatesOpen(true)} data-testid="summon-rates-open-button" className="inline-flex items-center gap-1 text-[11px] lg:text-xs font-semibold text-slate-400 hover:text-chakra transition-colors">
+              <Info className="w-3 h-3 lg:w-3.5 lg:h-3.5" /> Rates
             </button>
           </div>
 
-          {/* 3. SUMMON ×1 and ×10 — premium action cards, side-by-side */}
+          {/* 3. SUMMON ×1 and ×10 — primary action cards, side-by-side */}
           <div className="grid grid-cols-2 gap-2 shrink-0">
             <PullButton
               label="SUMMON ×1"
@@ -457,6 +461,26 @@ export default function Summon() {
             />
           </div>
 
+          {isMobile ? (
+            /* Mobile: compact secondary strip — ticket, free summons + quick access.
+               Replaces the bulky inline grid so the primary experience fits one viewport. */
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0 -mx-0.5 px-0.5 pb-0.5" data-testid="summon-secondary-strip">
+              <SecChip icon={Ticket} label="Ticket ×1" sub={`${tickets}`} color="#FFCA28"
+                disabled={busy || tickets < 1} busy={busyKind === "ticket-1"}
+                onClick={() => doHeroSummon(1, "ticket")} testid="summon-ticket-button" />
+              <SecChip icon={Gem} label="Free Gem" sub={freeGemLeft > 0 ? `${freeGemLeft} left` : "Done"} color="#D500F9"
+                disabled={busy || freeGemLeft <= 0} busy={busyKind === "free-gem"}
+                onClick={() => doFreeSummon("gem")} testid="free-gem-summon" />
+              <SecChip icon={Coins} label="Free Ryo" sub={freeCoinLeft > 0 ? `${freeCoinLeft} left` : "Done"} color="#FFCA28"
+                disabled={busy || freeCoinLeft <= 0} busy={busyKind === "free-coin"}
+                onClick={() => doFreeSummon("coin")} testid="free-coin-summon" />
+              <span className="w-px h-7 bg-white/10 mx-0.5 shrink-0" />
+              <SecNav icon={Users2} color="#00E5FF" label="Heroes" onClick={() => setAvailableOpen(true)} testid="open-available-card" />
+              <SecNav icon={Star} color="#FFCA28" label="Featured" onClick={() => setFeaturedOpen(true)} testid="open-featured-card" />
+              <SecNav icon={History} color="#D500F9" label="History" onClick={() => setHistoryOpen(true)} testid="open-history-card" />
+            </div>
+          ) : (
+          <>
           {/* 4. Ticket summon — full-width */}
           <PullButton
             label="TICKET SUMMON ×1"
@@ -544,6 +568,8 @@ export default function Summon() {
             <QuickBtn icon={Star} color="#FFCA28" label="Featured" onClick={() => setFeaturedOpen(true)} testid="open-featured-card" />
             <QuickBtn icon={History} color="#D500F9" label="History" onClick={() => setHistoryOpen(true)} testid="open-history-card" />
           </div>
+          </>
+          )}
         </div>
       </div>)}
 
@@ -739,8 +765,8 @@ const PullButton = ({ label, icon: Icon, amount, unit, color, ribbon, sub, prima
   <button onClick={onClick} disabled={disabled} data-testid={testid} data-sfx="summon"
     className={`relative flex overflow-hidden transition-all disabled:opacity-40 ${
       slim
-        ? "items-center justify-center gap-2 py-2.5 px-3 rounded-xl flex-row w-full"
-        : "flex-col items-center justify-center gap-1 py-3.5 px-2 rounded-2xl"
+        ? "items-center justify-center gap-2 py-2 px-3 rounded-xl flex-row w-full"
+        : "flex-col items-center justify-center gap-0.5 py-2.5 sm:py-3.5 px-2 rounded-2xl"
     } ${primary ? "shine-sweep" : ""}`}
     style={primary
       ? { background: "linear-gradient(135deg,#4a3408,#1a1406)", border: "2px solid #FFCA28aa", boxShadow: "0 0 32px #FFCA2844, 0 0 64px #FFCA2822, inset 0 0 16px rgba(255,202,40,0.08)" }
@@ -748,11 +774,11 @@ const PullButton = ({ label, icon: Icon, amount, unit, color, ribbon, sub, prima
     {ribbon && (
       <span className="absolute top-0 right-0 text-[9px] font-extrabold tracking-wider px-1.5 py-0.5 rounded-bl-lg" style={{ background: "#FFCA28", color: "#05050A" }}>{ribbon}</span>
     )}
-    <span className={`flex items-center gap-1.5 font-display tracking-wider text-white leading-none ${primary ? "text-lg sm:text-xl" : "text-base sm:text-lg"}`}>
-      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className={`w-4 h-4 ${primary ? "sm:w-5 sm:h-5" : ""}`} style={{ color: primary ? "#FFCA28" : color }} />}
+    <span className={`flex items-center gap-1 font-display tracking-wider text-white leading-none ${primary ? "text-base sm:text-lg lg:text-xl" : "text-sm sm:text-base lg:text-lg"}`}>
+      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${primary ? "sm:w-5 sm:h-5" : ""}`} style={{ color: primary ? "#FFCA28" : color }} />}
       {label}
     </span>
-    <span className="flex items-center gap-1 text-sm font-bold leading-none" style={{ color }}>
+    <span className="flex items-center gap-1 text-xs sm:text-sm font-bold leading-none" style={{ color }}>
       <Icon className="w-3.5 h-3.5" /> {amount.toLocaleString()}{unit ? ` ${unit}` : ""}
     </span>
     {sub && !slim && <span className="text-[9px] text-slate-400 text-center leading-tight">{sub}</span>}
@@ -764,6 +790,28 @@ const QuickBtn = ({ icon: Icon, color, label, onClick, testid }) => (
   <button onClick={onClick} data-testid={testid} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition-colors">
     <Icon className="w-4 h-4" style={{ color }} />
     <span className="text-xs font-semibold text-slate-300">{label}</span>
+  </button>
+);
+
+// Mobile secondary strip chips — compact action + navigation buttons that
+// keep ticket / free summons and roster access reachable without the bulky
+// inline grid, so the primary summon experience fits one mobile viewport.
+const SecChip = ({ icon: Icon, label, sub, color, disabled, busy, onClick, testid }) => (
+  <button onClick={onClick} disabled={disabled} data-testid={testid} data-sfx="summon"
+    className="shrink-0 flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl disabled:opacity-40 transition-all"
+    style={{ background: `${color}12`, border: `1px solid ${color}44` }}>
+    <span className="flex items-center gap-1 text-[11px] font-bold leading-none" style={{ color }}>
+      {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Icon className="w-3 h-3" />} {label}
+    </span>
+    <span className="text-[9px] text-slate-400 leading-none">{sub}</span>
+  </button>
+);
+
+const SecNav = ({ icon: Icon, color, label, onClick, testid }) => (
+  <button onClick={onClick} data-testid={testid}
+    className="shrink-0 flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition-colors">
+    <Icon className="w-3.5 h-3.5" style={{ color }} />
+    <span className="text-[10px] font-semibold text-slate-300 leading-none">{label}</span>
   </button>
 );
 
