@@ -69,7 +69,7 @@ export default function Lobby() {
       {/* ================= LEFT — cinematic squad leader ================= */}
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}
-        className="lg:col-span-4 relative rounded-2xl overflow-hidden h-[38dvh] lg:h-full min-h-0"
+        className="lg:col-span-4 relative rounded-2xl overflow-hidden h-[34dvh] lg:h-full min-h-0"
         style={leaderFrame ? { border: `${leaderFrame.strokeWidth}px solid ${leaderFrame.useGold ? GOLD.stroke : leaderRarity.color + "55"}`, boxShadow: `0 0 50px ${(leaderFrame.useGold ? GOLD.base : leaderRarity.color)}22` } : { border: "1px solid rgba(255,255,255,0.08)" }}
         data-testid="leader-hero"
       >
@@ -84,8 +84,8 @@ export default function Lobby() {
         {leaderFrame?.useGold && <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />}
         {leaderFrame && leaderFrame.cornerLevel >= 2 && <DecoCorners rarity={leaderRarityKey} size={22} />}
 
-        <div className="absolute top-3 right-3 z-10 text-right">
-          <p className="text-[10px] uppercase tracking-widest text-slate-500">Sensei Rank</p>
+        <div className="absolute top-3 right-3 z-10 text-right rounded-lg px-2.5 py-1.5 bg-black/55 backdrop-blur-sm">
+          <p className="text-[10px] uppercase tracking-widest text-slate-400">Sensei Rank</p>
           <p className="font-display text-2xl lg:text-3xl text-chakra leading-none" style={{ textShadow: glow("#00E5FF", 1) }} data-testid="stat-level">Lv.{user?.level ?? 1}</p>
         </div>
 

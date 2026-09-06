@@ -2422,13 +2422,13 @@ EXP_TOME_GOLD_COST = {"exp_tome_minor": 25, "exp_tome_greater": 110, "exp_tome_a
 STAR_BONUS_PER_STAR = 0.18  # +18% HP/ATK/DEF per star beyond the 1st (big evolution payoff)
 
 
-def evolution_cost(rarity: str, current_star: int):
+def evolution_cost(rarity: str, current_star: int, element: str = None):
     """Full cost to evolve a hero from `current_star` -> `current_star + 1`.
     Delegates to the centralized progression config (per-rarity star caps +
-    shard/gold costs). Returns None when the hero is already at its rarity's
-    star cap (no further evolution possible — Ascension is the next step)."""
+    rarity-aware shard/gold costs + material requirements). Returns None when
+    the hero is already at its rarity's star cap."""
     import progression as _prog
-    return _prog.get_evolution_cost(rarity, current_star)
+    return _prog.get_evolution_cost(rarity, current_star, element)
 
 
 # ---------------------------------------------------------------------------
@@ -2728,6 +2728,7 @@ ITEMS.update({
     "spirit_dust":     {"id": "spirit_dust", "name": "Spirit Dust", "type": "material", "value": 0, "icon": "sparkles", "color": "#80DEEA", "desc": "Fuse 4 into Evolution Essence."},
     "evo_essence":     {"id": "evo_essence", "name": "Evolution Essence", "type": "material", "value": 0, "icon": "sparkles", "color": "#D500F9", "desc": "Rare material for high-tier hero evolution."},
     "celestial_core":  {"id": "celestial_core", "name": "Celestial Core", "type": "material", "value": 0, "icon": "gem", "color": "#FFC857", "desc": "The rarest evolution material — for the final stars."},
+    "boss_core":       {"id": "boss_core", "name": "Boss Core", "type": "material", "value": 0, "icon": "skull", "color": "#FF1744", "desc": "A core ripped from a defeated Boss Hunt boss. Required for the ultimate Transformation to GR."},
     "blueprint_weapon":    {"id": "blueprint_weapon", "name": "Weapon Blueprint", "type": "material", "value": 0, "icon": "sword", "color": "#FF7043", "desc": "Craft a random Weapon in the Forge."},
     "blueprint_armor":     {"id": "blueprint_armor", "name": "Armor Blueprint", "type": "material", "value": 0, "icon": "shield", "color": "#42A5F5", "desc": "Craft a random Armor in the Forge."},
     "blueprint_accessory": {"id": "blueprint_accessory", "name": "Accessory Blueprint", "type": "material", "value": 0, "icon": "gem", "color": "#26C6DA", "desc": "Craft a random Accessory in the Forge."},

@@ -1865,75 +1865,57 @@ export default function Battle() {
       )}
 
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-20 glass border-b border-white/10 px-4 py-1.5 flex items-center justify-between">
+      <div className="absolute top-0 left-0 right-0 z-20 glass border-b border-white/10 px-2 sm:px-4 py-1 flex items-center justify-between">
         <button
-          onClick={() =>
-            navigate(backTo)
-          }
+          onClick={() => navigate(backTo)}
           data-testid="battle-exit"
-          className="text-slate-400 hover:text-white text-sm font-semibold"
+          className="text-slate-400 hover:text-white text-xs sm:text-sm font-semibold shrink-0"
         >
           ← Retreat
         </button>
 
-        <div className="text-center">
-          <div className="font-display text-lg tracking-widest text-white leading-none truncate max-w-[45vw]">
+        <div className="text-center min-w-0">
+          <div className="font-display text-sm sm:text-lg tracking-widest text-white leading-none truncate max-w-[28vw] sm:max-w-[45vw]">
             {title}
           </div>
-
-          <div className="text-[10px] text-chakra font-semibold">
+          <div className="text-[9px] sm:text-[10px] text-chakra font-semibold">
             ROUND {round}
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <button
             onClick={cycleSpeed}
             data-testid="battle-speed-toggle"
             title="Battle speed"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-display tracking-wide border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-display tracking-wide border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
           >
-            <Gauge className="w-3.5 h-3.5" />
+            <Gauge className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             {speed}X
           </button>
-
           <button
-            onClick={() =>
-              setAuto(!auto)
-            }
+            onClick={() => setAuto(!auto)}
             data-testid="battle-auto-toggle"
             title="Auto-battle"
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-display tracking-wide border transition-colors ${
-              auto
-                ? "border-chakra text-chakra bg-cyan-500/15"
-                : "border-white/15 text-slate-300 hover:text-white hover:border-white/30"
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-display tracking-wide border transition-colors ${
+              auto ? "border-chakra text-chakra bg-cyan-500/15" : "border-white/15 text-slate-300 hover:text-white hover:border-white/30"
             }`}
           >
-            <Bot className="w-3.5 h-3.5" />
+            <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             AUTO
           </button>
-
           <button
-            onClick={() =>
-              setCinema(!cinema)
-            }
-            title={
-              cinema
-                ? "Cinematics on"
-                : "Cinematics off"
-            }
-            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-display tracking-wide border transition-colors ${
-              cinema
-                ? "border-violet-400/50 text-violet-300 bg-violet-500/10"
-                : "border-white/15 text-slate-400 hover:text-white"
+            onClick={() => setCinema(!cinema)}
+            title={cinema ? "Cinematics on" : "Cinematics off"}
+            className={`flex items-center px-1.5 py-1 rounded-lg text-xs border transition-colors ${
+              cinema ? "border-violet-400/50 text-violet-300 bg-violet-500/10" : "border-white/15 text-slate-400 hover:text-white"
             }`}
           >
-            <Film className="w-3.5 h-3.5" />
+            <Film className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           </button>
-
           <button
             title="Settings"
-            className="flex items-center px-2 py-1.5 rounded-lg border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
+            className="hidden sm:flex items-center px-2 py-1.5 rounded-lg border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
@@ -1946,8 +1928,8 @@ export default function Battle() {
       <div
         className="absolute inset-0 z-10 flex"
         style={{
-          paddingTop: layout.isShort ? "2.75rem" : "calc(var(--game-header-height) + 0.25rem)",
-          paddingBottom: layout.isShort ? "4rem" : "5.5rem",
+          paddingTop: layout.isShort ? "2.25rem" : "2.5rem",
+          paddingBottom: layout.isShort ? "3.5rem" : "4.5rem",
         }}
       >
         {/* Turn order */}
@@ -1961,7 +1943,7 @@ export default function Battle() {
         {/* Center battlefield */}
         <div className="flex-1 flex flex-col justify-center min-w-0">
           {/* Enemies */}
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-4 px-2 mb-1">
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 px-2 mb-1">
             {arrangedEnemies.map((c) => (
               <BattleFighter
                 key={c.uid}
@@ -2018,7 +2000,7 @@ export default function Battle() {
           </div>
 
           {/* Allies */}
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-4 px-2 mt-1">
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 px-2 mt-1">
             {allies.map((c) => (
               <BattleFighter
                 key={c.uid}

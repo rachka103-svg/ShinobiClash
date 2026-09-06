@@ -741,7 +741,7 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_gear: dic
     stars_max = gd.max_stars_for_rarity(rarity)
     inst["stars_max"] = stars_max
     inst["at_star_cap"] = stars >= stars_max
-    inst["evolution_cost"] = gd.evolution_cost(rarity, stars) if stars < stars_max else None
+    inst["evolution_cost"] = gd.evolution_cost(rarity, stars, tmpl.get("element")) if stars < stars_max else None
     inst["star_up_cost"] = inst["evolution_cost"]["shards"] if inst["evolution_cost"] else None
     inst["faction"] = tmpl.get("faction")
     inst["role"] = tmpl.get("role")
@@ -1190,14 +1190,21 @@ async def boss_hunt_complete(body: dict, user: dict = Depends(get_current_user))
 
         # Track cleared bosses
         cleared_bosses = user.get("cleared_bosses", [])
-        if boss_id not in cleared_bosses:
+        is_first_clear = boss_id not in cleared_bosses
+        if is_first_clear:
             cleared_bosses.append(boss_id)
             # First-clear bonus
             rewards["gems"] += 50
             rewards["first_clear"] = True
 
+        # Boss Core drop — required for ultimate Transformation (LR -> GR)
+        inventory = user.get("inventory", {})
+        boss_core_qty = 2 if is_first_clear else 1
+        inventory["boss_core"] = inventory.get("boss_core", 0) + boss_core_qty
+        rewards["evolution_materials"] = {"boss_core": boss_core_qty}
+
         await db.users.update_one({"_id": user["_id"]}, {
-            "$set": {"ryo": user["ryo"], "gems": user["gems"], "cleared_bosses": cleared_bosses},
+            "$set": {"ryo": user["ryo"], "gems": user["gems"], "cleared_bosses": cleared_bosses, "inventory": inventory},
         })
 
     return {"result": result, "rewards": rewards, "profile": public_user(user)}
@@ -1569,6 +1576,13 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
         for iid, qty in forge_drops.items():
             inventory[iid] = inventory.get(iid, 0) + qty
         rewards.setdefault("forge_materials", {}).update(forge_drops)
+
+    # Evolution material — evo_essence drops from Campaign (foundation material)
+    evo_qty = 2 + chapter
+    if first_clear:
+        evo_qty += 3
+    inventory["evo_essence"] = inventory.get("evo_essence", 0) + evo_qty
+    rewards.setdefault("evolution_materials", {})["evo_essence"] = evo_qty
 
     # gear drops — battles from Chapter 2 onward can drop gear (long-term loop)
     rewards["gear"] = _roll_battle_gear_drop(user, chapter)
@@ -2010,7 +2024,7 @@ async def _do_evolve(instance_id: str, user: dict) -> dict:
     stars_max = gd.max_stars_for_rarity(rarity)
     if stars >= stars_max:
         raise HTTPException(status_code=400, detail="This hero is already at maximum evolution for its rarity — Ascend to raise the cap")
-    cost = gd.evolution_cost(rarity, stars)
+    cost = gd.evolution_cost(rarity, stars, tmpl.get("element"))
     hero_shards = user.setdefault("hero_shards", {})
     inventory = user.get("inventory", {})
     have_shards = hero_shards.get(inst["template_id"], 0)
@@ -2295,8 +2309,9 @@ async def revert_hero(body: RevertIn, user: dict = Depends(get_current_user)):
     #    iterating by star number is correct regardless of which rarity each
     #    star was earned at).
     stars = inst.get("stars", 1)
+    _elem = tmpl.get("element")
     for i in range(stars - 1):
-        cost = gd.evolution_cost(rarity, i)
+        cost = gd.evolution_cost(rarity, i, _elem)
         if not cost:
             continue
         shards_refund += cost["shards"]
@@ -2623,10 +2638,14 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     inventory = user.get("inventory", {})
     for iid, qty in r["items"].items():
         inventory[iid] = inventory.get(iid, 0) + qty
-    # Elemental essence — small per-path reward identity, no new currency system
+    # Elemental essence — drops from elemental Spire paths (used for Evolution 3★+)
     if path != "normal" and advancing:
         essence_id = f"{path}_essence"
-        inventory[essence_id] = inventory.get(essence_id, 0) + (3 if r.get("boss") else 1)
+        inventory[essence_id] = inventory.get(essence_id, 0) + (5 if r.get("boss") else 2)
+    # evo_essence also drops from normal Spire (supplementary Campaign source)
+    if advancing:
+        evo_qty = 1 + floor // 10
+        inventory["evo_essence"] = inventory.get("evo_essence", 0) + evo_qty
     user["inventory"] = inventory
     if advancing:
         if path == "normal":
@@ -2745,6 +2764,17 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
     if forge_drops:
         for iid, qty in forge_drops.items():
             inventory[iid] = inventory.get(iid, 0) + qty
+
+    # Nightmare material drops — nightmare_dust, dream_fragment, lunar_essence
+    # Used for high-star Evolution (5★+) and Ascension (SSR+)
+    _tsuku_mats = {
+        "normal":   {"nightmare_dust": 3},
+        "hard":     {"nightmare_dust": 5, "dream_fragment": 2},
+        "nightmare":{"nightmare_dust": 8, "dream_fragment": 4, "lunar_essence": 1},
+    }
+    _mat_drops = _tsuku_mats.get(body.difficulty, {"nightmare_dust": 3})
+    for iid, qty in _mat_drops.items():
+        inventory[iid] = inventory.get(iid, 0) + qty
 
     # RARE drop — a single random piece of the boss's signature gear set.
     gear_reward = None

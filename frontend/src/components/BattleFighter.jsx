@@ -44,9 +44,9 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
   // ---- Regular sizing (fluid so N fighters never overflow horizontally) ----
   // Scales down on narrow/short viewports and grows on desktop. The container
   // is slightly wider than the card to leave room for the name/HP/CK readouts.
-  const regW = "clamp(72px, 22vw, 112px)";
-  const regH = "clamp(92px, 26vh, 146px)";
-  const regContainerW = "clamp(82px, 25vw, 128px)";
+  const regW = "clamp(58px, 16vw, 110px)";
+  const regH = "clamp(78px, 20vh, 144px)";
+  const regContainerW = "clamp(66px, 18vw, 125px)";
 
   const cardW = isBoss ? bossW : regW;
   const cardH = isBoss ? bossH : regH;
@@ -184,7 +184,7 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
         {subdued && <div className="absolute inset-0 bg-black/15" />}
         {!c.alive && <Skull className="absolute inset-0 m-auto w-8 h-8 text-white/70" />}
         {/* Level badge */}
-        <span className={`absolute top-1 right-1 font-display text-white bg-black/60 px-1.5 py-0.5 rounded ${isBoss ? "text-sm" : "text-[9px]"}`}>LV.{c.level}</span>
+        <span className={`absolute top-1 right-1 font-display text-white bg-black/60 px-1 py-0.5 rounded ${isBoss ? "text-sm" : "text-[10px]"}`}>LV.{c.level}</span>
         {/* Enraged */}
         {c.enraged && (
           <span data-testid={`enraged-${c.uid}`} className={`absolute top-1 left-1 flex items-center gap-0.5 font-display text-white bg-red-600/80 px-1 rounded ${isBoss ? "text-xs" : "text-[8px]"}`}>
@@ -236,7 +236,7 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
 
       {/* HP bar + value */}
       <div className="w-full mt-0.5">
-        <div className={`flex items-center justify-between mb-0.5 ${isBoss ? "text-[11px]" : "text-[8px]"}`}>
+        <div className={`flex items-center justify-between mb-0.5 ${isBoss ? "text-[11px]" : "text-[9px]"}`}>
           <span className="text-fox font-bold">HP</span>
           <span className="text-slate-300 tabular-nums">{c.hp.toLocaleString()}/{c.maxHp.toLocaleString()}</span>
         </div>
@@ -250,7 +250,7 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
 
       {/* Chakra bar + value */}
       <div className="w-full mt-0.5">
-        <div className={`flex items-center justify-between mb-0.5 ${isBoss ? "text-[11px]" : "text-[8px]"}`}>
+        <div className={`flex items-center justify-between mb-0.5 ${isBoss ? "text-[11px]" : "text-[9px]"}`}>
           <span className="text-chakra font-bold">⚡</span>
           <span className="text-slate-300 tabular-nums">{c.chakra}/{c.maxChakra}</span>
         </div>
