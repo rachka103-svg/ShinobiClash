@@ -184,7 +184,7 @@ export default function Tsukuyomi() {
       data-testid="tsukuyomi-page"
     >
       {/* Background image */}
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url(/bg-tsukuyomi.png)" }} />
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url(/bg-tsukuyomi.webp)" }} />
       {/* Dark overlay for readability */}
       <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(11,5,20,0.55) 0%, rgba(11,5,20,0.35) 40%, rgba(11,5,20,0.75) 100%)" }} />
       {/* ambient nebula glow */}

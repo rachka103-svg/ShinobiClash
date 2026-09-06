@@ -54,9 +54,9 @@ export function preloadBattleAssets({ portraits, background }) {
  * Get the battle background URL for a given mode/region.
  */
 export function getBattleBackground(mode, region) {
-  if (mode === "spire") return "/bg-spire.png";
-  if (mode === "tsukuyomi") return "/bg-tsukuyomi.png";
-  if (mode === "bosshunt") return "/bosshunt-shrine.png";
+  if (mode === "spire") return "/bg-spire.webp";
+  if (mode === "tsukuyomi") return "/bg-tsukuyomi.webp";
+  if (mode === "bosshunt") return "/bosshunt-shrine.webp";
   // Campaign backgrounds could vary by region in the future
   return null;
 }

@@ -579,3 +579,30 @@
   40%  { opacity: 0.5; }
   100% { opacity: 0; }
 }
+
+/* ==========================================================================
+   PERFORMANCE — GPU layer promotion for animated elements.
+   `will-change` promotes each animated element to its own compositor layer
+   so transform/opacity animations run on the GPU without re-rasterizing
+   the (blurred) content each frame. This is the single biggest mobile
+   battle-performance fix: the battlefield fog/particle/parallax layers carry
+   `filter: blur()` which is extremely expensive to re-composite without
+   layer promotion.
+   ========================================================================== */
+.fog-drift, .fog-drift-slow, .cloud-drift, .parallax-bg, .parallax-mid {
+    will-change: transform;
+}
+.battle-particle {
+    will-change: transform, opacity;
+}
+.moon-glow { will-change: opacity; }
+.idle-breath, .idle-cloth { will-change: transform; }
+.aura-element { will-change: transform, opacity; }
+.ground-shadow { will-change: opacity, transform; }
+.lightning-flash { will-change: opacity; }
+.circle-rotate, .circle-rotate-fast, .circle-rotate-rev { will-change: transform; }
+
+/* Reduce particle count overhead on small screens — fewer compositor layers. */
+@media (max-width: 767px) {
+    .battle-particle:nth-child(n+10) { display: none; }
+}

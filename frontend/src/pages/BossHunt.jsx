@@ -153,7 +153,7 @@ export default function BossHunt() {
       {/* ===== FULL-SCREEN SHRINE BACKGROUND ===== */}
       <div
         className="fixed inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url(/bosshunt-shrine.png)" }}
+        style={{ backgroundImage: "url(/bosshunt-shrine.webp)" }}
       />
       {/* Subtle dark gradient overlay for readability */}
       <div className="fixed inset-0" style={{

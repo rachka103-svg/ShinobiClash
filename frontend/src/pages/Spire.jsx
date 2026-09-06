@@ -73,7 +73,7 @@ export default function Spire() {
   return (
     <div className="w-full max-w-[1504px] mx-auto px-6 lg:px-11 pt-3 pb-4 relative" data-testid="spire-page">
       {/* Background image */}
-      <div className="fixed inset-0 bg-cover bg-center -z-10" style={{ backgroundImage: "url(/bg-spire.png)" }} />
+      <div className="fixed inset-0 bg-cover bg-center -z-10" style={{ backgroundImage: "url(/bg-spire.webp)" }} />
       {/* Dark overlay for readability */}
       <div className="fixed inset-0 -z-10" style={{ background: "linear-gradient(180deg, rgba(13,10,17,0.55) 0%, rgba(13,10,17,0.35) 40%, rgba(13,10,17,0.75) 100%)" }} />
       {/* ── Title area ── */}

@@ -1270,11 +1270,11 @@ _NINJA_IDS = {"blaze", "ripple", "zephyr", "boulder", "spark", "ember", "frost",
 _V2_IDS = {h[0] for h in _HERO_DEFS_V2}
 for _n in NINJA_CATALOG:
     if _n["id"] in _V2_IDS:
-        _n["portrait"] = "/heroes/_placeholder.png"
+        _n["portrait"] = "/heroes/_placeholder.webp"
     elif _n["id"] in _NINJA_IDS:
-        _n["portrait"] = f"/ninjas/{_n['id']}.png"
+        _n["portrait"] = f"/ninjas/{_n['id']}.webp"
     else:
-        _n["portrait"] = f"/heroes/{_n['id']}.png"
+        _n["portrait"] = f"/heroes/{_n['id']}.webp"
 
 CATALOG_BY_ID = {n["id"]: n for n in NINJA_CATALOG}
 
@@ -2831,7 +2831,7 @@ for _hid, _name, _el, _rar, _role, _lore in _NIGHTMARE_BOSS_DEFS:
         "role": _role, "lore": _lore, "base_stats": _hero_stats(_rar, _role),
         "jutsus": _hero_jutsus(_hid, _name, _el, _rar, _role),
         "passive": _passive_for(_hid, _role),
-        "portrait": "/heroes/_placeholder.png",
+        "portrait": "/heroes/_placeholder.webp",
         "is_nightmare_boss": True,
     })
 NIGHTMARE_BOSS_BY_ID = {t["id"]: t for t in NIGHTMARE_BOSS_TEMPLATES}

@@ -67,7 +67,7 @@ export default function Campaign() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 relative" data-testid="campaign-page">
       {/* Background image */}
-      <div className="fixed inset-0 bg-cover bg-center -z-10" style={{ backgroundImage: "url(/bg-campaign.png)" }} />
+      <div className="fixed inset-0 bg-cover bg-center -z-10" style={{ backgroundImage: "url(/bg-campaign.webp)" }} />
       {/* Dark overlay for readability */}
       <div className="fixed inset-0 -z-10" style={{ background: "linear-gradient(180deg, rgba(13,13,13,0.55) 0%, rgba(13,13,13,0.35) 40%, rgba(13,13,13,0.75) 100%)" }} />
       {/* Header */}
