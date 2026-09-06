@@ -1294,19 +1294,19 @@ STARTER_NINJAS = ["blaze", "ripple", "zephyr"]
 
 # Weighted summon pool (per rarity). Lower rarity = higher chance.
 # GEM banner (premium) — the standard, pity-backed rates.
-SUMMON_WEIGHTS = {"R": 1000, "SR": 320, "SSR": 95, "UR": 20, "LR": 6, "GR": 2}
+SUMMON_WEIGHTS = {"R": 10000, "SR": 3321, "SSR": 1107, "UR": 342, "LR": 171, "GR": 21}
 # GOLD/RYO banner (budget) — SUPER low chance at rare heroes and NO pity.
 # Heavily floored to R/SR; UR/GR are vanishingly rare here.
-GOLD_SUMMON_WEIGHTS = {"R": 4000, "SR": 520, "SSR": 60, "UR": 4, "LR": 1.5, "GR": 0.5}
+GOLD_SUMMON_WEIGHTS = {"R": 10000, "SR": 1258, "SSR": 193, "UR": 37, "LR": 4, "GR": 2}
 # Gold (Ryo) summon cost — significantly increased from 300 to make gold
 # summons a meaningful decision rather than something players can spam.
 # A new player clearing Chapter 1 earns ~10k Ryo (first clears + rewards),
 # so 5000 = ~2 summons per chapter of first-clear progress. Daily income
 # (login + missions + stage replays + gold vault) is ~2.5k-4k Ryo, giving
 # roughly 2-3 summons per day from routine play.
-SUMMON_COST = 5000
-# x10 Gold Summon — 8x the single cost (20% discount vs 10 individual pulls).
-GOLD_SUMMON_X10_COST = 40000
+SUMMON_COST = 10000
+# x10 Gold Summon — 10x the single cost (no bulk discount).
+GOLD_SUMMON_X10_COST = 100000
 
 # Shards gained when pulling a hero already owned (duplicate protection —
 # duplicates are NEVER wasted). Lower rarity yields more shards since it's
@@ -2669,6 +2669,7 @@ MYTHIC_HARD_PITY = 90
 MYTHIC_SOFT_PITY_CEIL = 0.35     # ramped UR chance just before hard pity
 FEATURED_MYTHIC_5050 = 0.5
 TOP_RARITY = "UR"                # UR is the pity target; GR has NO pity (super rare)
+LR_HARD_PITY = 180               # LR pity — guaranteed LR by pull 180 (no soft pity)
 X10_GUARANTEE_RARITY = "SR"      # every x10 contains at least one SR or better
 GEAR_SUMMON_GEM_COST = 90
 GEAR_SUMMON_RATES = {"rare": 62, "epic": 30, "legendary": 8}
@@ -2709,7 +2710,7 @@ mythic_chance = pity_chance
 
 
 def fresh_pity_state() -> dict:
-    return {"ur": 0, "featured_guarantee": False, "total_pulls": 0}
+    return {"ur": 0, "lr": 0, "featured_guarantee": False, "total_pulls": 0}
 
 
 

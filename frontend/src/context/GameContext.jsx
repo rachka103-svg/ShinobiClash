@@ -13,14 +13,14 @@ export function GameProvider({ children }) {
   const [bossMechanics, setBossMechanics] = useState({});
   const [items, setItems] = useState({});
   const [trials, setTrials] = useState([]);
-  const [summonCost, setSummonCost] = useState(5000);
-  const [goldSummonX10Cost, setGoldSummonX10Cost] = useState(40000);
+  const [summonCost, setSummonCost] = useState(10000);
+  const [goldSummonX10Cost, setGoldSummonX10Cost] = useState(100000);
   const [gemCosts, setGemCosts] = useState({ summon: 150, energy_refill_per_point: 4, energy_refill_min: 15 });
   const [banner, setBanner] = useState(null);
   // --- Phase J expansion config (all data-driven from the backend) ---
   const [summonRates, setSummonRates] = useState({});
   const [summonRatesRyo, setSummonRatesRyo] = useState({});
-  const [pityConfig, setPityConfig] = useState({ soft_pity_start: 60, hard_pity: 90, featured_5050: 0.5, x10_guarantee_rarity: "SR", pity_rarity: "UR", pity_currencies: ["gems", "ticket"] });
+  const [pityConfig, setPityConfig] = useState({ soft_pity_start: 60, hard_pity: 90, lr_hard_pity: 180, featured_5050: 0.5, featured_5050_rarity: "GR", x10_guarantee_rarity: "SR", pity_rarity: "UR", pity_currencies: ["gems", "ticket"] });
   const [gearConfig, setGearConfig] = useState(null);
   const [craftRecipes, setCraftRecipes] = useState({});
   const [fusionRecipes, setFusionRecipes] = useState({});
@@ -39,8 +39,8 @@ export function GameProvider({ children }) {
     setAdvantage(data.element_advantage);
     setItems(data.items || {});
     setTrials(data.trials || []);
-    setSummonCost(data.summon_cost || 5000);
-    setGoldSummonX10Cost(data.gold_summon_x10_cost || 40000);
+    setSummonCost(data.summon_cost || 10000);
+    setGoldSummonX10Cost(data.gold_summon_x10_cost || 100000);
     setGemCosts(data.gem_costs || { summon: 150, energy_refill_per_point: 4, energy_refill_min: 15 });
     setBanner(data.banner || null);
     setSummonRates(data.summon_rates || {});

@@ -130,7 +130,7 @@ export default function Summon() {
   const inv = user?.inventory || {};
   const tickets = inv.summon_ticket || 0;
   const gearTickets = inv.gear_ticket || 0;
-  const pity = user?.pity || { ur: 0, featured_guarantee: false, total_pulls: 0 };
+  const pity = user?.pity || { ur: 0, lr: 0, featured_guarantee: false, total_pulls: 0 };
   const hardPity = pityConfig.hard_pity || 90;
   const softPity = pityConfig.soft_pity_start || 60;
   const pityRarity = pityConfig.pity_rarity || "UR";
@@ -138,6 +138,10 @@ export default function Summon() {
   const pityCount = pity.ur ?? pity.gr ?? pity.mythic ?? 0;
   const inSoftPity = pityCount + 1 >= softPity;
   const pullsToPity = Math.max(0, hardPity - pityCount);
+  const lrHardPity = pityConfig.lr_hard_pity || 180;
+  const lrPityCount = pity.lr ?? 0;
+  const lrPullsToPity = Math.max(0, lrHardPity - lrPityCount);
+  const lrColor = (RARITY.LR || RARITY.UR).color;
 
   // ----- Featured hero (falls back to the highest-rarity catalog hero) -----
   const featuredHero = useMemo(() => {
@@ -365,7 +369,7 @@ export default function Summon() {
 
         {/* -------- RIGHT: summoning panel -------- */}
         <div className="shrink-0 lg:basis-[40%] lg:h-full lg:min-h-0 flex flex-col gap-2.5" data-testid="summon-control-rail">
-          {/* 1. Compact pity panel */}
+          {/* 1. Compact pity panel — UR + LR pity tracks */}
           <div className="rounded-xl bg-white/[0.04] border border-white/10 p-3 shrink-0" data-testid="summon-pity-module">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -387,6 +391,19 @@ export default function Summon() {
             <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mt-2 relative">
               <div className="h-full rounded-full" style={{ width: `${Math.min(100, (pityCount / hardPity) * 100)}%`, background: `linear-gradient(90deg,#D500F9,${pityColor})` }} />
               <div className="absolute top-0 bottom-0 w-px bg-fox/80" style={{ left: `${(softPity / hardPity) * 100}%` }} title="Soft pity begins" />
+            </div>
+            {/* LR pity track */}
+            <div className="flex items-center justify-between gap-2 mt-2.5">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <p className="text-[9px] uppercase tracking-widest text-slate-400 leading-none">LR Pity</p>
+                <p className="font-display text-sm leading-none" style={{ color: lrColor }} data-testid="summon-lr-pity-count">
+                  {lrPityCount}<span className="text-slate-500 text-xs"> / {lrHardPity}</span>
+                </p>
+              </div>
+              <p className="text-[9px] uppercase tracking-widest text-slate-400 leading-none">To LR: <span className="font-display text-sm" style={{ color: GOLD.base }} data-testid="pulls-to-lr-pity">{lrPullsToPity}</span></p>
+            </div>
+            <div className="h-1 rounded-full bg-white/10 overflow-hidden mt-1">
+              <div className="h-full rounded-full" style={{ width: `${Math.min(100, (lrPityCount / lrHardPity) * 100)}%`, background: `linear-gradient(90deg,${lrColor}88,${lrColor})` }} />
             </div>
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
               {inSoftPity && <span className="text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded bg-fox/15 text-fox border border-fox/40" data-testid="soft-pity-active-chip">SOFT PITY</span>}
@@ -534,7 +551,7 @@ export default function Summon() {
       <Dialog open={ratesOpen} onOpenChange={setRatesOpen}>
         <DialogContent className="max-w-md bg-[#0B0B14] border border-white/12 rounded-2xl max-h-[85vh] overflow-y-auto" data-testid="summon-rates-dialog">
           <DialogTitle className="font-display text-2xl tracking-wide text-white">SUMMON RATES</DialogTitle>
-          <DialogDescription className="text-xs text-slate-400">Transparent per-pull probabilities. The <span className="text-jutsu font-semibold">Gem banner</span> carries GR pity; the <span className="text-amber-300 font-semibold">Ryo banner</span> does not.</DialogDescription>
+          <DialogDescription className="text-xs text-slate-400">Transparent per-pull probabilities. The <span className="text-jutsu font-semibold">Gem banner</span> carries UR pity (90) and LR pity (180); the <span className="text-amber-300 font-semibold">Ryo banner</span> has no pity.</DialogDescription>
           <Table data-testid="summon-rates-table">
             <TableHeader>
               <TableRow className="border-white/10"><TableHead className="text-slate-400">Rarity</TableHead><TableHead className="text-right text-slate-400">Gem</TableHead><TableHead className="text-right text-slate-400">Ryo</TableHead></TableRow>
@@ -550,9 +567,10 @@ export default function Summon() {
             </TableBody>
           </Table>
           <div className="text-xs text-slate-400 space-y-1.5 mt-1">
-            <p><span className="text-white font-semibold">{pityRarity} pity (Gem banner only):</span> normal rate for pulls 1-{softPity - 1}; the chance climbs every pull from {softPity} and a {pityRarity} is guaranteed by pull {hardPity}. Pulling a {pityRarity} naturally resets the counter. GR has no pity — it's only obtainable through rare natural pulls.</p>
+            <p><span className="text-white font-semibold">{pityRarity} pity (Gem banner only):</span> normal rate for pulls 1-{softPity - 1}; the chance climbs every pull from {softPity} and a {pityRarity} is guaranteed by pull {hardPity}. Pulling a {pityRarity} naturally resets the counter.</p>
+            <p><span className="text-white font-semibold">LR pity (Gem banner only):</span> LR is guaranteed by pull {lrHardPity}. Pulling an LR naturally resets the counter.</p>
+            <p><span className="text-white font-semibold">GR:</span> no pity — only obtainable through rare natural pulls. Featured GR is 50/50: lose the 50/50 and your next GR is guaranteed featured.</p>
             <p><span className="text-white font-semibold">Ryo banner:</span> pay with Ryo for far lower rare rates and <span className="text-white">no pity system</span> — a budget option for volume pulls.</p>
-            <p><span className="text-white font-semibold">Featured 50/50:</span> when a featured GR banner is live, your first GR has a 50% chance to be the featured hero — lose it and your next GR is guaranteed featured.</p>
             <p><span className="text-white font-semibold">×10 guarantee:</span> every ×10 contains at least one SR or better. Duplicates always convert to shards for Evolution.</p>
           </div>
           <button onClick={() => setRatesOpen(false)} data-testid="summon-rates-close-button" className="w-full py-2.5 rounded-xl font-semibold text-sm bg-white/[0.06] border border-white/12 text-slate-200 hover:bg-white/10 transition-colors">Close</button>

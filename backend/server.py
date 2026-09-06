@@ -1029,7 +1029,9 @@ async def catalog():
             "pity_config": {
                 "soft_pity_start": gd.MYTHIC_SOFT_PITY_START,
                 "hard_pity": gd.MYTHIC_HARD_PITY,
+                "lr_hard_pity": gd.LR_HARD_PITY,
                 "featured_5050": gd.FEATURED_MYTHIC_5050,
+                "featured_5050_rarity": "GR",
                 "x10_guarantee_rarity": gd.X10_GUARANTEE_RARITY,
                 "pity_rarity": gd.TOP_RARITY,
                 "pity_currencies": ["gems", "ticket"],
@@ -1610,7 +1612,7 @@ def _rarity_pool(min_rarity: str = None, exclude_top: bool = True,
             w = weights.get(t["rarity"], 0)
             if w <= 0:
                 continue
-            if featured_id and tid == featured_id:
+            if featured_id and tid == featured_id and t["rarity"] != "GR":
                 w = w * FEATURED_RATE_MULT
             out.append((tid, w))
     return out
@@ -1622,11 +1624,10 @@ def _weighted_choice(pool: list) -> str:
     return rng.choices(tids, weights=weights, k=1)[0]
 
 
-def _roll_top_rarity_pity(pity: dict, currency: str, featured: Optional[str],
-                          featured_is_top: bool, top: str) -> tuple:
-    """Evaluates the top-rarity pity roll for a single pull (GEM/TICKET
-    banners only). Mutates `pity` in place. Returns
-    (chosen_template_id_or_None, pity_note)."""
+def _roll_top_rarity_pity(pity: dict, currency: str, top: str) -> tuple:
+    """Evaluates the UR pity roll for a single pull (GEM/TICKET banners only).
+    UR has soft pity from pull 60 and hard pity at 90. Mutates `pity` in place.
+    Returns (chosen_template_id_or_None, pity_note)."""
     if currency not in ("gems", "ticket"):
         return None, None
     counter = pity.get("ur", pity.get("gr", pity.get("mythic", 0))) + 1
@@ -1634,23 +1635,26 @@ def _roll_top_rarity_pity(pity: dict, currency: str, featured: Optional[str],
         pity["ur"] = counter
         return None, None
 
-    chosen = None
-    pity_note = None
     tops = [tid for tid, t in gd.CATALOG_BY_ID.items() if t["rarity"] == top and not t.get("is_nightmare_boss")]
-    if featured_is_top:
-        if pity.get("featured_guarantee"):
-            chosen = featured; pity["featured_guarantee"] = False; pity_note = "featured_guaranteed"
-        elif rng.random() < gd.FEATURED_MYTHIC_5050:
-            chosen = featured; pity_note = "featured_5050_won"
-        else:
-            others = [m for m in tops if m != featured] or tops
-            chosen = rng.choice(others); pity["featured_guarantee"] = True; pity_note = "featured_5050_lost"
-    else:
-        chosen = rng.choice(tops) if tops else None
+    chosen = rng.choice(tops) if tops else None
     pity["ur"] = 0
-    if counter >= gd.MYTHIC_HARD_PITY:
-        pity_note = pity_note or "hard_pity"
+    pity_note = "hard_pity" if counter >= gd.MYTHIC_HARD_PITY else "pity"
     return chosen, pity_note
+
+
+def _apply_gr_featured_5050(chosen: str, featured: str, pity: dict) -> tuple:
+    """Applies the featured GR 50/50 system when a GR is pulled from the
+    normal pool. Returns (chosen_template_id, pity_note)."""
+    gr_pool = [tid for tid, t in gd.CATALOG_BY_ID.items()
+              if t["rarity"] == "GR" and not t.get("is_nightmare_boss")]
+    non_featured = [tid for tid in gr_pool if tid != featured] or gr_pool
+    if pity.get("featured_guarantee"):
+        pity["featured_guarantee"] = False
+        return featured, "featured_guaranteed"
+    if rng.random() < gd.FEATURED_MYTHIC_5050:
+        return featured, "featured_5050_won"
+    pity["featured_guarantee"] = True
+    return rng.choice(non_featured), "featured_5050_lost"
 
 
 def _grant_summoned_hero(user: dict, chosen: str) -> tuple:
@@ -1670,22 +1674,44 @@ def _grant_summoned_hero(user: dict, chosen: str) -> tuple:
 
 def _pull_once(user: dict, pity: dict, currency: str = "gems", force_sr_plus: bool = False) -> dict:
     """Executes ONE gacha pull.
-    - GEM / TICKET banner: GR (top tier) pity — base rate, soft-pity ramp, hard
-      pity guarantee. A natural GR resets the counter. Featured GR is 50/50
-      with a guarantee after a loss (state on `pity.featured_guarantee`).
+    - GEM / TICKET banner: UR pity (soft 60, hard 90) + LR pity (hard 180).
+      GR has no pity — natural pull only with featured 50/50.
     - GOLD / RYO banner: NO pity and much lower rare rates (via GOLD weights).
-    Rate-up is applied multiplicatively inside `_rarity_pool` (never a flat
-    chance). Mutates `pity`/`user`; returns the result dict."""
+    Mutates `pity`/`user`; returns the result dict."""
     top = gd.TOP_RARITY
     featured = FEATURED_BANNER["template_id"]
     featured_tmpl = gd.CATALOG_BY_ID.get(featured) if featured else None
-    featured_is_top = bool(featured_tmpl and featured_tmpl["rarity"] == top)
+    featured_is_gr = bool(featured_tmpl and featured_tmpl["rarity"] == "GR")
 
-    chosen, pity_note = _roll_top_rarity_pity(pity, currency, featured, featured_is_top, top)
+    # Increment LR pity counter every pull (resets when LR is obtained)
+    if currency in ("gems", "ticket"):
+        pity["lr"] = pity.get("lr", 0) + 1
+
+    # 1. UR pity check (gems/ticket only)
+    chosen, pity_note = _roll_top_rarity_pity(pity, currency, top)
+
+    # 2. LR pity check — hard pity at 180 (gems/ticket only)
+    if chosen is None and currency in ("gems", "ticket") and pity.get("lr", 0) >= gd.LR_HARD_PITY:
+        lr_pool = [tid for tid, t in gd.CATALOG_BY_ID.items()
+                   if t["rarity"] == "LR" and not t.get("is_nightmare_boss")]
+        if lr_pool:
+            chosen = rng.choice(lr_pool)
+            pity["lr"] = 0
+            pity_note = "lr_hard_pity"
+
+    # 3. Normal pool pull
     if chosen is None:
         pool = _rarity_pool(min_rarity=gd.X10_GUARANTEE_RARITY if force_sr_plus else None,
                             currency=currency, featured_id=featured)
         chosen = _weighted_choice(pool)
+        pulled_rarity = gd.CATALOG_BY_ID[chosen]["rarity"]
+        # Reset LR counter on natural LR pull
+        if pulled_rarity == "LR":
+            pity["lr"] = 0
+        # Apply featured GR 50/50
+        if pulled_rarity == "GR" and featured_is_gr:
+            chosen, pity_note = _apply_gr_featured_5050(chosen, featured, pity)
+
     pity["total_pulls"] = pity.get("total_pulls", 0) + 1
 
     tmpl, is_duplicate, shards_gained = _grant_summoned_hero(user, chosen)
@@ -1695,8 +1721,7 @@ def _pull_once(user: dict, pity: dict, currency: str = "gems", force_sr_plus: bo
 
 
 def _gold_summon_cost(count: int) -> int:
-    """Total Ryo cost for `count` gold summons. x10 gets a 20% discount
-    (8x single cost instead of 10x)."""
+    """Total Ryo cost for `count` gold summons. x10 = 10x single cost."""
     if count >= 10:
         return gd.GOLD_SUMMON_X10_COST
     return gd.SUMMON_COST * count
