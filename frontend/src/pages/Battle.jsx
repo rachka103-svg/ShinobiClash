@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Bot, Gauge, Film, Settings } from "lucide-react";
+import { useResponsiveLayout } from "@/hooks/useResponsive";
 import BattleFighter from "@/components/BattleFighter";
 import BattleCommandPanel from "@/components/BattleCommandPanel";
 import { BattleTurnOrder, BattleInfoPanel } from "@/components/BattleSidePanels";
@@ -175,6 +176,7 @@ export default function Battle() {
   } = useGame();
 
   const { playSfx } = useAudio();
+  const layout = useResponsiveLayout();
 
   // Arena opponents are ephemeral snapshots stored before navigation.
   const arenaOpponent =
@@ -1938,8 +1940,16 @@ export default function Battle() {
         </div>
       </div>
 
-      {/* Battlefield */}
-      <div className="absolute inset-0 z-10 flex pt-10 pb-20">
+      {/* Battlefield — top padding clears the header, bottom clears the
+          command panel. Both compress on short (landscape) viewports so the
+          combatants stay readable instead of being squeezed into a sliver. */}
+      <div
+        className="absolute inset-0 z-10 flex"
+        style={{
+          paddingTop: layout.isShort ? "2.75rem" : "calc(var(--game-header-height) + 0.25rem)",
+          paddingBottom: layout.isShort ? "4rem" : "5.5rem",
+        }}
+      >
         {/* Turn order */}
         <BattleTurnOrder
           combs={combs}
@@ -1951,7 +1961,7 @@ export default function Battle() {
         {/* Center battlefield */}
         <div className="flex-1 flex flex-col justify-center min-w-0">
           {/* Enemies */}
-          <div className="flex justify-center gap-3 sm:gap-5 px-4 mb-2">
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-4 px-2 mb-1">
             {arrangedEnemies.map((c) => (
               <BattleFighter
                 key={c.uid}
@@ -2008,7 +2018,7 @@ export default function Battle() {
           </div>
 
           {/* Allies */}
-          <div className="flex justify-center gap-3 sm:gap-5 px-4 mt-2">
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-4 px-2 mt-1">
             {allies.map((c) => (
               <BattleFighter
                 key={c.uid}

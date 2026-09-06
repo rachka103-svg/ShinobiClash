@@ -69,7 +69,7 @@ export default function Lobby() {
       {/* ================= LEFT — cinematic squad leader ================= */}
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}
-        className="lg:col-span-4 relative rounded-2xl overflow-hidden h-[38vh] lg:h-full min-h-0"
+        className="lg:col-span-4 relative rounded-2xl overflow-hidden h-[38dvh] lg:h-full min-h-0"
         style={leaderFrame ? { border: `${leaderFrame.strokeWidth}px solid ${leaderFrame.useGold ? GOLD.stroke : leaderRarity.color + "55"}`, boxShadow: `0 0 50px ${(leaderFrame.useGold ? GOLD.base : leaderRarity.color)}22` } : { border: "1px solid rgba(255,255,255,0.08)" }}
         data-testid="leader-hero"
       >
@@ -154,7 +154,7 @@ export default function Lobby() {
         )}
 
         {/* Quick-access tiles */}
-        <div className="grid grid-cols-4 gap-2.5 shrink-0" data-testid="lobby-tiles">
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2.5 lg:gap-3 shrink-0" data-testid="lobby-tiles">
           {tiles.map((t, i) => {
             const Icon = t.icon;
             return (

@@ -41,10 +41,12 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
   const bossH = "clamp(150px, 35vh, 320px)";
   const bossContainerW = "clamp(170px, 28vw, 310px)";
 
-  // ---- Regular sizing ----
-  const regW = 112;
-  const regH = 146;
-  const regContainerW = 128;
+  // ---- Regular sizing (fluid so N fighters never overflow horizontally) ----
+  // Scales down on narrow/short viewports and grows on desktop. The container
+  // is slightly wider than the card to leave room for the name/HP/CK readouts.
+  const regW = "clamp(72px, 22vw, 112px)";
+  const regH = "clamp(92px, 26vh, 146px)";
+  const regContainerW = "clamp(82px, 25vw, 128px)";
 
   const cardW = isBoss ? bossW : regW;
   const cardH = isBoss ? bossH : regH;
@@ -115,8 +117,8 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
         <div
           className="absolute top-0 left-1/2 -translate-x-1/2 aura-element pointer-events-none rounded-xl"
           style={{
-            width: isBoss ? `calc(${bossW} + 20px)` : 130,
-            height: isBoss ? `calc(${bossH} + 20px)` : 160,
+            width: isBoss ? `calc(${bossW} + 20px)` : `calc(${regW} + 18px)`,
+            height: isBoss ? `calc(${bossH} + 20px)` : `calc(${regH} + 14px)`,
             background: `radial-gradient(ellipse at center, ${elColor}${isBoss ? "44" : "33"} 0%, transparent 70%)`,
           }}
         />
@@ -202,7 +204,7 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
         <div
           className="absolute left-1/2 -translate-x-1/2 rounded-full pointer-events-none ground-shadow"
           style={{
-            top: isBoss ? `calc(${bossH} - 6px)` : 140,
+            top: isBoss ? `calc(${bossH} - 6px)` : `calc(${regH} - 6px)`,
             width: isBoss ? "70%" : 80,
             height: isBoss ? 6 : 12,
             background: isBoss
@@ -218,7 +220,7 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
         <div
           className="absolute left-1/2 -translate-x-1/2 rounded-full pointer-events-none"
           style={{
-            top: isBoss ? `calc(${bossH} - 8px)` : 138,
+            top: isBoss ? `calc(${bossH} - 8px)` : `calc(${regH} - 8px)`,
             width: "75%",
             height: 2,
             background: `radial-gradient(ellipse, ${elColor}88, transparent 70%)`,

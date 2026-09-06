@@ -81,7 +81,7 @@ function Shell({ children, bare }) {
       <CatalogErrorBanner />
       <GameHud />
       <main
-        className={`fixed inset-x-0 top-0 bottom-0 z-10 overflow-y-auto pt-[calc(3.25rem+env(safe-area-inset-top))] ${hideBottomNav ? "" : "pb-[calc(6.5rem+env(safe-area-inset-bottom))]"}`}
+        className={`fixed inset-x-0 top-0 bottom-0 z-10 overflow-y-auto pt-[calc(var(--game-header-height)+var(--sat))] ${hideBottomNav ? "" : "pb-[calc(var(--game-nav-height)+var(--sab)+0.5rem)]"}`}
         data-testid="app-main"
       >
         {children}

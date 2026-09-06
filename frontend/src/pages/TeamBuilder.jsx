@@ -169,7 +169,7 @@ export default function TeamBuilder() {
             Tap a hero to view details · tap <span className="text-chakra">+</span> to add to your squad. <span className="text-chakra font-semibold">({team.length}/{cap})</span>
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="glass-panel px-4 py-2.5 flex items-center gap-2.5">
             <Zap className="w-5 h-5 text-fox" />
             <div className="leading-none">
