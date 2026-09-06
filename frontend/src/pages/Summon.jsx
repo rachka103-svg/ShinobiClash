@@ -236,7 +236,7 @@ export default function Summon() {
   return (
     <div
       data-testid="summon-page"
-      className="h-full max-w-6xl mx-auto px-2.5 sm:px-4 lg:px-5 py-2 sm:py-2.5 lg:py-3 flex flex-col overflow-hidden min-w-0 relative"
+      className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-5 py-3 sm:py-4 lg:py-5 flex flex-col min-w-0 relative lg:h-full lg:overflow-hidden"
     >
       {/* Sacred summoning chamber atmosphere — rotating circle + particles */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
@@ -268,7 +268,7 @@ export default function Summon() {
       <div className="flex items-center gap-2 mb-1.5 lg:mb-2 shrink-0 relative z-10" data-testid="summon-tabs">
         {[["hero", "Hero Altar"], ["stepup", "Step-Up"], ["beginner", "Beginner"]].map(([id, lbl]) => (
           <button key={id} onClick={() => setMode(id)} data-testid={`summon-tab-${id}`}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all ${mode === id ? "bg-chakra text-[#05050A]" : "bg-white/[0.04] text-slate-400 hover:text-white border border-white/10"}`}>
+            className={`px-5 py-2 rounded-full text-sm font-bold tracking-wide transition-all ${mode === id ? "bg-chakra text-[#05050A]" : "bg-white/[0.04] text-slate-400 hover:text-white border border-white/10"}`}>
             {lbl}
           </button>
         ))}
@@ -276,11 +276,11 @@ export default function Summon() {
 
       {/* ===================== Two-column body ===================== */}
       {mode === "beginner" ? <BeginnerSummon /> : mode === "stepup" ? <StepUpSummon /> : (
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2 lg:gap-4 relative z-10">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 lg:gap-4 relative z-10">
         {/* -------- LEFT: cinematic featured banner -------- */}
         {featuredHero ? (
           <div
-            className="relative rounded-2xl sm:rounded-3xl overflow-hidden flex-1 min-h-[clamp(185px,24vh,300px)] lg:flex-none lg:basis-[60%] lg:h-full"
+            className="relative rounded-2xl sm:rounded-3xl overflow-hidden flex-1 min-h-[clamp(240px,32vh,320px)] lg:flex-none lg:basis-[60%] lg:h-full"
             style={{ border: `1px solid ${featRarity.color}55`, boxShadow: `0 0 60px ${featRarity.color}22` }}
             data-testid="summon-banner"
           >
@@ -370,41 +370,41 @@ export default function Summon() {
         )}
 
         {/* -------- RIGHT: summoning panel -------- */}
-        <div className="shrink-0 lg:basis-[40%] lg:h-full lg:min-h-0 flex flex-col gap-2 lg:gap-2.5" data-testid="summon-control-rail">
+        <div className="shrink-0 lg:basis-[40%] lg:h-full lg:min-h-0 flex flex-col gap-2.5 lg:gap-3" data-testid="summon-control-rail">
           {/* 1. Compact pity panel — UR + LR pity tracks (denser on mobile) */}
-          <div className="rounded-xl bg-white/[0.04] border border-white/10 p-2.5 lg:p-3 shrink-0" data-testid="summon-pity-module">
+          <div className="rounded-xl bg-white/[0.04] border border-white/10 p-3 lg:p-3.5 shrink-0" data-testid="summon-pity-module">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 lg:gap-2 min-w-0">
-                <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${pityColor}18`, border: `1px solid ${pityColor}55` }}>
-                  <Sparkles className="w-3.5 h-3.5 lg:w-5 lg:h-5" style={{ color: pityColor }} />
+              <div className="flex items-center gap-2 lg:gap-2.5 min-w-0">
+                <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${pityColor}18`, border: `1px solid ${pityColor}55` }}>
+                  <Sparkles className="w-4 h-4 lg:w-5 lg:h-5" style={{ color: pityColor }} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[8px] lg:text-[9px] uppercase tracking-widest text-slate-400 leading-none">{pityRarity} Pity · Gems</p>
-                  <p className="font-display text-lg lg:text-2xl leading-none mt-0.5" style={{ color: pityColor }} data-testid="summon-pity-count-text">
-                    {pityCount}<span className="text-slate-500 text-xs lg:text-base"> / {hardPity}</span>
+                  <p className="text-[10px] lg:text-[9px] uppercase tracking-widest text-slate-400 leading-none">{pityRarity} Pity · Gems</p>
+                  <p className="font-display text-xl lg:text-2xl leading-none mt-0.5" style={{ color: pityColor }} data-testid="summon-pity-count-text">
+                    {pityCount}<span className="text-slate-500 text-sm lg:text-base"> / {hardPity}</span>
                   </p>
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-[8px] lg:text-[9px] uppercase tracking-widest text-slate-400 leading-none">To Guarantee</p>
-                <p className="font-display text-sm lg:text-lg leading-none mt-0.5" style={{ color: GOLD.base }} data-testid="pulls-to-pity">{pullsToPity}</p>
+                <p className="text-[10px] lg:text-[9px] uppercase tracking-widest text-slate-400 leading-none">To Guarantee</p>
+                <p className="font-display text-base lg:text-lg leading-none mt-0.5" style={{ color: GOLD.base }} data-testid="pulls-to-pity">{pullsToPity}</p>
               </div>
             </div>
-            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mt-1.5 lg:mt-2 relative">
+            <div className="h-2 rounded-full bg-white/10 overflow-hidden mt-2 lg:mt-2.5 relative">
               <div className="h-full rounded-full" style={{ width: `${Math.min(100, (pityCount / hardPity) * 100)}%`, background: `linear-gradient(90deg,#D500F9,${pityColor})` }} />
               <div className="absolute top-0 bottom-0 w-px bg-fox/80" style={{ left: `${(softPity / hardPity) * 100}%` }} title="Soft pity begins" />
             </div>
             {/* LR pity track */}
-            <div className="flex items-center justify-between gap-2 mt-1.5 lg:mt-2.5">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <p className="text-[8px] lg:text-[9px] uppercase tracking-widest text-slate-400 leading-none">LR Pity</p>
-                <p className="font-display text-xs lg:text-sm leading-none" style={{ color: lrColor }} data-testid="summon-lr-pity-count">
-                  {lrPityCount}<span className="text-slate-500 text-[10px] lg:text-xs"> / {lrHardPity}</span>
+            <div className="flex items-center justify-between gap-2 mt-2 lg:mt-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <p className="text-[10px] lg:text-[9px] uppercase tracking-widest text-slate-400 leading-none">LR Pity</p>
+                <p className="font-display text-sm lg:text-base leading-none" style={{ color: lrColor }} data-testid="summon-lr-pity-count">
+                  {lrPityCount}<span className="text-slate-500 text-xs lg:text-sm"> / {lrHardPity}</span>
                 </p>
               </div>
-              <p className="text-[8px] lg:text-[9px] uppercase tracking-widest text-slate-400 leading-none">To LR: <span className="font-display text-xs lg:text-sm" style={{ color: GOLD.base }} data-testid="pulls-to-lr-pity">{lrPullsToPity}</span></p>
+              <p className="text-[10px] lg:text-[9px] uppercase tracking-widest text-slate-400 leading-none">To LR: <span className="font-display text-sm lg:text-base" style={{ color: GOLD.base }} data-testid="pulls-to-lr-pity">{lrPullsToPity}</span></p>
             </div>
-            <div className="h-1 rounded-full bg-white/10 overflow-hidden mt-1">
+            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mt-1.5">
               <div className="h-full rounded-full" style={{ width: `${Math.min(100, (lrPityCount / lrHardPity) * 100)}%`, background: `linear-gradient(90deg,${lrColor}88,${lrColor})` }} />
             </div>
             {(inSoftPity || pity.featured_guarantee) && (
@@ -417,13 +417,13 @@ export default function Summon() {
 
           {/* 2. Currency toggle + rates */}
           <div className="flex items-center justify-between gap-2 shrink-0">
-            <div className="flex items-center gap-1 p-0.5 lg:p-1 rounded-lg bg-white/[0.04] border border-white/10" data-testid="pay-mode-toggle">
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-white/[0.04] border border-white/10" data-testid="pay-mode-toggle">
               {["gems", "ryo"].map((c) => {
                 const active = payMode === c;
                 const Icon = c === "gems" ? Gem : Coins;
                 return (
                   <button key={c} onClick={() => setPayMode(c)} data-testid={`pay-${c}`}
-                    className={`inline-flex items-center gap-1 px-2.5 lg:px-3 py-1 lg:py-1.5 rounded-md text-[11px] lg:text-xs font-semibold transition-colors ${active ? "text-white" : "text-slate-400 hover:text-slate-200"}`}
+                    className={`inline-flex items-center gap-1 px-3 lg:px-3.5 py-1.5 lg:py-1.5 rounded-md text-xs lg:text-xs font-semibold transition-colors ${active ? "text-white" : "text-slate-400 hover:text-slate-200"}`}
                     style={active ? { background: c === "gems" ? "rgba(213,0,249,0.22)" : "rgba(255,202,40,0.18)", border: `1px solid ${c === "gems" ? "#D500F966" : "#FFCA2855"}` } : { border: "1px solid transparent" }}>
                     <Icon className="w-3 h-3 lg:w-3.5 lg:h-3.5" style={{ color: c === "gems" ? "#D500F9" : "#FFCA28" }} /> {c === "gems" ? "Gems" : "Ryo"}
                   </button>
@@ -464,7 +464,7 @@ export default function Summon() {
           {isMobile ? (
             /* Mobile: compact secondary strip — ticket, free summons + quick access.
                Replaces the bulky inline grid so the primary experience fits one viewport. */
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0 -mx-0.5 px-0.5 pb-0.5" data-testid="summon-secondary-strip">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none shrink-0 -mx-0.5 px-0.5 pb-1" data-testid="summon-secondary-strip">
               <SecChip icon={Ticket} label="Ticket ×1" sub={`${tickets}`} color="#FFCA28"
                 disabled={busy || tickets < 1} busy={busyKind === "ticket-1"}
                 onClick={() => doHeroSummon(1, "ticket")} testid="summon-ticket-button" />
@@ -766,7 +766,7 @@ const PullButton = ({ label, icon: Icon, amount, unit, color, ribbon, sub, prima
     className={`relative flex overflow-hidden transition-all disabled:opacity-40 ${
       slim
         ? "items-center justify-center gap-2 py-2 px-3 rounded-xl flex-row w-full"
-        : "flex-col items-center justify-center gap-0.5 py-2.5 sm:py-3.5 px-2 rounded-2xl"
+        : "flex-col items-center justify-center gap-1 py-3.5 sm:py-4 px-2 rounded-2xl"
     } ${primary ? "shine-sweep" : ""}`}
     style={primary
       ? { background: "linear-gradient(135deg,#4a3408,#1a1406)", border: "2px solid #FFCA28aa", boxShadow: "0 0 32px #FFCA2844, 0 0 64px #FFCA2822, inset 0 0 16px rgba(255,202,40,0.08)" }
@@ -798,20 +798,20 @@ const QuickBtn = ({ icon: Icon, color, label, onClick, testid }) => (
 // inline grid, so the primary summon experience fits one mobile viewport.
 const SecChip = ({ icon: Icon, label, sub, color, disabled, busy, onClick, testid }) => (
   <button onClick={onClick} disabled={disabled} data-testid={testid} data-sfx="summon"
-    className="shrink-0 flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl disabled:opacity-40 transition-all"
+    className="shrink-0 flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl disabled:opacity-40 transition-all"
     style={{ background: `${color}12`, border: `1px solid ${color}44` }}>
-    <span className="flex items-center gap-1 text-[11px] font-bold leading-none" style={{ color }}>
-      {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Icon className="w-3 h-3" />} {label}
+    <span className="flex items-center gap-1 text-xs font-bold leading-none" style={{ color }}>
+      {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Icon className="w-3.5 h-3.5" />} {label}
     </span>
-    <span className="text-[9px] text-slate-400 leading-none">{sub}</span>
+    <span className="text-[10px] text-slate-400 leading-none">{sub}</span>
   </button>
 );
 
 const SecNav = ({ icon: Icon, color, label, onClick, testid }) => (
   <button onClick={onClick} data-testid={testid}
-    className="shrink-0 flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition-colors">
-    <Icon className="w-3.5 h-3.5" style={{ color }} />
-    <span className="text-[10px] font-semibold text-slate-300 leading-none">{label}</span>
+    className="shrink-0 flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition-colors">
+    <Icon className="w-4 h-4" style={{ color }} />
+    <span className="text-[11px] font-semibold text-slate-300 leading-none">{label}</span>
   </button>
 );
 

@@ -22,6 +22,14 @@ const bestColor = (results) => {
   return best;
 };
 
+/** Rarity-scaled card entrance — higher rarity gets a more dramatic reveal. */
+const cardAnim = (tier) => {
+  if (tier >= 5) return { initial: { rotateY: 90, opacity: 0, scale: 0.4 }, transition: { type: "spring", stiffness: 100, damping: 10 } };
+  if (tier >= 4) return { initial: { rotateY: 90, opacity: 0, scale: 0.55 }, transition: { type: "spring", stiffness: 130, damping: 12 } };
+  if (tier >= 3) return { initial: { rotateY: 90, opacity: 0, scale: 0.7 }, transition: { type: "spring", stiffness: 150, damping: 14 } };
+  return { initial: { rotateY: 90, opacity: 0 }, transition: { type: "spring", stiffness: 160, damping: 18 } };
+};
+
 /**
  * SummonRevealOverlay — the cinematic pull ceremony. Works for hero pulls
  * AND gear pulls (pass `kind: "gear"` on gear results). Flow:
@@ -47,7 +55,11 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
       if (stage === "grid" && revealed >= results.length) setStage("done");
       return;
     }
-    const t = setTimeout(() => setRevealed((r) => r + 1), revealed === 0 ? 240 : 150);
+    const next = results[revealed];
+    const nextTier = next?.kind === "gear" ? (GEAR_TIER[next.rarity] || 1) + 1 : (RARITY_TIER[next.rarity] ?? 0);
+    const base = revealed === 0 ? 240 : 150;
+    const rarityBonus = nextTier >= 5 ? 220 : nextTier >= 4 ? 130 : nextTier >= 3 ? 60 : 0;
+    const t = setTimeout(() => setRevealed((r) => r + 1), base + rarityBonus);
     return () => clearTimeout(t);
   }, [stage, revealed, results.length]);
 
@@ -113,12 +125,13 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
                   const fr = isGear ? null : rarityFrame(r.rarity);
                   const strokeW = fr ? fr.strokeWidth : 1.5;
                   const strokeCol = shown ? (fr?.useGold ? GOLD.stroke : color) : "rgba(255,255,255,0.08)";
+                  const anim = cardAnim(tier);
                   return (
                     <motion.div
                       key={i}
-                      initial={{ rotateY: 90, opacity: 0 }}
-                      animate={shown ? { rotateY: 0, opacity: 1 } : { rotateY: 90, opacity: 0 }}
-                      transition={{ type: "spring", stiffness: 160, damping: 18 }}
+                      initial={anim.initial}
+                      animate={shown ? { rotateY: 0, opacity: 1, scale: 1 } : anim.initial}
+                      transition={anim.transition}
                       className={`relative rounded-lg sm:rounded-xl overflow-hidden bg-[#FFFFFF] ${shown && tier >= 4 ? auraClass(isGear ? "UR" : r.rarity) : ""}`}
                       style={{ border: `${strokeW}px solid ${strokeCol}`, "--glow": fr?.useGold ? GOLD.base : color, boxShadow: shown && tier >= 5 ? `0 0 26px ${color}66` : undefined }}
                       data-testid={`summon-result-card-${i}`}
@@ -130,6 +143,15 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
                           <motion.span aria-hidden initial={{ opacity: 0.85, scale: 0.45 }} animate={{ opacity: 0, scale: 1.9 }} transition={{ duration: 0.6, ease: "easeOut" }}
                             className="absolute inset-0 z-30 pointer-events-none rounded-lg sm:rounded-xl" style={{ border: `2px solid ${color}`, boxShadow: `0 0 28px 8px ${color}` }} />
                         </>
+                      )}
+                      {shown && tier >= 4 && (
+                        <motion.span aria-hidden
+                          initial={{ opacity: 0, scaleY: 0 }}
+                          animate={{ opacity: [0, 0.7, 0], scaleY: [0, 1, 0.85] }}
+                          transition={{ duration: 0.7, ease: "easeOut", delay: 0.1 }}
+                          className="absolute inset-x-0 top-0 bottom-0 z-20 pointer-events-none origin-bottom rounded-lg sm:rounded-xl"
+                          style={{ background: `linear-gradient(to top, transparent, ${color}44 30%, #ffffffaa 50%, ${color}44 70%, transparent)` }}
+                        />
                       )}
                       {shown && !isGear && fr.cornerLevel >= 2 && <DecoCorners rarity={r.rarity} size={12} />}
                       {shown && isGear && tier >= 5 && <DecoCorners level={3} color={GOLD.base} size={12} />}
