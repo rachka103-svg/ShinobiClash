@@ -193,7 +193,29 @@ html, body {
     color: var(--body-color);
     font-family: 'Outfit', sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     overflow-x: hidden;
+}
+
+/* ---- HD image rendering: let the browser use its best interpolation ---- */
+img {
+    image-rendering: auto;
+    -ms-interpolation-mode: bicubic;
+}
+
+/* ---- GPU acceleration for transform/opacity animations (no jitter) ---- */
+@supports (transform: translateZ(0)) {
+    [data-testid^="summon-"],
+    .summon-result-card,
+    .summon-portal-pulse,
+    .char-reveal-fade,
+    .summon-card-expand,
+    .rarity-reveal-text {
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        transform: translateZ(0);
+    }
 }
 
 .font-display {
@@ -533,13 +555,13 @@ html, body { overflow-x: hidden; max-width: 100vw; }
    visual intensity (border, glow, beam) not physical size.
    ========================================================================== */
 .summon-result-card {
-    height: clamp(80px, 15vh, 115px);
+    height: clamp(100px, 20vh, 140px);
 }
 @media (min-width: 640px) {
-    .summon-result-card { height: clamp(120px, 25vh, 180px); }
+    .summon-result-card { height: clamp(130px, 26vh, 190px); }
 }
 @media (min-width: 1024px) {
-    .summon-result-card { height: clamp(150px, 30vh, 240px); }
+    .summon-result-card { height: clamp(160px, 32vh, 250px); }
 }
 
 /* ---- Short-viewport (height < 560px): compress battle & overlay chrome ---- */

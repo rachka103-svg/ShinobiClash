@@ -130,7 +130,7 @@ export default function SummonRevealOverlay({ open, results = [], onClose }) {
                 <SingleResultCard r={results[0]} shown={revealed >= 1} />
               ) : (
                 <div
-                  className="grid grid-cols-5 gap-1.5 sm:gap-2.5 lg:gap-3 w-full max-w-sm sm:max-w-md lg:max-w-2xl px-3 sm:px-4"
+                  className="grid grid-cols-5 gap-1 sm:gap-2 lg:gap-3 w-full max-w-[440px] sm:max-w-md lg:max-w-2xl px-2 sm:px-4"
                   data-testid="summon-results-grid"
                 >
                   {results.map((r, i) => (
@@ -206,7 +206,7 @@ function CompactResultCard({ r, i, shown }) {
         </div>
       ) : (
         <>
-          <img src={r.portrait} alt={r.name} className="absolute inset-0 w-full h-full object-cover object-top" loading="lazy" />
+          <img src={r.portrait} alt={r.name} className="absolute inset-0 w-full h-full object-cover object-top" loading="eager" decoding="async" />
           <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 to-transparent" />
           {shown && tier >= 5 && <span className="absolute inset-0 shine-sweep pointer-events-none" />}
           {shown && <RaritySparkles rarity={r.rarity} />}
@@ -262,7 +262,7 @@ function SingleResultCard({ r, shown }) {
         border: `2px solid ${shown ? (fr?.useGold ? GOLD.stroke : color) : "rgba(255,255,255,0.08)"}`,
         "--glow": fr?.useGold ? GOLD.base : color,
         boxShadow: shown && tier >= 5 ? `0 0 30px ${color}66` : undefined,
-        width: "clamp(180px, 45vw, 280px)",
+        width: "clamp(220px, 60vw, 340px)",
         aspectRatio: "3/4",
         willChange: "transform",
       }}
@@ -277,7 +277,7 @@ function SingleResultCard({ r, shown }) {
         </div>
       ) : (
         <>
-          <img src={r.portrait} alt={r.name} className="absolute inset-0 w-full h-full object-cover object-top" loading="lazy" />
+          <img src={r.portrait} alt={r.name} className="absolute inset-0 w-full h-full object-cover object-top" loading="eager" decoding="async" fetchpriority="high" />
           <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/90 to-transparent" />
           {shown && tier >= 5 && <span className="absolute inset-0 shine-sweep pointer-events-none" />}
           {shown && <RaritySparkles rarity={r.rarity} />}
