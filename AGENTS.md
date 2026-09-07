@@ -18,6 +18,12 @@ Fullstack gacha battle game: FastAPI + MongoDB backend, React (CRA/craco + Tailw
 - `EMERGENT_LLM_KEY` is an external secret (emergent.sh LLM API). Not required to boot; needed only for AI-art features. Provide it via the Base44 secrets UI; it lands in `/run/base44/app.env` and overrides the placeholder in `.env.base44-defaults`.
 - Default admin login: `admin@shinobi.com` / `admin123`.
 
+## Auto-recovery (loading-stuck fix)
+- **Restart policies**: `backend` and `frontend` services have `restart: unless-stopped` — if either container crashes (MongoDB connection drop, OOM, unhandled exception), Docker restarts it automatically instead of leaving it down (which would manifest as a permanent "stuck in loading" screen).
+- **Backend healthcheck**: pings `GET /api/` every 30s; 3 consecutive failures mark the container unhealthy and trigger a restart.
+- **Token refresh interceptor** (`frontend/src/lib/api.js`): an axios response interceptor catches 401s, silently calls `POST /api/auth/refresh` (using the 7-day refresh-token cookie), and retries the original request. This prevents the app from appearing broken when the 15-minute access token expires. A shared promise lock ensures only one refresh fires at a time.
+- **ServerGate infinite retry** (`frontend/src/components/ServerGate.jsx`): the gatekeeper no longer gives up after 30 attempts — it retries indefinitely with capped backoff (max 15s), so the app auto-reconnects whenever the backend comes back online.
+
 ## Verify it works
 ```bash
 docker compose -f docker-compose.base44.yml up -d

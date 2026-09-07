@@ -12,6 +12,7 @@ services:
 
   backend:
     image: python:3.12
+    restart: unless-stopped
     working_dir: /app/backend
     volumes:
       - ./:/app
@@ -31,6 +32,12 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     command:
       - bash
       - -c
@@ -71,6 +78,7 @@ services:
 
   frontend:
     image: node:20
+    restart: unless-stopped
     working_dir: /app/frontend
     volumes:
       - ./:/app

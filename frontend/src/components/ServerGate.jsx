@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Swords, RotateCw, ServerCrash } from "lucide-react";
 import api from "@/lib/api";
 
-const MAX_AUTO_ATTEMPTS = 30; // keeps auto-retrying for a few minutes before asking for manual help
+const MAX_AUTO_ATTEMPTS = Infinity; // never give up — keep retrying until the server responds
 const BASE_DELAY_MS = 1400;
-const MAX_DELAY_MS = 8000;
+const MAX_DELAY_MS = 15000; // cap backoff at 15s so recovery is detected promptly
 
 /**
  * Gatekeeper rendered above AuthProvider/GameProvider. Pings the backend on
@@ -38,10 +38,6 @@ export default function ServerGate({ children }) {
       }
       setAttempt(n);
       setStatus("waking");
-      if (n >= MAX_AUTO_ATTEMPTS) {
-        setStatus("failed");
-        return;
-      }
       const delay = Math.min(BASE_DELAY_MS * Math.pow(1.35, n), MAX_DELAY_MS);
       timerRef.current = setTimeout(() => attemptWake(n + 1), delay);
     },
@@ -91,7 +87,7 @@ export default function ServerGate({ children }) {
       </p>
       {status === "waking" && attempt > 1 && (
         <p className="text-xs text-slate-500" data-testid="server-wake-attempt-counter">
-          Attempt {attempt} of {MAX_AUTO_ATTEMPTS}
+          Attempt {attempt} — the server will reconnect automatically
         </p>
       )}
       <button
