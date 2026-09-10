@@ -50,7 +50,7 @@ export default function HeroDetailModal({
   open, onClose, template, instance = null, owned = false, obtain = null, progression = null, squad = null,
 }) {
   const { user, setUser } = useAuth();
-  const { gearConfig, items, expTomeGoldCost, reforgeModifiers, reforgeMaxPerJutsu } = useGame();
+  const { gearConfig, items, expTomeGoldCost, reforgeModifiers, reforgeMaxPerJutsu, catalogById } = useGame();
   const [tab, setTab] = useState("train");
   const [qty, setQty] = useState(1);
   const [gearSlot, setGearSlot] = useState(null);
@@ -66,7 +66,15 @@ export default function HeroDetailModal({
   const teamIds = new Set(user?.team || []);
   const fodderCandidates = useMemo(() => {
     if (!instance || !template?.element) return [];
+    // Merge template data (name, portrait, element) onto each raw instance —
+    // the backend hydrates `element` but `name`/`portrait` live only on the
+    // catalog template.  Instance-specific fields (stars, rarity, locked, etc.)
+    // take precedence via spread order.
     return (user?.ninjas || [])
+      .map((h) => {
+        const tpl = catalogById?.[h.template_id] || {};
+        return { ...tpl, ...h, element: h.element || tpl.element, name: tpl.name, portrait: tpl.portrait };
+      })
       .filter((h) => h.instance_id !== instance.instance_id)
       .filter((h) => h.element === template.element)
       .filter((h) => ["R", "SR", "SSR"].includes(h.evolved_rarity || h.rarity))
@@ -77,7 +85,7 @@ export default function HeroDetailModal({
         const br = rank[b.evolved_rarity || b.rarity] || 9;
         return ar - br || (a.stars || 1) - (b.stars || 1);
       });
-  }, [user?.ninjas, user?.team, instance?.instance_id, template?.element]);
+  }, [user?.ninjas, user?.team, instance?.instance_id, template?.element, catalogById]);
 
   if (!template) return null;
  const effectiveRarity = instance?.evolved_rarity || instance?.rarity || template.rarity;

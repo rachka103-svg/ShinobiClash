@@ -749,6 +749,7 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_gear: dic
     inst["star_up_cost"] = inst["evolution_cost"]["shards"] if inst["evolution_cost"] else None
     inst["evolution_fodder_cost"] = evo_mat.get_fodder_requirement(stars) if stars < stars_max else None
     inst["faction"] = tmpl.get("faction")
+    inst["element"] = tmpl.get("element")
     inst["role"] = tmpl.get("role")
     skill_rank = inst.get("skill_rank", 1)
     sk = gd.skill_public(rarity, skill_rank)
@@ -2101,9 +2102,22 @@ async def _do_evolve(instance_id: str, user: dict, method: str = "shards", fodde
         if not req:
             raise HTTPException(status_code=400, detail="Fodder evolution is unavailable for this star level")
         protected_gear_ids = {g.get("equipped_by") for g in user.get("gear", []) if g.get("equipped_by")}
+        # Raw DB ninja instances don't carry `element` (it lives on the
+        # template).  Resolve it here so server-side fodder validation can
+        # enforce the same-element rule.  Also ensure evolved_rarity is set
+        # (it normally is after the v2 migration, but be defensive).
+        for n in user.get("ninjas", []):
+            if not n.get("element"):
+                nt = gd.CATALOG_BY_ID.get(n.get("template_id"))
+                if nt:
+                    n["element"] = nt.get("element")
+            if not n.get("evolved_rarity"):
+                nt = gd.CATALOG_BY_ID.get(n.get("template_id"))
+                if nt:
+                    n["evolved_rarity"] = ex.effective_rarity(n, nt)
         ok, msg, selected, _assignments = evo_mat.validate_fodder_selection(
             user.get("ninjas", []), instance_id, tmpl.get("element"), fodder_ids or [],
-            team_ids, protected_gear_ids, current_star=stars, allow_ssr=body.allow_ssr
+            team_ids, protected_gear_ids, current_star=stars, allow_ssr=allow_ssr
         )
         if not ok:
             raise HTTPException(status_code=400, detail=msg)
