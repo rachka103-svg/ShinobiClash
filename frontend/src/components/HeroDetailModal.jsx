@@ -4,10 +4,12 @@ import { toast } from "sonner";
 import {
   Heart, Sword, Shield, Wind, Star, ChevronsUp, Gem, Coins, Sparkles, Check,
   Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2, RotateCcw, X,
+  AlertTriangle,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RARITY, ELEMENT } from "@/lib/styles";
+import EvolutionConfirmDialog from "@/components/EvolutionConfirmDialog";
 import { rarityFrame, GOLD } from "@/lib/theme";
 import { DecoCorners } from "@/components/RarityFx";
 import { RarityBadge } from "@/components/RarityBadge";
@@ -59,6 +61,8 @@ export default function HeroDetailModal({
   const [transformFx, setTransformFx] = useState(null); // { oldRarity, newRarity } during transform sequence
   const [evoMethod, setEvoMethod] = useState("shards");
   const [selectedFodder, setSelectedFodder] = useState([]);
+  const [allowSSRFodder, setAllowSSRFodder] = useState(false);
+  const [showEvoConfirm, setShowEvoConfirm] = useState(false);
   const teamIds = new Set(user?.team || []);
   const fodderCandidates = useMemo(() => {
     if (!instance || !template?.element) return [];
@@ -89,27 +93,47 @@ const frame = rarityFrame(effectiveRarity);
   const evoCost = instance?.evolution_cost || null;
   const evoFodderCost = instance?.evolution_fodder_cost || null;
   const inv = user?.inventory || {};
-  const fodderValue = (h) => ({ R: 1, SR: 2, SSR: 4 }[h.evolved_rarity || h.rarity] || 0) * Math.max(1, h.stars || 1);
   const selectedFodderHeroes = fodderCandidates.filter((h) => selectedFodder.includes(h.instance_id));
-  const selectedFodderValue = selectedFodderHeroes.reduce((sum, h) => sum + fodderValue(h), 0);
+  const selectedHasSSR = selectedFodderHeroes.some((h) => (h.evolved_rarity || h.rarity) === "SSR");
+
+  // Check fodder slot fulfillment (structured requirements)
+  const fodderSlots = evoFodderCost?.slots || [];
+  const totalSlotsNeeded = evoFodderCost?.total_count || 0;
+  const sortedSelected = [...selectedFodderHeroes].sort((a, b) => (b.stars || 1) - (a.stars || 1));
+  // Expand slots into sorted thresholds (most demanding first)
+  const slotThresholds = [];
+  fodderSlots.forEach((s) => { for (let i = 0; i < s.count; i++) slotThresholds.push(s.min_stars); });
+  slotThresholds.sort((a, b) => b - a);
+  const slotsFilled = slotThresholds.every((minStars, i) => sortedSelected[i] && (sortedSelected[i].stars || 1) >= minStars);
+  const fodderCountOk = selectedFodderHeroes.length === totalSlotsNeeded;
+  const fodderValid = fodderCountOk && slotsFilled && (!selectedHasSSR || allowSSRFodder);
+
   const sharedAffordable = evoCost && (user?.ryo || 0) >= evoCost.ryo && Object.entries(evoCost.items || {}).every(([iid, q]) => (inv[iid] || 0) >= q);
   const evoAffordable = evoCost && (evoMethod === "shards"
     ? shardsOwned >= evoCost.shards && sharedAffordable
-    : selectedFodderValue >= (evoFodderCost?.value || Infinity) && sharedAffordable);
+    : fodderValid && sharedAffordable);
 
   const toggleFodder = (id) => {
     setSelectedFodder((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   };
   const autoSelectFodder = () => {
-    const need = evoFodderCost?.value || 0;
-    let total = 0;
-    const ids = [];
-    for (const h of fodderCandidates) {
-      if (total >= need) break;
-      ids.push(h.instance_id);
-      total += fodderValue(h);
-    }
-    setSelectedFodder(ids);
+    if (!evoFodderCost) return;
+    const minStars = Math.min(...fodderSlots.map((s) => s.min_stars));
+    const need = totalSlotsNeeded;
+    // Filter eligible: R/SR only (unless allowSSR), meeting min stars
+    const eligible = fodderCandidates.filter((h) => {
+      const r = h.evolved_rarity || h.rarity;
+      if (r === "SSR" && !allowSSRFodder) return false;
+      return (h.stars || 1) >= minStars;
+    });
+    // Sort: R first, then SR, then SSR; lower stars first within same rarity
+    const rank = { R: 0, SR: 1, SSR: 2 };
+    eligible.sort((a, b) => {
+      const ra = rank[a.evolved_rarity || a.rarity] ?? 9;
+      const rb = rank[b.evolved_rarity || b.rarity] ?? 9;
+      return ra - rb || (a.stars || 1) - (b.stars || 1);
+    });
+    setSelectedFodder(eligible.slice(0, need).map((h) => h.instance_id));
   };
 
   const doEvolve = async () => {
@@ -119,9 +143,12 @@ const frame = rarityFrame(effectiveRarity);
         instance_id: instance.instance_id,
         method: evoMethod,
         fodder_ids: evoMethod === "fodder" ? selectedFodder : [],
+        allow_ssr: evoMethod === "fodder" ? allowSSRFodder : false,
       });
       setUser(data.profile);
       toast.success(`Evolved to ${data.stars}\u2605! Permanent stat surge unlocked.`);
+      setShowEvoConfirm(false);
+      setSelectedFodder([]);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setBusyLocal(false); }
@@ -274,6 +301,23 @@ const frame = rarityFrame(effectiveRarity);
             />
           )}
         </AnimatePresence>
+
+        {/* ---- Evolution confirmation dialog ---- */}
+        <EvolutionConfirmDialog
+          open={showEvoConfirm}
+          onClose={() => setShowEvoConfirm(false)}
+          onConfirm={doEvolve}
+          busy={busyLocal}
+          template={template}
+          instance={instance}
+          method={evoMethod}
+          targetStar={(instance?.stars || 1) + 1}
+          shardCost={evoMethod === "shards" ? evoCost : null}
+          fodderHeroes={evoMethod === "fodder" ? selectedFodderHeroes : []}
+          sharedCost={evoCost}
+          items={items}
+          hasSSR={evoMethod === "fodder" && selectedHasSSR}
+        />
 
         {immersive ? (
           /* ---------- Immersive: art-only, info hidden ---------- */
@@ -557,22 +601,58 @@ const frame = rarityFrame(effectiveRarity);
                             <p className="font-display text-sm text-ink">{template.element.toUpperCase()} FODDER</p>
                             <p className="text-[10px] text-slate-500">Select R / SR / SSR heroes. Squad, locked and favorite heroes are protected.</p>
                           </div>
-                          <button type="button" onClick={autoSelectFodder} className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-jutsu border border-jutsu/30 bg-jutsu/10">AUTO SELECT</button>
+                          <button type="button" onClick={autoSelectFodder} data-testid="fodder-auto-select" className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-jutsu border border-jutsu/30 bg-jutsu/10">AUTO SELECT</button>
                         </div>
-                        <div className="flex items-center justify-between rounded-lg px-3 py-2 mb-2 border border-black/10 bg-black/[0.03]">
-                          <span className="text-xs text-slate-500">Material Value</span>
-                          <span className={`text-xs font-bold ${selectedFodderValue >= (evoFodderCost?.value || 0) ? "text-emerald-400" : "text-fox"}`}>{selectedFodderValue} / {evoFodderCost?.value || 0}</span>
+
+                        {/* Structured fodder slot requirements */}
+                        <div className="space-y-1.5 mb-2" data-testid="fodder-slot-requirements">
+                          {fodderSlots.map((slot, idx) => {
+                            const filled = sortedSelected.slice(
+                              slotThresholds.indexOf(slot.min_stars) >= 0 ? 0 : 0
+                            );
+                            return (
+                              <div key={idx} className="flex items-center justify-between rounded-lg px-3 py-2 border border-black/10 bg-black/[0.03]">
+                                <span className="text-xs text-slate-500">
+                                  {slot.count}× {slot.min_stars}★+ {template.element} hero{slot.count > 1 ? "es" : ""}
+                                </span>
+                                <span className={`text-xs font-bold ${fodderValid ? "text-emerald-400" : "text-fox"}`}>
+                                  {selectedFodderHeroes.length}/{totalSlotsNeeded} selected
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div className="grid grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1">
-                          {fodderCandidates.map((h) => {
+
+                        {/* SSR toggle */}
+                        <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-lg bg-fox/5 border border-fox/20" data-testid="fodder-ssr-toggle">
+                          <input
+                            type="checkbox"
+                            id="allow-ssr-fodder"
+                            checked={allowSSRFodder}
+                            onChange={(e) => setAllowSSRFodder(e.target.checked)}
+                            className="w-3.5 h-3.5 accent-fox"
+                          />
+                          <label htmlFor="allow-ssr-fodder" className="text-[10px] text-slate-500 flex items-center gap-1 cursor-pointer">
+                            <AlertTriangle className="w-3 h-3 text-fox" /> Allow SSR heroes as fodder
+                          </label>
+                        </div>
+
+                        {/* Fodder candidate grid */}
+                        <div className="grid grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1" data-testid="fodder-candidate-grid">
+                          {fodderCandidates.filter((h) => {
+                            const r = h.evolved_rarity || h.rarity;
+                            return r !== "SSR" || allowSSRFodder;
+                          }).map((h) => {
                             const selected = selectedFodder.includes(h.instance_id);
                             const rr = h.evolved_rarity || h.rarity;
+                            const isSSR = rr === "SSR";
                             return (
-                              <button key={h.instance_id} type="button" onClick={() => toggleFodder(h.instance_id)} className={`relative rounded-lg overflow-hidden border ${selected ? "border-amber-400 ring-1 ring-amber-400/50" : "border-black/10"} bg-black/[0.04]`}>
+                              <button key={h.instance_id} type="button" onClick={() => toggleFodder(h.instance_id)} data-testid={`fodder-hero-${h.instance_id}`}
+                                className={`relative rounded-lg overflow-hidden border ${selected ? "border-amber-400 ring-1 ring-amber-400/50" : "border-black/10"} bg-black/[0.04]`}>
                                 {h.portrait ? <img src={h.portrait} alt="" className="w-full aspect-[3/4] object-cover object-top" /> : <div className="w-full aspect-[3/4] flex items-center justify-center text-xs text-slate-500">{h.name?.slice(0, 2)}</div>}
                                 <div className="px-1 py-1 text-left">
                                   <div className="text-[8px] font-bold text-ink truncate">{h.name}</div>
-                                  <div className="text-[8px] text-slate-500">{rr} · {h.stars || 1}★ · +{fodderValue(h)}</div>
+                                  <div className="text-[8px]" style={{ color: isSSR ? "#AB47BC" : "#64748b" }}>{rr} · {h.stars || 1}★</div>
                                 </div>
                                 {selected && <Check className="absolute top-1 right-1 w-4 h-4 text-amber-300 drop-shadow" />}
                               </button>
@@ -580,13 +660,22 @@ const frame = rarityFrame(effectiveRarity);
                           })}
                         </div>
                         {!fodderCandidates.length && <p className="text-[10px] text-slate-500 text-center py-4">No eligible {template.element} fodder heroes available.</p>}
-                        <div className="mt-2 text-[10px] text-slate-500">R = 1× star value · SR = 2× star value · SSR = 4× star value</div>
+
+                        {/* SSR warning when SSR is selected */}
+                        {selectedHasSSR && (
+                          <div className="mt-2 rounded-lg bg-fox/10 border border-fox/30 px-3 py-2 flex items-start gap-2" data-testid="fodder-ssr-warning">
+                            <AlertTriangle className="w-3.5 h-3.5 text-fox shrink-0 mt-0.5" />
+                            <p className="text-[10px] text-fox leading-snug">You are consuming SSR heroes as fodder. This cannot be undone.</p>
+                          </div>
+                        )}
+
+                        <div className="mt-2 text-[10px] text-slate-500">Auto-Select picks R and SR only. SSR requires explicit opt-in above.</div>
                         <div className="mt-2"><CostRow icon={<Coins className="w-4 h-4 text-amber-400" />} label="Ryo" have={user?.ryo || 0} need={evoCost.ryo} testid="evolve-fodder-cost-ryo" />
                         {Object.entries(evoCost.items || {}).map(([iid, q]) => <CostRow key={iid} icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />} label={items[iid]?.name || iid} have={inv[iid] || 0} need={q} testid={`evolve-fodder-cost-${iid}`} />)}
                         </div>
                       </div>
                     )}
-                    <button onClick={doEvolve} disabled={busy || !evoAffordable} data-testid="hero-evolve-confirm-button" className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-amber-400 to-amber-300 text-[#05050A] hover:from-amber-300 hover:to-amber-200 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+                    <button onClick={() => setShowEvoConfirm(true)} disabled={busy || !evoAffordable} data-testid="hero-evolve-confirm-button" className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-amber-400 to-amber-300 text-[#05050A] hover:from-amber-300 hover:to-amber-200 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
                       {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Star className="w-5 h-5" />}
                       EVOLVE TO {(instance.stars || 1) + 1}★
                     </button>

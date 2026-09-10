@@ -67,20 +67,19 @@ def is_ascension_rarity(rarity: str) -> bool:
 #   Stars 5-6: + nightmare materials (Tsukuyomi)
 #   Star  7:   + celestial core (ultimate evolution)
 # ---------------------------------------------------------------------------
-# Shard route: deliberately starts low again and rises gradually. The 6->7
-# step starts a new chapter after a rarity transformation instead of continuing
-# the old 500-600+ shard staircase.
+# Shard route: flat costs per star transition. Starts at 80 and rises
+# gradually. The 6->7 step starts a new chapter after a rarity
+# transformation (resets low), then climbs steeply. Stars 8-12 are
+# included for future-proofing even though current star caps max at 8.
 EVOLUTION_SHARD_BASE = {
-    1: 80, 2: 100, 3: 120, 4: 160, 5: 220, 6: 80, 7: 120,
+    1: 80, 2: 100, 3: 120, 4: 160, 5: 220,
+    6: 80, 7: 120, 8: 180, 9: 260, 10: 360, 11: 480,
 }
 EVOLUTION_RYO_BASE = {
-    1: 1000, 2: 2000, 3: 3500, 4: 5500, 5: 8000, 6: 12000, 7: 18000,
+    1: 1000, 2: 2000, 3: 3500, 4: 5500, 5: 8000,
+    6: 12000, 7: 18000, 8: 25000, 9: 35000, 10: 50000, 11: 70000,
 }
-# Higher rarity = fewer shards needed (a single +100 duplicate is more impactful)
-RARITY_SHARD_MULT = {
-    "R": 1.0, "SR": 0.85, "SSR": 0.72, "UR": 0.60, "LR": 0.50, "GR": 0.42,
-}
-# Higher rarity = higher Ryo investment
+# Higher rarity = higher Ryo investment (shards are flat for all rarities)
 RARITY_RYO_MULT = {
     "R": 0.8, "SR": 1.0, "SSR": 1.3, "UR": 1.7, "LR": 2.2, "GR": 3.0,
 }
@@ -92,14 +91,14 @@ EVOLUTION_RYO_COST_BY_STAR = EVOLUTION_RYO_BASE
 def get_evolution_cost(rarity: str, current_star: int, element: Optional[str] = None) -> Optional[dict]:
     """Full cost to evolve from `current_star` -> `current_star + 1`.
     Returns None if the hero is already at its rarity's star cap.
-    Shard cost is rarity-scaled (higher rarity = fewer shards).
+    Shard cost is flat (same for all rarities). Ryo scales with rarity.
     Materials escalate by star level (Campaign → Spire → Tsukuyomi → Boss)."""
     cap = get_max_stars_for_rarity(rarity)
     if current_star >= cap:
         return None
     ryo_mult = RARITY_RYO_MULT.get(rarity, 1.0)
-    shards = EVOLUTION_SHARD_BASE.get(current_star, 120)
-    ryo = round(EVOLUTION_RYO_BASE.get(current_star, 18000) * ryo_mult)
+    shards = EVOLUTION_SHARD_BASE.get(current_star, 480)
+    ryo = round(EVOLUTION_RYO_BASE.get(current_star, 70000) * ryo_mult)
 
     items = {}
     # Stars 1-2: common evolution material (Campaign source)
@@ -234,6 +233,8 @@ def ascension_skill_multipliers(native_rarity_order: int, effective_rarity_order
 # Validation helpers (used by the server endpoints).
 # ---------------------------------------------------------------------------
 def can_evolve(rarity: str, stars: int, shards: int, ryo: int, inventory: dict) -> bool:
+    """Checks whether the shard route is affordable. Fodder route has its own
+    validation in evolution_materials.validate_fodder_selection."""
     cost = get_evolution_cost(rarity, stars)
     if not cost:
         return False

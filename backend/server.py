@@ -229,6 +229,7 @@ class EvolveIn(BaseModel):
     instance_id: str
     method: str = "shards"  # "shards" | "fodder"
     fodder_ids: List[str] = []
+    allow_ssr: bool = False  # must be True when SSR fodder is selected
 
 
 class GearEquipIn(BaseModel):
@@ -2065,7 +2066,7 @@ async def claim_achievement(achievement_id: str, user: dict = Depends(get_curren
     return {"profile": public_user(user), "reward": reward}
 
 
-async def _do_evolve(instance_id: str, user: dict, method: str = "shards", fodder_ids: Optional[List[str]] = None) -> dict:
+async def _do_evolve(instance_id: str, user: dict, method: str = "shards", fodder_ids: Optional[List[str]] = None, allow_ssr: bool = False) -> dict:
     """Evolution star breakthrough. Players choose ONE route:
     1) hero-specific shards, or 2) same-element R/SR/optional SSR hero fodder.
     Ryo and the non-shard evolution materials remain shared requirements.
@@ -2097,14 +2098,15 @@ async def _do_evolve(instance_id: str, user: dict, method: str = "shards", fodde
             raise HTTPException(status_code=400, detail=f"Not enough shards ({have_shards}/{cost['shards']})")
     else:
         req = evo_mat.get_fodder_requirement(stars)
+        if not req:
+            raise HTTPException(status_code=400, detail="Fodder evolution is unavailable for this star level")
         protected_gear_ids = {g.get("equipped_by") for g in user.get("gear", []) if g.get("equipped_by")}
-        ok, msg, selected, total = evo_mat.validate_fodder_selection(
-            user.get("ninjas", []), instance_id, tmpl.get("element"), fodder_ids or [], team_ids, protected_gear_ids
+        ok, msg, selected, _assignments = evo_mat.validate_fodder_selection(
+            user.get("ninjas", []), instance_id, tmpl.get("element"), fodder_ids or [],
+            team_ids, protected_gear_ids, current_star=stars, allow_ssr=body.allow_ssr
         )
         if not ok:
             raise HTTPException(status_code=400, detail=msg)
-        if total < req["value"]:
-            raise HTTPException(status_code=400, detail=f"Not enough Evolution material value ({total}/{req['value']})")
 
     if user.get("ryo", 0) < cost["ryo"]:
         raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost['ryo']}")
@@ -2138,7 +2140,7 @@ async def _do_evolve(instance_id: str, user: dict, method: str = "shards", fodde
 
 @api_router.post("/game/hero/evolve")
 async def evolve_hero(body: EvolveIn, user: dict = Depends(get_current_user)):
-    return await _do_evolve(body.instance_id, user, body.method, body.fodder_ids)
+    return await _do_evolve(body.instance_id, user, body.method, body.fodder_ids, body.allow_ssr)
 
 
 @api_router.post("/game/hero/star-up")
