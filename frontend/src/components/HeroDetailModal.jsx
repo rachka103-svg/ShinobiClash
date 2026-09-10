@@ -290,7 +290,7 @@ const frame = rarityFrame(effectiveRarity);
     <Dialog open={open} onOpenChange={(o) => !o && closeAll()}>
       <DialogContent
         data-testid="hero-detail-modal"
-        className="max-w-xl sm:max-w-2xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] overflow-y-auto bg-[#FFFFFF] border-0 rounded-2xl"
+        className="max-w-2xl lg:max-w-4xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] bg-[#FFFFFF] border-0 rounded-2xl flex flex-col lg:flex-row"
         style={{ border: `${frame.strokeWidth}px solid ${frame.useGold ? GOLD.stroke : rarity.color + "66"}`, boxShadow: `0 0 60px ${(frame.useGold ? GOLD.base : rarity.color)}40` }}
       >
         <DialogTitle className="sr-only">{template.name}</DialogTitle>
@@ -365,11 +365,13 @@ const frame = rarityFrame(effectiveRarity);
           </div>
         ) : (
         <>
-        {/* ---------- Portrait ---------- */}
-        <div className="relative h-[300px] sm:h-[400px] shrink-0">
+        {/* ---------- Portrait card (left on desktop, top on mobile) ---------- */}
+        <div className="relative h-[280px] sm:h-[340px] lg:h-auto lg:w-[40%] shrink-0">
           <img src={template.portrait} alt={template.name} className="w-full h-full object-cover object-top" />
           <div className="absolute inset-x-0 top-0 h-28 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${element.color}40, transparent)` }} />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#FFFFFF] via-transparent to-transparent pointer-events-none" />
+          {/* Bottom fade on mobile; right fade on desktop */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#FFFFFF] via-transparent to-transparent pointer-events-none lg:hidden" />
+          <div className="hidden lg:block absolute inset-0 pointer-events-none" style={{ background: `linear-gradient(to right, transparent 70%, #FFFFFF 100%)` }} />
           {frame.useGold && <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />}
           {frame.cornerLevel >= 2 && <DecoCorners rarity={effectiveRarity} size={22} />}
           {owned && (
@@ -392,8 +394,8 @@ const frame = rarityFrame(effectiveRarity);
           </button>
         </div>
 
-        {/* ---------- Profile content ---------- */}
-        <div className="p-4 sm:p-7 overflow-x-hidden min-w-0">
+        {/* ---------- Profile content (right on desktop, below on mobile) ---------- */}
+        <div className="flex-1 p-4 sm:p-7 overflow-x-hidden overflow-y-auto min-w-0 lg:max-h-[92vh] lg:border-l lg:border-black/[0.06]">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-black/[0.06] text-slate-700">{template.role}</span>
             {instance && (
