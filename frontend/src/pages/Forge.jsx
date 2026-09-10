@@ -15,6 +15,7 @@ import { ItemIcon } from "@/components/ItemIcon";
 import SummonRevealOverlay from "@/components/SummonRevealOverlay";
 import CrystalPickerModal from "@/components/CrystalPickerModal";
 import ForgeProduction from "@/components/ForgeProduction";
+import ItemSourcePopover from "@/components/ItemSourcePopover";
 import { getItemSource } from "@/lib/itemSources";
 
 const CRYSTAL_STAT_LABEL = { hp: "HP", atk: "ATK", def: "DEF", spd: "SPD" };
@@ -35,6 +36,7 @@ export default function Forge() {
   const [craftReveal, setCraftReveal] = useState(null);
   const [fuseQty, setFuseQty] = useState({});
   const [pickerGear, setPickerGear] = useState(null);
+  const [sourceItem, setSourceItem] = useState(null);
 
   const gear = user?.gear || [];
   const crystals = user?.crystals || [];
@@ -213,7 +215,7 @@ export default function Forge() {
 
         {/* ============ PRODUCE ============ */}
         <TabsContent value="produce">
-          <ForgeProduction />
+          <ForgeProduction onItemClick={setSourceItem} />
         </TabsContent>
 
         {/* ============ FUSE ============ */}
@@ -274,7 +276,7 @@ export default function Forge() {
             {["scrap_iron", "forge_steel", "forge_hammer", "spirit_dust", "evo_essence", "celestial_core", "copper_ore", "tin_shard", "iron_ingot", "mithril_shard", "adamantite_chunk", "runic_crystal", "orichalcum_ingot", "dragon_scale", "void_essence", "primordial_core", "titan_core", "warden_scale"].map((iid) => {
               const src = getItemSource(iid);
               return (
-                <span key={iid} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/[0.04] border border-black/10 text-[11px] text-slate-600 ${src ? "cursor-pointer hover:border-chakra/40 hover:text-chakra transition-colors" : ""}`} onClick={src ? () => navigate(src.route) : undefined}>
+                <span key={iid} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/[0.04] border border-black/10 text-[11px] text-slate-600 ${src ? "cursor-pointer hover:border-chakra/40 hover:text-chakra transition-colors" : ""}`} onClick={src ? () => setSourceItem(iid) : undefined} data-testid={`forge-mat-${iid}`}>
                   <ItemIcon icon={items[iid]?.icon} className="w-3.5 h-3.5" style={{ color: items[iid]?.color }} />
                   {items[iid]?.name} <span className="font-bold text-ink">×{inv[iid] || 0}</span>
                   {src && <span className="text-chakra/50 text-[9px]">→</span>}
@@ -416,6 +418,15 @@ export default function Forge() {
 
       <SummonRevealOverlay open={!!craftReveal} results={craftReveal || []} onClose={() => setCraftReveal(null)} />
       <CrystalPickerModal open={!!pickerGear} onClose={() => setPickerGear(null)} gearId={pickerGear?.gear_id} gearName={pickerGear ? `${pickerGear.set_name} ${slotMeta[pickerGear.slot]?.name || pickerGear.slot}` : null} />
+
+      {/* Item source popup */}
+      <Dialog open={!!sourceItem} onOpenChange={(o) => !o && setSourceItem(null)}>
+        <DialogContent className="max-w-xs p-0 border-0 bg-transparent shadow-none" data-testid="item-source-popup">
+          <DialogTitle className="sr-only">Item drop location</DialogTitle>
+          <DialogDescription className="sr-only">Where to obtain this item</DialogDescription>
+          {sourceItem && <ItemSourcePopover itemId={sourceItem} itemMeta={items[sourceItem]} onClose={() => setSourceItem(null)} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

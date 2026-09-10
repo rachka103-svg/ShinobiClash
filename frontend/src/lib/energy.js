@@ -4,7 +4,7 @@
 import { toast } from "sonner";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
-export const ENERGY_COST = { campaign: 10, spire: 0, trial: 8 };
+export const ENERGY_COST = { campaign: 5, spire: 0, trial: 8 };
 
 // Campaign difficulty tiers. `mult` scales enemy HP/ATK/DEF client-side;
 // `expMult` scales exp rewards server-side (extreme capped at x25).

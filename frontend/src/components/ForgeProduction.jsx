@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Loader2, ChevronUp, ChevronDown, Coins, Zap } from "lucide-react";
@@ -39,10 +38,9 @@ function productionRecipe(cat, tier) {
 
 const PAGE_SIZE = 12;
 
-export default function ForgeProduction() {
+export default function ForgeProduction({ onItemClick }) {
   const { user, setUser } = useAuth();
   const { productionCategories, items, forgeMaxLevel } = useGame();
-  const navigate = useNavigate();
   const [selCat, setSelCat] = useState(productionCategories[0]?.id || "hp_potion");
   const [page, setPage] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -207,7 +205,7 @@ export default function ForgeProduction() {
                     <span
                       key={mid}
                       className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ${enough ? "text-slate-600" : "text-fox"} ${src ? "cursor-pointer hover:text-chakra hover:bg-chakra/5" : ""}`}
-                      onClick={src ? () => navigate(src.route) : undefined}
+                      onClick={src && onItemClick ? () => onItemClick(mid) : undefined}
                     >
                       <ItemIcon icon={meta.icon} className="w-3 h-3" style={{ color: meta.color }} />
                       {meta.name || mid} <span className="font-bold">{have}/{need}</span>
