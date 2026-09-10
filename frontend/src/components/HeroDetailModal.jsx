@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Heart, Sword, Shield, Wind, Star, ChevronsUp, Gem, Coins, Sparkles, Check,
@@ -12,6 +13,7 @@ import { DecoCorners } from "@/components/RarityFx";
 import { RarityBadge } from "@/components/RarityBadge";
 import { ItemIcon } from "@/components/ItemIcon";
 import CrystalPickerModal from "@/components/CrystalPickerModal";
+import TransformOverlay from "@/components/TransformOverlay";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
@@ -54,6 +56,24 @@ export default function HeroDetailModal({
   const [busyLocal, setBusyLocal] = useState(false);
   const [immersive, setImmersive] = useState(false);
   const [showRevertConfirm, setShowRevertConfirm] = useState(false);
+  const [transformFx, setTransformFx] = useState(null); // { oldRarity, newRarity } during transform sequence
+  const [evoMethod, setEvoMethod] = useState("shards");
+  const [selectedFodder, setSelectedFodder] = useState([]);
+  const teamIds = new Set(user?.team || []);
+  const fodderCandidates = useMemo(() => {
+    if (!instance || !template?.element) return [];
+    return (user?.ninjas || [])
+      .filter((h) => h.instance_id !== instance.instance_id)
+      .filter((h) => h.element === template.element)
+      .filter((h) => ["R", "SR", "SSR"].includes(h.evolved_rarity || h.rarity))
+      .filter((h) => !h.locked && !h.favorite && !h.is_favorite && !teamIds.has(h.instance_id))
+      .sort((a, b) => {
+        const rank = { R: 1, SR: 2, SSR: 3 };
+        const ar = rank[a.evolved_rarity || a.rarity] || 9;
+        const br = rank[b.evolved_rarity || b.rarity] || 9;
+        return ar - br || (a.stars || 1) - (b.stars || 1);
+      });
+  }, [user?.ninjas, user?.team, instance?.instance_id, template?.element]);
 
   if (!template) return null;
  const effectiveRarity = instance?.evolved_rarity || instance?.rarity || template.rarity;
@@ -67,16 +87,39 @@ const frame = rarityFrame(effectiveRarity);
   // ---------- Evolution derived state ----------
   const shardsOwned = instance ? (user?.hero_shards?.[instance.template_id] || 0) : 0;
   const evoCost = instance?.evolution_cost || null;
+  const evoFodderCost = instance?.evolution_fodder_cost || null;
   const inv = user?.inventory || {};
-  const evoAffordable = evoCost &&
-    shardsOwned >= evoCost.shards &&
-    (user?.ryo || 0) >= evoCost.ryo &&
-    Object.entries(evoCost.items || {}).every(([iid, q]) => (inv[iid] || 0) >= q);
+  const fodderValue = (h) => ({ R: 1, SR: 2, SSR: 4 }[h.evolved_rarity || h.rarity] || 0) * Math.max(1, h.stars || 1);
+  const selectedFodderHeroes = fodderCandidates.filter((h) => selectedFodder.includes(h.instance_id));
+  const selectedFodderValue = selectedFodderHeroes.reduce((sum, h) => sum + fodderValue(h), 0);
+  const sharedAffordable = evoCost && (user?.ryo || 0) >= evoCost.ryo && Object.entries(evoCost.items || {}).every(([iid, q]) => (inv[iid] || 0) >= q);
+  const evoAffordable = evoCost && (evoMethod === "shards"
+    ? shardsOwned >= evoCost.shards && sharedAffordable
+    : selectedFodderValue >= (evoFodderCost?.value || Infinity) && sharedAffordable);
+
+  const toggleFodder = (id) => {
+    setSelectedFodder((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  };
+  const autoSelectFodder = () => {
+    const need = evoFodderCost?.value || 0;
+    let total = 0;
+    const ids = [];
+    for (const h of fodderCandidates) {
+      if (total >= need) break;
+      ids.push(h.instance_id);
+      total += fodderValue(h);
+    }
+    setSelectedFodder(ids);
+  };
 
   const doEvolve = async () => {
     setBusyLocal(true);
     try {
-      const { data } = await api.post("/game/hero/evolve", { instance_id: instance.instance_id });
+      const { data } = await api.post("/game/hero/evolve", {
+        instance_id: instance.instance_id,
+        method: evoMethod,
+        fodder_ids: evoMethod === "fodder" ? selectedFodder : [],
+      });
       setUser(data.profile);
       toast.success(`Evolved to ${data.stars}\u2605! Permanent stat surge unlocked.`);
     } catch (err) {
@@ -98,6 +141,8 @@ const frame = rarityFrame(effectiveRarity);
     try {
       const { data } = await api.post("/game/hero/transcend", { instance_id: instance.instance_id });
       setUser(data.profile);
+      // Trigger the cinematic transformation overlay
+      setTransformFx({ oldRarity: data.prev_rarity, newRarity: data.new_rarity });
       toast.success(`Transformed to ${data.new_rarity}! New star capacity unlocked.`);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
@@ -216,6 +261,20 @@ const frame = rarityFrame(effectiveRarity);
         <DialogTitle className="sr-only">{template.name}</DialogTitle>
         <DialogDescription className="sr-only">Details for {template.name}</DialogDescription>
 
+        {/* ---- Transformation cinematic overlay ---- */}
+        <AnimatePresence>
+          {transformFx && (
+            <TransformOverlay
+              key="transform-fx"
+              oldRarity={transformFx.oldRarity}
+              newRarity={transformFx.newRarity}
+              portrait={template.portrait}
+              heroName={template.name}
+              onComplete={() => setTransformFx(null)}
+            />
+          )}
+        </AnimatePresence>
+
         {immersive ? (
           /* ---------- Immersive: art-only, info hidden ---------- */
           <div className="relative bg-black flex items-center justify-center min-h-[70vh]" data-testid="hero-immersive-view">
@@ -260,7 +319,7 @@ const frame = rarityFrame(effectiveRarity);
           <div className="absolute inset-x-0 top-0 h-28 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${element.color}40, transparent)` }} />
           <div className="absolute inset-0 bg-gradient-to-t from-[#FFFFFF] via-transparent to-transparent pointer-events-none" />
           {frame.useGold && <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />}
-          {frame.cornerLevel >= 2 && <DecoCorners rarity={template.rarity} size={22} />}
+          {frame.cornerLevel >= 2 && <DecoCorners rarity={effectiveRarity} size={22} />}
           {owned && (
             <span className="absolute top-4 left-4 z-10 flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/90 text-ink text-xs font-bold" data-testid="detail-owned-badge">
               <Check className="w-3.5 h-3.5" /> OWNED
@@ -462,41 +521,76 @@ const frame = rarityFrame(effectiveRarity);
 
                 {evoCost ? (
                   <>
-                    <div className="space-y-2 mb-4" data-testid="evolve-cost-list">
-                      <CostRow
-                        icon={<Star className="w-4 h-4 text-amber-300" />}
-                        label={`${template.name} Shards`}
-                        have={shardsOwned} need={evoCost.shards}
-                        testid="evolve-cost-shards"
-                      />
-                      <CostRow
-                        icon={<Coins className="w-4 h-4 text-amber-400" />}
-                        label="Ryo"
-                        have={user?.ryo || 0} need={evoCost.ryo}
-                        testid="evolve-cost-ryo"
-                      />
-                      {Object.entries(evoCost.items || {}).map(([iid, q]) => (
-                        <CostRow
-                          key={iid}
-                          icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />}
-                          label={items[iid]?.name || iid}
-                          have={inv[iid] || 0} need={q}
-                          testid={`evolve-cost-${iid}`}
-                        />
-                      ))}
+                    <div className="grid grid-cols-2 gap-2 mb-4" data-testid="evolution-method-selector">
+                      <button
+                        type="button"
+                        onClick={() => { setEvoMethod("shards"); setSelectedFodder([]); }}
+                        className={`rounded-xl border p-3 text-left transition-colors ${evoMethod === "shards" ? "border-amber-400/60 bg-amber-400/10" : "border-black/10 bg-black/[0.04]"}`}
+                        data-testid="evolution-method-shards"
+                      >
+                        <div className="font-display text-sm text-ink">HERO SHARDS</div>
+                        <div className="text-[10px] text-slate-500 mt-1">Use {template.name} shards</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEvoMethod("fodder")}
+                        className={`rounded-xl border p-3 text-left transition-colors ${evoMethod === "fodder" ? "border-jutsu/60 bg-jutsu/10" : "border-black/10 bg-black/[0.04]"}`}
+                        data-testid="evolution-method-fodder"
+                      >
+                        <div className="font-display text-sm text-ink">ELEMENTAL FODDER</div>
+                        <div className="text-[10px] text-slate-500 mt-1">Use {template.element} heroes</div>
+                      </button>
                     </div>
-                    <button
-                      onClick={doEvolve}
-                      disabled={busy || !evoAffordable}
-                      data-testid="hero-evolve-confirm-button"
-                      className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-amber-400 to-amber-300 text-[#05050A] hover:from-amber-300 hover:to-amber-200 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
-                    >
+
+                    {evoMethod === "shards" ? (
+                      <div className="space-y-2 mb-4" data-testid="evolve-cost-list">
+                        <CostRow icon={<Star className="w-4 h-4 text-amber-300" />} label={`${template.name} Shards`} have={shardsOwned} need={evoCost.shards} testid="evolve-cost-shards" />
+                        <CostRow icon={<Coins className="w-4 h-4 text-amber-400" />} label="Ryo" have={user?.ryo || 0} need={evoCost.ryo} testid="evolve-cost-ryo" />
+                        {Object.entries(evoCost.items || {}).map(([iid, q]) => (
+                          <CostRow key={iid} icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />} label={items[iid]?.name || iid} have={inv[iid] || 0} need={q} testid={`evolve-cost-${iid}`} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl bg-black/[0.04] border border-black/10 p-3 mb-4" data-testid="evolution-fodder-panel">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <p className="font-display text-sm text-ink">{template.element.toUpperCase()} FODDER</p>
+                            <p className="text-[10px] text-slate-500">Select R / SR / SSR heroes. Squad, locked and favorite heroes are protected.</p>
+                          </div>
+                          <button type="button" onClick={autoSelectFodder} className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-jutsu border border-jutsu/30 bg-jutsu/10">AUTO SELECT</button>
+                        </div>
+                        <div className="flex items-center justify-between rounded-lg px-3 py-2 mb-2 border border-black/10 bg-black/[0.03]">
+                          <span className="text-xs text-slate-500">Material Value</span>
+                          <span className={`text-xs font-bold ${selectedFodderValue >= (evoFodderCost?.value || 0) ? "text-emerald-400" : "text-fox"}`}>{selectedFodderValue} / {evoFodderCost?.value || 0}</span>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1">
+                          {fodderCandidates.map((h) => {
+                            const selected = selectedFodder.includes(h.instance_id);
+                            const rr = h.evolved_rarity || h.rarity;
+                            return (
+                              <button key={h.instance_id} type="button" onClick={() => toggleFodder(h.instance_id)} className={`relative rounded-lg overflow-hidden border ${selected ? "border-amber-400 ring-1 ring-amber-400/50" : "border-black/10"} bg-black/[0.04]`}>
+                                {h.portrait ? <img src={h.portrait} alt="" className="w-full aspect-[3/4] object-cover object-top" /> : <div className="w-full aspect-[3/4] flex items-center justify-center text-xs text-slate-500">{h.name?.slice(0, 2)}</div>}
+                                <div className="px-1 py-1 text-left">
+                                  <div className="text-[8px] font-bold text-ink truncate">{h.name}</div>
+                                  <div className="text-[8px] text-slate-500">{rr} · {h.stars || 1}★ · +{fodderValue(h)}</div>
+                                </div>
+                                {selected && <Check className="absolute top-1 right-1 w-4 h-4 text-amber-300 drop-shadow" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {!fodderCandidates.length && <p className="text-[10px] text-slate-500 text-center py-4">No eligible {template.element} fodder heroes available.</p>}
+                        <div className="mt-2 text-[10px] text-slate-500">R = 1× star value · SR = 2× star value · SSR = 4× star value</div>
+                        <div className="mt-2"><CostRow icon={<Coins className="w-4 h-4 text-amber-400" />} label="Ryo" have={user?.ryo || 0} need={evoCost.ryo} testid="evolve-fodder-cost-ryo" />
+                        {Object.entries(evoCost.items || {}).map(([iid, q]) => <CostRow key={iid} icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />} label={items[iid]?.name || iid} have={inv[iid] || 0} need={q} testid={`evolve-fodder-cost-${iid}`} />)}
+                        </div>
+                      </div>
+                    )}
+                    <button onClick={doEvolve} disabled={busy || !evoAffordable} data-testid="hero-evolve-confirm-button" className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-amber-400 to-amber-300 text-[#05050A] hover:from-amber-300 hover:to-amber-200 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
                       {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Star className="w-5 h-5" />}
                       EVOLVE TO {(instance.stars || 1) + 1}★
                     </button>
-                    {!evoAffordable && (
-                      <p className="text-[10px] text-slate-500 mt-2 text-center">Shards come from duplicate summons · Essences &amp; Cores from Dungeons and Fusion.</p>
-                    )}
+                    {!evoAffordable && <p className="text-[10px] text-slate-500 mt-2 text-center">Choose Hero Shards or Elemental Fodder. Ryo and progression materials are shared between both methods.</p>}
                   </>
                 ) : ascTarget ? (
                   <>

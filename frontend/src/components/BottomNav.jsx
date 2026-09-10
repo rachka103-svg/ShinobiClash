@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Home, Scroll, Users, Sparkles, Grid3x3, Castle, Crosshair, LayoutGrid,
-  Swords, Anvil, Trophy, Landmark, Wand2, ShoppingBag, Moon,
+  Swords, Anvil, Trophy, Landmark, Wand2, ShoppingBag, Moon, Skull,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
@@ -20,6 +20,7 @@ const MORE = [
   { to: "/campaign", label: "Campaign", icon: Scroll, color: "#FF5722", testid: "nav-campaign" },
   { to: "/tsukuyomi", label: "Tsukuyomi", icon: Moon, color: "#7C4DFF", testid: "nav-tsukuyomi" },
   { to: "/dungeons", label: "Dungeons", icon: Landmark, color: "#7C4DFF", testid: "nav-dungeons" },
+  { to: "/boss-hunt", label: "Boss Hunt", icon: Skull, color: "#FF1744", testid: "nav-boss-hunt" },
   { to: "/spire", label: "Spire", icon: Castle, color: "#D500F9", testid: "nav-spire" },
   { to: "/arena", label: "Arena", icon: Crosshair, color: "#FF1744", testid: "nav-arena" },
   { to: "/gallery", label: "Gallery", icon: LayoutGrid, color: "#00E676", testid: "nav-gallery" },

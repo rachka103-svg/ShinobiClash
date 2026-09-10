@@ -3,7 +3,7 @@ import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
-const RARITIES = ["R", "SR", "SSR", "UR", "GR"];
+const RARITIES = ["R", "SR", "SSR", "UR", "LR", "LLR", "GR"];
 const ROLES = ["Attacker", "Tank", "Support", "Assassin", "Mage", "Healer", "Control", "Bruiser"];
 const STAT_KEYS = ["hp", "atk", "def", "spd", "chakra", "crit_rate", "crit_damage", "accuracy", "resistance"];
 const SCALAR_FIELDS = [

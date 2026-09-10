@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { Coins, Gem, Zap, LogOut, Moon, Sun, Volume2, VolumeX } from "lucide-react";
+import { Coins, Gem, Zap, LogOut, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useTheme } from "@/context/ThemeContext";
 import { useAudio } from "@/context/AudioContext";
 
 /**
@@ -24,7 +23,6 @@ const Pill = ({ icon: Icon, color, value, testid }) => (
 
 export default function GameHud() {
   const { user, logout } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
   const { muted, toggleMute } = useAudio();
   const navigate = useNavigate();
   const energy = user?.energy;
@@ -73,14 +71,6 @@ export default function GameHud() {
             className="pointer-events-auto w-8 h-8 rounded-full bg-white/80 dark:bg-black/40 backdrop-blur-md border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-500 hover:text-chakra hover:border-chakra/40 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-chakra"
           >
             {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-          </button>
-          <button
-            onClick={toggleTheme}
-            data-testid="hud-theme-toggle"
-            aria-label={isDark ? "Switch to Ivory & Ink light theme" : "Switch to cinematic dark theme"}
-            className="pointer-events-auto w-8 h-8 rounded-full bg-white/80 dark:bg-black/40 backdrop-blur-md border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-500 hover:text-chakra hover:border-chakra/40 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-chakra"
-          >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
           <button onClick={handleLogout} data-testid="hud-logout" className="pointer-events-auto w-8 h-8 rounded-full bg-white/80 dark:bg-black/40 backdrop-blur-md border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-500 hover:text-fox hover:border-fox/40 transition-colors">
             <LogOut className="w-4 h-4" />

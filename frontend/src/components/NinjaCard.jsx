@@ -1,14 +1,16 @@
 import { motion } from "framer-motion";
 import { RARITY, ELEMENT } from "@/lib/styles";
-import { rarityFrame, GOLD, GODLY } from "@/lib/theme";
+import { rarityFrame, GOLD, GODLY, CRIMSON } from "@/lib/theme";
 import { auraClass, RaritySparkles, DecoCorners } from "@/components/RarityFx";
 import { ElementIcon } from "@/components/ElementIcons";
 
 export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid }) => {
-  // IMPORTANT:
-  // Owned heroes can have an evolved rarity that differs from their original template rarity.
-  // Always prefer evolved_rarity when it exists.
-  const currentRarity = ninja.evolved_rarity || ninja.rarity || "R";
+  // Always prefer the hero's transformed rarity over its original catalog rarity.
+  // This ensures ascended heroes visually upgrade even if template data is merged in.
+  const displayRarity =
+    ninja.evolved_rarity ||
+    ninja.rarity ||
+    "R";
 
   const rarity = RARITY[displayRarity] || RARITY.R;
   const element = ELEMENT[ninja.element] || {};
@@ -22,9 +24,11 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
 
   const edge = fr.isGodly
     ? GODLY.stroke
-    : fr.useGold
-      ? GOLD.stroke
-      : rarity.color;
+    : fr.useCrimson
+      ? CRIMSON.stroke
+      : fr.useGold
+        ? GOLD.stroke
+        : rarity.color;
 
   const frameStyle = selected
     ? {
@@ -37,12 +41,22 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
           boxShadow:
             "inset 0 0 0 1px rgba(100,255,218,0.28)",
         }
+      : fr.useCrimson
+        ? {
+            border: `3px solid ${CRIMSON.base}`,
+            "--glow": CRIMSON.base,
+            boxShadow: `inset 0 0 0 1px rgba(255,23,68,0.28), 0 0 18px ${CRIMSON.base}44`,
+          }
       : elite
         ? {
             border: `2px solid ${edge}`,
             "--glow": fr.useGold
               ? GOLD.base
-              : `${rarity.color}${tier >= 4 ? "cc" : tier >= 3 ? "aa" : "88"}`,
+              : `${rarity.color}${
+                  tier >= 4 ? "cc" :
+                  tier >= 3 ? "aa" :
+                  "88"
+                }`,
           }
         : {
             border: `${tier >= 1 ? 1.5 : 1}px solid ${rarity.color}`,
@@ -62,9 +76,11 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
           ? "ring-2 ring-cyan-400 glow-cyan"
           : fr.isGodly
             ? `${aura} godly-border`
-            : elite
-              ? aura
-              : ""
+            : fr.useCrimson
+              ? `${aura} crimson-border`
+              : elite
+                ? aura
+                : ""
       } ${disabled ? "opacity-50 grayscale" : ""}`}
       style={frameStyle}
     >
@@ -87,7 +103,7 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
         )}
 
         {fr.cornerLevel >= 1 && !disabled && (
-          <DecoCorners rarity={currentRarity} size={16} />
+          <DecoCorners rarity={displayRarity} size={16} />
         )}
 
         {ninja.level != null && (

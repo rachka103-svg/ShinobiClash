@@ -29,6 +29,7 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage
 import game_data as gd
 import expansion_systems as ex
 import progression as prog
+import evolution_materials as evo_mat
 import admin_config as ac
 import player_progression as pp
 
@@ -216,6 +217,7 @@ class BattleCompleteIn(BaseModel):
     result: str  # "win" | "lose"
     participants: List[str] = []  # instance_ids that fought
     survivors: List[str] = []     # instance_ids still alive at the end
+    difficulty: str = "normal"    # "normal" | "hard" | "difficult" | "extreme"
 
 
 class SummonIn(BaseModel):
@@ -225,6 +227,8 @@ class SummonIn(BaseModel):
 
 class EvolveIn(BaseModel):
     instance_id: str
+    method: str = "shards"  # "shards" | "fodder"
+    fodder_ids: List[str] = []
 
 
 class GearEquipIn(BaseModel):
@@ -260,6 +264,11 @@ class UseExpIn(BaseModel):
     qty: int = 1
 
 
+class ForgeProduceIn(BaseModel):
+    category: str   # e.g. "hp_potion"
+    tier: int        # 1-200
+
+
 class AscendIn(BaseModel):
     instance_id: str
 
@@ -283,11 +292,13 @@ class SpireCompleteIn(BaseModel):
     result: str
     participants: List[str] = []
     survivors: List[str] = []
+    spire_path: str = "normal"  # "normal" | "fire" | "water" | "earth" | "light" | "dark"
 
 
 class BattleStartIn(BaseModel):
     mode: str  # "campaign" | "spire" | "trial"
     id: str
+    spire_path: str = "normal"  # "normal" | "fire" | "water" | "earth" | "light" | "dark"
 
 
 class ArenaBattleStartIn(BaseModel):
@@ -713,6 +724,9 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_gear: dic
     geared = gd.apply_gear_to_stats(star_stats, equipped) if equipped else star_stats
     socketed = [crystal_by_gear[g["gear_id"]] for g in equipped if g["gear_id"] in crystal_by_gear]
     final_stats = ex.apply_crystals_to_stats(geared, socketed) if socketed else geared
+    # Boss Crysta combat modifiers — aggregated from socketed Boss Crystas
+    crystal_mods = ex.extract_crystal_combat_modifiers(socketed) if socketed else {}
+    inst["crystal_combat_modifiers"] = crystal_mods if crystal_mods else None
     inst["rarity"] = rarity
     inst["native_rarity"] = native_rarity
     inst["evolved_rarity"] = inst.get("evolved_rarity") or native_rarity
@@ -730,8 +744,9 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_gear: dic
     stars_max = gd.max_stars_for_rarity(rarity)
     inst["stars_max"] = stars_max
     inst["at_star_cap"] = stars >= stars_max
-    inst["evolution_cost"] = gd.evolution_cost(rarity, stars) if stars < stars_max else None
+    inst["evolution_cost"] = gd.evolution_cost(rarity, stars, tmpl.get("element")) if stars < stars_max else None
     inst["star_up_cost"] = inst["evolution_cost"]["shards"] if inst["evolution_cost"] else None
+    inst["evolution_fodder_cost"] = evo_mat.get_fodder_requirement(stars) if stars < stars_max else None
     inst["faction"] = tmpl.get("faction")
     inst["role"] = tmpl.get("role")
     skill_rank = inst.get("skill_rank", 1)
@@ -808,6 +823,7 @@ def public_user(user: dict) -> dict:
         "team": user.get("team", []),
         "cleared_stages": user.get("cleared_stages", []),
         "spire_floor": user.get("spire_floor", 0),
+        "spire_floors": user.get("spire_floors", {}),
         "wins": user.get("wins", 0),
         "losses": user.get("losses", 0),
         "team_power": team_power,
@@ -820,6 +836,8 @@ def public_user(user: dict) -> dict:
         "beginner": beginner_public(user),
         "free_summons": free_summons_public(user),
         "achievements": achievements_public(user),
+        "forge_level": user.get("forge_level", 1),
+        "forge_xp": user.get("forge_xp", 0),
     }
 
 
@@ -938,6 +956,8 @@ async def register(body: RegisterIn, response: Response):
         "login": gd.fresh_login_state(),
         "arena_rating": gd.ARENA_RATING_DEFAULT,
         "arena_wins": 0,
+        "forge_level": 1,
+        "forge_xp": 0,
         "arena_losses": 0,
         "arena_daily": gd.fresh_arena_daily_state(),
     }
@@ -1001,6 +1021,7 @@ async def catalog():
             "trials": gd.TRIALS + gd.DUNGEON_TRIALS,
             "banner": banner_info(), "factions": gd.FACTIONS, "roles": gd.ROLES,
             "tags": gd.TAGS, "rarities": gd.RARITIES,
+            "enemy_templates": [gd.CATALOG_BY_ID.get(t["id"], t) for t in gd.NIGHTMARE_BOSS_TEMPLATES],
             "gem_costs": {
                 "summon": gd.GEM_SUMMON_COST,
                 "energy_refill_per_point": gd.GEM_ENERGY_REFILL_COST_PER_POINT,
@@ -1012,7 +1033,9 @@ async def catalog():
             "pity_config": {
                 "soft_pity_start": gd.MYTHIC_SOFT_PITY_START,
                 "hard_pity": gd.MYTHIC_HARD_PITY,
+                "lr_hard_pity": gd.LR_HARD_PITY,
                 "featured_5050": gd.FEATURED_MYTHIC_5050,
+                "featured_5050_rarity": "GR",
                 "x10_guarantee_rarity": gd.X10_GUARANTEE_RARITY,
                 "pity_rarity": gd.TOP_RARITY,
                 "pity_currencies": ["gems", "ticket"],
@@ -1028,6 +1051,8 @@ async def catalog():
             "exp_tome_gold_cost": gd.EXP_TOME_GOLD_COST,
             "reforge_modifiers": gd.REFORGE_MODIFIERS,
             "reforge_max_per_jutsu": gd.REFORGE_MAX_PER_JUTSU,
+            "production_categories": gd.FORGE_PRODUCTION_CATEGORIES,
+            "forge_max_level": gd.FORGE_MAX_LEVEL,
             "progression_config": {
                 "ascension_ladder": prog.ASCENSION_LADDER,
                 "max_stars": prog.MAX_STARS,
@@ -1062,13 +1087,171 @@ async def stages():
     # "your squad vs. this fight" without re-deriving formulas) and a short
     # `chapters` list of {chapter, name, lore} for the chapter navigator.
     # Neither touches STAGES itself — no stage/chapter data is invented.
-    enriched_stages = [
-        {**s, "recommended_power": sum(gd.ninja_power(e["template_id"], e["level"]) for e in s["enemies"])}
-        for s in gd.STAGES
-    ]
+    enriched_stages = []
+    for s in gd.STAGES:
+        enriched = gd.enrich_stage_enemies(s)
+        rp = sum(gd._enemy_power_with_gear(e) for e in enriched["enemies"])
+        enriched_stages.append({**enriched, "recommended_power": rp})
     chapter_nums = sorted(set(s["chapter"] for s in gd.STAGES))
     chapters = [{"chapter": c, **gd.chapter_meta(c)} for c in chapter_nums]
     return {"stages": enriched_stages, "boss_mechanics": gd.BOSS_MECHANICS, "chapters": chapters}
+
+
+# ---------------------------------------------------------------------------
+# Boss Hunt — global combat depth expansion endpoints
+# ---------------------------------------------------------------------------
+@api_router.get("/game/boss-hunt")
+async def boss_hunt_list():
+    """Returns all Boss Hunt boss configurations with their combat modifiers,
+    traits, and strategy hints for the UI."""
+    from boss_configs import get_all_boss_hunt_configs
+    from combat_modifiers import combat_modifiers_summary
+    bosses = []
+    for boss in get_all_boss_hunt_configs():
+        mods = boss.get("combat_modifiers", {})
+        summary = combat_modifiers_summary(mods)
+        bosses.append({
+            "id": boss["id"],
+            "name": boss["name"],
+            "title": boss.get("title", ""),
+            "template_id": boss["template_id"],
+            "element": boss["element"],
+            "rarity": boss.get("rarity", ""),
+            "level": boss.get("level", 60),
+            "difficulty": boss["difficulty"],
+            "traits": boss["traits"],
+            "strategy": boss["strategy"],
+            "vulnerability_hint": boss["vulnerability_hint"],
+            "archetype": boss["archetype"],
+            "boss_mechanic": boss.get("boss_mechanic"),
+            "escalating_damage": boss.get("escalating_damage", False),
+            "combat_summary": summary,
+            "rewards": boss.get("rewards", {}),
+        })
+    return {"bosses": bosses}
+
+
+@api_router.get("/game/team-synergy")
+async def team_synergy(user: dict = Depends(get_current_user)):
+    """Evaluates the player's current team composition and returns active
+    synergies + bonuses for the Team Builder UI."""
+    from team_synergy import get_synergy_bonuses_for_team
+    result = get_synergy_bonuses_for_team(user.get("team", []), user)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Combat modifiers catalog — for UI display and debugging
+# ---------------------------------------------------------------------------
+@api_router.get("/game/combat-modifiers")
+async def combat_modifiers_catalog():
+    """Returns the enemy archetype catalog and combat modifier definitions
+    for documentation and UI purposes."""
+    from combat_modifiers import ENEMY_ARCHETYPES, combat_modifiers_summary
+    archetypes = []
+    for aid, arch in ENEMY_ARCHETYPES.items():
+        summary = combat_modifiers_summary(arch.get("modifiers", {}))
+        archetypes.append({
+            "id": aid,
+            "name": arch["name"],
+            "modifiers": arch["modifiers"],
+            "traits": arch.get("traits", []),
+            "weakness_hint": arch.get("weakness_hint", ""),
+            "summary": summary,
+        })
+    return {"archetypes": archetypes}
+
+
+@api_router.post("/game/boss-hunt/complete")
+async def boss_hunt_complete(body: dict, user: dict = Depends(get_current_user)):
+    """Complete a Boss Hunt battle and award rewards."""
+    from boss_configs import get_boss_hunt_config
+
+    boss_id = body.get("boss_id", "")
+    result = body.get("result", "lose")
+    participants = body.get("participants", [])
+    survivors = body.get("survivors", [])
+
+    boss_config = get_boss_hunt_config(boss_id)
+    if not boss_config:
+        raise FastAPIException(status_code=404, detail="Boss Hunt boss not found")
+
+    rewards = {"ryo": 0, "gems": 0, "exp": 0, "hero_exp": []}
+
+    if result == "win":
+        rarity_mult = {
+            "UR": 1.5, "LR": 2.5, "GR": 4.0,
+        }.get(boss_config.get("rarity", "UR"), 1.0)
+
+        base_rewards = boss_config.get("rewards", {})
+        rewards["ryo"] = round(base_rewards.get("ryo", 800) * rarity_mult)
+        rewards["gems"] = round(base_rewards.get("gems", 30) * rarity_mult)
+        rewards["exp"] = round(base_rewards.get("exp", 300) * rarity_mult)
+
+        # Apply rewards
+        user["ryo"] = user.get("ryo", 0) + rewards["ryo"]
+        user["gems"] = user.get("gems", 0) + rewards["gems"]
+
+        # Track cleared bosses
+        cleared_bosses = user.get("cleared_bosses", [])
+        is_first_clear = boss_id not in cleared_bosses
+        if is_first_clear:
+            cleared_bosses.append(boss_id)
+            # First-clear bonus
+            rewards["gems"] += 50
+            rewards["first_clear"] = True
+
+        # Boss Core drop — required for ultimate Transformation (LR -> GR)
+        inventory = user.get("inventory", {})
+        boss_core_qty = 2 if is_first_clear else 1
+        inventory["boss_core"] = inventory.get("boss_core", 0) + boss_core_qty
+        rewards["evolution_materials"] = {"boss_core": boss_core_qty}
+
+        # Signature Crysta drop — the boss's unique crystal.
+        # Uses the crystal_drop_rate from the boss config (very low, endgame).
+        crystal_reward = None
+        crystal_drop_rate = base_rewards.get("crystal_drop_rate", 1.0) / 100.0  # config stores as percentage
+        if rng.random() < crystal_drop_rate:
+            bc_instance = ex.roll_boss_crysta(boss_id)
+            if bc_instance:
+                user.setdefault("crystals", []).append(bc_instance)
+                crystal_reward = ex.crystal_public(bc_instance)
+                rewards["crystal"] = crystal_reward
+
+        await db.users.update_one({"_id": user["_id"]}, {
+            "$set": {"ryo": user["ryo"], "gems": user["gems"], "cleared_bosses": cleared_bosses,
+                     "inventory": inventory, "crystals": user.get("crystals", [])},
+        })
+
+    return {"result": result, "rewards": rewards, "profile": public_user(user)}
+
+
+@api_router.get("/game/crystas/collection")
+async def crysta_collection(user: dict = Depends(get_current_user)):
+    """Returns all signature Crysta definitions with the user's collection
+    status (obtained/not obtained) for the collection UI."""
+    from boss_crystas import BOSS_CRYSTAS
+    owned_ids = set()
+    for c in user.get("crystals", []):
+        bcid = c.get("boss_crysta_id")
+        if bcid:
+            owned_ids.add(bcid)
+    collection = []
+    for bc in BOSS_CRYSTAS:
+        collection.append({
+            "id": bc["id"],
+            "name": bc["name"],
+            "boss_name": bc["boss_name"],
+            "boss_id": bc["boss_id"],
+            "element": bc["element"],
+            "rarity": bc["rarity"],
+            "source": bc.get("source", "tsukuyomi"),
+            "description": bc["description"],
+            "main_stat": bc["main_stat"],
+            "combat_modifiers": bc.get("combat_modifiers", {}),
+            "obtained": bc["id"] in owned_ids,
+        })
+    return {"crystas": collection, "total": len(collection), "obtained": len(owned_ids)}
 
 
 @api_router.get("/game/profile")
@@ -1141,14 +1324,42 @@ async def claim_login_reward(user: dict = Depends(get_current_user)):
     return {"profile": public_user(user), "reward": reward, "day": new_day}
 
 
-def _validate_battle_target(mode: str, target_id: str) -> None:
-    """Raises 404/400 if the requested stage/trial/boss/floor doesn't exist."""
+_SPIRE_PATH_ELEMENTS = {"fire": "Fire", "water": "Water", "earth": "Earth", "light": "Light", "dark": "Dark"}
+
+
+def _validate_spire_element(path: str, user: dict) -> None:
+    """Ensures every hero in the player's active team matches the elemental
+    Spire's required element.  Enforced server-side so it cannot be bypassed
+    via direct API calls, saved formations, or client tampering."""
+    required = _SPIRE_PATH_ELEMENTS.get(path)
+    if not required:
+        return
+    team = user.get("team", [])
+    for iid in team:
+        inst = next((n for n in user.get("ninjas", []) if n.get("instance_id") == iid), None)
+        if not inst:
+            continue
+        tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
+        if tmpl and tmpl.get("element") != required:
+            raise HTTPException(status_code=403, detail=f"{required.upper()} SPIRE requires a {required}-only team")
+
+
+def _validate_battle_target(mode: str, target_id: str, user: dict = None) -> None:
+    """Raises 404/400/403 if the requested stage/trial/boss/floor doesn't exist
+    or is locked."""
     if mode == "campaign" and target_id not in gd.STAGES_BY_ID:
         raise HTTPException(status_code=404, detail="Stage not found")
     if mode == "trial" and target_id not in gd.TRIALS_BY_ID:
         raise HTTPException(status_code=404, detail="Trial not found")
     if mode == "tsukuyomi" and target_id not in gd.TSUKUYOMI_BY_ID:
         raise HTTPException(status_code=404, detail="Nightmare not found")
+    if mode == "tsukuyomi" and user is not None:
+        boss = gd.TSUKUYOMI_BY_ID.get(target_id)
+        progress = user.get("tsukuyomi") or {}
+        highest_cleared = user.get("tsukuyomi_highest_cleared", 0)
+        status = gd.tsukuyomi_boss_status(boss, progress, highest_cleared)
+        if status == "locked":
+            raise HTTPException(status_code=403, detail=f"Clear all difficulties of Nightmare {boss['index'] - 1} to unlock this stage")
     if mode == "spire":
         try:
             if int(target_id) < 1:
@@ -1165,7 +1376,11 @@ async def battle_start(body: BattleStartIn, user: dict = Depends(get_current_use
     mode = body.mode
     if mode not in gd.ENERGY_COST:
         raise HTTPException(status_code=400, detail="Invalid battle mode")
-    _validate_battle_target(mode, body.id)
+    _validate_battle_target(mode, body.id, user)
+
+    # Elemental Spire: enforce element-only team restriction at battle start
+    if mode == "spire" and body.spire_path != "normal":
+        _validate_spire_element(body.spire_path, user)
 
     cost = gd.ENERGY_COST[mode]
     new_energy = gd.spend_energy(user.get("energy"), cost)
@@ -1320,7 +1535,7 @@ def _roll_battle_item_drops(user: dict, chapter: int, first_clear: bool) -> dict
 def _roll_battle_gear_drop(user: dict, chapter: int) -> Optional[dict]:
     """Campaign battles from Chapter 2+ have a flat chance to drop a gear
     piece (the long-term equipment loop), capped by GEAR_INVENTORY_CAP."""
-    if chapter < 2 or len(user.get("gear", [])) >= GEAR_INVENTORY_CAP or rng.random() >= 0.14:
+    if chapter < 2 or len(user.get("gear", [])) >= GEAR_INVENTORY_CAP or rng.random() >= 0.07:
         return None
     g = gd.roll_gear(min_tier=1, max_tier=min(1 + chapter // 3, 5), luck=min(0.5, chapter * 0.04))
     user.setdefault("gear", []).append(g)
@@ -1378,7 +1593,11 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
     cleared = user.get("cleared_stages", [])
     first_clear = body.stage_id not in cleared
     chapter = stage.get("chapter", 1)
-    base_exp = stage["rewards"]["exp"]
+    # Difficulty exp multiplier — enemies are scaled client-side, but exp
+    # rewards are scaled server-side. Extreme is capped at x25 (not x100).
+    _diff_exp_mult = {"normal": 1, "hard": 2, "difficult": 10, "extreme": 25}
+    exp_mult = _diff_exp_mult.get(body.difficulty, 1)
+    base_exp = round(stage["rewards"]["exp"] * exp_mult)
     rewards = {"ryo": stage["rewards"]["ryo"], "gems": 0, "exp": base_exp, "ninja": None, "hero_exp": [], "items": {}}
 
     user["ryo"] = user.get("ryo", 0) + rewards["ryo"]
@@ -1395,8 +1614,33 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
     rewards["items"] = _roll_battle_item_drops(user, chapter, first_clear)
     inventory = user["inventory"]
 
+    # forge material drops — chapter-gated, boss-specific mats from boss stages
+    forge_drops = gd.roll_forge_drops(chapter, stage.get("is_boss", False), stage.get("boss_mechanic"), first_clear)
+    if forge_drops:
+        for iid, qty in forge_drops.items():
+            inventory[iid] = inventory.get(iid, 0) + qty
+        rewards.setdefault("forge_materials", {}).update(forge_drops)
+
+    # Evolution material — evo_essence drops from Campaign (foundation material)
+    evo_qty = 2 + chapter
+    if first_clear:
+        evo_qty += 3
+    inventory["evo_essence"] = inventory.get("evo_essence", 0) + evo_qty
+    rewards.setdefault("evolution_materials", {})["evo_essence"] = evo_qty
+
     # gear drops — battles from Chapter 2 onward can drop gear (long-term loop)
     rewards["gear"] = _roll_battle_gear_drop(user, chapter)
+
+    # Regular crystal drop — rare drop from Campaign (Chipped → Astral tiers).
+    # Rarer than gear (7%): ~2% base, scaling slightly with chapter depth.
+    # Boss crystas are NOT obtainable here — only regular stat crystals.
+    crystal_reward = None
+    if chapter >= 2 and rng.random() < 0.02 + min(0.01, chapter * 0.0005):
+        _crystal_diff = {"normal": "normal", "hard": "hard", "difficult": "nightmare", "extreme": "nightmare"}.get(body.difficulty, "normal")
+        _crystal_inst = ex.roll_crystal(_crystal_diff)
+        user.setdefault("crystals", []).append(_crystal_inst)
+        crystal_reward = ex.crystal_public(_crystal_inst)
+        rewards["crystal"] = crystal_reward
 
     if first_clear:
         _apply_campaign_first_clear_bonus(user, stage, body.stage_id, cleared, ninjas, rewards)
@@ -1411,7 +1655,7 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
         {"_id": user["_id"]},
         {"$set": {"ryo": user["ryo"], "gems": user.get("gems", 0), "level": user["level"], "exp": user["exp"],
                   "ninjas": ninjas, "inventory": inventory, "cleared_stages": cleared, "wins": user["wins"],
-                  "daily": user["daily"], "gear": user.get("gear", [])}},
+                  "daily": user["daily"], "gear": user.get("gear", []), "crystals": user.get("crystals", [])}},
     )
     user["cleared_stages"] = cleared
     return {"profile": public_user(user), "rewards": rewards, "result": "win", "first_clear": first_clear, "level_up": level_up}
@@ -1428,6 +1672,8 @@ def _rarity_pool(min_rarity: str = None, exclude_top: bool = True,
     floor = gd.RARITY_ORDER[min_rarity] if min_rarity else -1
     out = []
     for tid, t in gd.CATALOG_BY_ID.items():
+        if t.get("is_nightmare_boss"):
+            continue
         ri = gd.RARITY_ORDER[t["rarity"]]
         if exclude_top and t["rarity"] == gd.TOP_RARITY:
             continue
@@ -1435,7 +1681,7 @@ def _rarity_pool(min_rarity: str = None, exclude_top: bool = True,
             w = weights.get(t["rarity"], 0)
             if w <= 0:
                 continue
-            if featured_id and tid == featured_id:
+            if featured_id and tid == featured_id and t["rarity"] != "GR":
                 w = w * FEATURED_RATE_MULT
             out.append((tid, w))
     return out
@@ -1447,11 +1693,10 @@ def _weighted_choice(pool: list) -> str:
     return rng.choices(tids, weights=weights, k=1)[0]
 
 
-def _roll_top_rarity_pity(pity: dict, currency: str, featured: Optional[str],
-                          featured_is_top: bool, top: str) -> tuple:
-    """Evaluates the top-rarity pity roll for a single pull (GEM/TICKET
-    banners only). Mutates `pity` in place. Returns
-    (chosen_template_id_or_None, pity_note)."""
+def _roll_top_rarity_pity(pity: dict, currency: str, top: str) -> tuple:
+    """Evaluates the UR pity roll for a single pull (GEM/TICKET banners only).
+    UR has soft pity from pull 60 and hard pity at 90. Mutates `pity` in place.
+    Returns (chosen_template_id_or_None, pity_note)."""
     if currency not in ("gems", "ticket"):
         return None, None
     counter = pity.get("ur", pity.get("gr", pity.get("mythic", 0))) + 1
@@ -1459,23 +1704,26 @@ def _roll_top_rarity_pity(pity: dict, currency: str, featured: Optional[str],
         pity["ur"] = counter
         return None, None
 
-    chosen = None
-    pity_note = None
-    tops = [tid for tid, t in gd.CATALOG_BY_ID.items() if t["rarity"] == top]
-    if featured_is_top:
-        if pity.get("featured_guarantee"):
-            chosen = featured; pity["featured_guarantee"] = False; pity_note = "featured_guaranteed"
-        elif rng.random() < gd.FEATURED_MYTHIC_5050:
-            chosen = featured; pity_note = "featured_5050_won"
-        else:
-            others = [m for m in tops if m != featured] or tops
-            chosen = rng.choice(others); pity["featured_guarantee"] = True; pity_note = "featured_5050_lost"
-    else:
-        chosen = rng.choice(tops) if tops else None
+    tops = [tid for tid, t in gd.CATALOG_BY_ID.items() if t["rarity"] == top and not t.get("is_nightmare_boss")]
+    chosen = rng.choice(tops) if tops else None
     pity["ur"] = 0
-    if counter >= gd.MYTHIC_HARD_PITY:
-        pity_note = pity_note or "hard_pity"
+    pity_note = "hard_pity" if counter >= gd.MYTHIC_HARD_PITY else "pity"
     return chosen, pity_note
+
+
+def _apply_gr_featured_5050(chosen: str, featured: str, pity: dict) -> tuple:
+    """Applies the featured GR 50/50 system when a GR is pulled from the
+    normal pool. Returns (chosen_template_id, pity_note)."""
+    gr_pool = [tid for tid, t in gd.CATALOG_BY_ID.items()
+              if t["rarity"] == "GR" and not t.get("is_nightmare_boss")]
+    non_featured = [tid for tid in gr_pool if tid != featured] or gr_pool
+    if pity.get("featured_guarantee"):
+        pity["featured_guarantee"] = False
+        return featured, "featured_guaranteed"
+    if rng.random() < gd.FEATURED_MYTHIC_5050:
+        return featured, "featured_5050_won"
+    pity["featured_guarantee"] = True
+    return rng.choice(non_featured), "featured_5050_lost"
 
 
 def _grant_summoned_hero(user: dict, chosen: str) -> tuple:
@@ -1495,22 +1743,44 @@ def _grant_summoned_hero(user: dict, chosen: str) -> tuple:
 
 def _pull_once(user: dict, pity: dict, currency: str = "gems", force_sr_plus: bool = False) -> dict:
     """Executes ONE gacha pull.
-    - GEM / TICKET banner: GR (top tier) pity — base rate, soft-pity ramp, hard
-      pity guarantee. A natural GR resets the counter. Featured GR is 50/50
-      with a guarantee after a loss (state on `pity.featured_guarantee`).
+    - GEM / TICKET banner: UR pity (soft 60, hard 90) + LR pity (hard 180).
+      GR has no pity — natural pull only with featured 50/50.
     - GOLD / RYO banner: NO pity and much lower rare rates (via GOLD weights).
-    Rate-up is applied multiplicatively inside `_rarity_pool` (never a flat
-    chance). Mutates `pity`/`user`; returns the result dict."""
+    Mutates `pity`/`user`; returns the result dict."""
     top = gd.TOP_RARITY
     featured = FEATURED_BANNER["template_id"]
     featured_tmpl = gd.CATALOG_BY_ID.get(featured) if featured else None
-    featured_is_top = bool(featured_tmpl and featured_tmpl["rarity"] == top)
+    featured_is_gr = bool(featured_tmpl and featured_tmpl["rarity"] == "GR")
 
-    chosen, pity_note = _roll_top_rarity_pity(pity, currency, featured, featured_is_top, top)
+    # Increment LR pity counter every pull (resets when LR is obtained)
+    if currency in ("gems", "ticket"):
+        pity["lr"] = pity.get("lr", 0) + 1
+
+    # 1. UR pity check (gems/ticket only)
+    chosen, pity_note = _roll_top_rarity_pity(pity, currency, top)
+
+    # 2. LR pity check — hard pity at 180 (gems/ticket only)
+    if chosen is None and currency in ("gems", "ticket") and pity.get("lr", 0) >= gd.LR_HARD_PITY:
+        lr_pool = [tid for tid, t in gd.CATALOG_BY_ID.items()
+                   if t["rarity"] == "LR" and not t.get("is_nightmare_boss")]
+        if lr_pool:
+            chosen = rng.choice(lr_pool)
+            pity["lr"] = 0
+            pity_note = "lr_hard_pity"
+
+    # 3. Normal pool pull
     if chosen is None:
         pool = _rarity_pool(min_rarity=gd.X10_GUARANTEE_RARITY if force_sr_plus else None,
                             currency=currency, featured_id=featured)
         chosen = _weighted_choice(pool)
+        pulled_rarity = gd.CATALOG_BY_ID[chosen]["rarity"]
+        # Reset LR counter on natural LR pull
+        if pulled_rarity == "LR":
+            pity["lr"] = 0
+        # Apply featured GR 50/50
+        if pulled_rarity == "GR" and featured_is_gr:
+            chosen, pity_note = _apply_gr_featured_5050(chosen, featured, pity)
+
     pity["total_pulls"] = pity.get("total_pulls", 0) + 1
 
     tmpl, is_duplicate, shards_gained = _grant_summoned_hero(user, chosen)
@@ -1520,8 +1790,7 @@ def _pull_once(user: dict, pity: dict, currency: str = "gems", force_sr_plus: bo
 
 
 def _gold_summon_cost(count: int) -> int:
-    """Total Ryo cost for `count` gold summons. x10 gets a 20% discount
-    (8x single cost instead of 10x)."""
+    """Total Ryo cost for `count` gold summons. x10 = 10x single cost."""
     if count >= 10:
         return gd.GOLD_SUMMON_X10_COST
     return gd.SUMMON_COST * count
@@ -1795,10 +2064,14 @@ async def claim_achievement(achievement_id: str, user: dict = Depends(get_curren
     return {"profile": public_user(user), "reward": reward}
 
 
-async def _do_evolve(instance_id: str, user: dict) -> dict:
-    """Evolution (star breakthrough) — the ONLY way to raise stars. Early
-    stars burn duplicate shards + ryo; stars 4-6 additionally require rare
-    evolution materials (Evolution Essence / Celestial Cores)."""
+async def _do_evolve(instance_id: str, user: dict, method: str = "shards", fodder_ids: Optional[List[str]] = None) -> dict:
+    """Evolution star breakthrough. Players choose ONE route:
+    1) hero-specific shards, or 2) same-element R/SR/optional SSR hero fodder.
+    Ryo and the non-shard evolution materials remain shared requirements.
+    """
+    method = (method or "shards").lower()
+    if method not in {"shards", "fodder"}:
+        raise HTTPException(status_code=400, detail="Invalid Evolution method")
     inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == instance_id), None)
     if not inst:
         raise HTTPException(status_code=404, detail="Hero not found")
@@ -1810,19 +2083,46 @@ async def _do_evolve(instance_id: str, user: dict) -> dict:
     stars_max = gd.max_stars_for_rarity(rarity)
     if stars >= stars_max:
         raise HTTPException(status_code=400, detail="This hero is already at maximum evolution for its rarity — Ascend to raise the cap")
-    cost = gd.evolution_cost(rarity, stars)
+    cost = gd.evolution_cost(rarity, stars, tmpl.get("element"))
+    if not cost:
+        raise HTTPException(status_code=400, detail="Evolution is unavailable for this hero")
+
     hero_shards = user.setdefault("hero_shards", {})
     inventory = user.get("inventory", {})
-    have_shards = hero_shards.get(inst["template_id"], 0)
-    if have_shards < cost["shards"]:
-        raise HTTPException(status_code=400, detail=f"Not enough shards ({have_shards}/{cost['shards']})")
+    team_ids = user.get("team", [])
+    if method == "shards":
+        have_shards = hero_shards.get(inst["template_id"], 0)
+        if have_shards < cost["shards"]:
+            raise HTTPException(status_code=400, detail=f"Not enough shards ({have_shards}/{cost['shards']})")
+    else:
+        req = evo_mat.get_fodder_requirement(stars)
+        protected_gear_ids = {g.get("equipped_by") for g in user.get("gear", []) if g.get("equipped_by")}
+        ok, msg, selected, total = evo_mat.validate_fodder_selection(
+            user.get("ninjas", []), instance_id, tmpl.get("element"), fodder_ids or [], team_ids, protected_gear_ids
+        )
+        if not ok:
+            raise HTTPException(status_code=400, detail=msg)
+        if total < req["value"]:
+            raise HTTPException(status_code=400, detail=f"Not enough Evolution material value ({total}/{req['value']})")
+
     if user.get("ryo", 0) < cost["ryo"]:
         raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost['ryo']}")
     for iid, qty in cost["items"].items():
         if inventory.get(iid, 0) < qty:
             name = gd.ITEMS.get(iid, {}).get("name", iid)
             raise HTTPException(status_code=400, detail=f"Not enough {name} ({inventory.get(iid, 0)}/{qty})")
-    hero_shards[inst["template_id"]] = have_shards - cost["shards"]
+
+    # Deduct exactly one selected route.
+    if method == "shards":
+        hero_shards[inst["template_id"]] = hero_shards.get(inst["template_id"], 0) - cost["shards"]
+    else:
+        selected_ids = list(fodder_ids or [])
+        selected_set = set(selected_ids)
+        # Preserve exact consumed instances so the existing Revert feature can
+        # refund fodder evolutions without fabricating new heroes.
+        history = inst.setdefault("evolution_fodder_history", [])
+        history.append({"from_star": stars, "fodder": [dict(n) for n in selected]})
+        user["ninjas"] = [n for n in user.get("ninjas", []) if n.get("instance_id") not in selected_set]
     user["ryo"] -= cost["ryo"]
     for iid, qty in cost["items"].items():
         inventory[iid] -= qty
@@ -1832,18 +2132,18 @@ async def _do_evolve(instance_id: str, user: dict) -> dict:
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"], "inventory": inventory,
         "daily": user["daily"], "achievements": user.get("achievements")}})
-    return {"profile": public_user(user), "instance_id": inst["instance_id"], "stars": inst["stars"]}
+    return {"profile": public_user(user), "instance_id": inst["instance_id"], "stars": inst["stars"], "method": method}
 
 
 @api_router.post("/game/hero/evolve")
 async def evolve_hero(body: EvolveIn, user: dict = Depends(get_current_user)):
-    return await _do_evolve(body.instance_id, user)
+    return await _do_evolve(body.instance_id, user, body.method, body.fodder_ids)
 
 
 @api_router.post("/game/hero/star-up")
 async def star_up(body: StarUpIn, user: dict = Depends(get_current_user)):
-    """Legacy route — kept for compatibility; now runs the Evolution system."""
-    return await _do_evolve(body.instance_id, user)
+    """Legacy route — kept for compatibility; defaults to Hero Shards."""
+    return await _do_evolve(body.instance_id, user, "shards", [])
 
 
 @api_router.post("/game/hero/transcend")
@@ -2095,14 +2395,24 @@ async def revert_hero(body: RevertIn, user: dict = Depends(get_current_user)):
     #    iterating by star number is correct regardless of which rarity each
     #    star was earned at).
     stars = inst.get("stars", 1)
-    for i in range(stars - 1):
-        cost = gd.evolution_cost(rarity, i)
+    _elem = tmpl.get("element")
+    for i in range(1, stars):
+        cost = gd.evolution_cost(rarity, i, _elem)
         if not cost:
             continue
         shards_refund += cost["shards"]
         ryo_refund += cost["ryo"]
         for iid, qty in cost["items"].items():
             inventory[iid] = inventory.get(iid, 0) + qty
+
+    # 3a) Fodder-based Evolution costs → restore the exact consumed hero
+    # instances recorded on this hero. Shard-based evolutions continue to use
+    # the normal shard refund path above.
+    for event in reversed(inst.get("evolution_fodder_history", [])):
+        for fodder in event.get("fodder", []):
+            if not any(n.get("instance_id") == fodder.get("instance_id") for n in user.get("ninjas", [])):
+                user.setdefault("ninjas", []).append(fodder)
+    inst["evolution_fodder_history"] = []
 
     # 3b) Rarity Ascension costs → refund shards + Ryo + essence for each
     #     tier the hero was ascended above its native rarity.
@@ -2266,6 +2576,62 @@ async def material_fuse(body: FuseIn, user: dict = Depends(get_current_user)):
     return {"profile": public_user(user), "fused": {body.target_id: qty}}
 
 
+# ---------------------------------------------------------------------------
+# FORGE PRODUCTION — craft consumables from forge materials, gain forge XP.
+# ---------------------------------------------------------------------------
+@api_router.post("/game/forge/produce")
+async def forge_produce(body: ForgeProduceIn, user: dict = Depends(get_current_user)):
+    recipe = gd.forge_production_recipe(body.category, body.tier)
+    if not recipe:
+        raise HTTPException(status_code=400, detail="Invalid production recipe")
+
+    forge_level = user.get("forge_level", 1)
+    if forge_level < recipe["forge_level_req"]:
+        raise HTTPException(status_code=400, detail=f"Forge level {recipe['forge_level_req']} required")
+
+    inventory = user.get("inventory", {})
+    # Check all materials
+    for mat_id, need in recipe["materials"].items():
+        have = inventory.get(mat_id, 0)
+        if have < need:
+            mat_name = gd.ITEMS.get(mat_id, {}).get("name", mat_id)
+            raise HTTPException(status_code=400, detail=f"Not enough {mat_name} ({have}/{need})")
+
+    # Check ryo
+    if user.get("ryo", 0) < recipe["ryo"]:
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {recipe['ryo']}")
+
+    # Consume materials + ryo
+    for mat_id, need in recipe["materials"].items():
+        inventory[mat_id] -= need
+    user["ryo"] -= recipe["ryo"]
+
+    # Grant output item
+    out_id = recipe["output"]["id"]
+    inventory[out_id] = inventory.get(out_id, 0) + recipe["output"]["qty"]
+    user["inventory"] = inventory
+
+    # Grant forge XP and process level-ups
+    forge_xp = user.get("forge_xp", 0) + recipe["forge_xp"]
+    old_level = user.get("forge_level", 1)
+    new_level, _, _ = gd.forge_level_from_xp(forge_xp)
+    user["forge_xp"] = forge_xp
+    user["forge_level"] = new_level
+    leveled_up = new_level > old_level
+
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "inventory": inventory, "ryo": user["ryo"],
+        "forge_xp": forge_xp, "forge_level": new_level}})
+
+    return {
+        "profile": public_user(user),
+        "produced": {"id": out_id, "name": recipe["output"]["name"], "qty": recipe["output"]["qty"]},
+        "forge_xp_gained": recipe["forge_xp"],
+        "forge_leveled_up": leveled_up,
+        "forge_new_level": new_level,
+    }
+
+
 @api_router.post("/game/gear/summon")
 async def gear_summon(body: GearSummonIn, user: dict = Depends(get_current_user)):
     """Armory summon — pulls gear (Rare+) using Gems or Gear Tickets.
@@ -2337,7 +2703,19 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     floor = body.floor
     if floor < 1:
         raise HTTPException(status_code=400, detail="Invalid floor")
-    current = user.get("spire_floor", 0)
+    path = body.spire_path or "normal"
+
+    # Enforce element-only team restriction server-side
+    if path != "normal":
+        _validate_spire_element(path, user)
+
+    # Per-path floor progress — each elemental path tracks independently
+    if path == "normal":
+        current = user.get("spire_floor", 0)
+    else:
+        spire_floors = user.get("spire_floors", {})
+        current = spire_floors.get(path, 0)
+
     if body.result != "win":
         return {"profile": public_user(user), "rewards": None, "result": "lose", "floor": floor}
     advancing = floor == current + 1
@@ -2355,9 +2733,32 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     inventory = user.get("inventory", {})
     for iid, qty in r["items"].items():
         inventory[iid] = inventory.get(iid, 0) + qty
+    # Elemental essence — drops from elemental Spire paths (used for Evolution 3★+)
+    if path != "normal" and advancing:
+        essence_id = f"{path}_essence"
+        inventory[essence_id] = inventory.get(essence_id, 0) + (5 if r.get("boss") else 2)
+    # evo_essence also drops from normal Spire (supplementary Campaign source)
+    if advancing:
+        evo_qty = 1 + floor // 10
+        inventory["evo_essence"] = inventory.get("evo_essence", 0) + evo_qty
+
+    # Regular crystal drop — rare drop from Endless Spire (Chipped → Astral).
+    # Drop rate scales with floor depth: ~3% base, +0.1% per floor (capped).
+    # Boss crystas are NOT obtainable here — only regular stat crystals.
+    spire_crystal = None
+    if advancing and rng.random() < min(0.08, 0.03 + floor * 0.001):
+        _spire_diff = "nightmare" if floor >= 50 else ("hard" if floor >= 20 else "normal")
+        _spire_inst = ex.roll_crystal(_spire_diff)
+        user.setdefault("crystals", []).append(_spire_inst)
+        spire_crystal = ex.crystal_public(_spire_inst)
     user["inventory"] = inventory
     if advancing:
-        user["spire_floor"] = floor
+        if path == "normal":
+            user["spire_floor"] = floor
+        else:
+            spire_floors = user.get("spire_floors", {})
+            spire_floors[path] = floor
+            user["spire_floors"] = spire_floors
     bump_mission(user, "spire_win")
     bump_mission(user, "any_win")
     total_levels = sum(h["levels"] for h in hero_exp)
@@ -2366,10 +2767,14 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     level_up = await grant_player_exp(user, r.get("hero_exp_base", 0))
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"], "inventory": inventory,
-        "spire_floor": user.get("spire_floor", current), "daily": user["daily"],
+        "crystals": user.get("crystals", []),
+        "spire_floor": user.get("spire_floor", current), "spire_floors": user.get("spire_floors", {}), "daily": user["daily"],
         "level": user["level"], "exp": user["exp"]}})
     rewards = {"ryo": r["ryo"], "gems": gems_gained, "items": r["items"], "hero_exp": hero_exp,
-               "boss": r["boss"], "milestone": r.get("milestone", False), "advancing": advancing}
+               "boss": r["boss"], "milestone": r.get("milestone", False), "advancing": advancing,
+               "crystal": spire_crystal}
+    if path != "normal" and advancing:
+        rewards["essence"] = f"{path}_essence"
     return {"profile": public_user(user), "rewards": rewards, "result": "win", "floor": floor, "advancing": advancing, "level_up": level_up}
 
 
@@ -2422,14 +2827,18 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
 @api_router.get("/game/tsukuyomi")
 async def tsukuyomi_list(user: dict = Depends(get_current_user)):
     """The Infinite Nightmare — 25 escalating bosses with basic + rare (gear-set)
-    drops and a difficulty selector. Progress is tracked per boss + difficulty."""
+    drops and a difficulty selector. Progress is tracked per boss + difficulty.
+    Stages unlock sequentially: a stage is only playable after the previous one
+    is cleared."""
     progress = user.get("tsukuyomi") or {}
+    highest_cleared = user.get("tsukuyomi_highest_cleared", 0)
     return {
-        "bosses": [gd.tsukuyomi_boss_public(b) for b in gd.TSUKUYOMI_BOSSES],
+        "bosses": [gd.tsukuyomi_boss_public(b, progress, highest_cleared) for b in gd.TSUKUYOMI_BOSSES],
         "difficulties": gd.TSUKUYOMI_DIFFICULTIES,
         "progress": progress,
         "first_clears": user.get("tsukuyomi_fc") or {},
         "energy_cost": gd.ENERGY_COST["tsukuyomi"],
+        "highest_cleared": highest_cleared,
     }
 
 
@@ -2454,6 +2863,26 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
     for iid, qty in r["items"].items():
         inventory[iid] = inventory.get(iid, 0) + qty
 
+    # Forge material drops — Tsukuyomi bosses drop high-tier materials.
+    tsuku_chapter = 30 + boss.get("index", 1) * 3   # map boss index to a high chapter
+    _fc_done = (user.get("tsukuyomi_fc") or {}).get(body.boss_id, [])
+    _is_fc = body.difficulty not in _fc_done
+    forge_drops = gd.roll_forge_drops(tsuku_chapter, True, "tsukuyomi_dreamlord", _is_fc)
+    if forge_drops:
+        for iid, qty in forge_drops.items():
+            inventory[iid] = inventory.get(iid, 0) + qty
+
+    # Nightmare material drops — nightmare_dust, dream_fragment, lunar_essence
+    # Used for high-star Evolution (5★+) and Ascension (SSR+)
+    _tsuku_mats = {
+        "normal":   {"nightmare_dust": 3},
+        "hard":     {"nightmare_dust": 5, "dream_fragment": 2},
+        "nightmare":{"nightmare_dust": 8, "dream_fragment": 4, "lunar_essence": 1},
+    }
+    _mat_drops = _tsuku_mats.get(body.difficulty, {"nightmare_dust": 3})
+    for iid, qty in _mat_drops.items():
+        inventory[iid] = inventory.get(iid, 0) + qty
+
     # RARE drop — a single random piece of the boss's signature gear set.
     gear_reward = None
     rare_hit = rng.random() < r["rare_chance"]
@@ -2462,13 +2891,38 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
         user.setdefault("gear", []).append(g)
         gear_reward = gear_public(g)
 
-    # CRYSTAL drop — a super-rare bonus that scales with the boss's gear
-    # rare-drop chance (boss index + difficulty) at a fraction of that rate.
+    # BOSS CRYSTA drop — the signature crystal for this Nightmare boss.
+    # Drops at the same super-rare rate as the old crystal drop (a fraction
+    # of the boss's gear rare-drop chance) but always yields THIS boss's
+    # signature crystal, not a random one.
     crystal_reward = None
-    crystal_hit = ex.roll_crystal_drop(r["rare_chance"])
+    crystal_chance = r["rare_chance"] * ex.CRYSTAL_DROP_FRACTION
+    crystal_hit = rng.random() < crystal_chance
     if crystal_hit:
-        user.setdefault("crystals", []).append(crystal_hit)
-        crystal_reward = ex.crystal_public(crystal_hit)
+        bc_instance = ex.roll_boss_crysta(body.boss_id)
+        if bc_instance:
+            user.setdefault("crystals", []).append(bc_instance)
+            crystal_reward = ex.crystal_public(bc_instance)
+
+    # BOSS CARD drop — the nightmare boss itself as a playable hero card.
+    # Super-low chance per difficulty. Nightmare bosses are NOT summonable;
+    # this is the ONLY way to obtain their cards.
+    card_reward = None
+    card_chance = gd.TSUKUYOMI_CARD_DROP_CHANCE.get(body.difficulty, 0.005)
+    card_hit = rng.random() < card_chance
+    if card_hit:
+        boss_template_id = boss.get("template_id")
+        if boss_template_id and boss_template_id in gd.CATALOG_BY_ID:
+            tmpl, is_dupe, shards = _grant_summoned_hero(user, boss_template_id)
+            card_reward = {
+                "template_id": boss_template_id,
+                "name": tmpl["name"],
+                "rarity": tmpl["rarity"],
+                "element": tmpl["element"],
+                "portrait": tmpl["portrait"],
+                "duplicate": is_dupe,
+                "shards_gained": shards,
+            }
 
     # progress: remember the highest difficulty cleared per boss
     tsuku = user.get("tsukuyomi") or {}
@@ -2477,6 +2931,14 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
     if not prev or order.get(body.difficulty, 0) > order.get(prev, 0):
         tsuku[body.boss_id] = body.difficulty
     user["tsukuyomi"] = tsuku
+
+    # Sequential progression: update highest cleared stage index.
+    # A stage counts as fully cleared only when ALL difficulties are beaten.
+    boss_idx = boss.get("index", 1)
+    highest_cleared = user.get("tsukuyomi_highest_cleared", 0)
+    if tsuku.get(body.boss_id) == "nightmare" and boss_idx > highest_cleared:
+        highest_cleared = boss_idx
+    user["tsukuyomi_highest_cleared"] = highest_cleared
 
     # FIRST-CLEAR BONUS — one-time per (boss, difficulty).
     fc = user.get("tsukuyomi_fc") or {}
@@ -2503,14 +2965,18 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
         "ryo": user["ryo"], "gems": user.get("gems", 0), "wins": user["wins"], "ninjas": user["ninjas"], "inventory": inventory,
         "gear": user.get("gear", []), "crystals": user.get("crystals", []),
         "daily": user["daily"], "tsukuyomi": tsuku, "tsukuyomi_fc": fc,
+        "tsukuyomi_highest_cleared": highest_cleared,
         "level": user["level"], "exp": user["exp"]}})
     return {"profile": public_user(user), "result": "win",
             "rewards": {"ryo": r["ryo"], "items": r["items"], "hero_exp": hero_exp,
                         "gear": gear_reward, "rare_hit": rare_hit, "rare_chance": r["rare_chance"],
                         "gear_set_name": boss["gear_set_name"], "first_clear_bonus": first_clear_bonus,
                         "crystal": crystal_reward,
-                        "crystal_chance": round(r["rare_chance"] * ex.CRYSTAL_DROP_FRACTION, 4)},
-            "level_up": level_up}
+                        "crystal_chance": round(crystal_chance, 4),
+                        "card": card_reward,
+                        "card_chance": round(card_chance, 4)},
+            "level_up": level_up,
+            "highest_cleared": highest_cleared}
 
 
 @api_router.get("/game/shop")
@@ -2606,7 +3072,9 @@ async def load_catalog_config():
         custom = (cfg or {}).get("custom_heroes", [])
         overrides = (cfg or {}).get("portrait_overrides", {})
         hero_overrides = (cfg or {}).get("hero_overrides", {})
+        tsuku_portraits = (cfg or {}).get("tsukuyomi_portrait_overrides", {})
         gd.load_dynamic(custom, overrides, hero_overrides)
+        gd.load_tsukuyomi_portraits(tsuku_portraits)
     except Exception as e:
         logger.warning("Could not load dynamic catalog config (%s); using static catalog", e)
 
@@ -2615,7 +3083,8 @@ async def persist_catalog_config():
     await db.game_config.update_one(
         {"_id": "catalog"},
         {"$set": {"custom_heroes": gd._CUSTOM_HEROES, "portrait_overrides": gd._PORTRAIT_OVERRIDES,
-                  "hero_overrides": gd._HERO_OVERRIDES}},
+                  "hero_overrides": gd._HERO_OVERRIDES,
+                  "tsukuyomi_portrait_overrides": gd._TSUKUYOMI_PORTRAIT_OVERRIDES}},
         upsert=True,
     )
 
@@ -2852,6 +3321,55 @@ async def admin_reset_portrait(hid: str, _: dict = Depends(get_admin_user)):
     (CUSTOM_DIR / f"{hid}.png").unlink(missing_ok=True)
     await persist_catalog_config()
     return {"hero": _hero_public(gd.CATALOG_BY_ID[hid])}
+
+
+@api_router.get("/admin/tsukuyomi")
+async def admin_list_tsukuyomi(_: dict = Depends(get_admin_user)):
+    """List all Tsukuyomi nightmare bosses with their current portrait info."""
+    return {
+        "bosses": [
+            {
+                "id": b["id"], "index": b["index"], "name": b["name"],
+                "template_id": b["template_id"], "rarity": b["rarity"],
+                "element": b["element"],
+                "portrait": gd._TSUKUYOMI_PORTRAIT_OVERRIDES.get(b["id"], b["portrait"]),
+                "default_portrait": b["portrait"],
+                "portrait_overridden": b["id"] in gd._TSUKUYOMI_PORTRAIT_OVERRIDES,
+            }
+            for b in gd.TSUKUYOMI_BOSSES
+        ],
+    }
+
+
+@api_router.post("/admin/tsukuyomi/portrait")
+async def admin_tsukuyomi_portrait(body: PortraitUploadIn, _: dict = Depends(get_admin_user)):
+    """Upload a custom portrait for a Tsukuyomi nightmare boss."""
+    boss = gd.TSUKUYOMI_BY_ID.get(body.template_id)
+    if not boss:
+        raise HTTPException(status_code=404, detail="Tsukuyomi boss not found")
+    portrait = _save_portrait_png(f"tsuku_{body.template_id}", body.image)
+    gd.set_tsukuyomi_portrait(body.template_id, portrait)
+    await persist_catalog_config()
+    return {
+        "id": boss["id"], "name": boss["name"],
+        "portrait": portrait, "portrait_overridden": True,
+    }
+
+
+@api_router.delete("/admin/tsukuyomi/{boss_id}/portrait")
+async def admin_reset_tsukuyomi_portrait(boss_id: str, _: dict = Depends(get_admin_user)):
+    """Reset a Tsukuyomi boss portrait back to the hero template's default."""
+    boss = gd.TSUKUYOMI_BY_ID.get(boss_id)
+    if not boss:
+        raise HTTPException(status_code=404, detail="Tsukuyomi boss not found")
+    if not gd.clear_tsukuyomi_portrait(boss_id):
+        raise HTTPException(status_code=400, detail="This boss has no overridden portrait")
+    (CUSTOM_DIR / f"tsuku_{boss_id}.png").unlink(missing_ok=True)
+    await persist_catalog_config()
+    return {
+        "id": boss["id"], "name": boss["name"],
+        "portrait": boss["portrait"], "portrait_overridden": False,
+    }
 
 
 @api_router.delete("/admin/hero/{hid}")

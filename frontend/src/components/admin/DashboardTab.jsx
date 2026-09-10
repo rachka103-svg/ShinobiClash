@@ -7,7 +7,7 @@ import { RARITY, ELEMENT } from "@/lib/styles";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
-const RARITIES = ["R", "SR", "SSR", "UR", "GR"];
+const RARITIES = ["R", "SR", "SSR", "UR", "LR", "LLR", "GR"];
 
 const sel = "w-full bg-black/40 border border-black/10 rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-chakra";
 

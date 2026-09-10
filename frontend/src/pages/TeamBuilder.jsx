@@ -7,16 +7,17 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
-import { RARITY, ELEMENT, rarityFrame, GOLD } from "@/lib/theme";
+import { RARITY, ELEMENT, rarityFrame, GOLD, CRIMSON } from "@/lib/theme";
 import { DecoCorners } from "@/components/RarityFx";
 import HeroDetailModal from "@/components/HeroDetailModal";
 import { useAudio } from "@/context/AudioContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import { evaluateTeamSynergy, TEAM_SYNERGIES } from "@/lib/teamSynergy";
 
 const EL_ICON = { Fire: Flame, Water: Droplet, Wind: WindIcon, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: Sun };
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
-const RARITY_KEYS = ["GR", "UR", "SSR", "SR", "R"];
-const RARITY_RANK = { R: 0, SR: 1, SSR: 2, UR: 3, GR: 4 };
+const RARITY_KEYS = ["GR", "LLR", "LR", "UR", "SSR", "SR", "R"];
+const RARITY_RANK = { R: 0, SR: 1, SSR: 2, UR: 3, LR: 4, LLR: 4, GR: 5 };
 const ascensionCost = (rarity, asc) => ({
   ascension_crystal: 5 + asc * 5 + RARITY_RANK[rarity] * 3,
   ryo: 500 + asc * 400 + RARITY_RANK[rarity] * 300,
@@ -45,11 +46,16 @@ export default function TeamBuilder() {
 
   const cap = user?.team_cap || 3;
   const nextSlotLevel = user?.next_slot_level || null;
+  const playerLevel = user?.level || 1;
+
+  // Centralized slot unlock config — mirrors backend TEAM_SLOT_UNLOCKS
+  const SLOT_UNLOCKS = { 4: 100, 5: 200 };
+  const MAX_SLOTS = 5;
 
   useEffect(() => { setTeam((user?.team || []).slice(0, cap)); }, [user?.id, JSON.stringify(user?.team), cap]);
 
   const owned = useMemo(
-    () => (user?.ninjas || []).map((inst) => ({ ...inst, ...catalogById[inst.template_id], rarity: catalogById[inst.template_id]?.rarity })).filter((o) => o.name),
+    () => (user?.ninjas || []).map((inst) => ({ ...inst, ...catalogById[inst.template_id], rarity: inst.rarity || inst.evolved_rarity || catalogById[inst.template_id]?.rarity })).filter((o) => o.name),
     [user?.ninjas, catalogById]
   );
   const ownedById = useMemo(() => Object.fromEntries(owned.map((o) => [o.instance_id, o])), [owned]);
@@ -63,17 +69,20 @@ export default function TeamBuilder() {
   const teamTmpls = team.map((uid) => ownedById[uid]).filter(Boolean);
   const teamPower = teamTmpls.reduce((s, n) => s + (n.power || 0), 0);
 
-  // ---- Synergy (data-driven preview) ----
+  // ---- Synergy (real team synergy evaluation) ----
   const synergy = useMemo(() => {
-    const count = (key) => teamTmpls.reduce((m, t) => { const k = t[key] || "?"; m[k] = (m[k] || 0) + 1; return m; }, {});
-    const top = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1])[0] || ["—", 0];
-    const [elName, elC] = top(count("element"));
-    const [roleName, roleC] = top(count("role"));
-    const [facName, facC] = top(count("faction"));
-    const elPct = elC >= 2 ? elC * 5 : 0;
-    const rolePct = roleC >= 2 ? roleC * 5 : 0;
-    const facPct = facC >= 2 ? 8 : 0;
-    return { elName, elPct, roleName, roleC, rolePct, facName, facPct, total: elPct + rolePct + facPct };
+    const result = evaluateTeamSynergy(teamTmpls);
+    const active = result.active;
+    const bonuses = result.bonuses;
+    // Build a compact summary for the total bonus display
+    const bonusLabels = [];
+    if (bonuses.atk_pct) bonusLabels.push(`+${bonuses.atk_pct}% ATK`);
+    if (bonuses.hp_pct) bonusLabels.push(`+${bonuses.hp_pct}% HP`);
+    if (bonuses.def_pct) bonusLabels.push(`+${bonuses.def_pct}% DEF`);
+    if (bonuses.damage_reduction_pct) bonusLabels.push(`+${bonuses.damage_reduction_pct}% DMG Reduction`);
+    if (bonuses.crit_chance_pct) bonusLabels.push(`+${bonuses.crit_chance_pct}% Crit`);
+    if (bonuses.healing_pct) bonusLabels.push(`+${bonuses.healing_pct}% Healing`);
+    return { active, bonuses, bonusLabels, total: bonusLabels.length };
   }, [teamTmpls]);
 
   const filtered = useMemo(() => {
@@ -134,7 +143,21 @@ export default function TeamBuilder() {
     } finally { setPBusy(false); }
   };
 
-  const slots = Array.from({ length: cap });
+  // ---- Slot unlock notification ----
+  // Detects when the player crosses Lv.100 or Lv.200 and shows a one-time toast.
+  useEffect(() => {
+    const checkUnlock = (slotNum, unlockLevel, title, msg) => {
+      const key = `slot${slotNum}_unlocked`;
+      if (playerLevel >= unlockLevel && !localStorage.getItem(key)) {
+        localStorage.setItem(key, "1");
+        toast.success(title, { description: msg, duration: 6000 });
+      }
+    };
+    checkUnlock(4, 100, "TEAM SLOT IV UNLOCKED", "Your formation has expanded. You can now deploy a 4th hero in battle.");
+    checkUnlock(5, 200, "TEAM SLOT V UNLOCKED", "Your ultimate formation is complete. You can now deploy your 5th hero in battle. This is the FINAL combat slot.");
+  }, [playerLevel]);
+
+  const slots = Array.from({ length: MAX_SLOTS });
 
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-6 py-5" data-testid="team-page">
@@ -145,13 +168,8 @@ export default function TeamBuilder() {
           <p className="text-slate-500 mt-1.5" data-testid="team-counter">
             Tap a hero to view details · tap <span className="text-chakra">+</span> to add to your squad. <span className="text-chakra font-semibold">({team.length}/{cap})</span>
           </p>
-          {nextSlotLevel && (
-            <p className="flex items-center gap-1.5 text-xs text-amber-400/90 mt-1" data-testid="next-slot-hint">
-              <Lock className="w-3.5 h-3.5" /> Reach Lv.{nextSlotLevel} to unlock a {cap + 1}th squad slot
-            </p>
-          )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="glass-panel px-4 py-2.5 flex items-center gap-2.5">
             <Zap className="w-5 h-5 text-fox" />
             <div className="leading-none">
@@ -171,8 +189,34 @@ export default function TeamBuilder() {
       </div>
 
       {/* ===================== Squad slots ===================== */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5 sm:gap-3 mb-4">
         {slots.map((_, i) => {
+          // Locked slot (slot 4 before Lv.100, slot 5 before Lv.200)
+          if (i >= cap) {
+            const unlockLevel = SLOT_UNLOCKS[i + 1];
+            if (!unlockLevel) return null;
+            const progress = Math.min(100, (playerLevel / unlockLevel) * 100);
+            const slotNumeral = ["I", "II", "III", "IV", "V"][i];
+            return (
+              <div key={i} className="aspect-[3/4.2] rounded-2xl border border-slate-600/30 bg-slate-900/40 flex flex-col items-center justify-center gap-2 p-3 text-center" data-testid={`squad-slot-locked-${i}`}>
+                <div className="w-12 h-12 rounded-full border border-slate-600/40 flex items-center justify-center bg-slate-800/40">
+                  <Lock className="w-6 h-6 text-slate-500" />
+                </div>
+                <span className="font-display text-xs tracking-widest text-slate-400">{slotNumeral} HERO SLOT</span>
+                <span className="text-[10px] text-slate-500">UNLOCKS AT LV.{unlockLevel}</span>
+                <div className="w-full mt-1">
+                  <div className="flex items-center justify-between text-[8px] text-slate-500 mb-0.5">
+                    <span>Lv.{playerLevel}</span>
+                    <span>Lv.{unlockLevel}</span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-slate-800/60 overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${progress}%`, background: "linear-gradient(90deg, #6366f1, #818cf8)" }} />
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          // Active slot (empty or filled)
           const hero = teamTmpls[i];
           if (!hero) {
             return (
@@ -185,15 +229,6 @@ export default function TeamBuilder() {
           }
           return <SquadSlotCard key={hero.instance_id} hero={hero} index={i} onView={() => setDetailId(hero.instance_id)} onRemove={() => toggle(hero.instance_id)} />;
         })}
-
-        {/* Locked next slot */}
-        {nextSlotLevel && (
-          <div className="aspect-[3/4.2] rounded-2xl border border-black/10 bg-black/[0.03] flex flex-col items-center justify-center gap-3 text-slate-500" data-testid="squad-slot-locked">
-            <div className="w-16 h-16 rounded-full border border-black/10 flex items-center justify-center"><Plus className="w-7 h-7" /></div>
-            <span className="text-sm font-semibold text-slate-600">Unlock {cap + 1}th Slot</span>
-            <span className="flex items-center gap-1.5 text-xs text-amber-400/90"><Lock className="w-3.5 h-3.5" /> Reach Lv.{nextSlotLevel}</span>
-          </div>
-        )}
       </div>
 
       {/* ===================== Squad Synergy ===================== */}
@@ -202,16 +237,41 @@ export default function TeamBuilder() {
           <h2 className="font-display text-xl tracking-wide text-ink">SQUAD SYNERGY</h2>
           <Info className="w-4 h-4 text-slate-500" />
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Synergy icon={ELEMENT[synergy.elName]?.icon ? (EL_ICON[synergy.elName] || Sparkles) : Sparkles} color={ELEMENT[synergy.elName]?.color || "#00E676"}
-            label="Element Bonus" main={`${synergy.elName} ${synergy.elPct ? `+${synergy.elPct}% ATK` : "—"}`} />
-          <Synergy icon={Swords} color="#00E5FF" label="Role Bonus" main={synergy.rolePct ? `${synergy.roleC} ${synergy.roleName}s +${synergy.rolePct}% ATK` : "—"} />
-          <Synergy icon={Shield} color="#D500F9" label="Faction Bonus" main={synergy.facPct ? `${synergy.facName} +${synergy.facPct}% HP` : "—"} />
-          <div className="text-center lg:text-right">
-            <p className="font-display text-4xl leading-none" style={{ color: GOLD.base, textShadow: `0 0 18px ${GOLD.base}66` }}>+{synergy.total}%</p>
-            <p className="text-[10px] uppercase tracking-widest text-slate-500 mt-1">Total Bonus applied to squad stats</p>
+        {synergy.active.length === 0 ? (
+          <p className="text-sm text-slate-500 py-2">No active synergies — mix elements, roles, or status specialists to unlock bonuses.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {synergy.active.map((s) => (
+              <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/[0.04] border border-black/10"
+                title={s.label}>
+                <span className="text-lg">{s.icon}</span>
+                <div className="leading-tight">
+                  <p className="text-sm font-semibold text-ink">{s.name}</p>
+                  <p className="text-[10px] text-slate-500">{s.label}</p>
+                </div>
+                <div className="flex flex-wrap gap-1 ml-1">
+                  {Object.entries(s.bonuses).map(([k, v]) => (
+                    <span key={k} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-chakra/15 text-chakra">
+                      +{v}{k.endsWith("_pct") ? "%" : ""} {k.replace(/_pct$/, "").replace(/_/g, " ").toUpperCase()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        )}
+        {synergy.bonusLabels.length > 0 && (
+          <div className="flex items-center gap-2 pt-2 border-t border-black/10">
+            <span className="text-[10px] uppercase tracking-widest text-slate-500">Total Bonuses:</span>
+            <div className="flex flex-wrap gap-1.5">
+              {synergy.bonusLabels.map((label, i) => (
+                <span key={i} className="text-xs font-semibold px-2 py-0.5 rounded-lg" style={{ color: GOLD.base, background: `${GOLD.base}15` }}>
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ===================== Collection ===================== */}
@@ -293,7 +353,7 @@ const SquadSlotCard = ({ hero, index, onView, onRemove }) => {
   return (
     <div data-testid={`squad-slot-${index}`}
       className="relative aspect-[3/4.2] rounded-2xl overflow-hidden text-left group cursor-pointer"
-      style={{ border: `${fr.strokeWidth}px solid ${fr.useGold ? GOLD.stroke : r.color}`, boxShadow: `0 0 34px ${(fr.useGold ? GOLD.base : r.color)}33` }}
+      style={{ border: `${fr.strokeWidth}px solid ${fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color}`, boxShadow: `0 0 34px ${(fr.useCrimson ? CRIMSON.base : fr.useGold ? GOLD.base : r.color)}33` }}
       onClick={onView}>
       <img src={hero.portrait} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" />
       <div className="absolute inset-0" style={{ background: `linear-gradient(to top, #05050Af2 6%, #05050A66 42%, transparent 70%)` }} />
@@ -327,7 +387,7 @@ const CollectionCard = ({ hero, slot, squadFull, onView, onToggle }) => {
   return (
     <div data-testid={`team-card-${hero.template_id}`}
       className="relative aspect-[3/4] rounded-xl overflow-hidden text-left group transition-transform active:scale-95 cursor-pointer"
-      style={{ border: `${selected ? 2 : fr.strokeWidth}px solid ${selected ? "#00E5FF" : (fr.useGold ? GOLD.stroke : r.color + "aa")}`, boxShadow: selected ? "0 0 22px #00E5FF66" : `0 0 12px ${r.color}22` }}
+      style={{ border: `${selected ? 2 : fr.strokeWidth}px solid ${selected ? "#00E5FF" : (fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color + "aa")}`, boxShadow: selected ? "0 0 22px #00E5FF66" : `0 0 12px ${r.color}22` }}
       onClick={onView}>
       <img src={hero.portrait} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" loading="lazy" />
       <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #05050Af5 8%, #05050A55 45%, transparent 72%)" }} />

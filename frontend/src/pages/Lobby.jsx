@@ -19,7 +19,9 @@ export default function Lobby() {
     .filter(Boolean);
   const leader = teamInstances[0];
   const leaderTpl = leader ? catalogById[leader.template_id] : null;
-  const leaderRarity = leaderTpl ? RARITY[leaderTpl.rarity] || RARITY.R : null;
+  // Use the instance's evolved rarity (post-transform), not the template's base.
+  const leaderRarityKey = leader?.rarity || leader?.evolved_rarity || leaderTpl?.rarity || "R";
+  const leaderRarity = RARITY[leaderRarityKey] || RARITY.R;
   const leaderElement = leaderTpl ? ELEMENT[leaderTpl.element] || {} : {};
   const clearedCount = user?.cleared_stages?.length || 0;
   const nextStage = stages.find((s) => !user?.cleared_stages?.includes(s.id));
@@ -57,7 +59,7 @@ export default function Lobby() {
     }
   };
 
-  const leaderFrame = leaderTpl ? rarityFrame(leaderTpl.rarity) : null;
+  const leaderFrame = leaderTpl ? rarityFrame(leaderRarityKey) : null;
 
   return (
     <div
@@ -67,7 +69,7 @@ export default function Lobby() {
       {/* ================= LEFT — cinematic squad leader ================= */}
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}
-        className="lg:col-span-4 relative rounded-2xl overflow-hidden h-[38vh] lg:h-full min-h-0"
+        className="lg:col-span-4 relative rounded-2xl overflow-hidden h-[34dvh] lg:h-full min-h-0"
         style={leaderFrame ? { border: `${leaderFrame.strokeWidth}px solid ${leaderFrame.useGold ? GOLD.stroke : leaderRarity.color + "55"}`, boxShadow: `0 0 50px ${(leaderFrame.useGold ? GOLD.base : leaderRarity.color)}22` } : { border: "1px solid rgba(255,255,255,0.08)" }}
         data-testid="leader-hero"
       >
@@ -80,10 +82,10 @@ export default function Lobby() {
         <div className="absolute inset-0 pointer-events-none" style={{ background: vignetteInset }} />
         <div className="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none" style={{ background: scrimBottom("0.96") }} />
         {leaderFrame?.useGold && <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />}
-        {leaderFrame && leaderFrame.cornerLevel >= 2 && <DecoCorners rarity={leaderTpl.rarity} size={22} />}
+        {leaderFrame && leaderFrame.cornerLevel >= 2 && <DecoCorners rarity={leaderRarityKey} size={22} />}
 
-        <div className="absolute top-3 right-3 z-10 text-right">
-          <p className="text-[10px] uppercase tracking-widest text-slate-500">Sensei Rank</p>
+        <div className="absolute top-3 right-3 z-10 text-right rounded-lg px-2.5 py-1.5 bg-black/55 backdrop-blur-sm">
+          <p className="text-[10px] uppercase tracking-widest text-slate-400">Sensei Rank</p>
           <p className="font-display text-2xl lg:text-3xl text-chakra leading-none" style={{ textShadow: glow("#00E5FF", 1) }} data-testid="stat-level">Lv.{user?.level ?? 1}</p>
         </div>
 
@@ -152,7 +154,7 @@ export default function Lobby() {
         )}
 
         {/* Quick-access tiles */}
-        <div className="grid grid-cols-4 gap-2.5 shrink-0" data-testid="lobby-tiles">
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2.5 lg:gap-3 shrink-0" data-testid="lobby-tiles">
           {tiles.map((t, i) => {
             const Icon = t.icon;
             return (
