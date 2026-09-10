@@ -33,7 +33,7 @@ import {
   isImmune,
   applyJutsuEffects,
 } from "@/lib/battle";
-import { getDifficulty } from "@/lib/energy";
+import { getDifficulty, startBattle } from "@/lib/energy";
 import { evaluateTeamSynergy } from "@/lib/teamSynergy";
 import { getCombatModifiers, computeLifesteal, combatModifiersSummary } from "@/lib/combatModifiers";
 import api from "@/lib/api";
@@ -419,6 +419,14 @@ export default function Battle() {
 
   useEffect(() => {
     if (!ready || !user || Object.keys(catalogById).length === 0) return;
+
+    // Reset report + victory state — the component stays mounted when
+    // navigating to the next stage via "Next", so stale flags from the
+    // previous battle would prevent the new battle's completion from
+    // being reported and would show the old battle's rewards.
+    reportedRef.current = false;
+    setResultData(null);
+    setShowLevelUp(false);
 
     // --- Evaluate team synergy ---
     const allyTemplates = (user.team || [])
@@ -2090,9 +2098,13 @@ export default function Battle() {
                     : null;
 
                 if (next) {
-                  navigate(
-                    `/battle/campaign/${next.id}`
-                  );
+                  startBattle({
+                    mode: "campaign",
+                    id: next.id,
+                    navigate,
+                    setUser,
+                    difficulty: difficultyCfg.id,
+                  });
                 } else {
                   navigate(
                     "/campaign"
