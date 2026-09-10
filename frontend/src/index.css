@@ -71,6 +71,46 @@
 
     --radius-card: 14px;
     --radius-panel: 16px;
+
+    /* ---- Safe-area insets (mapped to env() so JS + CSS share one source) ---- */
+    --sat: env(safe-area-inset-top, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+
+    /* ---- Responsive game design tokens (fluid via clamp) ----
+       Spacing scales smoothly from mobile → desktop. Screens and components
+       should prefer var(--game-space-*) over hardcoded rem/px gaps. */
+    --game-space-xs: clamp(0.25rem, 0.6vw + 0.15rem, 0.5rem);
+    --game-space-sm: clamp(0.5rem, 0.9vw + 0.3rem, 0.75rem);
+    --game-space-md: clamp(0.75rem, 1.4vw + 0.4rem, 1.25rem);
+    --game-space-lg: clamp(1rem, 2vw + 0.5rem, 1.75rem);
+    --game-space-xl: clamp(1.5rem, 3vw + 0.75rem, 3rem);
+
+    --game-radius-sm: clamp(0.5rem, 0.4vw + 0.4rem, 0.75rem);
+    --game-radius-md: clamp(0.75rem, 0.8vw + 0.5rem, 1rem);
+    --game-radius-lg: clamp(1rem, 1.4vw + 0.6rem, 1.5rem);
+
+    /* Minimum comfortable touch target (44px floor, scales up on desktop) */
+    --game-touch-target: clamp(2.75rem, 4vw + 1.5rem, 3rem);
+
+    /* Navigation + header heights — used by the app shell so content
+       padding always clears the fixed chrome on every device. */
+    --game-nav-height: 4.5rem;
+    --game-header-height: 3.25rem;
+}
+
+/* ---- Short-viewport compression (height < 560px) ----
+   Landscape phones and short laptops: trim non-essential vertical spacing
+   and chrome so primary content stays visible without scrolling. */
+@media (max-height: 559px) {
+    :root {
+        --game-space-md: clamp(0.5rem, 1vw + 0.25rem, 0.75rem);
+        --game-space-lg: clamp(0.75rem, 1.5vw + 0.35rem, 1rem);
+        --game-space-xl: clamp(1rem, 2vw + 0.5rem, 1.5rem);
+        --game-nav-height: 3.75rem;
+        --game-header-height: 2.75rem;
+    }
 }
 
 /* ==========================================================================
@@ -153,7 +193,29 @@ html, body {
     color: var(--body-color);
     font-family: 'Outfit', sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     overflow-x: hidden;
+}
+
+/* ---- HD image rendering: let the browser use its best interpolation ---- */
+img {
+    image-rendering: auto;
+    -ms-interpolation-mode: bicubic;
+}
+
+/* ---- GPU acceleration for transform/opacity animations (no jitter) ---- */
+@supports (transform: translateZ(0)) {
+    [data-testid^="summon-"],
+    .summon-result-card,
+    .summon-portal-pulse,
+    .char-reveal-fade,
+    .summon-card-expand,
+    .rarity-reveal-text {
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        transform: translateZ(0);
+    }
 }
 
 .font-display {
@@ -390,6 +452,14 @@ html, body {
 }
 .godly-border { animation: godlyBorder 3s linear infinite; }
 
+/* Crimson border (LR / LLR) — intense red pulsing border, completely distinct
+   from gold UR and mint-cyan GR */
+@keyframes crimsonBorder {
+    0%, 100% { border-color: #FF1744; box-shadow: 0 0 12px #FF174444, 0 0 24px #FF174433, inset 0 0 10px #FF174422; }
+    50%      { border-color: #FF5252; box-shadow: 0 0 20px #FF174466, 0 0 40px #FF174444, inset 0 0 18px #FF174433; }
+}
+.crimson-border { animation: crimsonBorder 1.8s ease-in-out infinite; }
+
 @keyframes sparkleFloat {
     0%   { transform: translateY(10px) scale(0.4); opacity: 0; }
     25%  { opacity: 1; }
@@ -436,3 +506,67 @@ html, body {
 .dark [class~="text-slate-600"] { color: #94a3b8; }
 .dark [class~="text-slate-700"] { color: #cbd5e1; }
 .dark [class~="placeholder-slate-600"]::placeholder { color: #64748b; }
+
+/* ==========================================================================
+   RESPONSIVE LAYER — dynamic viewport units, safe-area utilities, overflow
+   guards. Additive on top of the existing desktop scale system.
+   ========================================================================== */
+
+/* Dynamic viewport units: 100dvh tracks the visible area as browser chrome
+   slides in/out; svh is the smallest stable height (avoids content jumping
+   under the URL bar). We expose helpers so screens opt-in deliberately. */
+.h-dvh { height: 100dvh; }
+.min-h-dvh { min-height: 100dvh; }
+.h-svh { height: 100svh; }
+.min-h-svh { min-height: 100svh; }
+.h-lvh { height: 100lvh; }
+
+/* Safe-area padding utilities — apply where content must clear notches /
+   home indicators without being behind fixed chrome. */
+.pt-safe { padding-top: var(--sat); }
+.pb-safe { padding-bottom: var(--sab); }
+.pl-safe { padding-left: var(--sal); }
+.pr-safe { padding-right: var(--sar); }
+.px-safe { padding-left: var(--sal); padding-right: var(--sar); }
+.inset-safe-top { top: var(--sat); }
+.inset-safe-bottom { bottom: var(--sab); }
+
+/* Global horizontal-overflow guard. The app is authored mobile-first and no
+   screen should ever scroll horizontally; this catches accidental overflow
+   from fixed-width children without hiding intentionally-scrollable strips
+   (those use .scrollbar-none on their own scroll container). */
+html, body { overflow-x: hidden; max-width: 100vw; }
+*, *::before, *::after { max-width: 100%; }
+
+/* Fluid display-type helper for headings that should scale with the viewport
+   rather than jump at breakpoints. */
+.text-fluid-display {
+  font-size: clamp(1.75rem, 5vw + 0.5rem, 3.5rem);
+  line-height: 1;
+}
+.text-fluid-title {
+  font-size: clamp(1.25rem, 2.5vw + 0.5rem, 2rem);
+  line-height: 1.05;
+}
+
+/* ==========================================================================
+   SUMMON RESULT CARD — fluid height for the 5×2 gacha result grid.
+   Cards keep consistent dimensions across all rarities; rarity controls
+   visual intensity (border, glow, beam) not physical size.
+   ========================================================================== */
+.summon-result-card {
+    height: clamp(100px, 20vh, 140px);
+}
+@media (min-width: 640px) {
+    .summon-result-card { height: clamp(130px, 26vh, 190px); }
+}
+@media (min-width: 1024px) {
+    .summon-result-card { height: clamp(160px, 32vh, 250px); }
+}
+
+/* ---- Short-viewport (height < 560px): compress battle & overlay chrome ---- */
+@media (max-height: 559px) {
+    /* Battle header / command panels take less vertical real estate so the
+       battlefield stays readable on landscape phones. */
+    [data-testid="battle-page"] .glass { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+}

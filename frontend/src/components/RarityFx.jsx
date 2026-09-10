@@ -1,5 +1,5 @@
 import { RARITY } from "@/lib/styles";
-import { rarityFrame, GOLD, GODLY } from "@/lib/theme";
+import { rarityFrame, GOLD, GODLY, CRIMSON } from "@/lib/theme";
 
 const RARITY_TIER_MAP = Object.fromEntries(Object.entries(RARITY).map(([k, v]) => [k, v.tier]));
 export const RARITY_TIER = RARITY_TIER_MAP;
@@ -63,6 +63,16 @@ const ORNAMENTS = {
       <circle cx="19" cy="3" r="1.1" fill="currentColor" />
     </>
   ),
+  // LR / LLR — crimson flame crest: bold triple sweep + flame diamond (all red).
+  6: () => (
+    <>
+      <path d="M2 21 C2 9 9 2 21 2" fill="none" stroke="currentColor" strokeWidth={SW} strokeLinecap="round" />
+      <path d="M6 18 C6 11 11 6 18 6" fill="none" stroke="currentColor" strokeWidth={SW2} strokeLinecap="round" opacity="0.7" />
+      <path d="M10 14 C10 11 11 10 14 10 C14 13 13 14 10 14 Z" fill="currentColor" opacity="0.92" />
+      <path d="M14 6 L16 4 L18 6 L16 8 Z" fill="currentColor" opacity="0.8" />
+      <circle cx="21" cy="2" r="1.3" fill="currentColor" />
+    </>
+  ),
 };
 
 const CORNERS = [
@@ -78,8 +88,8 @@ export const DecoCorners = ({ rarity, level, color, size = 14 }) => {
   if (rarity) {
     const f = rarityFrame(rarity);
     lvl = f.cornerLevel;
-    // GR keeps its GODLY mint-cyan (distinct from UR gold); UR stays gold.
-    col = f.isGodly ? GODLY.base : f.useGold ? GOLD.base : f.rarityColor;
+    // GR keeps its GODLY mint-cyan; LR/LLR use CRIMSON red; UR stays gold.
+    col = f.isGodly ? GODLY.base : f.useCrimson ? CRIMSON.base : f.useGold ? GOLD.base : f.rarityColor;
   }
   if (!lvl || lvl <= 0) return null;
   const Orn = ORNAMENTS[lvl] || ORNAMENTS[2];

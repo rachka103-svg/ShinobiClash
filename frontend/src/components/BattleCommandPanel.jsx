@@ -21,7 +21,11 @@ const TARGET_TYPE = {
   attack: "Single Enemy",
   aoe: "All Enemies",
   heal: "Single Ally",
+  aoe_heal: "All Allies",
   shield: "Single Ally",
+  revive: "Fallen Ally",
+  team_buff: "All Allies",
+  taunt: "Self",
 };
 
 /**
@@ -67,15 +71,15 @@ export default function BattleCommandPanel({
   if (phase === "select" && activeActor && !auto) {
     return (
       <div
-        className="absolute bottom-0 left-0 right-0 z-20 glass border-t border-cyan-500/30 px-3 py-2.5"
+        className="absolute bottom-0 left-0 right-0 z-20 glass border-t border-cyan-500/30 px-2 sm:px-3 py-1.5 sm:py-2"
         data-testid="command-panel"
       >
-        <div className="max-w-5xl mx-auto flex items-stretch gap-3">
+        <div className="max-w-5xl mx-auto flex items-stretch gap-2 sm:gap-3">
 
           {/* Left: Hero profile */}
-          <div className="flex items-center gap-2 shrink-0 w-36 sm:w-44">
+          <div className="flex items-center gap-1.5 shrink-0 w-28 sm:w-44">
             <div
-              className="relative w-12 h-12 rounded-lg overflow-hidden border-2 shrink-0"
+              className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden border-2 shrink-0"
               style={{
                 borderColor: el.color || "#94a3b8",
               }}
@@ -88,7 +92,7 @@ export default function BattleCommandPanel({
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="font-display text-base text-white truncate leading-none">
+              <p className="font-display text-sm sm:text-base text-white truncate leading-none">
                 {activeActor.name}
               </p>
 
@@ -122,7 +126,7 @@ export default function BattleCommandPanel({
                   />
                 </div>
 
-                <span className="text-[8px] text-fox tabular-nums shrink-0">
+                <span className="text-[9px] text-fox tabular-nums shrink-0">
                   {activeActor.hp.toLocaleString()}
                 </span>
               </div>
@@ -143,9 +147,8 @@ export default function BattleCommandPanel({
                   />
                 </div>
 
-                <span className="text-[8px] text-chakra tabular-nums shrink-0">
-                  {activeActor.chakra}/
-                  {activeActor.maxChakra}
+                <span className="text-[9px] text-chakra tabular-nums shrink-0">
+                  {activeActor.chakra}/{activeActor.maxChakra}
                 </span>
               </div>
             </div>
@@ -224,8 +227,7 @@ export default function BattleCommandPanel({
                     </p>
 
                     <p className="text-[9px] text-slate-500 mt-0.5">
-                      {TARGET_TYPE[j.type] ||
-                        "Single Enemy"}
+                      {TARGET_TYPE[j.type] || "—"}
                     </p>
 
                   </button>
@@ -258,7 +260,7 @@ export default function BattleCommandPanel({
         </div>
 
         {/* Footer */}
-        <p className="text-center text-[9px] text-slate-600 mt-1.5">
+        <p className="text-center text-[9px] text-slate-600 mt-1">
           Tap a skill to target · Tap and hold for details
         </p>
       </div>
@@ -269,13 +271,13 @@ export default function BattleCommandPanel({
   if (phase === "select" && auto) {
     return (
       <div
-        className="absolute bottom-0 left-0 right-0 z-20 glass border-t border-cyan-500/30 px-4 py-3"
+        className="absolute bottom-0 left-0 right-0 z-20 glass border-t border-cyan-500/30 px-4 py-1.5"
         data-testid="auto-battle-indicator"
       >
-        <div className="flex items-center justify-center min-h-[80px]">
+        <div className="flex items-center justify-center min-h-[36px]">
 
-          <span className="font-display text-2xl tracking-widest text-chakra animate-pulse flex items-center gap-2">
-            <Bot className="w-5 h-5" />
+          <span className="font-display text-base tracking-widest text-chakra animate-pulse flex items-center gap-2">
+            <Bot className="w-4 h-4" />
             AUTO-BATTLING…
           </span>
 
@@ -286,11 +288,11 @@ export default function BattleCommandPanel({
 
   // ---- Phase: enemy / busy / intro ----
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-20 glass border-t border-cyan-500/30 px-4 py-3">
+    <div className="absolute bottom-0 left-0 right-0 z-20 glass border-t border-cyan-500/30 px-4 py-1.5">
 
-      <div className="flex items-center justify-center min-h-[80px]">
+      <div className="flex items-center justify-center min-h-[36px]">
 
-        <span className="font-display text-2xl tracking-widest text-slate-400 animate-pulse">
+        <span className="font-display text-base tracking-widest text-slate-400 animate-pulse">
 
           {phase === "intro"
             ? "BATTLE START!"

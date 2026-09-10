@@ -11,16 +11,21 @@ import { useEffect, useState } from "react";
  *   chapter — chapter/floor label (e.g. "CHAPTER I" or "FLOOR 2")
  *   onDone  — callback when intro finishes
  */
-export default function BattleEntry({ title, chapter, onDone }) {
+export default function BattleEntry({ title, chapter, onDone, duration = 2800 }) {
   const [show, setShow] = useState(true);
 
   useEffect(() => {
+    if (duration <= 0) {
+      setShow(false);
+      onDone?.();
+      return;
+    }
     const t = setTimeout(() => {
       setShow(false);
       onDone?.();
-    }, 2800);
+    }, duration);
     return () => clearTimeout(t);
-  }, [onDone]);
+  }, [onDone, duration]);
 
   if (!show) return null;
 

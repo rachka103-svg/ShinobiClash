@@ -2,6 +2,7 @@
 
 import random
 from typing import Optional
+import hero_skills
 
 # Element advantage ring + dark/light pair.
 ELEMENT_ADVANTAGE = {
@@ -430,7 +431,7 @@ def _kit_tank(hid, element, el, first, ri):
             "chakra_gain": 0,
             "element": element,
             "effects": [
-                _effect("stun", chance=22 + min(ri * 2, 18), duration=1),
+                _effect("stun", chance=3 + ri * 3, duration=1),
             ],
             "description": "A devastating blow with a chance to stun the target.",
         },
@@ -470,7 +471,7 @@ def _kit_assassin(hid, element, el, first, ri):
             "effects": [
                 _effect(
                     "bleed",
-                    chance=70 + min(ri * 3, 25),
+                    chance=5 + ri * 4,
                     duration=3,
                     value=24 + ri * 2,
                 ),
@@ -513,7 +514,7 @@ def _kit_mage(hid, element, el, first, ri):
             "effects": [
                 _effect(
                     "burn" if element in ("Fire", "Light") else "poison",
-                    chance=75 + min(ri * 2, 20),
+                    chance=5 + ri * 4,
                     duration=3,
                     value=22 + ri * 2,
                 ),
@@ -593,7 +594,7 @@ def _kit_control(hid, element, el, first, ri):
             "effects": [
                 _effect(
                     control_effect,
-                    chance=55 + min(ri * 3, 25),
+                    chance=3 + ri * 3,
                     duration=1,
                 ),
             ],
@@ -610,7 +611,7 @@ def _kit_control(hid, element, el, first, ri):
             "effects": [
                 _effect(
                     "def_down",
-                    chance=75,
+                    chance=8 + ri * 4,
                     duration=2,
                     value=18 + ri * 2,
                 ),
@@ -643,7 +644,7 @@ def _kit_bruiser(hid, element, el, first, ri):
             "effects": [
                 _effect(
                     "bleed",
-                    chance=60 + min(ri * 3, 25),
+                    chance=5 + ri * 4,
                     duration=3,
                     value=20 + ri * 2,
                 ),
@@ -863,6 +864,26 @@ def _add_ascendant_skill(kit, hid, name, element, el, role, ri):
 # ============================================================
 
 
+# Status effect types whose application chance should be capped by rarity.
+_STATUS_EFFECT_TYPES = frozenset({"burn", "poison", "bleed", "stun", "freeze", "atk_down", "def_down", "shock", "dispel"})
+# Max status-effect chance per rarity tier. R heroes get 5-15%, scaling up
+# to 60% for MYTHIC so high-rarity enemies feel dangerous without making
+# low-rarity fights a CC chain.
+_RARITY_EFFECT_CAP = {"N": 10, "R": 15, "SR": 20, "SSR": 25, "UR": 30, "LR": 35, "GR": 45, "MYTHIC": 60}
+
+
+def _normalize_effect_chances(kit, rarity):
+    """Cap status-effect application chances to rarity-appropriate levels."""
+    cap = _RARITY_EFFECT_CAP.get(rarity, 15)
+    skills = kit if isinstance(kit, list) else kit.get("skills", [])
+    for skill in skills:
+        for effect in skill.get("effects", []):
+            if effect.get("type") in _STATUS_EFFECT_TYPES:
+                if effect.get("chance", 0) > cap:
+                    effect["chance"] = cap
+    return kit
+
+
 def _apply_rarity_mastery(kit, rarity, role, ri):
     """
     Enhances a generated hero kit based on rarity.
@@ -891,7 +912,7 @@ def _apply_rarity_mastery(kit, rarity, role, ri):
                 if effect.get("chance", 0) < 100:
                     effect["chance"] = min(
                         100,
-                        effect["chance"] + 10
+                        effect["chance"] + 5
                     )
 
     # --------------------------------------------------------
@@ -1014,13 +1035,18 @@ def _apply_rarity_mastery(kit, rarity, role, ri):
                     int(skill.get("chakra_cost", 0) * 0.85)
                 )
 
-            # Status effects become almost unavoidable.
+            # Status effects become more reliable.
             for effect in skill.get("effects", []):
                 if effect.get("chance", 0) > 0:
                     effect["chance"] = min(
                         100,
-                        effect["chance"] + 15
+                        effect["chance"] + 10
                     )
+
+    # Normalize: cap status-effect chances to rarity-appropriate levels so
+    # lower-rarity heroes can't chain-CC enemies and high-rarity heroes feel
+    # meaningfully more reliable without being guaranteed.
+    _normalize_effect_chances(kit, rarity)
 
     return kit
 
@@ -1042,6 +1068,10 @@ def _hero_jutsus(hid, name, element, rarity, role):
 
     # Rarity mastery tunes the kit further for high rarities.
     kit = _apply_rarity_mastery(kit, rarity, role, ri)
+
+    # Auto-generate structured descriptions with target counts
+    from skill_descriptions import apply_descriptions
+    apply_descriptions({"skills": kit}, role)
 
     return kit
 
@@ -1072,23 +1102,26 @@ _HERO_DEFS = [
     ("loki", "Loki", "Trickster Unbound", "Dark", "UR", "Assassin", "The trickster whose chains will shatter at Ragnarok."),
     ("hephaestus", "Hephaestus", "Divine Artificer", "Fire", "UR", "Attacker", "Greatest smith of the gods, whose forge never cools."),
     ("leviathan", "Leviathan", "Serpent of the Abyss", "Water", "UR", "Tank", "The great sea monster no weapon of man can pierce."),
-    ("brahma", "Brahma", "Creator of Worlds", "Light", "LR", "Support", "The creator god who shaped the universe from nothing."),
-    ("apep", "Apep", "Chaos Serpent", "Dark", "LR", "Assassin", "The eternal chaos serpent who devours the sun each night."),
+    ("brahma", "Brahma", "Creator of Worlds", "Light", "GR", "Support", "The creator god who shaped the universe from nothing."),
+    ("apep", "Apep", "Chaos Serpent", "Dark", "GR", "Assassin", "The eternal chaos serpent who devours the sun each night."),
 ]
 
 # Backfill the original 12 heroes with extended base_stats and ultimate abilities
 for _h in _ORIGINAL_12:
     _h["base_stats"] = _hero_stats(_h["rarity"], _h["role"])
-    # Signature passive is stored separately and is resolved automatically by the battle engine.
-    _h["passive"] = _passive_for(_h["id"], _h["role"])
+    _kit = hero_skills.get_hero_kit(_h["id"], _h["name"], _h["element"], _h["rarity"], _h["role"])
+    if _kit:
+        _h["jutsus"] = _kit["skills"]
+    _h["passive"] = hero_skills.get_hero_passive(_h["id"], _h["role"])
     NINJA_CATALOG.append(_h)
 
 for _hid, _name, _title, _el, _rar, _role, _lore in _HERO_DEFS:
+    _kit = hero_skills.get_hero_kit(_hid, _name, _el, _rar, _role)
     NINJA_CATALOG.append({
         "id": _hid, "name": _name, "title": _title, "element": _el, "rarity": _rar,
         "role": _role, "lore": _lore, "base_stats": _hero_stats(_rar, _role),
-        "jutsus": _hero_jutsus(_hid, _name, _el, _rar, _role),
-        "passive": _passive_for(_hid, _role),
+        "jutsus": _kit["skills"] if _kit else _hero_jutsus(_hid, _name, _el, _rar, _role),
+        "passive": hero_skills.get_hero_passive(_hid, _role),
     })
 
 # ---------------------------------------------------------------------------
@@ -1124,21 +1157,23 @@ _HERO_DEFS_V2 = [
     ("odin", "Odin", "All-Father", "Lightning", "UR", "Support", "Stormcall Legion", "The all-father, who traded an eye for infinite wisdom."),
     ("sekhmet", "Sekhmet", "Lioness of War", "Fire", "UR", "Assassin", "Emberforge Pantheon", "Lioness war-goddess whose breath once brought plague to enemies of Egypt."),
     ("inari", "Inari", "Fox of Fortune", "Light", "UR", "Mage", "Radiant Choir", "A shapeshifting kitsune deity of prosperity, rice, and cunning magic."),
-    ("ra", "Ra", "Sun Sovereign", "Light", "GR", "Mage", "Celestial Ascendancy", "The sun god who sails the sky each day to hold back eternal night."),
+    ("ra", "Ra", "Sun Sovereign", "Light", "LR", "Mage", "Celestial Ascendancy", "The sun god who sails the sky each day to hold back eternal night."),
     ("fenrir", "Fenrir", "The Bound Wolf", "Dark", "GR", "Bruiser", "Nightveil Syndicate", "A monstrous wolf prophesied to break its chains at the end of the world."),
-    ("perun", "Perun", "Thunder Warlord", "Lightning", "GR", "Attacker", "Stormcall Legion", "Slavic god of thunder who rides the storm astride a fiery chariot."),
-    ("tlaloc", "Tlaloc", "Rainstorm Sovereign", "Water", "GR", "Control", "Tidebound Covenant", "Aztec god of rain and storm, both life-giver and destroyer."),
-    ("izanami", "Izanami", "Queen of the Underworld", "Dark", "GR", "Healer", "Abyssal Depths Cabal", "Goddess of creation and death, ruling the underworld with tragic grace."),
-    ("ymir", "Ymir", "Primordial Giant", "Earth", "LR", "Tank", "Ironroot Dominion", "The first giant, from whose bones and flesh the world itself was formed."),
-    ("chronos", "Chronos", "Warden of Ages", "Dark", "MYTHIC", "Control", "Abyssal Depths Cabal", "The primordial embodiment of time, who can unravel a battle's very pace."),
-    ("yggdrasil_spirit", "Yggdrasil", "Heart of the World Tree", "Earth", "MYTHIC", "Support", "Celestial Ascendancy", "The spirit of the world tree, whose roots and branches sustain all realms."),
+    ("perun", "Perun", "Thunder Warlord", "Lightning", "LR", "Attacker", "Stormcall Legion", "Slavic god of thunder who rides the storm astride a fiery chariot."),
+    ("tlaloc", "Tlaloc", "Rainstorm Sovereign", "Water", "LR", "Control", "Tidebound Covenant", "Aztec god of rain and storm, both life-giver and destroyer."),
+    ("izanami", "Izanami", "Queen of the Underworld", "Dark", "LR", "Healer", "Abyssal Depths Cabal", "Goddess of creation and death, ruling the underworld with tragic grace."),
+    ("ymir", "Ymir", "Primordial Giant", "Earth", "GR", "Tank", "Ironroot Dominion", "The first giant, from whose bones and flesh the world itself was formed."),
+    ("chronos", "Chronos", "Warden of Ages", "Dark", "LR", "Control", "Abyssal Depths Cabal", "The primordial embodiment of time, who can unravel a battle's very pace."),
+    ("yggdrasil_spirit", "Yggdrasil", "Heart of the World Tree", "Earth", "LR", "Support", "Celestial Ascendancy", "The spirit of the world tree, whose roots and branches sustain all realms."),
 ]
 
 for _hid, _name, _title, _el, _rar, _role, _fac, _lore in _HERO_DEFS_V2:
+    _kit = hero_skills.get_hero_kit(_hid, _name, _el, _rar, _role)
     NINJA_CATALOG.append({
         "id": _hid, "name": _name, "title": _title, "element": _el, "rarity": _rar,
         "role": _role, "faction": _fac, "lore": _lore, "base_stats": _hero_stats(_rar, _role),
-        "jutsus": _hero_jutsus(_hid, _name, _el, _rar, _role), "is_placeholder_art": True,
+        "jutsus": _kit["skills"] if _kit else _hero_jutsus(_hid, _name, _el, _rar, _role),
+        "is_placeholder_art": True,
     })
 
 # ---------------------------------------------------------------------------
@@ -1171,7 +1206,7 @@ for _n in NINJA_CATALOG:
     _n.setdefault("faction", _FACTION_OVERRIDE.get(_n["id"], _ELEMENT_FACTION_DEFAULT.get(_n["element"], "Crimson Leaf Order")))
     _tags = list(dict.fromkeys(_ROLE_TAGS.get(_n["role"], ["SINGLE_TARGET"]) + [_ELEMENT_TAG.get(_n["element"], "AOE")]))
     _n.setdefault("tags", _tags)
-    _n.setdefault("passive", _passive_for(_n["id"], _n["role"]))
+    _n.setdefault("passive", hero_skills.get_hero_passive(_n["id"], _n["role"]))
     _n.setdefault("is_placeholder_art", False)
     _n.setdefault("star_level_default", 1)
 
@@ -1182,22 +1217,29 @@ for _n in NINJA_CATALOG:
 # deterministically from hero identity/role/element and scale upward by rarity.
 # ---------------------------------------------------------------------------
 _ROLE_EFFECTS = {
-    "Attacker": [("burn", 38, 3, 28), ("bleed", 38, 3, 30), ("def_down", 45, 2, 18)],
-    "Tank": [("stun", 24, 1, 0), ("def_down", 55, 2, 20), ("atk_down", 55, 2, 18)],
-    "Support": [("atk_down", 45, 2, 15), ("def_down", 45, 2, 15), ("burn", 30, 2, 20)],
-    "Assassin": [("bleed", 55, 3, 34), ("poison", 42, 3, 26), ("def_down", 50, 2, 22)],
-    "Mage": [("burn", 52, 3, 34), ("poison", 48, 3, 30), ("def_down", 55, 2, 20)],
-    "Healer": [("atk_down", 40, 2, 16), ("freeze", 20, 1, 0), ("def_down", 42, 2, 15)],
-    "Control": [("stun", 40, 1, 0), ("freeze", 40, 1, 0), ("atk_down", 60, 2, 22)],
-    "Bruiser": [("bleed", 48, 3, 30), ("stun", 28, 1, 0), ("def_down", 50, 2, 18)],
+    "Attacker": [("burn", 8, 3, 28), ("bleed", 10, 3, 30), ("def_down", 12, 2, 18)],
+    "Tank": [("stun", 5, 1, 0), ("def_down", 12, 2, 20), ("atk_down", 10, 2, 18)],
+    "Support": [("atk_down", 10, 2, 15), ("def_down", 10, 2, 15), ("burn", 8, 2, 20)],
+    "Assassin": [("bleed", 12, 3, 34), ("poison", 10, 3, 26), ("def_down", 12, 2, 22)],
+    "Mage": [("burn", 12, 3, 34), ("poison", 10, 3, 30), ("def_down", 12, 2, 20)],
+    "Healer": [("atk_down", 8, 2, 16), ("freeze", 5, 1, 0), ("def_down", 8, 2, 15)],
+    "Control": [("stun", 8, 1, 0), ("freeze", 8, 1, 0), ("atk_down", 12, 2, 22)],
+    "Bruiser": [("bleed", 10, 3, 30), ("stun", 5, 1, 0), ("def_down", 10, 2, 18)],
 }
+
+# Rarity-based bonus and cap for identity effects — keeps R heroes at 5-15%
+# while allowing GR/MYTHIC enemies to feel dangerous.
+_IDENTITY_RARITY_BONUS = {"N": 0, "R": 0, "SR": 3, "SSR": 6, "UR": 10, "LR": 14, "GR": 18, "MYTHIC": 22}
+_IDENTITY_RARITY_CAP = {"N": 10, "R": 15, "SR": 20, "SSR": 25, "UR": 30, "LR": 35, "GR": 45, "MYTHIC": 60}
 
 def _identity_effect(hero, slot):
     pool = _ROLE_EFFECTS.get(hero.get("role"), _ROLE_EFFECTS["Attacker"])
     seed = sum(ord(c) for c in hero["id"]) + slot * 7
     et, chance, duration, value = pool[seed % len(pool)]
-    rarity_bonus = {"R": 0, "SR": 3, "SSR": 7, "UR": 11, "GR": 16}.get(hero.get("rarity"), 0)
-    effect = {"type": et, "chance": min(85, chance + rarity_bonus), "duration": duration}
+    rarity = hero.get("rarity", "R")
+    rarity_bonus = _IDENTITY_RARITY_BONUS.get(rarity, 0)
+    cap = _IDENTITY_RARITY_CAP.get(rarity, 15)
+    effect = {"type": et, "chance": min(cap, chance + rarity_bonus), "duration": duration}
     if value:
         effect["value"] = value + rarity_bonus // 2
     return effect
@@ -1228,11 +1270,11 @@ _NINJA_IDS = {"blaze", "ripple", "zephyr", "boulder", "spark", "ember", "frost",
 _V2_IDS = {h[0] for h in _HERO_DEFS_V2}
 for _n in NINJA_CATALOG:
     if _n["id"] in _V2_IDS:
-        _n["portrait"] = "/heroes/_placeholder.png"
+        _n["portrait"] = "/heroes/_placeholder.webp"
     elif _n["id"] in _NINJA_IDS:
-        _n["portrait"] = f"/ninjas/{_n['id']}.png"
+        _n["portrait"] = f"/ninjas/{_n['id']}.webp"
     else:
-        _n["portrait"] = f"/heroes/{_n['id']}.png"
+        _n["portrait"] = f"/heroes/{_n['id']}.webp"
 
 CATALOG_BY_ID = {n["id"]: n for n in NINJA_CATALOG}
 
@@ -1243,7 +1285,7 @@ CATALOG_BY_ID = {n["id"]: n for n in NINJA_CATALOG}
 # Legacy N drops to R; the old top tiers (LR / MYTHIC) fold up into GR.
 # Base stats keep their authored values so no existing hero is nerfed.
 # ---------------------------------------------------------------------------
-RARITY_REMAP = {"N": "R", "R": "R", "SR": "SR", "SSR": "SSR", "UR": "UR", "GR": "GR", "LR": "GR", "MYTHIC": "GR"}
+RARITY_REMAP = {"N": "R", "R": "R", "SR": "SR", "SSR": "SSR", "UR": "UR", "GR": "GR", "LR": "LR", "MYTHIC": "GR"}
 for _n in NINJA_CATALOG:
     _n["rarity"] = RARITY_REMAP.get(_n["rarity"], _n["rarity"])
 CATALOG_BY_ID = {n["id"]: n for n in NINJA_CATALOG}
@@ -1252,19 +1294,19 @@ STARTER_NINJAS = ["blaze", "ripple", "zephyr"]
 
 # Weighted summon pool (per rarity). Lower rarity = higher chance.
 # GEM banner (premium) — the standard, pity-backed rates.
-SUMMON_WEIGHTS = {"R": 1000, "SR": 320, "SSR": 95, "UR": 20, "LR": 6, "GR": 2}
+SUMMON_WEIGHTS = {"R": 10000, "SR": 3321, "SSR": 1107, "UR": 342, "LR": 171, "GR": 21}
 # GOLD/RYO banner (budget) — SUPER low chance at rare heroes and NO pity.
 # Heavily floored to R/SR; UR/GR are vanishingly rare here.
-GOLD_SUMMON_WEIGHTS = {"R": 4000, "SR": 520, "SSR": 60, "UR": 4, "LR": 1.5, "GR": 0.5}
+GOLD_SUMMON_WEIGHTS = {"R": 10000, "SR": 1258, "SSR": 193, "UR": 37, "LR": 4, "GR": 2}
 # Gold (Ryo) summon cost — significantly increased from 300 to make gold
 # summons a meaningful decision rather than something players can spam.
 # A new player clearing Chapter 1 earns ~10k Ryo (first clears + rewards),
 # so 5000 = ~2 summons per chapter of first-clear progress. Daily income
 # (login + missions + stage replays + gold vault) is ~2.5k-4k Ryo, giving
 # roughly 2-3 summons per day from routine play.
-SUMMON_COST = 5000
-# x10 Gold Summon — 8x the single cost (20% discount vs 10 individual pulls).
-GOLD_SUMMON_X10_COST = 40000
+SUMMON_COST = 10000
+# x10 Gold Summon — 10x the single cost (no bulk discount).
+GOLD_SUMMON_X10_COST = 100000
 
 # Shards gained when pulling a hero already owned (duplicate protection —
 # duplicates are NEVER wasted). Lower rarity yields more shards since it's
@@ -1283,9 +1325,8 @@ def max_stars_for_rarity(rarity: str) -> int:
 
 
 def star_up_cost(rarity: str, current_star: int) -> int:
-    """Shards required to raise a hero from `current_star` to `current_star + 1`."""
-    ri = RARITY_ORDER[rarity]
-    return round((40 + ri * 15) * (1 + 0.6 * (current_star - 1)))
+    """Legacy helper; returns the current centralized Evolution shard cost."""
+    return evolution_cost(rarity, current_star).get("shards", 0) if evolution_cost(rarity, current_star) else 0
 
 # ---------------------------------------------------------------------------
 # Campaign stages
@@ -1425,52 +1466,30 @@ BOSS_MECHANICS = {
 
 
 def _enemy_gear_bonuses(chapter: int, is_boss: bool, stage_rng) -> dict:
-    """Generate stat bonuses representing enemy equipment. Scales with
-    chapter progression — early enemies have little/no gear, mid-game enemies
-    get meaningful bonuses, late-game enemies have competitive gear sets.
-    Returns a dict of percentage bonuses {hp_pct, atk_pct, def_pct, spd_pct}."""
-    if chapter <= 2:
-        # Early game: mostly no gear, occasional basic common gear
-        if is_boss:
-            return {"hp_pct": 5, "atk_pct": 3, "def_pct": 3, "spd_pct": 0}
-        return {} if stage_rng.random() > 0.2 else {"hp_pct": 3, "atk_pct": 2, "def_pct": 2, "spd_pct": 0}
-    elif chapter <= 5:
-        # Early-mid: basic gear appears, bosses get rare gear
-        base = 5 + chapter * 2
-        if is_boss:
-            return {"hp_pct": base + 8, "atk_pct": base + 5, "def_pct": base + 3, "spd_pct": 3}
-        return {"hp_pct": base, "atk_pct": base - 1, "def_pct": base - 2, "spd_pct": 2} if stage_rng.random() > 0.3 else {}
-    elif chapter <= 10:
-        # Mid game: consistent gear, epic gear on bosses
-        base = 15 + (chapter - 5) * 3
-        if is_boss:
-            return {"hp_pct": base + 12, "atk_pct": base + 8, "def_pct": base + 6, "spd_pct": 5}
-        return {"hp_pct": base, "atk_pct": base - 2, "def_pct": base - 3, "spd_pct": 3}
-    elif chapter <= 20:
-        # Late game: strong gear, complete sets on bosses
-        base = 30 + (chapter - 10) * 3
-        if is_boss:
-            return {"hp_pct": base + 15, "atk_pct": base + 12, "def_pct": base + 10, "spd_pct": 8}
-        return {"hp_pct": base, "atk_pct": base - 3, "def_pct": base - 4, "spd_pct": 5}
-    else:
-        # End game: top-tier gear on everything
-        base = 60 + min(40, (chapter - 20) * 2)
-        if is_boss:
-            return {"hp_pct": base + 20, "atk_pct": base + 15, "def_pct": base + 12, "spd_pct": 10}
-        return {"hp_pct": base, "atk_pct": base - 5, "def_pct": base - 6, "spd_pct": 7}
+    """Legacy gear bonus — kept for backward compatibility with any code
+    that still calls it directly. New enemy generation uses the centralized
+    enemy_progression system which computes REAL gear stats from actual
+    gear pieces, enhancement levels, set bonuses, and crystals."""
+    # Delegate to the progression system for consistent values
+    from enemy_progression import get_enemy_progression, compute_enemy_gear_bonus
+    prog = get_enemy_progression(
+        mode="campaign", chapter=chapter, is_boss=is_boss,
+        base_level=max(1, chapter * 5),
+    )
+    # Return only the pct portion for backward-compatible callers
+    bonus = compute_enemy_gear_bonus(prog, {"id": "_legacy", "rarity": "R", "role": "Attacker"})
+    return {k: v for k, v in bonus.items() if k.endswith("_pct")}
 
 
-def _build_enemy_team(chapter, candidates, pool_by_rarity, stage_rng, count, base_level) -> list:
+def _build_enemy_team(chapter, candidates, pool_by_rarity, stage_rng, count, base_level, stage_i=1) -> list:
     """Build an enemy team with intelligent composition that scales with
     chapter progression. Early chapters use random attackers; mid/late
     chapters form synergistic teams with tanks, healers, supports, and
-    damage dealers."""
+    damage dealers. Progression enrichment is deferred to API call time
+    via enrich_stage_enemies() to avoid circular imports at module load."""
     if chapter <= 3 or count <= 1:
-        # Early game: simple random composition
         return [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
 
-    # Mid/late game: build a synergistic team
-    # Categorize available heroes by role
     by_role = {}
     for tid in candidates:
         tmpl = CATALOG_BY_ID.get(tid)
@@ -1478,44 +1497,38 @@ def _build_enemy_team(chapter, candidates, pool_by_rarity, stage_rng, count, bas
             continue
         by_role.setdefault(tmpl["role"], []).append(tid)
 
-    # Ensure we have at least some roles available; fall back to candidates
     tanks = by_role.get("Tank", []) or by_role.get("Bruiser", []) or candidates
     healers = by_role.get("Healer", []) or by_role.get("Support", []) or []
     supports = by_role.get("Support", []) or by_role.get("Control", []) or []
     damage = by_role.get("Attacker", []) or by_role.get("Assassin", []) or by_role.get("Mage", []) or candidates
     control = by_role.get("Control", []) or by_role.get("Mage", []) or []
-    assassins = by_role.get("Assassin", []) or damage
 
-    team = []
+    raw = []
     if count >= 3 and chapter >= 7:
-        # Synergistic composition: Tank + Healer/Support + Damage
-        team.append({"template_id": stage_rng.choice(tanks), "level": base_level + stage_rng.randint(0, 2)})
+        raw.append({"template_id": stage_rng.choice(tanks), "level": base_level + stage_rng.randint(0, 2)})
         if healers and chapter >= 10:
-            team.append({"template_id": stage_rng.choice(healers), "level": base_level + stage_rng.randint(0, 1)})
+            raw.append({"template_id": stage_rng.choice(healers), "level": base_level + stage_rng.randint(0, 1)})
         elif supports:
-            team.append({"template_id": stage_rng.choice(supports), "level": base_level + stage_rng.randint(0, 1)})
+            raw.append({"template_id": stage_rng.choice(supports), "level": base_level + stage_rng.randint(0, 1)})
         else:
-            team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
-        # Fill remaining slots with damage/control
+            raw.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
         for _ in range(count - 2):
             if chapter >= 15 and control and stage_rng.random() > 0.6:
-                team.append({"template_id": stage_rng.choice(control), "level": base_level + stage_rng.randint(0, 2)})
+                raw.append({"template_id": stage_rng.choice(control), "level": base_level + stage_rng.randint(0, 2)})
             else:
-                team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+                raw.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
     elif count >= 2 and chapter >= 5:
-        # Basic composition: mix of roles
-        team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+        raw.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
         if tanks and stage_rng.random() > 0.4:
-            team.append({"template_id": stage_rng.choice(tanks), "level": base_level + stage_rng.randint(0, 2)})
+            raw.append({"template_id": stage_rng.choice(tanks), "level": base_level + stage_rng.randint(0, 2)})
         else:
-            team.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
+            raw.append({"template_id": stage_rng.choice(damage), "level": base_level + stage_rng.randint(0, 2)})
         for _ in range(count - 2):
-            team.append({"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)})
+            raw.append({"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)})
     else:
-        # Fallback: random
-        team = [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
+        raw = [{"template_id": stage_rng.choice(candidates), "level": base_level + stage_rng.randint(0, 2)} for _ in range(count)]
 
-    return team
+    return raw
 
 
 def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rarity, stage_rng) -> dict:
@@ -1523,19 +1536,16 @@ def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rari
     boss_candidates = [tid for r in boss_band for tid in pool_by_rarity.get(r, [])] or candidates
     boss_tid = stage_rng.choice(boss_candidates)
     mech_id = "sealed_titan" if chapter % 2 == 0 else "abyssal_warden"
-    # Boss level scales more aggressively in mid/late game
     boss_level_mult = 1.6 if chapter <= 5 else (1.8 + (chapter - 5) * 0.03)
     boss_level = round(base_level * boss_level_mult)
-    boss_gear = _enemy_gear_bonuses(chapter, True, stage_rng)
-    enemies = [{"template_id": boss_tid, "level": boss_level, "gear_bonus": boss_gear}]
-    # Late-game bosses get supporting adds
+    enemies = [{"template_id": boss_tid, "level": boss_level}]
     if chapter >= 8:
         add_band = _rarity_band_for_chapter(chapter)
         add_candidates = [tid for r in add_band for tid in pool_by_rarity.get(r, [])] or candidates
         add_count = min(2, 1 + (chapter - 8) // 5)
-        add_gear = _enemy_gear_bonuses(chapter, False, stage_rng)
+        add_level = round(boss_level * 0.85)
         for _ in range(add_count):
-            enemies.append({"template_id": stage_rng.choice(add_candidates), "level": round(boss_level * 0.85), "gear_bonus": add_gear})
+            enemies.append({"template_id": stage_rng.choice(add_candidates), "level": add_level})
     return {
         "id": sid, "chapter": chapter, "name": f"{CATALOG_BY_ID[boss_tid]['name']}'s Last Stand",
         "region": region, "enemies": enemies, "is_boss": True,
@@ -1547,11 +1557,7 @@ def _build_boss_stage(sid, chapter, region, base_level, candidates, pool_by_rari
 
 def _build_normal_stage(sid, chapter, i, region, base_level, candidates, stage_rng) -> dict:
     count = min(3, 2 + i // 3)
-    enemies = _build_enemy_team(chapter, candidates, {}, stage_rng, count, base_level)
-    # Apply enemy gear bonuses
-    gear = _enemy_gear_bonuses(chapter, False, stage_rng)
-    for e in enemies:
-        e["gear_bonus"] = gear
+    enemies = _build_enemy_team(chapter, candidates, {}, stage_rng, count, base_level, stage_i=i)
     return {
         "id": sid, "chapter": chapter, "name": f"{region} Skirmish {i}",
         "region": region, "enemies": enemies, "is_boss": False,
@@ -1611,6 +1617,50 @@ for _ch in range(1, 5):
     STAGES.extend(generate_campaign_stages(_ch, _ch, stages_per_chapter=12, start_i=4))
 STAGES.extend(generate_campaign_stages(5, 100, stages_per_chapter=12))
 STAGES_BY_ID = {s["id"]: s for s in STAGES}
+
+
+def enrich_stage_enemies(stage: dict) -> dict:
+    """Enrich a stage's enemies with full RPG progression from the centralized
+    enemy_progression system. Called at API serve time (not module load) to
+    avoid circular imports. Adds evolved rarity, ascension, real gear stats,
+    skill rank, passive status, reforge, and combat modifiers to each enemy."""
+    from enemy_progression import get_enemy_progression, build_enemy, compute_enemy_stats
+    from combat_modifiers import assign_combat_modifiers
+    from boss_configs import get_boss_combat_modifiers
+    chapter = stage.get("chapter", 1)
+    is_boss = stage.get("is_boss", False)
+    boss_mechanic = stage.get("boss_mechanic")
+    enriched_enemies = []
+    for idx, e in enumerate(stage.get("enemies", [])):
+        # Skip already-enriched enemies (idempotent)
+        if "stats_override" in e:
+            enriched_enemies.append(e)
+            continue
+        tmpl = CATALOG_BY_ID.get(e.get("template_id"))
+        if not tmpl:
+            enriched_enemies.append(e)
+            continue
+        is_stage_boss = is_boss and idx == 0
+        prog = get_enemy_progression(
+            mode="campaign", chapter=chapter, stage=6,
+            is_boss=is_stage_boss,
+            base_level=e["level"],
+        )
+        built = build_enemy(tmpl, prog, is_boss=is_stage_boss)
+        built["level"] = e["level"]
+        built["progression"]["level"] = e["level"]
+        built["stats_override"] = compute_enemy_stats(tmpl, {**prog, "level": e["level"]})
+
+        # For boss stages with a boss mechanic, merge mechanic-based combat modifiers
+        if is_stage_boss and boss_mechanic:
+            mechanic_mods = get_boss_combat_modifiers(boss_mechanic)
+            if mechanic_mods:
+                existing_mods = built.get("combat_modifiers", {})
+                merged = {**existing_mods, **mechanic_mods}
+                built["combat_modifiers"] = merged
+
+        enriched_enemies.append(built)
+    return {**stage, "enemies": enriched_enemies}
 
 
 # ---------------------------------------------------------------------------
@@ -1724,15 +1774,30 @@ def level_cap(rarity: str, ascension: int) -> int:
     return min(HERO_MAX_LEVEL, 100 + ascension * ASCENSION_STEP)
 
 
+# ---------------------------------------------------------------------------
+# Centralized team slot unlock configuration.
+# Slots 1–3 are always available. Slot 4 unlocks at Lv.100, slot 5 at Lv.200.
+# 5 is the permanent maximum — no 6th player combat slot ever exists.
+# ---------------------------------------------------------------------------
+TEAM_SLOT_UNLOCKS = {4: 100, 5: 200}
+MAX_TEAM_SIZE = 5
+
+
 def max_team_size(level: int) -> int:
-    """Squad starts at 3 slots; unlocks a 4th at Lv.10 and a 5th at Lv.20 (max 5)."""
-    return min(5, 3 + max(0, level) // 10)
+    """Squad starts at 3 slots; unlocks 4th at Lv.100 and 5th at Lv.200 (max 5)."""
+    size = 3
+    for slot, req_level in sorted(TEAM_SLOT_UNLOCKS.items()):
+        if level >= req_level:
+            size = slot
+    return min(MAX_TEAM_SIZE, size)
 
 
 def next_slot_level(level: int) -> Optional[int]:
     """Player level at which the next squad slot unlocks, or None if maxed."""
-    cap = max_team_size(level)
-    return None if cap >= 5 else (cap - 2) * 10
+    for slot, req_level in sorted(TEAM_SLOT_UNLOCKS.items()):
+        if level < req_level:
+            return req_level
+    return None
 
 
 def max_level(rarity: str) -> int:
@@ -2097,6 +2162,92 @@ _PORTRAIT_OVERRIDES = {}
 _HERO_OVERRIDES = {}
 
 
+# ---------------------------------------------------------------------------
+# Skill Description Generator — produces clean, player-facing descriptions
+# that replace internal effect terminology (atk_down, curse_dot, etc.) with
+# readable text ("reduce ATK by 20% for 2 turns").
+# ---------------------------------------------------------------------------
+_MAGIC_ROLES = {"Mage", "Healer", "Support", "Control"}
+
+_EFFECT_LABELS = {
+    "burn":        lambda e: f"{_chance(e)}chance to Burn",
+    "poison":      lambda e: f"{_chance(e)}chance to Poison",
+    "bleed":       lambda e: f"{_chance(e)}chance to Bleed",
+    "stun":        lambda e: f"{_chance(e)}chance to Stun for {_dur(e)} turn(s)",
+    "freeze":      lambda e: f"{_chance(e)}chance to Freeze for {_dur(e)} turn(s)",
+    "atk_down":    lambda e: f"{_chance(e)}chance to reduce ATK by {e.get('value', 0)}% for {_dur(e)} turns",
+    "def_down":    lambda e: f"{_chance(e)}chance to reduce DEF by {e.get('value', 0)}% for {_dur(e)} turns",
+    "shock":       lambda e: f"{_chance(e)}chance to Shock",
+    "extra_turn":  lambda e: f"{_chance(e)}chance to act again",
+    "regen":       lambda e: f"Regen {e.get('value', 10)}% HP/turn for {_dur(e)} turns",
+    "immunity":    lambda e: f"Immunity for {_dur(e)} turns",
+    "evade":       lambda e: f"{e.get('value', 30)}% Evade for {_dur(e)} turns",
+    "def_up":      lambda e: f"DEF Up {e.get('value', 20)}% for {_dur(e)} turns",
+    "atk_up":      lambda e: f"ATK Up {e.get('value', 20)}% for {_dur(e)} turns",
+    "spd_up":      lambda e: f"SPD Up {e.get('value', 15)}% for {_dur(e)} turns",
+    "team_atk_up": lambda e: f"Team ATK Up {e.get('value', 20)}% for {_dur(e)} turns",
+    "team_def_up": lambda e: f"Team DEF Up {e.get('value', 15)}% for {_dur(e)} turns",
+    "taunt":       lambda e: f"Taunt for {_dur(e)} turns",
+    "damage_reflect": lambda e: f"Damage Reflect {e.get('value', 20)}% for {_dur(e)} turns",
+    "cleanse":     lambda e: "Cleanse debuffs",
+    "dispel":      lambda e: "Dispel buffs",
+    "revive_ally": lambda e: f"Revive ally at {e.get('hp_pct', 30)}% HP",
+}
+
+
+def _chance(e):
+    c = e.get("chance", 100)
+    return f"{c}% " if c < 100 else ""
+
+
+def _dur(e):
+    return e.get("duration", 2)
+
+
+def _skill_description(jutsu, role):
+    """Generate a clean, player-facing description from jutsu data."""
+    jtype = jutsu.get("type", "attack")
+    power = jutsu.get("power", 0)
+    is_magic = role in _MAGIC_ROLES
+    dmg_type = "Magic" if is_magic else "Physical"
+    effects = jutsu.get("effects", [])
+
+    parts = []
+
+    if jtype in ("attack", "aoe"):
+        parts.append(f"{power}% {dmg_type} Damage")
+    elif jtype == "heal":
+        parts.append(f"Restore HP ({power}% ATK)")
+    elif jtype == "aoe_heal":
+        parts.append(f"Restore HP to all allies ({power}% ATK)")
+    elif jtype == "shield":
+        parts.append(f"Grant Shield ({power}% DEF)")
+    elif jtype == "taunt":
+        parts.append("Taunt enemies")
+    elif jtype == "team_buff":
+        parts.append("Grant team buffs")
+    elif jtype == "cleanse":
+        parts.append("Cleanse debuffs")
+    elif jtype == "revive":
+        parts.append("Revive a fallen ally")
+    else:
+        parts.append(f"{power}% {dmg_type} Damage")
+
+    # DEF penetration on the jutsu itself
+    pen = jutsu.get("def_penetration", 0)
+    if pen:
+        parts.append(f"+ {pen}% DEF Penetration")
+
+    # Effect suffixes
+    for eff in effects:
+        et = eff.get("type", "")
+        label_fn = _EFFECT_LABELS.get(et)
+        if label_fn:
+            parts.append(f"+ {label_fn(eff)}")
+
+    return " ".join(parts)
+
+
 def _finalize_kit(n):
     """Ensure every hero has a separate automatic signature passive and that
     GR heroes carry an Ascendant active skill. Passive abilities are deliberately
@@ -2106,6 +2257,9 @@ def _finalize_kit(n):
         return
     role = n.get("role", "Attacker")
     element = n.get("element", "Fire")
+    # Regenerate clean player-facing skill descriptions
+    for j in jutsus:
+        j["description"] = _skill_description(j, role)
     # Legacy safety: remove any passive accidentally stored as a selectable jutsu.
     n["jutsus"] = [j for j in jutsus if j.get("type") != "passive"]
     jutsus = n["jutsus"]
@@ -2120,7 +2274,7 @@ def _finalize_kit(n):
             "description": f"An ascendant {element.lower()} surge — {first}'s ultimate expression of power, unique to GR heroes.",
         })
     if "passive" not in n:
-        n["passive"] = _passive_for(n["id"], role)
+        n["passive"] = hero_skills.get_hero_passive(n["id"], role)
 
 
 def _rebuild_catalog():
@@ -2134,6 +2288,15 @@ def _rebuild_catalog():
         _finalize_kit(n)
     NINJA_CATALOG = merged
     CATALOG_BY_ID = {n["id"]: n for n in merged}
+    # Re-merge nightmare boss templates so stat lookups survive catalog rebuilds,
+    # applying any admin portrait/field overrides on top of the static template.
+    for _nb in NIGHTMARE_BOSS_BY_ID.values():
+        nb = dict(_nb)
+        if nb["id"] in _PORTRAIT_OVERRIDES:
+            nb["portrait"] = _PORTRAIT_OVERRIDES[nb["id"]]
+        if nb["id"] in _HERO_OVERRIDES:
+            nb.update(_HERO_OVERRIDES[nb["id"]])
+        CATALOG_BY_ID[nb["id"]] = nb
 
 
 def load_dynamic(custom_heroes, overrides, hero_overrides=None):
@@ -2258,13 +2421,13 @@ EXP_TOME_GOLD_COST = {"exp_tome_minor": 25, "exp_tome_greater": 110, "exp_tome_a
 STAR_BONUS_PER_STAR = 0.18  # +18% HP/ATK/DEF per star beyond the 1st (big evolution payoff)
 
 
-def evolution_cost(rarity: str, current_star: int):
+def evolution_cost(rarity: str, current_star: int, element: str = None):
     """Full cost to evolve a hero from `current_star` -> `current_star + 1`.
     Delegates to the centralized progression config (per-rarity star caps +
-    shard/gold costs). Returns None when the hero is already at its rarity's
-    star cap (no further evolution possible — Ascension is the next step)."""
+    rarity-aware shard/gold costs + material requirements). Returns None when
+    the hero is already at its rarity's star cap."""
     import progression as _prog
-    return _prog.get_evolution_cost(rarity, current_star)
+    return _prog.get_evolution_cost(rarity, current_star, element)
 
 
 # ---------------------------------------------------------------------------
@@ -2484,6 +2647,13 @@ TRIALS_BY_ID.update({t["id"]: t for t in DUNGEON_TRIALS})
 
 
 def dungeon_recommended_power(entry: dict) -> int:
+    """Recommended power for trial dungeons. Uses the full progression
+    power calculation when enemies have progression data, otherwise falls
+    back to the base ninja_power."""
+    from enemy_progression import team_recommended_power
+    has_progression = any("stats_override" in e for e in entry["enemies"])
+    if has_progression:
+        return team_recommended_power(entry["enemies"], CATALOG_BY_ID)
     return sum(ninja_power(e["template_id"], e["level"]) for e in entry["enemies"])
 
 
@@ -2498,6 +2668,7 @@ MYTHIC_HARD_PITY = 90
 MYTHIC_SOFT_PITY_CEIL = 0.35     # ramped UR chance just before hard pity
 FEATURED_MYTHIC_5050 = 0.5
 TOP_RARITY = "UR"                # UR is the pity target; GR has NO pity (super rare)
+LR_HARD_PITY = 180               # LR pity — guaranteed LR by pull 180 (no soft pity)
 X10_GUARANTEE_RARITY = "SR"      # every x10 contains at least one SR or better
 GEAR_SUMMON_GEM_COST = 90
 GEAR_SUMMON_RATES = {"rare": 62, "epic": 30, "legendary": 8}
@@ -2538,7 +2709,7 @@ mythic_chance = pity_chance
 
 
 def fresh_pity_state() -> dict:
-    return {"ur": 0, "featured_guarantee": False, "total_pulls": 0}
+    return {"ur": 0, "lr": 0, "featured_guarantee": False, "total_pulls": 0}
 
 
 
@@ -2556,6 +2727,7 @@ ITEMS.update({
     "spirit_dust":     {"id": "spirit_dust", "name": "Spirit Dust", "type": "material", "value": 0, "icon": "sparkles", "color": "#80DEEA", "desc": "Fuse 4 into Evolution Essence."},
     "evo_essence":     {"id": "evo_essence", "name": "Evolution Essence", "type": "material", "value": 0, "icon": "sparkles", "color": "#D500F9", "desc": "Rare material for high-tier hero evolution."},
     "celestial_core":  {"id": "celestial_core", "name": "Celestial Core", "type": "material", "value": 0, "icon": "gem", "color": "#FFC857", "desc": "The rarest evolution material — for the final stars."},
+    "boss_core":       {"id": "boss_core", "name": "Boss Core", "type": "material", "value": 0, "icon": "skull", "color": "#FF1744", "desc": "A core ripped from a defeated Boss Hunt boss. Required for the ultimate Transformation to GR."},
     "blueprint_weapon":    {"id": "blueprint_weapon", "name": "Weapon Blueprint", "type": "material", "value": 0, "icon": "sword", "color": "#FF7043", "desc": "Craft a random Weapon in the Forge."},
     "blueprint_armor":     {"id": "blueprint_armor", "name": "Armor Blueprint", "type": "material", "value": 0, "icon": "shield", "color": "#42A5F5", "desc": "Craft a random Armor in the Forge."},
     "blueprint_accessory": {"id": "blueprint_accessory", "name": "Accessory Blueprint", "type": "material", "value": 0, "icon": "gem", "color": "#26C6DA", "desc": "Craft a random Accessory in the Forge."},
@@ -2574,6 +2746,27 @@ ITEMS.update({
 # never the whole set), and supports a difficulty selector that slightly
 # raises the rare rate. Runs on the exact same client battle engine.
 # ===========================================================================
+
+# Centralized Tsukuyomi scaling configuration — tune progression here without
+# touching combat code. Level curve and gear bonuses ensure Stage 1 is the
+# weakest encounter and Stage 25 is the strongest, with all stats scaling.
+TSUKU_SCALING_CONFIG = {
+    "base_level": 10,               # Stage 1 base level
+    "level_per_stage": 20,           # Level increase per stage — ensures Stage N+1
+                                     # normal exceeds Stage N nightmare (2.6× mult).
+                                     # Stage 25 normal = 490, nightmare = 1274.
+    "gear_hp_per_stage": 5.0,       # HP gear bonus per stage index
+    "gear_atk_per_stage": 4.0,      # ATK gear bonus per stage index
+    "gear_def_per_stage": 3.5,      # DEF gear bonus per stage index
+    "gear_spd_per_stage": 2.0,      # SPD gear bonus per stage index
+    "adds_start_stage": 8,          # First add appears at this stage (normal diff)
+    "second_add_start_stage": 18,   # Second add appears at this stage (normal diff)
+}
+
+# Boss card drop chance from Tsukuyomi battles — super low per difficulty.
+# Nightmare bosses are NOT summonable; their cards can only be obtained here.
+TSUKUYOMI_CARD_DROP_CHANCE = {"normal": 0.005, "hard": 0.01, "nightmare": 0.015}
+
 TSUKUYOMI_DIFFICULTIES = [
     {"id": "normal",    "name": "Normal",    "power_mult": 1.0, "rate_bonus": 0.00, "reward_mult": 1.0, "color": "#00E5FF"},
     {"id": "hard",      "name": "Hard",      "power_mult": 1.7, "rate_bonus": 0.02, "reward_mult": 1.6, "color": "#FFCA28"},
@@ -2597,25 +2790,80 @@ _TSUKU_LORE = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Original Nightmare Boss Templates — 25 standalone boss enemies that are
+# NOT part of the playable hero roster. Each is an original dream-beast with
+# its own name, element, rarity, role, stats, and combat kit. Portraits
+# default to a placeholder; the admin panel can upload custom art per boss.
+# ---------------------------------------------------------------------------
+_NIGHTMARE_BOSS_DEFS = [
+    # id, name, element, rarity, role, lore
+    ("nm_hollow_spawn",    "Hollow Spawn",       "Dark",      "R",      "Assassin",  "A shapeless thing born from the first dream ever dreamt."),
+    ("nm_ash_revenant",    "Ash Revenant",       "Fire",      "R",      "Attacker",  "It rises from the cinders of burned-away memories."),
+    ("nm_tide_wraith",     "Tide Wraith",         "Water",     "R",      "Mage",      "A drowned soul that pulls dreamers into the deep dark."),
+    ("nm_gale_phantom",    "Gale Phantom",        "Wind",      "SR",     "Control",   "It howls through sleeping minds, scattering thoughts like leaves."),
+    ("nm_stone_husk",      "Stone Husk",          "Earth",     "SR",     "Tank",      "A petrified nightmare too heavy for the dream to dissolve."),
+    ("nm_spark_shade",     "Spark Shade",         "Lightning", "SR",     "Attacker",  "Flickering static that jolts dreamers into cold sweats."),
+    ("nm_moonlit_horror",  "Moonlit Horror",      "Dark",      "SSR",    "Assassin",  "It hunts in the pale glow of a moon that does not exist."),
+    ("nm_cinder_beast",    "Cinder Beast",        "Fire",      "SSR",    "Bruiser",   "A smouldering predator that feeds on the warmth of hope."),
+    ("nm_frost_terror",    "Frost Terror",        "Water",     "SSR",    "Mage",      "It freezes the blood of anyone who meets its gaze."),
+    ("nm_storm_nightmare", "Storm Nightmare",     "Wind",      "SSR",    "Control",   "A cyclone of regret that tears through the dreamscape."),
+    ("nm_iron_dread",      "Iron Dread",          "Earth",     "UR",     "Tank",      "An armored colossus forged from the weight of unspoken fears."),
+    ("nm_bolt_fiend",      "Bolt Fiend",          "Lightning", "UR",     "Attacker",  "A crackling demon that strikes faster than thought itself."),
+    ("nm_shadow_sovereign","Shadow Sovereign",    "Dark",      "UR",     "Assassin",  "It rules the space between dreams where nothing is real."),
+    ("nm_flame_calamity",  "Flame Calamity",      "Fire",      "UR",     "Mage",      "A living inferno that reduces dreams to white ash."),
+    ("nm_tide_leviathan",  "Tide Leviathan",       "Water",     "UR",     "Tank",      "A vast serpent that drowns entire dreamscapes in a single breath."),
+    ("nm_gale_apocalypse", "Gale Apocalypse",     "Wind",      "LR",     "Control",   "The final storm that unmade the first dreamer's mind."),
+    ("nm_earth_titan",     "Earth Titan",         "Earth",     "LR",     "Bruiser",   "A mountain given will, crushing dreamers beneath its tread."),
+    ("nm_lightning_god",   "Lightning God",       "Lightning", "LR",     "Attacker",  "A false deity of the dreamscape that smites with borrowed thunder."),
+    ("nm_dark_overlord",   "Dark Overlord",       "Dark",      "LR",     "Assassin",  "The tyrant of the nightmare realm, devourer of lucid minds."),
+    ("nm_solar_eclipse",   "Solar Eclipse",       "Light",     "LR",     "Support",   "A blotted sun that casts healing light into consuming shadow."),
+    ("nm_inferno_lord",    "Inferno Lord",        "Fire",      "GR",     "Mage",      "A crowned flame-king whose dreamscape burns for eternity."),
+    ("nm_abyss_queen",     "Abyss Queen",         "Water",     "GR",     "Healer",    "She mends nightmare-spawn with the cold of the deepest trench."),
+    ("nm_void_emperor",    "Void Emperor",        "Dark",      "GR",     "Control",   "An emptiness wearing a crown, commanding the silence between dreams."),
+    ("nm_celestial_dread", "Celestial Dread",    "Light",     "GR",     "Support",   "A fallen star that blesses nightmares with annihilating radiance."),
+    ("nm_eternal_nightmare","Eternal Nightmare", "Dark",      "MYTHIC", "Assassin",  "The final dream — the one from which no sleeper wakes."),
+]
+
+NIGHTMARE_BOSS_TEMPLATES = []
+for _hid, _name, _el, _rar, _role, _lore in _NIGHTMARE_BOSS_DEFS:
+    NIGHTMARE_BOSS_TEMPLATES.append({
+        "id": _hid, "name": _name, "title": _name, "element": _el, "rarity": _rar,
+        "role": _role, "lore": _lore, "base_stats": _hero_stats(_rar, _role),
+        "jutsus": _hero_jutsus(_hid, _name, _el, _rar, _role),
+        "passive": _passive_for(_hid, _role),
+        "portrait": "/heroes/_placeholder.webp",
+        "is_nightmare_boss": True,
+    })
+NIGHTMARE_BOSS_BY_ID = {t["id"]: t for t in NIGHTMARE_BOSS_TEMPLATES}
+
+# Merge nightmare boss templates into CATALOG_BY_ID so the progression /
+# stat-computation pipeline can resolve them by template_id. They are NOT
+# added to NINJA_CATALOG, so they never appear as summonable heroes.
+for _nb in NIGHTMARE_BOSS_TEMPLATES:
+    CATALOG_BY_ID[_nb["id"]] = _nb
+
+
 def _tsukuyomi_boss_defs() -> list:
-    ranked = sorted(CATALOG_BY_ID.values(), key=lambda t: (-RARITY_ORDER.get(t["rarity"], 0), t["name"]))
-    if not ranked:
+    # Use the original nightmare boss templates directly — these are
+    # standalone dream-beasts, NOT heroes from the playable roster.
+    templates = NIGHTMARE_BOSS_TEMPLATES
+    if not templates:
         return []
-    picks = [ranked[i % len(ranked)] for i in range(25)]
     set_keys = list(GEAR_SETS.keys())
-    all_ids = list(CATALOG_BY_ID.keys())
+    # Adds are sampled from the regular hero catalog for variety.
+    hero_ids = [hid for hid in CATALOG_BY_ID.keys() if not CATALOG_BY_ID[hid].get("is_nightmare_boss")]
     out = []
-    for i, t in enumerate(picks):
+    for i, t in enumerate(templates):
         idx = i + 1
         rng = _random.Random(7000 + idx)
-        adds = rng.sample(all_ids, min(2, len(all_ids)))
-        # Tsukuyomi bosses use the powerful 3-phase Dreamlord mechanic,
-        # significantly higher base levels, and boss-tier generated gear.
+        adds = rng.sample(hero_ids, min(2, len(hero_ids))) if hero_ids else []
+        cfg = TSUKU_SCALING_CONFIG
         boss_gear = {
-            "hp_pct": 25 + idx * 3,
-            "atk_pct": 20 + idx * 2,
-            "def_pct": 18 + idx * 2,
-            "spd_pct": 10 + idx,
+            "hp_pct": round(cfg["gear_hp_per_stage"] * idx),
+            "atk_pct": round(cfg["gear_atk_per_stage"] * idx),
+            "def_pct": round(cfg["gear_def_per_stage"] * idx),
+            "spd_pct": round(cfg["gear_spd_per_stage"] * idx),
         }
         out.append({
             "id": f"tsuku_{idx}",
@@ -2625,8 +2873,8 @@ def _tsukuyomi_boss_defs() -> list:
             "portrait": t["portrait"],
             "element": t["element"],
             "rarity": t["rarity"],
-            "base_level": 25 + i * 7,  # significantly higher base levels
-            "rare_chance": round(min(0.10, 0.05 + (i // 5) * 0.0125), 4),
+            "base_level": cfg["base_level"] + (idx - 1) * cfg["level_per_stage"],
+            "rare_chance": round(min(0.06, 0.01 + (i // 5) * 0.0125), 4),
             "gear_set": set_keys[i % len(set_keys)],
             "gear_set_name": GEAR_SETS[set_keys[i % len(set_keys)]]["name"],
             "gear_set_color": GEAR_SETS[set_keys[i % len(set_keys)]]["color"],
@@ -2641,33 +2889,115 @@ def _tsukuyomi_boss_defs() -> list:
 TSUKUYOMI_BOSSES = _tsukuyomi_boss_defs()
 TSUKUYOMI_BY_ID = {b["id"]: b for b in TSUKUYOMI_BOSSES}
 
+# Admin-managed portrait overrides for Tsukuyomi bosses (boss_id -> portrait URL).
+# When set, the override is used instead of the underlying hero template's portrait.
+_TSUKUYOMI_PORTRAIT_OVERRIDES: dict = {}
+
+
+def load_tsukuyomi_portraits(overrides: dict):
+    global _TSUKUYOMI_PORTRAIT_OVERRIDES
+    _TSUKUYOMI_PORTRAIT_OVERRIDES = dict(overrides or {})
+
+
+def set_tsukuyomi_portrait(boss_id: str, portrait: str):
+    _TSUKUYOMI_PORTRAIT_OVERRIDES[boss_id] = portrait
+
+
+def clear_tsukuyomi_portrait(boss_id: str) -> bool:
+    if boss_id in _TSUKUYOMI_PORTRAIT_OVERRIDES:
+        _TSUKUYOMI_PORTRAIT_OVERRIDES.pop(boss_id, None)
+        return True
+    return False
+
 
 def tsukuyomi_enemies(boss: dict, difficulty: str = "normal") -> list:
+    """Build Tsukuyomi enemy list with full RPG progression. Each enemy
+    receives evolved rarity, ascension, real gear, crystals, skill rank,
+    and passives from the centralized progression system."""
+    from enemy_progression import get_enemy_progression, build_enemy, compute_enemy_stats
     diff = TSUKU_DIFF_BY_ID.get(difficulty, TSUKUYOMI_DIFFICULTIES[0])
+    cfg = TSUKU_SCALING_CONFIG
+    idx = boss.get("index", 1)
     lvl = max(1, round(boss["base_level"] * diff["power_mult"]))
-    # Boss gets powerful generated gear; adds get scaled gear based on difficulty
-    boss_gear = boss.get("boss_gear") or {"hp_pct": 25, "atk_pct": 20, "def_pct": 18, "spd_pct": 10}
-    # Scale boss gear with difficulty
-    diff_mult = diff["power_mult"]
-    scaled_boss_gear = {
-        "hp_pct": round(boss_gear["hp_pct"] * diff_mult),
-        "atk_pct": round(boss_gear["atk_pct"] * diff_mult),
-        "def_pct": round(boss_gear["def_pct"] * diff_mult),
-        "spd_pct": round(boss_gear["spd_pct"] * diff_mult),
-    }
-    enemies = [{"template_id": boss["template_id"], "level": lvl, "gear_bonus": scaled_boss_gear}]
+
+    # Boss gets full progression with is_boss=True
+    boss_prog = get_enemy_progression(
+        mode="tsukuyomi", stage=idx, difficulty=difficulty,
+        is_boss=True, base_level=lvl,
+    )
+    boss_tmpl = CATALOG_BY_ID.get(boss["template_id"])
+    if boss_tmpl:
+        boss_enemy = build_enemy(boss_tmpl, boss_prog, is_boss=True)
+        boss_enemy["level"] = lvl
+        boss_enemy["progression"]["level"] = lvl
+        boss_enemy["stats_override"] = compute_enemy_stats(boss_tmpl, {**boss_prog, "level": lvl})
+
+        # Attach boss mechanic combat modifiers
+        from boss_configs import get_boss_combat_modifiers
+        mechanic_id = boss.get("boss_mechanic")
+        if mechanic_id:
+            mechanic_mods = get_boss_combat_modifiers(mechanic_id)
+            if mechanic_mods:
+                existing = boss_enemy.get("combat_modifiers", {})
+                boss_enemy["combat_modifiers"] = {**existing, **mechanic_mods}
+    else:
+        boss_enemy = {"template_id": boss["template_id"], "level": lvl}
+    enemies = [boss_enemy]
+
     add_lvl = max(1, round(lvl * 0.85))
-    add_gear = {"hp_pct": round(15 * diff_mult), "atk_pct": round(12 * diff_mult),
-                "def_pct": round(10 * diff_mult), "spd_pct": round(5 * diff_mult)}
+
+    # Adds appear based on stage index and difficulty — later stages get more adds
+    add_tids = []
     if difficulty == "hard":
-        enemies.append({"template_id": boss["adds"][0], "level": add_lvl, "gear_bonus": add_gear})
+        add_tids = [boss["adds"][0]]
     elif difficulty == "nightmare":
-        enemies += [{"template_id": a, "level": add_lvl, "gear_bonus": add_gear} for a in boss["adds"]]
+        add_tids = list(boss["adds"])
+    elif difficulty == "normal":
+        if idx >= cfg["adds_start_stage"]:
+            add_tids.append(boss["adds"][0])
+        if idx >= cfg["second_add_start_stage"]:
+            add_tids.append(boss["adds"][1])
+
+    for add_tid in add_tids:
+        add_tmpl = CATALOG_BY_ID.get(add_tid)
+        if add_tmpl:
+            add_prog = get_enemy_progression(
+                mode="tsukuyomi", stage=idx, difficulty=difficulty,
+                is_boss=False, base_level=add_lvl,
+            )
+            add_enemy = build_enemy(add_tmpl, add_prog)
+            add_enemy["level"] = add_lvl
+            add_enemy["progression"]["level"] = add_lvl
+            add_enemy["stats_override"] = compute_enemy_stats(add_tmpl, {**add_prog, "level": add_lvl})
+        else:
+            add_enemy = {"template_id": add_tid, "level": add_lvl}
+        enemies.append(add_enemy)
+
     return enemies
 
 
+def _enemy_power_with_gear(enemy: dict) -> int:
+    """Compute recommended power reflecting the enemy's FULL build —
+    evolved rarity, ascension, gear, crystals, skill rank, and reforges.
+    Falls back to legacy calculation for enemies without progression data."""
+    if "stats_override" in enemy and "progression" in enemy:
+        from enemy_progression import team_recommended_power
+        return team_recommended_power([enemy], CATALOG_BY_ID)
+    # Legacy fallback: base stats + gear_bonus percentages
+    s = compute_stats(enemy["template_id"], enemy["level"])
+    g = enemy.get("gear_bonus") or {}
+    hp = s["hp"] * (1 + g.get("hp_pct", 0) / 100)
+    atk = s["atk"] * (1 + g.get("atk_pct", 0) / 100)
+    df = s["def"] * (1 + g.get("def_pct", 0) / 100)
+    spd = s["spd"] * (1 + g.get("spd_pct", 0) / 100)
+    return round(hp * 0.4 + atk * 2.2 + df * 1.6 + spd * 1.2 + s["chakra"] * 1.0)
+
+
 def tsukuyomi_recommended_power(boss: dict, difficulty: str = "normal") -> int:
-    return sum(ninja_power(e["template_id"], e["level"]) for e in tsukuyomi_enemies(boss, difficulty))
+    """Recommended power reflecting the enemy's actual build — evolved
+    rarity, ascension, gear, crystals, skill rank, and reforges."""
+    enemies = tsukuyomi_enemies(boss, difficulty)
+    return sum(_enemy_power_with_gear(e) for e in enemies)
 
 
 def tsukuyomi_rewards(boss: dict, difficulty: str = "normal") -> dict:
@@ -2682,7 +3012,7 @@ def tsukuyomi_rewards(boss: dict, difficulty: str = "normal") -> dict:
     }
     if difficulty == "nightmare":
         items["lunar_essence"] = 1
-    rare_chance = round(min(0.60, boss["rare_chance"] + diff["rate_bonus"]), 4)
+    rare_chance = round(min(0.10, boss["rare_chance"] + diff["rate_bonus"]), 4)
     return {"ryo": ryo, "hero_exp": hero_exp, "items": items, "rare_chance": rare_chance}
 
 
@@ -2700,12 +3030,59 @@ def tsukuyomi_gear_drop(boss: dict, difficulty: str = "normal") -> dict:
     return g
 
 
-def tsukuyomi_boss_public(boss: dict) -> dict:
+def tsukuyomi_boss_status(boss: dict, progress: dict = None, highest_cleared: int = 0) -> str:
+    """Determine the sequential unlock status of a Tsukuyomi stage.
+
+    A stage is fully cleared only when ALL difficulties (normal, hard,
+    nightmare) have been beaten. The next stage unlocks exclusively when
+    the previous stage is fully cleared — having enough power alone does
+    NOT bypass the sequential gate.
+
+    Returns one of: 'cleared', 'available', 'locked'.
+    - cleared: all three difficulties beaten (progress[boss_id] == 'nightmare')
+    - available: stage 1, or previous stage fully cleared, or partially cleared
+    - locked: previous stage not yet fully cleared
+    """
+    idx = boss.get("index", 1)
+    progress = progress or {}
+    boss_id = boss["id"]
+
+    # Fully cleared = nightmare (the highest difficulty) is done
+    if progress.get(boss_id) == "nightmare":
+        return "cleared"
+
+    # Stage 1 is always playable
+    if idx == 1:
+        return "available"
+
+    # If this stage already has any progress it was previously unlocked
+    if boss_id in progress:
+        return "available"
+
+    # Otherwise unlock only when the previous stage is fully cleared
+    prev_id = f"tsuku_{idx - 1}"
+    if progress.get(prev_id) == "nightmare":
+        return "available"
+
+    return "locked"
+
+
+def tsukuyomi_boss_public(boss: dict, progress: dict = None, highest_cleared: int = 0) -> dict:
+    portrait = _TSUKUYOMI_PORTRAIT_OVERRIDES.get(boss["id"], boss["portrait"])
+    status = tsukuyomi_boss_status(boss, progress, highest_cleared)
+    lock_requirement = None
+    if status == "locked":
+        lock_requirement = f"Clear all difficulties of Nightmare {boss.get('index', 1) - 1} to unlock"
     return {
         **boss,
+        "portrait": portrait,
+        "portrait_overridden": boss["id"] in _TSUKUYOMI_PORTRAIT_OVERRIDES,
+        "status": status,
+        "lock_requirement": lock_requirement,
         "difficulties": [
             {**d, "recommended_power": tsukuyomi_recommended_power(boss, d["id"]),
-             "enemies": tsukuyomi_enemies(boss, d["id"])}
+             "enemies": tsukuyomi_enemies(boss, d["id"]),
+             "card_drop_chance": TSUKUYOMI_CARD_DROP_CHANCE.get(d["id"], 0.005)}
             for d in TSUKUYOMI_DIFFICULTIES
         ],
     }
@@ -2790,13 +3167,13 @@ def skill_public(rarity: str, rank: int) -> dict:
 REFORGE_MAX_PER_JUTSU = 2
 
 REFORGE_MODIFIERS = {
-    "burn":         {"id": "burn",    "name": "Ember Reforge",     "desc": "Chance to inflict Burn (fire DoT).",     "effect": {"type": "burn", "chance": 30, "duration": 3, "value": 40}},
-    "poison":       {"id": "poison",  "name": "Venom Reforge",     "desc": "Chance to inflict Poison (DoT).",      "effect": {"type": "poison", "chance": 30, "duration": 3, "value": 35}},
-    "bleed":        {"id": "bleed",   "name": "Razor Reforge",     "desc": "Chance to inflict Bleed (DoT).",        "effect": {"type": "bleed", "chance": 30, "duration": 3, "value": 38}},
-    "stun":         {"id": "stun",    "name": "Static Reforge",    "desc": "Chance to Stun (skip target's turn).",  "effect": {"type": "stun", "chance": 18, "duration": 1}},
-    "freeze":       {"id": "freeze",  "name": "Frost Reforge",     "desc": "Chance to Freeze (skip target's turn).","effect": {"type": "freeze", "chance": 18, "duration": 1}},
-    "atk_down":     {"id": "atk_down", "name": "Demoralize Reforge", "desc": "Chance to lower target ATK.",        "effect": {"type": "atk_down", "chance": 35, "duration": 2, "value": 20}},
-    "def_down":     {"id": "def_down", "name": "Piercing Reforge",  "desc": "Chance to lower target DEF.",        "effect": {"type": "def_down", "chance": 35, "duration": 2, "value": 20}},
+    "burn":         {"id": "burn",    "name": "Ember Reforge",     "desc": "Chance to inflict Burn (fire DoT).",     "effect": {"type": "burn", "chance": 8, "duration": 3, "value": 40}},
+    "poison":       {"id": "poison",  "name": "Venom Reforge",     "desc": "Chance to inflict Poison (DoT).",      "effect": {"type": "poison", "chance": 8, "duration": 3, "value": 35}},
+    "bleed":        {"id": "bleed",   "name": "Razor Reforge",     "desc": "Chance to inflict Bleed (DoT).",        "effect": {"type": "bleed", "chance": 8, "duration": 3, "value": 38}},
+    "stun":         {"id": "stun",    "name": "Static Reforge",    "desc": "Chance to Stun (skip target's turn).",  "effect": {"type": "stun", "chance": 5, "duration": 1}},
+    "freeze":       {"id": "freeze",  "name": "Frost Reforge",     "desc": "Chance to Freeze (skip target's turn).","effect": {"type": "freeze", "chance": 5, "duration": 1}},
+    "atk_down":     {"id": "atk_down", "name": "Demoralize Reforge", "desc": "Chance to lower target ATK.",        "effect": {"type": "atk_down", "chance": 10, "duration": 2, "value": 20}},
+    "def_down":     {"id": "def_down", "name": "Piercing Reforge",  "desc": "Chance to lower target DEF.",        "effect": {"type": "def_down", "chance": 10, "duration": 2, "value": 20}},
     "extra_damage": {"id": "extra_damage", "name": "Power Reforge", "desc": "+12% jutsu damage.",                  "bonus_power_pct": 12},
 }
 
@@ -2873,9 +3250,12 @@ BEGINNER_PULL_COUNT = 10
 
 
 def beginner_pool():
-    """Weighted (template_id, weight) list over ALL catalog heroes."""
+    """Weighted (template_id, weight) list over ALL catalog heroes.
+    Nightmare bosses are excluded — they are not summonable cards."""
     out = []
     for tid, t in CATALOG_BY_ID.items():
+        if t.get("is_nightmare_boss"):
+            continue
         out.append((tid, SUMMON_WEIGHTS.get(t["rarity"], 1)))
     return out
 
@@ -2967,3 +3347,29 @@ def achievement_metric(user: dict, key: str) -> int:
 
 def fresh_achievements_state() -> dict:
     return {a["id"]: {"progress": 0, "claimed": False} for a in ACHIEVEMENTS}
+
+
+# ===========================================================================
+# FORGE PRODUCTION SYSTEM — forge levels 1-200, tiered recipes, chapter-gated
+# material drops. See forge_production.py for full logic.
+# ===========================================================================
+import forge_production as fp
+
+# Register forge materials in ITEMS so the UI has proper metadata.
+ITEMS.update({
+    m[0]: {"id": m[0], "name": m[1], "type": "forge_material", "value": 0,
+           "icon": m[2], "color": m[3], "desc": m[4]}
+    for m in fp.FORGE_MATERIALS
+})
+
+# Register all forge-produced consumables (5 categories × 200 tiers = 1000).
+ITEMS.update(fp.forge_item_entries())
+
+# Re-export key functions so server.py can call them via gd.
+FORGE_PRODUCTION_CATEGORIES = fp.PRODUCTION_CATEGORIES
+FORGE_MAX_LEVEL = fp.FORGE_MAX_LEVEL
+forge_production_recipe = fp.production_recipe
+forge_production_recipes = fp.all_production_recipes
+forge_level_from_xp = fp.forge_level_from_xp
+forge_xp_for_level = fp.forge_xp_for_level
+roll_forge_drops = fp.roll_forge_drops

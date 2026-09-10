@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Bot, Gauge, Film, Settings } from "lucide-react";
+import { useResponsiveLayout } from "@/hooks/useResponsive";
 import BattleFighter from "@/components/BattleFighter";
 import BattleCommandPanel from "@/components/BattleCommandPanel";
 import { BattleTurnOrder, BattleInfoPanel } from "@/components/BattleSidePanels";
@@ -9,6 +10,8 @@ import BattleEntry from "@/components/cinematic/BattleEntry";
 import BattleAttackFx from "@/components/cinematic/BattleAttackFx";
 import BattleUltimate from "@/components/cinematic/BattleUltimate";
 import BattleVictory from "@/components/cinematic/BattleVictory";
+import { getCinematicMode, getCinematicDuration } from "@/lib/cinematicMode";
+import { preloadBattleAssets, getBattleBackground } from "@/lib/preload";
 import LevelUpOverlay from "@/components/LevelUpOverlay";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
@@ -24,10 +27,15 @@ import {
   checkBossPhaseTransitions,
   makeEvent,
   spireEnemies,
-  isStunned,
   computeStats,
   applyEnemyGear,
+  getTauntTarget,
+  isImmune,
+  applyJutsuEffects,
 } from "@/lib/battle";
+import { getDifficulty } from "@/lib/energy";
+import { evaluateTeamSynergy } from "@/lib/teamSynergy";
+import { getCombatModifiers, computeLifesteal, combatModifiersSummary } from "@/lib/combatModifiers";
 import api from "@/lib/api";
 
 let _uid = 0;
@@ -51,38 +59,104 @@ function pickAiAction(actor, arr) {
     (j) => j.type !== "passive" && j.chakra_cost <= actor.chakra
   );
 
-  const healJ = affordable.find((j) => j.type === "heal");
+  // Check for taunt — must target the taunting enemy
+  const tauntUid = getTauntTarget(arr, actor.side);
+
+  // Priority 1: Revive a fallen ally
+  const deadAlly = arr.find((c) => c.side === actor.side && !c.alive);
+  const reviveJ = affordable.find((j) => j.type === "revive");
+  if (reviveJ && deadAlly) {
+    return { jutsu: reviveJ, targetUid: deadAlly.uid };
+  }
+
+  // Priority 2: Heal a wounded ally
+  const healJ = affordable.find((j) => j.type === "heal" || j.type === "aoe_heal");
   const woundedAlly = allies.find((a) => a.hp / a.maxHp < 0.45);
+  if (healJ && woundedAlly) {
+    if (healJ.type === "aoe_heal") return { jutsu: healJ, targetUid: null };
+    return { jutsu: healJ, targetUid: woundedAlly.uid };
+  }
+
+  // Priority 3: Team buff if no allies have buffs
+  const buffJ = affordable.find((j) => j.type === "team_buff");
+  if (buffJ && Math.random() < 0.4) {
+    return { jutsu: buffJ, targetUid: null };
+  }
+
+  // Priority 4: Taunt if tank and enemies alive
+  const tauntJ = affordable.find((j) => j.type === "taunt");
+  if (tauntJ && actor.role === "Tank" && !actor.statuses?.some(s => s.effectType === "taunt") && Math.random() < 0.5) {
+    return { jutsu: tauntJ, targetUid: actor.uid };
+  }
+
+  // Priority 5: Cleanse if allies have debuffs
+  const cleanseJ = affordable.find((j) => j.type === "cleanse");
+  const debuffedAlly = allies.find((a) => a.statuses?.some(s =>
+    ["burn", "poison", "bleed", "stun", "freeze", "atk_down", "def_down", "shock"].includes(s.effectType)
+  ));
+  if (cleanseJ && debuffedAlly && Math.random() < 0.6) {
+    return { jutsu: cleanseJ, targetUid: debuffedAlly.uid };
+  }
+
+  // Priority 6: Offensive action
+  const offensive = affordable.filter(
+    (j) => j.type === "attack" || j.type === "aoe"
+  );
 
   let jutsu;
   let targetUid = null;
 
-  if (healJ && woundedAlly) {
-    jutsu = healJ;
-    targetUid = woundedAlly.uid;
+  const aoe = offensive.find((j) => j.type === "aoe");
+
+  if (aoe && enemies.length >= 2 && Math.random() < 0.6) {
+    jutsu = aoe;
   } else {
-    const offensive = affordable.filter(
-      (j) => j.type === "attack" || j.type === "aoe"
-    );
-
-    const aoe = offensive.find((j) => j.type === "aoe");
-
-    if (aoe && enemies.length >= 2 && Math.random() < 0.6) {
-      jutsu = aoe;
+    const atks = offensive.filter((j) => j.type === "attack");
+    jutsu = atks.sort((a, b) => b.power - a.power)[0] || actor.jutsus[0];
+    // Target lowest HP enemy, but respect taunt
+    if (tauntUid) {
+      targetUid = tauntUid;
     } else {
-      const atks = offensive.filter((j) => j.type === "attack");
-
-      jutsu =
-        atks.sort((a, b) => b.power - a.power)[0] ||
-        actor.jutsus[0];
-
       targetUid = [...enemies].sort((a, b) => a.hp - b.hp)[0]?.uid;
     }
-
-    if (jutsu.type === "aoe") targetUid = null;
   }
 
+  if (jutsu.type === "aoe") targetUid = null;
+  if (!jutsu) jutsu = actor.jutsus[0];
+
   return { jutsu, targetUid };
+}
+
+/**
+ * Apply team buff effects (team_atk_up, team_def_up) from offensive skills
+ * to all alive allies.  These effects are skipped in applyJutsuEffects for
+ * offensive skills to avoid double-application, so they must be applied here.
+ */
+function _applyTeamBuffsFromOffensive(actor, arr, jutsu, events) {
+  const teamBuffEffects = (jutsu.effects || []).filter(
+    (e) => e.type === "team_atk_up" || e.type === "team_def_up"
+  );
+  if (!teamBuffEffects.length) return;
+
+  const allies = arr.filter((c) => c.side === actor.side && c.alive);
+  for (const eff of teamBuffEffects) {
+    if (eff.chance != null && eff.chance < 100 && Math.random() * 100 > eff.chance) continue;
+    const dur = eff.duration || 2;
+    const val = eff.value || 0;
+    const et = eff.type;
+    for (const ally of allies) {
+      ally.statuses = ally.statuses || [];
+      ally.statuses.push({
+        id: `${et}_${ally.uid}_${Date.now()}`,
+        effectType: et,
+        source: actor.uid,
+        duration: dur,
+        value: val,
+      });
+    }
+    const label = et === "team_atk_up" ? "Team ATK Up!" : "Team DEF Up!";
+    events.push(makeEvent("BUFF_APPLIED", { actorUid: actor.uid, text: label }));
+  }
 }
 
 export default function Battle() {
@@ -102,6 +176,7 @@ export default function Battle() {
   } = useGame();
 
   const { playSfx } = useAudio();
+  const layout = useResponsiveLayout();
 
   // Arena opponents are ephemeral snapshots stored before navigation.
   const arenaOpponent =
@@ -115,7 +190,25 @@ export default function Battle() {
       ? JSON.parse(sessionStorage.getItem("tsukuyomi_fight") || "null")
       : null;
 
+  // Boss Hunt fights are launched from the Boss Hunt page.
+  const bossHuntFight =
+    mode === "bosshunt"
+      ? JSON.parse(sessionStorage.getItem("bosshunt_boss") || "null")
+      : null;
+
   const floor = mode === "spire" ? parseInt(id, 10) : null;
+
+  // Campaign difficulty — stashed by Campaign.jsx before navigation.
+  const difficultyCfg =
+    mode === "campaign"
+      ? getDifficulty(sessionStorage.getItem("campaign_difficulty") || "normal")
+      : getDifficulty("normal");
+
+  // Spire path — stashed by Spire.jsx before navigation ("normal" | "fire" | etc.)
+  const spirePath =
+    mode === "spire"
+      ? (sessionStorage.getItem("spire_path") || "normal")
+      : "normal";
 
   const stage =
     mode === "campaign"
@@ -130,7 +223,7 @@ export default function Battle() {
   const enemiesDef =
     mode === "spire"
       ? catalog.length
-        ? spireEnemies(floor, catalog)
+        ? spireEnemies(floor, catalog, spirePath)
         : []
       : mode === "trial"
       ? trial?.enemies || []
@@ -138,17 +231,23 @@ export default function Battle() {
       ? arenaOpponent?.team || []
       : mode === "tsukuyomi"
       ? tsukuFight?.enemies || []
+      : mode === "bosshunt"
+      ? bossHuntFight?.enemies || []
       : stage?.enemies || [];
 
   const title =
     mode === "spire"
-      ? `SPIRE · FLOOR ${floor}`
+      ? spirePath !== "normal"
+        ? `${spirePath.toUpperCase()} SPIRE · FLOOR ${floor}`
+        : `SPIRE · FLOOR ${floor}`
       : mode === "trial"
       ? trial?.name || "TRIAL"
       : mode === "arena"
       ? `ARENA · vs ${arenaOpponent?.name || "???"}`
       : mode === "tsukuyomi"
       ? tsukuFight?.boss?.name || "TSUKUYOMI"
+      : mode === "bosshunt"
+      ? bossHuntFight?.name || "BOSS HUNT"
       : stage?.name || "BATTLE";
 
   const ready =
@@ -160,6 +259,8 @@ export default function Battle() {
       ? !!arenaOpponent && Object.keys(catalogById).length > 0
       : mode === "tsukuyomi"
       ? !!tsukuFight && Object.keys(catalogById).length > 0
+      : mode === "bosshunt"
+      ? !!bossHuntFight && Object.keys(catalogById).length > 0
       : !!stage;
 
   const backTo =
@@ -169,6 +270,8 @@ export default function Battle() {
       ? "/arena"
       : mode === "tsukuyomi"
       ? "/tsukuyomi"
+      : mode === "bosshunt"
+      ? "/boss-hunt"
       : mode === "trial"
       ? "/dungeons"
       : "/spire";
@@ -195,6 +298,10 @@ export default function Battle() {
   const [shakeUid, setShakeUid] = useState(null);
 
   const [events, setEvents] = useState([]);
+
+  // Incremented on Retry to re-trigger the init effect without a full
+  // page reload — the battle shell stays mounted and state resets.
+  const [retryKey, setRetryKey] = useState(0);
 
   const [auto, setAutoState] = useState(() => {
     try {
@@ -313,7 +420,18 @@ export default function Battle() {
   useEffect(() => {
     if (!ready || !user || Object.keys(catalogById).length === 0) return;
 
+    // --- Evaluate team synergy ---
+    const allyTemplates = (user.team || [])
+      .slice(0, user.team_cap || 5)
+      .map((tid) => user.ninjas.find((n) => n.instance_id === tid))
+      .filter(Boolean)
+      .map((inst) => catalogById[inst.template_id])
+      .filter(Boolean);
+    const synergyResult = evaluateTeamSynergy(allyTemplates);
+    const synergyBonuses = synergyResult.bonuses;
+
     const allies = (user.team || [])
+      .slice(0, user.team_cap || 5)
       .map((tid) =>
         user.ninjas.find((n) => n.instance_id === tid)
       )
@@ -329,22 +447,29 @@ export default function Battle() {
           inst.stats || null,
           inst.skill_rank || 1,
           !inst.passive_locked,
-          inst.reforge || null
+          inst.reforge || null,
+          inst.crystal_combat_modifiers || null, // Boss Crysta combat modifiers
+          Object.keys(synergyBonuses).length > 0 ? synergyBonuses : null
         )
-      );
+      )
+      .filter(Boolean);
 
     const enemies = enemiesDef.map((e) => {
       const template = catalogById[e.template_id];
 
-      const baseStats = computeStats(
-        template,
-        e.level,
-        e.ascension || 0
-      );
+      // Enemies with the new progression system carry pre-computed
+      // stats_override (evolved rarity + ascension + gear + crystals),
+      // skill_rank, passive_locked, and reforge — all derived from real
+      // RPG systems on the backend. Legacy enemies fall back to the
+      // old computeStats + applyEnemyGear path.
+      const statsOverride = e.stats_override || null;
 
-      const gearedStats = e.gear_bonus
-        ? applyEnemyGear(baseStats, e.gear_bonus)
-        : baseStats;
+      const gearedStats = !statsOverride && e.gear_bonus
+        ? applyEnemyGear(
+            computeStats(template, e.level, e.ascension || 0),
+            e.gear_bonus
+          )
+        : statsOverride;
 
       return buildCombatant(
         nextUid(),
@@ -353,9 +478,24 @@ export default function Battle() {
         e.level,
         e.ascension || 0,
         null,
-        gearedStats
+        gearedStats,
+        e.skill_rank || 1,
+        e.passive_locked == null ? true : !e.passive_locked,
+        e.reforge || null,
+        e.combat_modifiers || null
       );
-    });
+    }).filter(Boolean);
+
+    // Campaign difficulty scaling — multiply enemy HP/ATK/DEF by the
+    // difficulty tier's stat multiplier (Hard ×2, Difficult ×10, Extreme ×100).
+    if (mode === "campaign" && difficultyCfg.mult > 1) {
+      for (const e of enemies) {
+        e.maxHp = Math.round(e.maxHp * difficultyCfg.mult);
+        e.hp = e.maxHp;
+        e.atk = Math.round(e.atk * difficultyCfg.mult);
+        e.def = Math.round(e.def * difficultyCfg.mult);
+      }
+    }
 
     // Campaign boss mechanics
     if (
@@ -378,6 +518,21 @@ export default function Battle() {
         tsukuFight.boss.boss_mechanic;
 
       enemies[0].bossPhaseIndex = -1;
+    }
+
+    // Boss Hunt boss mechanics
+    if (
+      mode === "bosshunt" &&
+      enemies[0]
+    ) {
+      const bhEnemy = bossHuntFight?.enemies?.[0];
+      if (bhEnemy?.boss_mechanic) {
+        enemies[0].bossMechanicId = bhEnemy.boss_mechanic;
+      }
+      enemies[0].bossPhaseIndex = -1;
+      // Escalating damage: every 10 rounds, boss damage +10%
+      enemies[0].escalatingDamage = bhEnemy?.escalating_damage || false;
+      enemies[0].escalationMult = 1.0;
     }
 
     const all = [...allies, ...enemies];
@@ -415,13 +570,55 @@ export default function Battle() {
 
     setPhase("intro");
 
+    const introMode = getCinematicMode({
+      speed: speedRef.current,
+      auto: autoRef.current,
+      type: "intro",
+    });
+    const introDuration = getCinematicDuration(introMode, 2800, speedRef.current);
+
+    // Preload enemy/hero portraits and battle background for instant rendering
+    const portraits = all
+      .map((c) => c.portrait)
+      .filter(Boolean);
+    preloadBattleAssets({
+      portraits,
+      background: getBattleBackground(mode, stage?.region),
+    });
+
     const t = setTimeout(
       () => beginTurnAt(0, all, initialOrder),
-      ms(900)
+      Math.max(60, introDuration)
     );
 
     return () => clearTimeout(t);
-  }, [mode, id, catalogById]);
+  }, [mode, id, catalogById, retryKey]);
+
+  // ---------- RETRY (in-place, no page reload) ----------
+
+  const handleRetry = useCallback(() => {
+    // Reset all battle state — the init effect re-runs via retryKey bump
+    setResultData(null);
+    setShowLevelUp(false);
+    setCombs([]);
+    setPhase("intro");
+    setActiveUid(null);
+    setRound(1);
+    setFloaters([]);
+    setLog([]);
+    setEvents([]);
+    setCinematicAction(null);
+    setUltimateData(null);
+    setScreenShake(false);
+    setAttackingUid(null);
+    setTargeting(null);
+    actionLockRef.current = false;
+    ptrRef.current = 0;
+    orderRef.current = [];
+    reportedRef.current = false;
+    _uid = 0;
+    setRetryKey((k) => k + 1);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const aliveSide = (arr, side) =>
     arr.some((c) => c.side === side && c.alive);
@@ -457,7 +654,17 @@ export default function Battle() {
         ord = buildOrder(work);
         p = 0;
 
-        setRound((r) => r + 1);
+        const newRound = round + 1;
+        setRound(newRound);
+
+        // Boss Hunt escalation: every 10 rounds, boss damage +10%
+        if (mode === "bosshunt" && newRound % 10 === 0) {
+          for (const e of work) {
+            if (e.side === "enemy" && e.escalatingDamage) {
+              e.escalationMult = (e.escalationMult || 1.0) + 0.10;
+            }
+          }
+        }
       }
 
       orderRef.current = ord;
@@ -475,17 +682,30 @@ export default function Battle() {
       // Start-of-turn status resolution
       const evs = [];
 
-      const { dmg: dotDmg } = tickStatuses(actor);
+      // Capture CC state BEFORE tickStatuses — otherwise a duration-1 stun
+      // is decremented to 0 the instant the actor's turn begins, so the
+      // actor never actually skips a turn (stun/freeze did nothing).
+      const ccStatus = actor.statuses?.find(
+        (s) =>
+          (s.effectType === "stun" ||
+            s.effectType === "freeze") &&
+          (s.duration ?? 0) > 0
+      );
+      const stunned = !!ccStatus;
+
+      const { dmg: dotDmg, events: tickEvents } = tickStatuses(actor);
+
+      // Use the events from tickStatuses — they carry the correct
+      // effectType and damage values for DOT/debuff display.
+      evs.push(...tickEvents);
+
+      // Log status tick text (Burn! -150, Shock! +50% dmg taken, etc.)
+      tickEvents.forEach((e) => {
+        if (e.text) pushLog(e.text);
+      });
 
       if (dotDmg > 0 && actor.alive) {
         actor.hp = Math.max(0, actor.hp - dotDmg);
-
-        evs.push(
-          makeEvent("DOT_TRIGGERED", {
-            targetUid: actor.uid,
-            value: dotDmg,
-          })
-        );
 
         if (actor.hp === 0) {
           const revived = resolveDeath(actor, evs);
@@ -519,17 +739,11 @@ export default function Battle() {
         actor.chakra + 20
       );
 
-      // Stun / Freeze
-      if (isStunned(actor)) {
-        const stunStatus = actor.statuses.find(
-          (s) =>
-            (s.effectType === "stun" ||
-              s.effectType === "freeze") &&
-            (s.duration ?? 0) > 0
-        );
-
+      // Stun / Freeze — uses the CC state captured before tickStatuses so
+      // the stun actually consumes the turn it was applied for.
+      if (stunned) {
         const statusName =
-          stunStatus?.effectType === "freeze"
+          ccStatus?.effectType === "freeze"
             ? "FROZEN"
             : "STUNNED";
 
@@ -612,12 +826,20 @@ export default function Battle() {
       const isUltimate =
         jutsu.chakra_cost >= 70;
 
-      setCinematicAction({
-        key: actionCounterRef.current,
-        jutsuName: jutsu.name,
-        element: actor.element,
-        isAoe: jutsu.type === "aoe",
+      const atkMode = getCinematicMode({
+        speed: speedRef.current,
+        auto: autoRef.current,
+        type: "attack",
       });
+
+      if (atkMode !== "DISABLED") {
+        setCinematicAction({
+          key: actionCounterRef.current,
+          jutsuName: jutsu.name,
+          element: actor.element,
+          isAoe: jutsu.type === "aoe",
+        });
+      }
 
       let arr = cloneArr(combRef.current);
 
@@ -651,20 +873,45 @@ export default function Battle() {
       };
 
       const applyDamage = (target) => {
-        const {
-          dmg,
-          crit,
-          mult,
-          notes,
-        } = resolveDamage(
+        const result = resolveDamage(
           act,
           target,
           jutsu,
           advantage
         );
 
+        let {
+          dmg,
+          crit,
+          mult,
+          notes,
+        } = result;
+
+        // Boss Hunt escalating damage
+        if (act.escalatingDamage && act.escalationMult > 1.0 && dmg > 0) {
+          const escalatedDmg = Math.round(dmg * act.escalationMult);
+          if (escalatedDmg > dmg) {
+            notes.push(`ESCALATION +${Math.round((act.escalationMult - 1) * 100)}%`);
+          }
+          dmg = escalatedDmg;
+        }
+
+        // --- Immunity / Resistance feedback ---
+        if (result.immune) {
+          addFloat(target.uid, "IMMUNE", "#94A3B8");
+          newEvents.push(
+            makeEvent("IMMUNE", {
+              actorUid: act.uid,
+              targetUid: target.uid,
+              text: "IMMUNE",
+            })
+          );
+          return; // No damage applied
+        }
+
         let remaining = dmg;
 
+        let shieldAbsorbed = 0;
         if (target.shield > 0) {
           const absorbed = Math.min(
             target.shield,
@@ -673,6 +920,7 @@ export default function Battle() {
 
           target.shield -= absorbed;
           remaining -= absorbed;
+          shieldAbsorbed = absorbed;
         }
 
         target.hp = Math.max(
@@ -711,23 +959,33 @@ export default function Battle() {
           }
         }
 
+        // --- Combat feedback floaters ---
+        const hasResistNotes = notes.some((n) =>
+          n.includes("RESIST") || n.includes("REDUCTION")
+        );
+
         const color = notes.includes("execute")
           ? "#E040FB"
+          : result.immune
+          ? "#94A3B8"
+          : hasResistNotes
+          ? "#64748B"
           : mult > 1
           ? "#FFCA28"
           : mult < 1
           ? "#94A3B8"
           : "#FF1744";
 
-        addFloat(
-          target.uid,
-          `${crit ? "CRIT " : ""}${
-            notes.includes("execute")
-              ? "EXECUTE "
-              : ""
-          }-${dmg}`,
-          color
-        );
+        let floatText = "";
+        if (shieldAbsorbed > 0 && remaining > 0) {
+          floatText = `${crit ? "CRIT " : ""}${notes.includes("execute") ? "EXECUTE " : ""}-${dmg}`;
+        } else if (shieldAbsorbed > 0 && remaining === 0) {
+          floatText = `SHIELD -${shieldAbsorbed}`;
+        } else {
+          floatText = `${crit ? "CRIT " : ""}${notes.includes("execute") ? "EXECUTE " : ""}${hasResistNotes ? "RESIST " : ""}-${dmg}`;
+        }
+
+        addFloat(target.uid, floatText, color);
 
         newEvents.push(
           makeEvent(
@@ -746,6 +1004,30 @@ export default function Battle() {
           () => setShakeUid(null),
           ms(300)
         );
+
+        // --- Combat modifier life steal ---
+        // Apply life steal from the attacker's combat modifiers (percentage
+        // of damage dealt). DoT does not trigger this.
+        const actorMods = getCombatModifiers(act);
+        if (actorMods.lifesteal_pct && act.alive && dmg > 0) {
+          const lifestealHeal = computeLifesteal(dmg, actorMods, false);
+          if (lifestealHeal > 0) {
+            const oldHp = act.hp;
+            act.hp = Math.min(act.maxHp, act.hp + lifestealHeal);
+            const actualHeal = act.hp - oldHp;
+            if (actualHeal > 0) {
+              addFloat(act.uid, `+${actualHeal}`, "#00E676");
+              newEvents.push(
+                makeEvent("HEAL", {
+                  actorUid: act.uid,
+                  targetUid: act.uid,
+                  value: actualHeal,
+                  text: `Life Steal +${actualHeal}`,
+                })
+              );
+            }
+          }
+        }
 
         if (target.hp === 0) {
           const revived = resolveDeath(
@@ -823,6 +1105,9 @@ export default function Battle() {
 
           applyDamage(t);
         }
+
+        // Apply team buff effects (team_atk_up, team_def_up) to all allies
+        _applyTeamBuffsFromOffensive(act, arr, jutsu, newEvents);
       }
 
       // ---------- AOE ----------
@@ -841,6 +1126,9 @@ export default function Battle() {
         );
 
         enemiesArr.forEach(applyDamage);
+
+        // Apply team buff effects (team_atk_up, team_def_up) to all allies
+        _applyTeamBuffsFromOffensive(act, arr, jutsu, newEvents);
       }
 
       // ---------- HEAL ----------
@@ -850,10 +1138,13 @@ export default function Battle() {
         );
 
         if (t) {
+          const healMult = act._synergyDamageBonuses?.healing_pct
+            ? 1 + act._synergyDamageBonuses.healing_pct / 100
+            : 1;
           const heal = Math.round(
-            (jutsu.power / 100) *
+            ((jutsu.power / 100) *
               act.atk +
-              jutsu.power
+              jutsu.power) * healMult
           );
 
           t.hp = Math.min(
@@ -874,6 +1165,30 @@ export default function Battle() {
               value: heal,
             })
           );
+
+          // Apply heal effects — ally buffs go to the healed ally,
+          // enemy-targeted effects (freeze, stun, etc.) go to a random enemy
+          if (jutsu.effects?.length) {
+            const allyEffects = jutsu.effects.filter(
+              (e) => !["stun", "freeze", "burn", "poison", "bleed", "atk_down", "def_down", "shock", "dispel"].includes(e.type)
+            );
+            const enemyEffects = jutsu.effects.filter(
+              (e) => ["stun", "freeze", "burn", "poison", "bleed", "atk_down", "def_down", "shock", "dispel"].includes(e.type)
+            );
+            if (allyEffects.length) {
+              t.statuses = t.statuses || [];
+              const effEvents = applyJutsuEffects(act, t, { ...jutsu, effects: allyEffects });
+              newEvents.push(...effEvents);
+            }
+            if (enemyEffects.length) {
+              const enemies = arr.filter((c) => c.side !== act.side && c.alive);
+              if (enemies.length) {
+                const enemy = enemies[Math.floor(Math.random() * enemies.length)];
+                const effEvents = applyJutsuEffects(act, enemy, { ...jutsu, effects: enemyEffects });
+                newEvents.push(...effEvents);
+              }
+            }
+          }
         }
       }
 
@@ -885,17 +1200,13 @@ export default function Battle() {
 
         if (t) {
           const sh = Math.round(
-            act.def * 2.5 + 150
+            (jutsu.power || 100) / 100 * act.def * 2.5 + 150
           );
 
           t.shield += sh;
+          t.statuses = t.statuses || [];
 
-          addFloat(
-            t.uid,
-            "SHIELD",
-            "#29B6F6"
-          );
-
+          addFloat(t.uid, "SHIELD", "#29B6F6");
           newEvents.push(
             makeEvent("SHIELD_APPLIED", {
               actorUid: act.uid,
@@ -903,6 +1214,122 @@ export default function Battle() {
               value: sh,
             })
           );
+
+          // Apply shield skill effects (regen, immunity, cleanse, etc.)
+          if (jutsu.effects?.length) {
+            const effEvents = applyJutsuEffects(act, t, jutsu);
+            newEvents.push(...effEvents);
+          }
+        }
+      }
+
+      // ---------- AOE HEAL ----------
+      else if (jutsu.type === "aoe_heal") {
+        const allies = arr.filter((c) => c.side === act.side && c.alive);
+        newEvents.push(makeEvent("SKILL", { actorUid: act.uid, jutsuId: jutsu.id }));
+        allies.forEach((ally) => {
+          const healMult = act._synergyDamageBonuses?.healing_pct
+            ? 1 + act._synergyDamageBonuses.healing_pct / 100
+            : 1;
+          const heal = Math.round(((jutsu.power || 100) / 100 * act.atk + (jutsu.power || 100)) * healMult);
+          ally.hp = Math.min(ally.maxHp, ally.hp + heal);
+          addFloat(ally.uid, `+${heal}`, "#00E676");
+          newEvents.push(makeEvent("HEAL", { actorUid: act.uid, targetUid: ally.uid, value: heal }));
+          // Apply heal effects (regen, cleanse, immunity, team buffs) to each ally
+          if (jutsu.effects?.length) {
+            ally.statuses = ally.statuses || [];
+            const effEvents = applyJutsuEffects(act, ally, jutsu);
+            newEvents.push(...effEvents);
+          }
+        });
+      }
+
+      // ---------- REVIVE ----------
+      else if (jutsu.type === "revive") {
+        const deadAlly = arr.find((c) => c.side === act.side && !c.alive);
+        if (deadAlly) {
+          const hpPct = jutsu.effects?.find((e) => e.type === "revive_ally")?.hp_pct || 30;
+          deadAlly.hp = Math.max(1, Math.round(deadAlly.maxHp * hpPct / 100));
+          deadAlly.alive = true;
+          deadAlly.shield = 0;
+          deadAlly.statuses = [];
+          addFloat(deadAlly.uid, "REVIVED!", "#FFD54F");
+          pushLog(`${deadAlly.name} revived!`);
+          newEvents.push(makeEvent("REVIVAL", { targetUid: deadAlly.uid, text: `${deadAlly.name} rises again!` }));
+          // Apply revive effects (team buffs, immunity, regen) to allies
+          if (jutsu.effects?.length) {
+            const allies = arr.filter((c) => c.side === act.side && c.alive);
+            allies.forEach((ally) => {
+              ally.statuses = ally.statuses || [];
+              const effEvents = applyJutsuEffects(act, ally, jutsu);
+              newEvents.push(...effEvents);
+            });
+          }
+        }
+      }
+
+      // ---------- TAUNT ----------
+      else if (jutsu.type === "taunt") {
+        act.statuses = act.statuses || [];
+        // Separate self-buff effects from enemy-targeted CC effects.
+        // CC effects (stun, freeze) on taunt skills should hit a random
+        // enemy, not the caster.
+        const selfEffects = (jutsu.effects || []).filter(
+          (e) => !["stun", "freeze"].includes(e.type)
+        );
+        const ccEffects = (jutsu.effects || []).filter(
+          (e) => ["stun", "freeze"].includes(e.type)
+        );
+
+        // Apply self-buff effects (taunt, def_up, regen, etc.)
+        if (selfEffects.length) {
+          const selfJutsu = { ...jutsu, effects: selfEffects };
+          const effEvents = applyJutsuEffects(act, act, selfJutsu);
+          newEvents.push(...effEvents);
+        }
+
+        // Apply CC effects to a random alive enemy
+        if (ccEffects.length) {
+          const enemies = arr.filter(
+            (c) => c.side !== act.side && c.alive
+          );
+          if (enemies.length) {
+            const target = enemies[Math.floor(Math.random() * enemies.length)];
+            const ccJutsu = { ...jutsu, effects: ccEffects };
+            const ccEvents = applyJutsuEffects(act, target, ccJutsu);
+            newEvents.push(...ccEvents);
+          }
+        }
+
+        addFloat(act.uid, "TAUNT!", "#FF5722");
+        pushLog(`${act.name} taunts all enemies!`);
+        newEvents.push(makeEvent("BUFF_APPLIED", { actorUid: act.uid, targetUid: act.uid, text: "Taunt!" }));
+      }
+
+      // ---------- TEAM BUFF ----------
+      else if (jutsu.type === "team_buff") {
+        const allies = arr.filter((c) => c.side === act.side && c.alive);
+        newEvents.push(makeEvent("SKILL", { actorUid: act.uid, jutsuId: jutsu.id }));
+        allies.forEach((ally) => {
+          ally.statuses = ally.statuses || [];
+          if (jutsu.effects?.length) {
+            const effEvents = applyJutsuEffects(act, ally, jutsu);
+            newEvents.push(...effEvents);
+          }
+        });
+        addFloat(act.uid, "TEAM BUFF!", "#00E5FF");
+      }
+
+      // ---------- CLEANSE ----------
+      else if (jutsu.type === "cleanse") {
+        const t = arr.find((c) => c.uid === targetUid);
+        if (t) {
+          t.statuses = t.statuses || [];
+          if (jutsu.effects?.length) {
+            const effEvents = applyJutsuEffects(act, t, jutsu);
+            newEvents.push(...effEvents);
+          }
+          addFloat(t.uid, "CLEANSED!", "#00E676");
         }
       }
 
@@ -948,9 +1375,16 @@ export default function Battle() {
 
       // ---------- ULTIMATE ----------
 
+      const ultMode = getCinematicMode({
+        speed: speedRef.current,
+        auto: autoRef.current,
+        type: "ultimate",
+      });
+
       if (
         isUltimate &&
-        cinemaRef.current
+        cinemaRef.current &&
+        ultMode !== "DISABLED"
       ) {
         setUltimateData({
           key: actionCounterRef.current,
@@ -960,9 +1394,11 @@ export default function Battle() {
           portrait: actor.portrait,
         });
 
+        const ultDuration = getCinematicDuration(ultMode, 1200, speedRef.current);
+
         setTimeout(
           () => advance(arr),
-          ms(1200)
+          ultDuration
         );
       } else {
         advance(arr);
@@ -1109,6 +1545,7 @@ export default function Battle() {
             result,
             participants,
             survivors,
+            difficulty: difficultyCfg.id,
           },
         ],
 
@@ -1119,6 +1556,7 @@ export default function Battle() {
             result,
             participants,
             survivors,
+            spire_path: spirePath,
           },
         ],
 
@@ -1155,6 +1593,16 @@ export default function Battle() {
             survivors,
           },
         ],
+
+        bosshunt: [
+          "/game/boss-hunt/complete",
+          {
+            boss_id: bossHuntFight?.boss_id,
+            result,
+            participants,
+            survivors,
+          },
+        ],
       };
 
       const [url, body] =
@@ -1169,6 +1617,25 @@ export default function Battle() {
           }
 
           setResultData(data);
+
+          // Preload next stage assets while the victory screen is showing
+          if (mode === "campaign" && phase === "win") {
+            const idx = stages.findIndex((s) => s.id === id);
+            const nextStage = idx >= 0 && idx < stages.length - 1 ? stages[idx + 1] : null;
+            if (nextStage) {
+              const nextPortraits = (nextStage.enemies || [])
+                .map((e) => catalogById[e.template_id]?.portrait)
+                .filter(Boolean);
+              preloadBattleAssets({ portraits: nextPortraits });
+            }
+          } else if (mode === "spire" && phase === "win") {
+            // Preload next spire floor enemies
+            const nextEnemies = catalog.length ? spireEnemies(floor + 1, catalog, spirePath) : [];
+            const nextPortraits = nextEnemies
+              .map((e) => catalogById[e.template_id]?.portrait)
+              .filter(Boolean);
+            preloadBattleAssets({ portraits: nextPortraits, background: getBattleBackground("spire") });
+          }
 
           if (data.level_up) {
             setTimeout(
@@ -1280,6 +1747,24 @@ export default function Battle() {
     (c) => c.side === "enemy"
   );
 
+  // Identify the main boss for boss-fight modes (tsukuyomi, boss hunt,
+  // campaign boss stages, or any enemy carrying a boss mechanic) and
+  // center it on the battlefield, flanking any additional enemies left/right.
+  const bossEnemy =
+    enemies.find((c) => c.bossMechanicId) ||
+    (mode === "bosshunt" ||
+    mode === "tsukuyomi" ||
+    (mode === "campaign" && stage?.is_boss)
+      ? enemies[0]
+      : null);
+
+  const arrangedEnemies = (() => {
+    if (!bossEnemy || enemies.length <= 1) return enemies;
+    const others = enemies.filter((c) => c.uid !== bossEnemy.uid);
+    const mid = Math.ceil(others.length / 2);
+    return [...others.slice(0, mid), bossEnemy, ...others.slice(mid)];
+  })();
+
   const activeActor =
     combs.find(
       (c) => c.uid === activeUid
@@ -1300,6 +1785,14 @@ export default function Battle() {
   const dominantElement =
     enemies[0]?.element || "Dark";
 
+  // Cinematic modes for current speed/auto state
+  const introMode = getCinematicMode({ speed, auto, type: "intro" });
+  const introDuration = getCinematicDuration(introMode, 2800, speed);
+  const attackMode = getCinematicMode({ speed, auto, type: "attack" });
+  const attackDuration = getCinematicDuration(attackMode, 600, speed);
+  const ultMode = getCinematicMode({ speed, auto, type: "ultimate" });
+  const ultDuration = getCinematicDuration(ultMode, 1200, speed);
+
   return (
     <div
       className={`fixed inset-0 overflow-hidden ${
@@ -1317,10 +1810,12 @@ export default function Battle() {
             ? stage?.region
             : null
         }
+        shrine={mode === "bosshunt"}
+        mode={mode}
       />
 
       {/* Battle entry */}
-      {cinema && (
+      {cinema && introMode !== "DISABLED" && (
         <BattleEntry
           title={title}
           chapter={
@@ -1332,6 +1827,7 @@ export default function Battle() {
               ? `FLOOR ${floor}`
               : mode.toUpperCase()
           }
+          duration={introDuration}
           onDone={() =>
             setIntroDone(true)
           }
@@ -1339,9 +1835,10 @@ export default function Battle() {
       )}
 
       {/* Attack effects */}
-      {cinema && (
+      {cinema && attackMode !== "DISABLED" && (
         <BattleAttackFx
           action={cinematicAction}
+          duration={attackDuration}
           onShake={(strength) => {
             setScreenShake(true);
 
@@ -1357,9 +1854,10 @@ export default function Battle() {
       )}
 
       {/* Ultimate cinematic */}
-      {cinema && (
+      {cinema && ultMode !== "DISABLED" && (
         <BattleUltimate
           data={ultimateData}
+          duration={ultDuration}
           onDone={() =>
             setUltimateData(null)
           }
@@ -1367,83 +1865,73 @@ export default function Battle() {
       )}
 
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-20 glass border-b border-white/10 px-4 py-1.5 flex items-center justify-between">
+      <div className="absolute top-0 left-0 right-0 z-20 glass border-b border-white/10 px-2 sm:px-4 py-1 flex items-center justify-between">
         <button
-          onClick={() =>
-            navigate(backTo)
-          }
+          onClick={() => navigate(backTo)}
           data-testid="battle-exit"
-          className="text-slate-400 hover:text-white text-sm font-semibold"
+          className="text-slate-400 hover:text-white text-xs sm:text-sm font-semibold shrink-0"
         >
           ← Retreat
         </button>
 
-        <div className="text-center">
-          <div className="font-display text-lg tracking-widest text-white leading-none truncate max-w-[45vw]">
+        <div className="text-center min-w-0">
+          <div className="font-display text-sm sm:text-lg tracking-widest text-white leading-none truncate max-w-[28vw] sm:max-w-[45vw]">
             {title}
           </div>
-
-          <div className="text-[10px] text-chakra font-semibold">
+          <div className="text-[9px] sm:text-[10px] text-chakra font-semibold">
             ROUND {round}
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <button
             onClick={cycleSpeed}
             data-testid="battle-speed-toggle"
             title="Battle speed"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-display tracking-wide border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-display tracking-wide border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
           >
-            <Gauge className="w-3.5 h-3.5" />
+            <Gauge className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             {speed}X
           </button>
-
           <button
-            onClick={() =>
-              setAuto(!auto)
-            }
+            onClick={() => setAuto(!auto)}
             data-testid="battle-auto-toggle"
             title="Auto-battle"
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-display tracking-wide border transition-colors ${
-              auto
-                ? "border-chakra text-chakra bg-cyan-500/15"
-                : "border-white/15 text-slate-300 hover:text-white hover:border-white/30"
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-display tracking-wide border transition-colors ${
+              auto ? "border-chakra text-chakra bg-cyan-500/15" : "border-white/15 text-slate-300 hover:text-white hover:border-white/30"
             }`}
           >
-            <Bot className="w-3.5 h-3.5" />
+            <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             AUTO
           </button>
-
           <button
-            onClick={() =>
-              setCinema(!cinema)
-            }
-            title={
-              cinema
-                ? "Cinematics on"
-                : "Cinematics off"
-            }
-            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-display tracking-wide border transition-colors ${
-              cinema
-                ? "border-violet-400/50 text-violet-300 bg-violet-500/10"
-                : "border-white/15 text-slate-400 hover:text-white"
+            onClick={() => setCinema(!cinema)}
+            title={cinema ? "Cinematics on" : "Cinematics off"}
+            className={`flex items-center px-1.5 py-1 rounded-lg text-xs border transition-colors ${
+              cinema ? "border-violet-400/50 text-violet-300 bg-violet-500/10" : "border-white/15 text-slate-400 hover:text-white"
             }`}
           >
-            <Film className="w-3.5 h-3.5" />
+            <Film className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           </button>
-
           <button
             title="Settings"
-            className="flex items-center px-2 py-1.5 rounded-lg border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
+            className="hidden sm:flex items-center px-2 py-1.5 rounded-lg border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Battlefield */}
-      <div className="absolute inset-0 z-10 flex pt-10 pb-36">
+      {/* Battlefield — top padding clears the header, bottom clears the
+          command panel. Both compress on short (landscape) viewports so the
+          combatants stay readable instead of being squeezed into a sliver. */}
+      <div
+        className="absolute inset-0 z-10 flex"
+        style={{
+          paddingTop: layout.isShort ? "2.25rem" : "2.5rem",
+          paddingBottom: layout.isShort ? "3.5rem" : "4.5rem",
+        }}
+      >
         {/* Turn order */}
         <BattleTurnOrder
           combs={combs}
@@ -1455,8 +1943,8 @@ export default function Battle() {
         {/* Center battlefield */}
         <div className="flex-1 flex flex-col justify-center min-w-0">
           {/* Enemies */}
-          <div className="flex justify-center gap-3 sm:gap-5 px-4 mb-3">
-            {enemies.map((c) => (
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 px-2 mb-1">
+            {arrangedEnemies.map((c) => (
               <BattleFighter
                 key={c.uid}
                 c={c}
@@ -1478,12 +1966,13 @@ export default function Battle() {
                 }
                 flip
                 subdued
+                isBoss={c.uid === bossEnemy?.uid || !!c.bossMechanicId}
               />
             ))}
           </div>
 
           {/* Minimal turn indicator */}
-          <div className="text-center my-2">
+          <div className="text-center my-1">
             {phase === "select" &&
               activeActor &&
               !auto && (
@@ -1511,7 +2000,7 @@ export default function Battle() {
           </div>
 
           {/* Allies */}
-          <div className="flex justify-center gap-3 sm:gap-5 px-4 mt-3">
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 px-2 mt-1">
             {allies.map((c) => (
               <BattleFighter
                 key={c.uid}
@@ -1570,20 +2059,23 @@ export default function Battle() {
         onNext={
           mode === "spire"
             ? () =>
-                window.location.assign(
+                navigate(
                   `/battle/spire/${
                     floor + 1
                   }`
                 )
             : mode === "trial"
             ? () =>
-                window.location.reload()
+                handleRetry()
             : mode === "arena"
             ? () =>
                 navigate("/arena")
             : mode === "tsukuyomi"
             ? () =>
                 navigate("/tsukuyomi")
+            : mode === "bosshunt"
+            ? () =>
+                navigate("/boss-hunt")
             : () => {
                 const idx =
                   stages.findIndex(
@@ -1598,11 +2090,11 @@ export default function Battle() {
                     : null;
 
                 if (next) {
-                  window.location.assign(
+                  navigate(
                     `/battle/campaign/${next.id}`
                   );
                 } else {
-                  window.location.assign(
+                  navigate(
                     "/campaign"
                   );
                 }
@@ -1611,9 +2103,7 @@ export default function Battle() {
         onLobby={() =>
           navigate("/")
         }
-        onRetry={() =>
-          window.location.reload()
-        }
+        onRetry={handleRetry}
       />
 
       <LevelUpOverlay

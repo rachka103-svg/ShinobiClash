@@ -3,7 +3,7 @@
  * Uses the uploaded gothic-tower artwork (object-fit: cover) so the
  * Dragon's Back climb reads as part of the world.
  */
-const TOWER_IMG = "/spire-assets/spire-tower.png";
+const TOWER_IMG = "/spire-assets/spire-tower.webp";
 
 export default function SpireTowerBg() {
   return (

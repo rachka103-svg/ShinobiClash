@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Play, Zap, ChevronDown, Scroll } from "lucide-react";
+import { Play, Zap, ChevronDown, Scroll, Skull } from "lucide-react";
 import { LockIcon, CheckIcon, CrownIcon, SwordsIcon } from "@/components/GameIcons";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
-import { startBattle, ENERGY_COST } from "@/lib/energy";
+import { startBattle, ENERGY_COST, DIFFICULTIES } from "@/lib/energy";
+import { preloadBattleAssets, getBattleBackground } from "@/lib/preload";
 import { RARITY } from "@/lib/styles";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -30,9 +31,11 @@ export default function Campaign() {
   const navigate = useNavigate();
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [difficulty, setDifficulty] = useState("normal");
 
   const cleared = user?.cleared_stages || [];
   const energyLow = (user?.energy?.current ?? 0) < ENERGY_COST.campaign;
+  const playerLevel = user?.level || 1;
 
   useEffect(() => {
     if (selectedChapter != null || stages.length === 0) return;
@@ -55,14 +58,18 @@ export default function Campaign() {
     setBusy(true);
     try {
       if (energyLow) { toast.error("Not enough Energy — refill in the Shop or wait for regen."); return; }
-      await startBattle({ mode: "campaign", id: stage.id, navigate, setUser });
+      await startBattle({ mode: "campaign", id: stage.id, navigate, setUser, difficulty });
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6" data-testid="campaign-page">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 relative" data-testid="campaign-page">
+      {/* Background image */}
+      <div className="fixed inset-0 bg-cover bg-center -z-10" style={{ backgroundImage: "url(/bg-campaign.webp)" }} />
+      {/* Dark overlay for readability */}
+      <div className="fixed inset-0 -z-10" style={{ background: "linear-gradient(180deg, rgba(13,13,13,0.55) 0%, rgba(13,13,13,0.35) 40%, rgba(13,13,13,0.75) 100%)" }} />
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "#FF572218", border: "1px solid #FF572255" }}>
@@ -106,6 +113,34 @@ export default function Campaign() {
 
       {chapterMeta && <p className="text-xs text-slate-500 italic mb-3 max-w-xl">{chapterMeta.lore}</p>}
 
+      {/* Difficulty selector — replay cleared stages at higher difficulty for more EXP */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap" data-testid="difficulty-selector">
+        <span className="text-[10px] uppercase tracking-widest text-slate-500 flex items-center gap-1"><Skull className="w-3 h-3" /> Difficulty</span>
+        {DIFFICULTIES.map((d) => {
+          const unlocked = playerLevel >= d.unlockLevel;
+          const active = difficulty === d.id;
+          return (
+            <button
+              key={d.id}
+              data-testid={`difficulty-${d.id}`}
+              disabled={!unlocked}
+              onClick={() => setDifficulty(d.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                active
+                  ? "bg-chakra text-[#05050A]"
+                  : unlocked
+                  ? "bg-white/[0.06] text-slate-400 hover:bg-white/[0.1] border border-white/10"
+                  : "bg-white/[0.02] text-slate-600 border border-white/5 cursor-not-allowed"
+              }`}
+            >
+              {d.label}
+              {!unlocked && <span className="ml-1 text-[9px]">Lv{d.unlockLevel}</span>}
+              {unlocked && d.id !== "normal" && <span className="ml-1 text-[9px] opacity-70">EXP ×{d.expMult}</span>}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Stage list */}
       <div className="space-y-2.5 pb-4" data-testid="campaign-stage-list">
         {chapterStages.map((stage, i) => {
@@ -117,6 +152,14 @@ export default function Campaign() {
               key={stage.id}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.02 * i }}
               onClick={() => launch(stage, state)}
+              onMouseEnter={() => {
+                if (locked) return;
+                // Preload enemy portraits for this stage on hover
+                const portraits = (stage.enemies || [])
+                  .map((e) => catalogById[e.template_id]?.portrait)
+                  .filter(Boolean);
+                preloadBattleAssets({ portraits });
+              }}
               disabled={locked || busy}
               data-testid={`stage-row-${stage.id}`}
               className="w-full text-left flex items-center gap-3 p-3 rounded-2xl border transition-all disabled:cursor-not-allowed group"

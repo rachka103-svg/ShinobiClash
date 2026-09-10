@@ -78,14 +78,11 @@ const BIOME_CONFIG = {
  *   element — dominant element of the battle (tints ambient energy)
  *   region  — campaign region name (selects the biome)
  *   shake   — triggers screen-shake class on the wrapper
+ *   mode    — battle mode (campaign, spire, tsukuyomi, bosshunt) for bg image
  */
-export default function BattlefieldEnv({ element = "Dark", region = null, shake = false }) {
-  const biomeKey = (region && REGION_BIOME[region]) || "shadow";
-  const biome = BIOME_CONFIG[biomeKey] || BIOME_CONFIG.shadow;
-  const elColor = (element && PARTICLE_CLASS[element]) ? biome.accent : biome.accent;
-  const particleClass = biome.particle || PARTICLE_CLASS[element] || PARTICLE_CLASS.Dark;
-
-  // Deterministic particle positions (stable across re-renders)
+export default function BattlefieldEnv({ element = "Dark", region = null, shake = false, shrine = false, mode = null }) {
+  // Deterministic particle positions (stable across re-renders) — must be
+  // called unconditionally (before any early return) per React hooks rules.
   const particles = useMemo(
     () =>
       Array.from({ length: 18 }).map((_, i) => ({
@@ -97,6 +94,49 @@ export default function BattlefieldEnv({ element = "Dark", region = null, shake 
       })),
     []
   );
+
+  // Mode-specific background images
+  const MODE_BG = {
+    bosshunt: { img: "/bosshunt-shrine.webp", glow: "rgba(139,0,0,0.12)", fog: "rgba(139,0,0,0.08)", biome: "shrine" },
+    tsukuyomi: { img: "/bg-tsukuyomi.webp", glow: "rgba(181,62,255,0.15)", fog: "rgba(124,77,255,0.10)", biome: "tsukuyomi" },
+    spire: { img: "/bg-spire.webp", glow: "rgba(106,90,205,0.12)", fog: "rgba(106,90,205,0.08)", biome: "spire" },
+    campaign: { img: "/bg-campaign.webp", glow: "rgba(212,138,77,0.10)", fog: "rgba(212,138,77,0.06)", biome: "campaign" },
+  };
+
+  const modeBg = (shrine || mode === "bosshunt") ? MODE_BG.bosshunt
+    : mode === "tsukuyomi" ? MODE_BG.tsukuyomi
+    : mode === "spire" ? MODE_BG.spire
+    : mode === "campaign" ? MODE_BG.campaign
+    : null;
+
+  if (modeBg) {
+    return (
+      <div className={`absolute inset-0 overflow-hidden ${shake ? "screen-shake" : ""}`} data-testid="battlefield-env" data-biome={modeBg.biome}>
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${modeBg.img})` }}
+        />
+        {/* Dark overlay for readability */}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(5,5,10,0.35) 0%, rgba(5,5,10,0.15) 40%, rgba(5,5,10,0.55) 100%)" }} />
+        {/* Ambient glow */}
+        <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(80% 50% at 50% 25%, ${modeBg.glow} 0%, transparent 60%)` }} />
+        {/* Fog layers */}
+        <div className="absolute bottom-0 left-0 w-full h-[35%] fog-drift-slow" style={{ background: `linear-gradient(to top, rgba(15,10,15,0.6), transparent)`, filter: "blur(20px)" }} />
+        <div className="absolute bottom-[10%] left-0 w-full h-[20%] fog-drift" style={{ background: `linear-gradient(to top, ${modeBg.fog}, transparent)`, filter: "blur(15px)" }} />
+        {/* Cinematic vignette */}
+        <div className="cine-vignette" />
+        {/* Top/bottom cinematic darkening */}
+        <div className="absolute top-0 left-0 w-full h-20 pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(5,5,10,0.7), transparent)" }} />
+        <div className="absolute bottom-0 left-0 w-full h-32 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(5,5,10,0.6), transparent)" }} />
+      </div>
+    );
+  }
+
+  const biomeKey = (region && REGION_BIOME[region]) || "shadow";
+  const biome = BIOME_CONFIG[biomeKey] || BIOME_CONFIG.shadow;
+  const elColor = (element && PARTICLE_CLASS[element]) ? biome.accent : biome.accent;
+  const particleClass = biome.particle || PARTICLE_CLASS[element] || PARTICLE_CLASS.Dark;
 
   return (
     <div className={`absolute inset-0 overflow-hidden ${shake ? "screen-shake" : ""}`} data-testid="battlefield-env" data-biome={biomeKey}>

@@ -56,7 +56,7 @@ export default function Login() {
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#0a0a0f]">
       {/* single full-screen cinematic background */}
       <img
-        src="/spire-assets/login-bg.png"
+        src="/spire-assets/login-bg.webp"
         alt=""
         className="absolute inset-0 w-full h-full object-cover object-center"
       />

@@ -24,6 +24,7 @@ import Forge from "@/pages/Forge";
 import Dungeons from "@/pages/Dungeons";
 import BattleHub from "@/pages/BattleHub";
 import Tsukuyomi from "@/pages/Tsukuyomi";
+import BossHunt from "@/pages/BossHunt";
 import Shop from "@/pages/Shop";
 
 const LoadingScreen = () => (
@@ -66,6 +67,8 @@ const CatalogErrorBanner = () => {
 };
 
 function Shell({ children, bare }) {
+  const loc = useLocation();
+  const hideBottomNav = loc.pathname === "/boss-hunt";
   if (bare) {
     return (
       <div className="App grain min-h-screen relative">
@@ -78,12 +81,12 @@ function Shell({ children, bare }) {
       <CatalogErrorBanner />
       <GameHud />
       <main
-        className="fixed inset-x-0 top-0 bottom-0 z-10 overflow-y-auto pt-[calc(3.25rem+env(safe-area-inset-top))] pb-[calc(6.5rem+env(safe-area-inset-bottom))]"
+        className={`fixed inset-x-0 top-0 bottom-0 z-10 overflow-y-auto pt-[calc(var(--game-header-height)+var(--sat))] ${hideBottomNav ? "" : "pb-[calc(var(--game-nav-height)+var(--sab)+0.5rem)]"}`}
         data-testid="app-main"
       >
         {children}
       </main>
-      <BottomNav />
+      {!hideBottomNav && <BottomNav />}
     </div>
   );
 }
@@ -131,6 +134,7 @@ function AppRoutes() {
       <Route path="/summon" element={<Protected><Summon /></Protected>} />
       <Route path="/forge" element={<Protected><Forge /></Protected>} />
       <Route path="/dungeons" element={<Protected><Dungeons /></Protected>} />
+      <Route path="/boss-hunt" element={<Protected><BossHunt /></Protected>} />
       <Route path="/leaderboard" element={<Protected><Leaderboard /></Protected>} />
       <Route path="/admin" element={<AdminOnly><Admin /></AdminOnly>} />
       <Route path="/battle/:mode/:id" element={<Protected bare><Battle /></Protected>} />

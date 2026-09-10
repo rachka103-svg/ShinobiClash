@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { ItemIcon } from "@/components/ItemIcon";
 import SummonRevealOverlay from "@/components/SummonRevealOverlay";
 import CrystalPickerModal from "@/components/CrystalPickerModal";
+import ForgeProduction from "@/components/ForgeProduction";
 
 const CRYSTAL_STAT_LABEL = { hp: "HP", atk: "ATK", def: "DEF", spd: "SPD" };
 const crystalSubLabel = (s) => (s.stat.endsWith("_pct") ? `${s.stat.slice(0, -4).toUpperCase()} %` : s.stat.toUpperCase());
@@ -112,11 +113,12 @@ export default function Forge() {
       </div>
 
       <Tabs defaultValue="inventory" data-testid="forge-tabs">
-        <TabsList className="grid grid-cols-4 w-full bg-black/[0.04] border border-black/10 rounded-xl h-11 mb-5">
-          <TabsTrigger value="inventory" data-testid="forge-inventory-tab" className="font-display tracking-wider text-base data-[state=active]:bg-fox/15 data-[state=active]:text-fox rounded-lg">GEAR</TabsTrigger>
-          <TabsTrigger value="craft" data-testid="forge-craft-tab" className="font-display tracking-wider text-base data-[state=active]:bg-chakra/15 data-[state=active]:text-chakra rounded-lg">CRAFT</TabsTrigger>
-          <TabsTrigger value="fuse" data-testid="forge-fuse-tab" className="font-display tracking-wider text-base data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">FUSE</TabsTrigger>
-          <TabsTrigger value="crystals" data-testid="forge-crystals-tab" className="font-display tracking-wider text-base data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">CRYSTALS</TabsTrigger>
+        <TabsList className="grid grid-cols-5 w-full bg-black/[0.04] border border-black/10 rounded-xl h-11 mb-5">
+          <TabsTrigger value="inventory" data-testid="forge-inventory-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-fox/15 data-[state=active]:text-fox rounded-lg">GEAR</TabsTrigger>
+          <TabsTrigger value="craft" data-testid="forge-craft-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-chakra/15 data-[state=active]:text-chakra rounded-lg">CRAFT</TabsTrigger>
+          <TabsTrigger value="produce" data-testid="forge-produce-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-amber-400/20 data-[state=active]:text-amber-600 rounded-lg">PRODUCE</TabsTrigger>
+          <TabsTrigger value="fuse" data-testid="forge-fuse-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">FUSE</TabsTrigger>
+          <TabsTrigger value="crystals" data-testid="forge-crystals-tab" className="font-display tracking-wider text-sm data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">CRYSTALS</TabsTrigger>
         </TabsList>
 
         {/* ============ INVENTORY ============ */}
@@ -206,6 +208,11 @@ export default function Forge() {
           </div>
         </TabsContent>
 
+        {/* ============ PRODUCE ============ */}
+        <TabsContent value="produce">
+          <ForgeProduction />
+        </TabsContent>
+
         {/* ============ FUSE ============ */}
         <TabsContent value="fuse">
           <p className="text-xs text-slate-500 mb-3">Merge surplus low-tier materials into the rare ones that gate Evolution and crafting.</p>
@@ -261,7 +268,7 @@ export default function Forge() {
           {/* Material wallet */}
           <p className="text-xs uppercase tracking-widest text-slate-500 mt-6 mb-2">Materials</p>
           <div className="flex flex-wrap gap-1.5" data-testid="forge-material-wallet">
-            {["scrap_iron", "forge_steel", "forge_hammer", "spirit_dust", "evo_essence", "celestial_core"].map((iid) => (
+            {["scrap_iron", "forge_steel", "forge_hammer", "spirit_dust", "evo_essence", "celestial_core", "copper_ore", "tin_shard", "iron_ingot", "mithril_shard", "adamantite_chunk", "runic_crystal", "orichalcum_ingot", "dragon_scale", "void_essence", "primordial_core", "titan_core", "warden_scale"].map((iid) => (
               <span key={iid} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/[0.04] border border-black/10 text-[11px] text-slate-600">
                 <ItemIcon icon={items[iid]?.icon} className="w-3.5 h-3.5" style={{ color: items[iid]?.color }} />
                 {items[iid]?.name} <span className="font-bold text-ink">×{inv[iid] || 0}</span>
