@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -14,6 +15,7 @@ import { ItemIcon } from "@/components/ItemIcon";
 import SummonRevealOverlay from "@/components/SummonRevealOverlay";
 import CrystalPickerModal from "@/components/CrystalPickerModal";
 import ForgeProduction from "@/components/ForgeProduction";
+import { getItemSource } from "@/lib/itemSources";
 
 const CRYSTAL_STAT_LABEL = { hp: "HP", atk: "ATK", def: "DEF", spd: "SPD" };
 const crystalSubLabel = (s) => (s.stat.endsWith("_pct") ? `${s.stat.slice(0, -4).toUpperCase()} %` : s.stat.toUpperCase());
@@ -26,6 +28,7 @@ const crystalSubLabel = (s) => (s.stat.endsWith("_pct") ? `${s.stat.slice(0, -4)
 export default function Forge() {
   const { user, setUser } = useAuth();
   const { gearConfig, craftRecipes, fusionRecipes, items, catalogById } = useGame();
+  const navigate = useNavigate();
   const [slotFilter, setSlotFilter] = useState("ALL");
   const [selectedGear, setSelectedGear] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -268,12 +271,16 @@ export default function Forge() {
           {/* Material wallet */}
           <p className="text-xs uppercase tracking-widest text-slate-500 mt-6 mb-2">Materials</p>
           <div className="flex flex-wrap gap-1.5" data-testid="forge-material-wallet">
-            {["scrap_iron", "forge_steel", "forge_hammer", "spirit_dust", "evo_essence", "celestial_core", "copper_ore", "tin_shard", "iron_ingot", "mithril_shard", "adamantite_chunk", "runic_crystal", "orichalcum_ingot", "dragon_scale", "void_essence", "primordial_core", "titan_core", "warden_scale"].map((iid) => (
-              <span key={iid} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/[0.04] border border-black/10 text-[11px] text-slate-600">
-                <ItemIcon icon={items[iid]?.icon} className="w-3.5 h-3.5" style={{ color: items[iid]?.color }} />
-                {items[iid]?.name} <span className="font-bold text-ink">×{inv[iid] || 0}</span>
-              </span>
-            ))}
+            {["scrap_iron", "forge_steel", "forge_hammer", "spirit_dust", "evo_essence", "celestial_core", "copper_ore", "tin_shard", "iron_ingot", "mithril_shard", "adamantite_chunk", "runic_crystal", "orichalcum_ingot", "dragon_scale", "void_essence", "primordial_core", "titan_core", "warden_scale"].map((iid) => {
+              const src = getItemSource(iid);
+              return (
+                <span key={iid} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/[0.04] border border-black/10 text-[11px] text-slate-600 ${src ? "cursor-pointer hover:border-chakra/40 hover:text-chakra transition-colors" : ""}`} onClick={src ? () => navigate(src.route) : undefined}>
+                  <ItemIcon icon={items[iid]?.icon} className="w-3.5 h-3.5" style={{ color: items[iid]?.color }} />
+                  {items[iid]?.name} <span className="font-bold text-ink">×{inv[iid] || 0}</span>
+                  {src && <span className="text-chakra/50 text-[9px]">→</span>}
+                </span>
+              );
+            })}
           </div>
         </TabsContent>
 

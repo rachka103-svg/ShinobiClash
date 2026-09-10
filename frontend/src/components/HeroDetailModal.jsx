@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -19,6 +20,7 @@ import TransformOverlay from "@/components/TransformOverlay";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import { getItemSource } from "@/lib/itemSources";
 
 const CRYSTAL_STAT_LABEL = { hp: "HP", atk: "ATK", def: "DEF", spd: "SPD" };
 
@@ -51,6 +53,7 @@ export default function HeroDetailModal({
 }) {
   const { user, setUser } = useAuth();
   const { gearConfig, items, expTomeGoldCost, reforgeModifiers, reforgeMaxPerJutsu, catalogById } = useGame();
+  const navigate = useNavigate();
   const [tab, setTab] = useState("train");
   const [qty, setQty] = useState(1);
   const [gearSlot, setGearSlot] = useState(null);
@@ -285,13 +288,24 @@ const frame = rarityFrame(effectiveRarity);
 
   const closeAll = () => { setImmersive(false); onClose(); };
 
+  // Navigate to the page where an item can be obtained
+  const goToItemSource = (itemId) => {
+    const src = getItemSource(itemId);
+    if (!src) return;
+    closeAll();
+    navigate(src.route);
+  };
+
   return (
     <>
     <Dialog open={open} onOpenChange={(o) => !o && closeAll()}>
       <DialogContent
         data-testid="hero-detail-modal"
-        className="max-w-2xl lg:max-w-4xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] bg-[#FFFFFF] border-0 rounded-2xl flex flex-col lg:flex-row"
-        style={{ border: `${frame.strokeWidth}px solid ${frame.useGold ? GOLD.stroke : rarity.color + "66"}`, boxShadow: `0 0 60px ${(frame.useGold ? GOLD.base : rarity.color)}40` }}
+        className={immersive
+          ? "p-0 gap-0 overflow-hidden bg-black border-0 rounded-none !left-0 !top-0 !translate-x-0 !translate-y-0 !w-screen !max-w-none !max-h-none !h-screen"
+          : "max-w-2xl lg:max-w-4xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] bg-[#FFFFFF] border-0 rounded-2xl flex flex-col lg:flex-row"
+        }
+        style={immersive ? {} : { border: `${frame.strokeWidth}px solid ${frame.useGold ? GOLD.stroke : rarity.color + "66"}`, boxShadow: `0 0 60px ${(frame.useGold ? GOLD.base : rarity.color)}40` }}
       >
         <DialogTitle className="sr-only">{template.name}</DialogTitle>
         <DialogDescription className="sr-only">Details for {template.name}</DialogDescription>
@@ -601,7 +615,7 @@ const frame = rarityFrame(effectiveRarity);
                         <CostRow icon={<Star className="w-4 h-4 text-amber-300" />} label={`${template.name} Shards`} have={shardsOwned} need={evoCost.shards} testid="evolve-cost-shards" />
                         <CostRow icon={<Coins className="w-4 h-4 text-amber-400" />} label="Ryo" have={user?.ryo || 0} need={evoCost.ryo} testid="evolve-cost-ryo" />
                         {Object.entries(evoCost.items || {}).map(([iid, q]) => (
-                          <CostRow key={iid} icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />} label={items[iid]?.name || iid} have={inv[iid] || 0} need={q} testid={`evolve-cost-${iid}`} />
+                          <CostRow key={iid} icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />} label={items[iid]?.name || iid} have={inv[iid] || 0} need={q} testid={`evolve-cost-${iid}`} itemId={iid} onGoToSource={goToItemSource} />
                         ))}
                       </div>
                     ) : (
@@ -681,7 +695,7 @@ const frame = rarityFrame(effectiveRarity);
 
                         <div className="mt-2 text-[10px] text-slate-500">Auto-Select picks R and SR only. SSR requires explicit opt-in above.</div>
                         <div className="mt-2"><CostRow icon={<Coins className="w-4 h-4 text-amber-400" />} label="Ryo" have={user?.ryo || 0} need={evoCost.ryo} testid="evolve-fodder-cost-ryo" />
-                        {Object.entries(evoCost.items || {}).map(([iid, q]) => <CostRow key={iid} icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />} label={items[iid]?.name || iid} have={inv[iid] || 0} need={q} testid={`evolve-fodder-cost-${iid}`} />)}
+                        {Object.entries(evoCost.items || {}).map(([iid, q]) => <CostRow key={iid} icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />} label={items[iid]?.name || iid} have={inv[iid] || 0} need={q} testid={`evolve-fodder-cost-${iid}`} itemId={iid} onGoToSource={goToItemSource} />)}
                         </div>
                       </div>
                     )}
@@ -736,6 +750,7 @@ const frame = rarityFrame(effectiveRarity);
                             label={items[iid]?.name || iid}
                             have={inv[iid] || 0} need={q}
                             testid={`transform-cost-${iid}`}
+                            itemId={iid} onGoToSource={goToItemSource}
                           />
                         ))}
                       </div>
@@ -1080,12 +1095,19 @@ const frame = rarityFrame(effectiveRarity);
   );
 }
 
-const CostRow = ({ icon, label, have, need, testid }) => {
+const CostRow = ({ icon, label, have, need, testid, itemId, onGoToSource }) => {
   const ok = have >= need;
+  const src = itemId ? getItemSource(itemId) : null;
+  const clickable = !!src && !!onGoToSource;
   return (
-    <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-black/[0.04] border border-black/10" data-testid={testid}>
+    <div
+      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg bg-black/[0.04] border border-black/10 ${clickable ? "cursor-pointer hover:border-chakra/40 hover:bg-chakra/5 transition-colors" : ""}`}
+      data-testid={testid}
+      onClick={clickable ? () => onGoToSource(itemId) : undefined}
+    >
       {icon}
       <span className="text-xs text-slate-600 flex-1 min-w-0 truncate">{label}</span>
+      {clickable && <span className="text-[9px] text-chakra font-semibold shrink-0">→ {src.label}</span>}
       <span className={`text-xs font-bold tabular-nums ${ok ? "text-emerald-400" : "text-fox"}`}>{have} / {need}</span>
     </div>
   );
