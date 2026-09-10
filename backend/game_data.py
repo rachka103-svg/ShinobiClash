@@ -1325,9 +1325,8 @@ def max_stars_for_rarity(rarity: str) -> int:
 
 
 def star_up_cost(rarity: str, current_star: int) -> int:
-    """Shards required to raise a hero from `current_star` to `current_star + 1`."""
-    ri = RARITY_ORDER[rarity]
-    return round((40 + ri * 15) * (1 + 0.6 * (current_star - 1)))
+    """Legacy helper; returns the current centralized Evolution shard cost."""
+    return evolution_cost(rarity, current_star).get("shards", 0) if evolution_cost(rarity, current_star) else 0
 
 # ---------------------------------------------------------------------------
 # Campaign stages
