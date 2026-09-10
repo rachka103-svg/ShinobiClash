@@ -2006,7 +2006,7 @@ from datetime import datetime, timezone, timedelta
 
 ENERGY_MAX_DEFAULT = 100
 ENERGY_REGEN_SECONDS = 180  # +1 energy every 3 minutes -> full regen in 5h
-ENERGY_COST = {"campaign": 10, "spire": 0, "trial": 8, "tsukuyomi": 0}
+ENERGY_COST = {"campaign": 5, "spire": 0, "trial": 8, "tsukuyomi": 0}
 
 
 def _parse_iso(ts: Optional[str]) -> datetime:
