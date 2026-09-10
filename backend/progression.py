@@ -67,8 +67,11 @@ def is_ascension_rarity(rarity: str) -> bool:
 #   Stars 5-6: + nightmare materials (Tsukuyomi)
 #   Star  7:   + celestial core (ultimate evolution)
 # ---------------------------------------------------------------------------
+# Shard route: deliberately starts low again and rises gradually. The 6->7
+# step starts a new chapter after a rarity transformation instead of continuing
+# the old 500-600+ shard staircase.
 EVOLUTION_SHARD_BASE = {
-    1: 300, 2: 350, 3: 400, 4: 450, 5: 500, 6: 550, 7: 600,
+    1: 80, 2: 100, 3: 120, 4: 160, 5: 220, 6: 80, 7: 120,
 }
 EVOLUTION_RYO_BASE = {
     1: 1000, 2: 2000, 3: 3500, 4: 5500, 5: 8000, 6: 12000, 7: 18000,
@@ -94,9 +97,8 @@ def get_evolution_cost(rarity: str, current_star: int, element: Optional[str] = 
     cap = get_max_stars_for_rarity(rarity)
     if current_star >= cap:
         return None
-    shard_mult = RARITY_SHARD_MULT.get(rarity, 1.0)
     ryo_mult = RARITY_RYO_MULT.get(rarity, 1.0)
-    shards = round(EVOLUTION_SHARD_BASE.get(current_star, 600) * shard_mult)
+    shards = EVOLUTION_SHARD_BASE.get(current_star, 120)
     ryo = round(EVOLUTION_RYO_BASE.get(current_star, 18000) * ryo_mult)
 
     items = {}
