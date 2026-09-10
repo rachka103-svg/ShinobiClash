@@ -29,6 +29,7 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage
 import game_data as gd
 import expansion_systems as ex
 import progression as prog
+import evolution_materials as evo_mat
 import admin_config as ac
 import player_progression as pp
 
@@ -226,6 +227,8 @@ class SummonIn(BaseModel):
 
 class EvolveIn(BaseModel):
     instance_id: str
+    method: str = "shards"  # "shards" | "fodder"
+    fodder_ids: List[str] = []
 
 
 class GearEquipIn(BaseModel):
@@ -743,6 +746,7 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_gear: dic
     inst["at_star_cap"] = stars >= stars_max
     inst["evolution_cost"] = gd.evolution_cost(rarity, stars, tmpl.get("element")) if stars < stars_max else None
     inst["star_up_cost"] = inst["evolution_cost"]["shards"] if inst["evolution_cost"] else None
+    inst["evolution_fodder_cost"] = evo_mat.get_fodder_requirement(stars) if stars < stars_max else None
     inst["faction"] = tmpl.get("faction")
     inst["role"] = tmpl.get("role")
     skill_rank = inst.get("skill_rank", 1)
@@ -2060,10 +2064,14 @@ async def claim_achievement(achievement_id: str, user: dict = Depends(get_curren
     return {"profile": public_user(user), "reward": reward}
 
 
-async def _do_evolve(instance_id: str, user: dict) -> dict:
-    """Evolution (star breakthrough) — the ONLY way to raise stars. Early
-    stars burn duplicate shards + ryo; stars 4-6 additionally require rare
-    evolution materials (Evolution Essence / Celestial Cores)."""
+async def _do_evolve(instance_id: str, user: dict, method: str = "shards", fodder_ids: Optional[List[str]] = None) -> dict:
+    """Evolution star breakthrough. Players choose ONE route:
+    1) hero-specific shards, or 2) same-element R/SR/optional SSR hero fodder.
+    Ryo and the non-shard evolution materials remain shared requirements.
+    """
+    method = (method or "shards").lower()
+    if method not in {"shards", "fodder"}:
+        raise HTTPException(status_code=400, detail="Invalid Evolution method")
     inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == instance_id), None)
     if not inst:
         raise HTTPException(status_code=404, detail="Hero not found")
@@ -2076,18 +2084,45 @@ async def _do_evolve(instance_id: str, user: dict) -> dict:
     if stars >= stars_max:
         raise HTTPException(status_code=400, detail="This hero is already at maximum evolution for its rarity — Ascend to raise the cap")
     cost = gd.evolution_cost(rarity, stars, tmpl.get("element"))
+    if not cost:
+        raise HTTPException(status_code=400, detail="Evolution is unavailable for this hero")
+
     hero_shards = user.setdefault("hero_shards", {})
     inventory = user.get("inventory", {})
-    have_shards = hero_shards.get(inst["template_id"], 0)
-    if have_shards < cost["shards"]:
-        raise HTTPException(status_code=400, detail=f"Not enough shards ({have_shards}/{cost['shards']})")
+    team_ids = user.get("team", [])
+    if method == "shards":
+        have_shards = hero_shards.get(inst["template_id"], 0)
+        if have_shards < cost["shards"]:
+            raise HTTPException(status_code=400, detail=f"Not enough shards ({have_shards}/{cost['shards']})")
+    else:
+        req = evo_mat.get_fodder_requirement(stars)
+        protected_gear_ids = {g.get("equipped_by") for g in user.get("gear", []) if g.get("equipped_by")}
+        ok, msg, selected, total = evo_mat.validate_fodder_selection(
+            user.get("ninjas", []), instance_id, tmpl.get("element"), fodder_ids or [], team_ids, protected_gear_ids
+        )
+        if not ok:
+            raise HTTPException(status_code=400, detail=msg)
+        if total < req["value"]:
+            raise HTTPException(status_code=400, detail=f"Not enough Evolution material value ({total}/{req['value']})")
+
     if user.get("ryo", 0) < cost["ryo"]:
         raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost['ryo']}")
     for iid, qty in cost["items"].items():
         if inventory.get(iid, 0) < qty:
             name = gd.ITEMS.get(iid, {}).get("name", iid)
             raise HTTPException(status_code=400, detail=f"Not enough {name} ({inventory.get(iid, 0)}/{qty})")
-    hero_shards[inst["template_id"]] = have_shards - cost["shards"]
+
+    # Deduct exactly one selected route.
+    if method == "shards":
+        hero_shards[inst["template_id"]] = hero_shards.get(inst["template_id"], 0) - cost["shards"]
+    else:
+        selected_ids = list(fodder_ids or [])
+        selected_set = set(selected_ids)
+        # Preserve exact consumed instances so the existing Revert feature can
+        # refund fodder evolutions without fabricating new heroes.
+        history = inst.setdefault("evolution_fodder_history", [])
+        history.append({"from_star": stars, "fodder": [dict(n) for n in selected]})
+        user["ninjas"] = [n for n in user.get("ninjas", []) if n.get("instance_id") not in selected_set]
     user["ryo"] -= cost["ryo"]
     for iid, qty in cost["items"].items():
         inventory[iid] -= qty
@@ -2097,18 +2132,18 @@ async def _do_evolve(instance_id: str, user: dict) -> dict:
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"], "inventory": inventory,
         "daily": user["daily"], "achievements": user.get("achievements")}})
-    return {"profile": public_user(user), "instance_id": inst["instance_id"], "stars": inst["stars"]}
+    return {"profile": public_user(user), "instance_id": inst["instance_id"], "stars": inst["stars"], "method": method}
 
 
 @api_router.post("/game/hero/evolve")
 async def evolve_hero(body: EvolveIn, user: dict = Depends(get_current_user)):
-    return await _do_evolve(body.instance_id, user)
+    return await _do_evolve(body.instance_id, user, body.method, body.fodder_ids)
 
 
 @api_router.post("/game/hero/star-up")
 async def star_up(body: StarUpIn, user: dict = Depends(get_current_user)):
-    """Legacy route — kept for compatibility; now runs the Evolution system."""
-    return await _do_evolve(body.instance_id, user)
+    """Legacy route — kept for compatibility; defaults to Hero Shards."""
+    return await _do_evolve(body.instance_id, user, "shards", [])
 
 
 @api_router.post("/game/hero/transcend")
@@ -2361,7 +2396,7 @@ async def revert_hero(body: RevertIn, user: dict = Depends(get_current_user)):
     #    star was earned at).
     stars = inst.get("stars", 1)
     _elem = tmpl.get("element")
-    for i in range(stars - 1):
+    for i in range(1, stars):
         cost = gd.evolution_cost(rarity, i, _elem)
         if not cost:
             continue
@@ -2369,6 +2404,15 @@ async def revert_hero(body: RevertIn, user: dict = Depends(get_current_user)):
         ryo_refund += cost["ryo"]
         for iid, qty in cost["items"].items():
             inventory[iid] = inventory.get(iid, 0) + qty
+
+    # 3a) Fodder-based Evolution costs → restore the exact consumed hero
+    # instances recorded on this hero. Shard-based evolutions continue to use
+    # the normal shard refund path above.
+    for event in reversed(inst.get("evolution_fodder_history", [])):
+        for fodder in event.get("fodder", []):
+            if not any(n.get("instance_id") == fodder.get("instance_id") for n in user.get("ninjas", [])):
+                user.setdefault("ninjas", []).append(fodder)
+    inst["evolution_fodder_history"] = []
 
     # 3b) Rarity Ascension costs → refund shards + Ryo + essence for each
     #     tier the hero was ascended above its native rarity.
