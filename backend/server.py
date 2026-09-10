@@ -681,11 +681,12 @@ def new_ninja_instance(template_id: str, level: int = 1) -> dict:
     return {"instance_id": str(uuid.uuid4()), "template_id": template_id, "level": level, "exp": 0, "ascension": 0, "stars": 1, "skill_rank": 1}
 
 
-def _star_bonus_mult(stars: int) -> float:
+def _star_bonus_mult(stars: int, rarity: str = "R") -> float:
     """Each star beyond the 1st adds a permanent stat bonus (evolution is
     the ONLY way to gain stars) — this is what gives duplicate shards and
-    rare evolution materials real long-term value."""
-    return 1 + max(0, (stars or 1) - 1) * gd.STAR_BONUS_PER_STAR
+    rare evolution materials real long-term value. Higher rarities gain
+    MORE per star, widening the gap with investment."""
+    return 1 + max(0, (stars or 1) - 1) * gd.RARITY_STAR_BONUS.get(rarity, 0.15)
 
 
 def _power_from_stats(s: dict) -> int:
@@ -718,7 +719,7 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_gear: dic
         return
     rarity = ex.effective_rarity(inst, tmpl)
     native_rarity = tmpl["rarity"]
-    star_mult = _star_bonus_mult(inst["stars"])
+    star_mult = _star_bonus_mult(inst["stars"], rarity)
     base_stats = ex.compute_stats_for_rarity(inst["template_id"], inst["level"], asc, rarity)
     star_stats = {k: (round(v * star_mult) if k in ("hp", "atk", "def") else v) for k, v in base_stats.items()}
     equipped = gear_by_hero.get(inst["instance_id"], [])
@@ -1064,7 +1065,9 @@ async def catalog():
                 "ascension_benefits": prog.ASCENSION_BENEFITS,
                 "elemental_essence_enabled": prog.ELEMENTAL_ESSENCE_ENABLED,
                 "element_essence": prog.ELEMENT_ESSENCE,
-                "star_bonus_per_star": gd.STAR_BONUS_PER_STAR,
+                "star_bonus_per_star": gd.RARITY_STAR_BONUS,
+                "level_growth": gd.RARITY_LEVEL_GROWTH,
+                "ascension_growth": gd.RARITY_ASCENSION_GROWTH,
             },
             "dungeons": [
                 {**d, "tiers": [

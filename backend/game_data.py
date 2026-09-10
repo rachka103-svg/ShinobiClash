@@ -226,6 +226,23 @@ RARITY_BASE = {
     "MYTHIC": {"hp": 11100,"atk": 1600, "def": 837, "spd": 244, "chakra": 250, "crit_rate": 28, "crit_damage": 280, "accuracy": 98, "resistance": 48},
 }
 STAT_KEYS = ("hp", "atk", "def", "spd", "chakra", "crit_rate", "crit_damage", "accuracy", "resistance")
+
+# ---------------------------------------------------------------------------
+# Rarity-based GROWTH RATES — higher rarities grow faster per level, per
+# ascension, and per evolution star. This ensures a fully-maxed R card can
+# never equal a fully-maxed GR card: the gap widens with investment, not
+# just at base. These multiply the per-level / per-ascension / per-star
+# growth coefficients.
+# ---------------------------------------------------------------------------
+RARITY_LEVEL_GROWTH = {
+    "N": 0.06, "R": 0.08, "SR": 0.10, "SSR": 0.12, "UR": 0.14, "LR": 0.16, "GR": 0.18, "MYTHIC": 0.20,
+}
+RARITY_ASCENSION_GROWTH = {
+    "N": 0.08, "R": 0.10, "SR": 0.12, "SSR": 0.14, "UR": 0.16, "LR": 0.18, "GR": 0.20, "MYTHIC": 0.22,
+}
+RARITY_STAR_BONUS = {
+    "N": 0.12, "R": 0.15, "SR": 0.18, "SSR": 0.21, "UR": 0.24, "LR": 0.27, "GR": 0.30, "MYTHIC": 0.33,
+}
 ROLE_MOD = {
     "Attacker": {"hp": 1.0,  "atk": 1.0,  "def": 1.0,  "spd": 1.0,  "chakra": 1.0},
     "Tank":     {"hp": 1.45, "atk": 0.72, "def": 1.4,  "spd": 0.7,  "chakra": 1.0},
@@ -1807,8 +1824,9 @@ def max_level(rarity: str) -> int:
 def compute_stats(template_id: str, level: int, ascension: int = 0) -> dict:
     t = CATALOG_BY_ID[template_id]
     b = t["base_stats"]
-    gl = 1 + 0.09 * (level - 1)
-    ga = 1 + 0.12 * ascension
+    rarity = t["rarity"]
+    gl = 1 + RARITY_LEVEL_GROWTH.get(rarity, 0.08) * (level - 1)
+    ga = 1 + RARITY_ASCENSION_GROWTH.get(rarity, 0.10) * ascension
     return {
         "hp": round(b["hp"] * gl * ga),
         "atk": round(b["atk"] * gl * ga),

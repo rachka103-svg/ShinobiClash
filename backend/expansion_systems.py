@@ -140,10 +140,11 @@ def hero_base_stats(template_id: str, rarity: str) -> dict:
 def compute_stats_for_rarity(template_id: str, level: int, ascension: int,
                              rarity: str) -> dict:
     """Like gd.compute_stats but recomputes the base for `rarity` (used when a
-    hero has transcended beyond its native tier)."""
+    hero has transcended beyond its native tier). Growth rates scale with the
+    EFFECTIVE rarity, so an ascended hero grows at its new tier's pace."""
     b = hero_base_stats(template_id, rarity)
-    gl = 1 + 0.09 * (level - 1)
-    ga = 1 + 0.12 * ascension
+    gl = 1 + gd.RARITY_LEVEL_GROWTH.get(rarity, 0.08) * (level - 1)
+    ga = 1 + gd.RARITY_ASCENSION_GROWTH.get(rarity, 0.10) * ascension
     return {
         "hp": round(b["hp"] * gl * ga),
         "atk": round(b["atk"] * gl * ga),
