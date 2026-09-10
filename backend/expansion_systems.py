@@ -183,15 +183,55 @@ CRYSTAL_SUBSTAT_POOL = [
 # crystal drop caps at ~2.5%.
 CRYSTAL_DROP_FRACTION = 0.18
 
+# ---------------------------------------------------------------------------
+# Explicit per-tier drop probabilities (percentages) by game mode + difficulty.
+# Each sub-table sums to 100.  These are the authoritative rates used by
+# roll_crystal() when a mode is supplied; the frontend reads them via the
+# crystal_config API so players can see exact odds.
+#
+# Design principles:
+#   • Higher difficulty shifts probability toward Prismatic / Radiant / Astral.
+#   • Endless Spire is slightly more generous than Campaign at the same
+#     difficulty because crystal drops there are rarer per-clear (lower base
+#     drop chance) — the per-drop tier table compensates.
+#   • Radiant is intentionally rare in Campaign normal (4%) but becomes
+#     meaningful at nightmare (18%).  Prismatic is the "mid-rare" tier that
+#     players will see regularly in harder content.
+# ---------------------------------------------------------------------------
+CRYSTAL_DROP_RATES = {
+    "campaign": {
+        "normal":    {"chipped": 50, "faceted": 30, "prismatic": 15, "radiant":  4, "astral": 1},
+        "hard":      {"chipped": 35, "faceted": 30, "prismatic": 22, "radiant": 10, "astral": 3},
+        "nightmare": {"chipped": 20, "faceted": 25, "prismatic": 30, "radiant": 18, "astral": 7},
+    },
+    "spire": {
+        "normal":    {"chipped": 45, "faceted": 30, "prismatic": 18, "radiant":  5, "astral": 2},
+        "hard":      {"chipped": 30, "faceted": 28, "prismatic": 25, "radiant": 12, "astral": 5},
+        "nightmare": {"chipped": 15, "faceted": 20, "prismatic": 30, "radiant": 25, "astral":10},
+    },
+}
 
-def roll_crystal(difficulty: str = "normal") -> dict:
-    """Generate a new crystal instance. Higher difficulty skews the tier
-    roll toward the top of the table."""
+# Fallback table for Tsukuyomi / Boss Hunt regular crystal drops (no mode).
+_CRYSTAL_DEFAULT_RATES = CRYSTAL_DROP_RATES["campaign"]
+
+
+def crystal_drop_rates() -> dict:
+    """Returns the full per-mode, per-difficulty drop-rate table for API
+    consumption (frontend display, admin tooling)."""
+    return CRYSTAL_DROP_RATES
+
+
+def roll_crystal(difficulty: str = "normal", mode: str | None = None) -> dict:
+    """Generate a new crystal instance.
+
+    When ``mode`` is given (``"campaign"`` or ``"spire"``) the tier is rolled
+    against the explicit per-tier probability table for that mode + difficulty.
+    When omitted (Tsukuyomi / Boss Hunt regular drops) the campaign default
+    table is used so behaviour stays backward-compatible."""
+    rates_table = CRYSTAL_DROP_RATES.get(mode, _CRYSTAL_DEFAULT_RATES) if mode else _CRYSTAL_DEFAULT_RATES
+    rates = rates_table.get(difficulty, rates_table.get("normal", _CRYSTAL_DEFAULT_RATES["normal"]))
     tiers = CRYSTAL_TIERS
-    luck = {"normal": 0.15, "hard": 0.35, "nightmare": 0.55}.get(difficulty, 0.15)
-    weights = []
-    for i, _ in enumerate(tiers):
-        weights.append(max(1.0, (len(tiers) - i) * 10 * (1 - luck) + (i + 1) * 10 * luck))
+    weights = [rates.get(t["id"], 0) for t in tiers]
     tier = gd.secure_rng.choices(tiers, weights=weights, k=1)[0]
     main_stat = gd.secure_rng.choice(list(CRYSTAL_MAIN_BASE.keys()))
     n_subs = tier["subs"]
@@ -313,7 +353,7 @@ def roll_crystal_drop(gear_rare_chance: float) -> Optional[dict]:
     that rate so it stays rarer than equipment."""
     chance = gear_rare_chance * CRYSTAL_DROP_FRACTION
     if gd.secure_rng.random() < chance:
-        return roll_crystal("normal")
+        return roll_crystal("normal")  # Tsukuyomi: uses default campaign rates
     return None
 
 

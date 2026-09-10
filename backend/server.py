@@ -817,6 +817,7 @@ def public_user(user: dict) -> dict:
         "crystal_config": {
             "tiers": ex.CRYSTAL_TIERS,
             "drop_fraction": ex.CRYSTAL_DROP_FRACTION,
+            "drop_rates": ex.crystal_drop_rates(),
         },
         "stepup": stepup_public(user),
         "pity": user.get("pity") or gd.fresh_pity_state(),
@@ -1637,7 +1638,7 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
     crystal_reward = None
     if chapter >= 2 and rng.random() < 0.02 + min(0.01, chapter * 0.0005):
         _crystal_diff = {"normal": "normal", "hard": "hard", "difficult": "nightmare", "extreme": "nightmare"}.get(body.difficulty, "normal")
-        _crystal_inst = ex.roll_crystal(_crystal_diff)
+        _crystal_inst = ex.roll_crystal(_crystal_diff, mode="campaign")
         user.setdefault("crystals", []).append(_crystal_inst)
         crystal_reward = ex.crystal_public(_crystal_inst)
         rewards["crystal"] = crystal_reward
@@ -2748,7 +2749,7 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     spire_crystal = None
     if advancing and rng.random() < min(0.08, 0.03 + floor * 0.001):
         _spire_diff = "nightmare" if floor >= 50 else ("hard" if floor >= 20 else "normal")
-        _spire_inst = ex.roll_crystal(_spire_diff)
+        _spire_inst = ex.roll_crystal(_spire_diff, mode="spire")
         user.setdefault("crystals", []).append(_spire_inst)
         spire_crystal = ex.crystal_public(_spire_inst)
     user["inventory"] = inventory
