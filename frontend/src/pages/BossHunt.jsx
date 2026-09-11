@@ -20,10 +20,10 @@ const RARITY_LABELS = {
 };
 
 const REWARD_LABELS = {
-  boss_crystal: { name: "Boss Crystal", icon: "💎" },
-  event_gear: { name: "Event Gear", icon: "⚔️" },
-  essence: { name: "Essence", icon: "🔮" },
-  boss_card: { name: "Boss Card", icon: "🃏" },
+  boss_crystal: { name: "Boss Crystal", icon: "https://media.base44.com/images/public/6a95b687e54c815596ebfc07/53f44f9d8_generated_d106d66d.png" },
+  event_gear: { name: "Event Gear", icon: "https://media.base44.com/images/public/6a95b687e54c815596ebfc07/ffcf2e186_generated_c2248e7f.png" },
+  essence: { name: "Essence", icon: "https://media.base44.com/images/public/6a95b687e54c815596ebfc07/1ffc8322d_generated_93a565a4.png" },
+  boss_card: { name: "Boss Card", icon: "https://media.base44.com/images/public/6a95b687e54c815596ebfc07/3b5a23e5b_generated_b123f19c.png" },
 };
 
 /** Deterministic ember particle positions — stable across re-renders. */
@@ -290,7 +290,6 @@ export default function BossHunt() {
                   onClick={() => canFight && launchBattle(selectedBoss)}
                   className="relative block w-full rounded-2xl overflow-hidden boss-float group cursor-pointer transition-transform"
                   style={{
-                    maxHeight: "clamp(360px, 62vh, 620px)",
                     boxShadow: `0 0 50px ${rarityColor}44, 0 0 100px ${rarityColor}22, 0 0 140px ${elemColor}15, 0 20px 60px rgba(0,0,0,0.7)`,
                     border: `3px solid ${frame.strokeColor}`,
                     animation: "bossGlow 3s ease-in-out infinite alternate, bossFloat 6s ease-in-out infinite",
@@ -307,7 +306,7 @@ export default function BossHunt() {
                     src={bossTemplate.portrait}
                     alt={selectedBoss.name}
                     className="w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    style={{ maxHeight: "clamp(360px, 62vh, 620px)" }}
+                    style={{ height: "clamp(380px, 58vh, 580px)", objectPosition: "top" }}
                   />
 
                   {/* Bottom gradient scrim */}
@@ -510,10 +509,13 @@ export default function BossHunt() {
                 <div className="grid grid-cols-4 gap-2">
                   {selectedBoss.rewards.items?.map((item, i) => {
                     const info = REWARD_LABELS[item] || { name: item, icon: "🎁" };
+                    const isImg = info.icon?.startsWith("http");
                     return (
                       <div key={i} className="flex flex-col items-center gap-1">
-                        <div className="w-11 h-11 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-lg">
-                          {info.icon}
+                        <div className="w-11 h-11 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+                          {isImg
+                            ? <img src={info.icon} alt={info.name} className="w-full h-full object-cover" />
+                            : <span className="text-lg">{info.icon}</span>}
                         </div>
                         <span className="text-[8px] text-slate-400 text-center leading-tight">{info.name}</span>
                       </div>
