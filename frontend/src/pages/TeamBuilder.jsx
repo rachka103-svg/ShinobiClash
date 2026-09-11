@@ -13,6 +13,7 @@ import HeroDetailModal from "@/components/HeroDetailModal";
 import { useAudio } from "@/context/AudioContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { evaluateTeamSynergy, TEAM_SYNERGIES } from "@/lib/teamSynergy";
+import { isIconUrl } from "@/lib/gameIcons";
 
 const EL_ICON = { Fire: Flame, Water: Droplet, Wind: WindIcon, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: Sun };
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
@@ -244,7 +245,9 @@ export default function TeamBuilder() {
             {synergy.active.map((s) => (
               <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/[0.04] border border-black/10"
                 title={s.label}>
-                <span className="text-lg">{s.icon}</span>
+                {isIconUrl(s.icon)
+                  ? <img src={s.icon} alt={s.name} className="w-5 h-5 rounded object-cover" />
+                  : <span className="text-lg">{s.icon}</span>}
                 <div className="leading-tight">
                   <p className="text-sm font-semibold text-ink">{s.name}</p>
                   <p className="text-[10px] text-slate-500">{s.label}</p>

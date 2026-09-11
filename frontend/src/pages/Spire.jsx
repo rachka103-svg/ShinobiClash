@@ -11,6 +11,7 @@ import { preloadBattleAssets, getBattleBackground } from "@/lib/preload";
 import SpireProgression from "@/components/spire/SpireProgression";
 import SpireChallenge from "@/components/spire/SpireChallenge";
 import TrialDungeonCard from "@/components/spire/TrialDungeonCard";
+import { isIconUrl } from "@/lib/gameIcons";
 
 export default function Spire() {
   const { user, setUser } = useAuth();
@@ -107,7 +108,9 @@ export default function Spire() {
               }`}
               style={active ? { background: p.accent, boxShadow: `0 0 14px ${p.accent}66` } : {}}
             >
-              <span className="text-base">{p.icon}</span>
+              {isIconUrl(p.icon)
+                ? <img src={p.icon} alt={p.label} className="w-4 h-4 rounded object-cover" />
+                : <span className="text-base">{p.icon}</span>}
               {p.label}
             </button>
           );
@@ -117,7 +120,9 @@ export default function Spire() {
       {/* ── Eligible heroes notice for elemental paths ── */}
       {pathCfg.element && (
         <div className="mb-4 px-4 py-2.5 rounded-xl flex items-center gap-2" style={{ background: `${pathCfg.accent}11`, border: `1px solid ${pathCfg.accent}33` }} data-testid="spire-element-notice">
-          <span className="text-lg">{pathCfg.icon}</span>
+          {isIconUrl(pathCfg.icon)
+            ? <img src={pathCfg.icon} alt={pathCfg.element} className="w-5 h-5 rounded object-cover" />
+            : <span className="text-lg">{pathCfg.icon}</span>}
           <span className="text-sm font-bold" style={{ color: pathCfg.accent }}>{pathCfg.element.toUpperCase()} SPIRE</span>
           <span className="text-xs text-slate-400">·</span>
           <span className="text-sm text-slate-300">
