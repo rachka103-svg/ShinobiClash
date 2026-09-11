@@ -33,6 +33,7 @@ import {
   isImmune,
   applyJutsuEffects,
 } from "@/lib/battle";
+import { computeStatsForRarity, maxStarsForRarity } from "@/lib/gameConstants";
 import { getDifficulty, startBattle } from "@/lib/energy";
 import { evaluateTeamSynergy } from "@/lib/teamSynergy";
 import { getCombatModifiers, computeLifesteal, combatModifiersSummary } from "@/lib/combatModifiers";
@@ -466,18 +467,21 @@ export default function Battle() {
       const template = catalogById[e.template_id];
 
       // Enemies with the new progression system carry pre-computed
-      // stats_override (evolved rarity + ascension + gear + crystals),
-      // skill_rank, passive_locked, and reforge — all derived from real
-      // RPG systems on the backend. Legacy enemies fall back to the
-      // old computeStats + applyEnemyGear path.
+      // stats_override (evolved rarity + ascension + gear + crystals + star
+      // bonus), skill_rank, passive_locked, and reforge — all derived from
+      // real RPG systems on the backend. Client-built enemies (Spire) carry
+      // evolved_rarity + stars and are computed here via the same rarity-
+      // scaled growth + star bonus. Legacy/Trial enemies fall back to
+      // computeStats (rarity-scaled native growth).
       const statsOverride = e.stats_override || null;
 
-      const gearedStats = !statsOverride && e.gear_bonus
-        ? applyEnemyGear(
-            computeStats(template, e.level, e.ascension || 0),
-            e.gear_bonus
-          )
-        : statsOverride;
+      let gearedStats = statsOverride;
+      if (!gearedStats) {
+        const baseStats = e.evolved_rarity
+          ? computeStatsForRarity(template, e.level, e.ascension || 0, e.evolved_rarity, e.stars || 1)
+          : computeStats(template, e.level, e.ascension || 0);
+        gearedStats = e.gear_bonus ? applyEnemyGear(baseStats, e.gear_bonus) : baseStats;
+      }
 
       return buildCombatant(
         nextUid(),

@@ -5,7 +5,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import { spireEnemies } from "@/lib/battle";
 import { spireFloorConfig, SPIRE_MAX_FLOOR, SPIRE_PATHS, getSpirePath } from "@/lib/spireConfig";
-import { computeStats } from "@/lib/battle";
+import { computeStats, applyEnemyGear } from "@/lib/battle";
+import { computeStatsForRarity } from "@/lib/gameConstants";
 import { startBattle } from "@/lib/energy";
 import { preloadBattleAssets, getBattleBackground } from "@/lib/preload";
 import SpireProgression from "@/components/spire/SpireProgression";
@@ -54,7 +55,10 @@ export default function Spire() {
     for (const e of enemies) {
       const t = catalogById[e.template_id];
       if (!t) continue;
-      const s = computeStats(t, e.level, e.ascension || 0);
+      const base = e.evolved_rarity
+        ? computeStatsForRarity(t, e.level, e.ascension || 0, e.evolved_rarity, e.stars || 1)
+        : computeStats(t, e.level, e.ascension || 0);
+      const s = e.gear_bonus ? applyEnemyGear(base, e.gear_bonus) : base;
       total += Math.round(s.hp * 0.4 + s.atk * 2.2 + s.def * 1.6 + s.spd * 1.2 + s.chakra * 1.0);
     }
     return Math.round(total * cfg.statMult);

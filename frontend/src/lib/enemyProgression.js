@@ -11,6 +11,8 @@
  * curves here.
  */
 
+import { maxStarsForRarity } from "./gameConstants";
+
 // Rarity ordering (matches backend RARITY_ORDER)
 const RARITY_ORDER = { N: 0, R: 1, SR: 2, SSR: 3, UR: 4, LR: 5, GR: 6, MYTHIC: 7 };
 
@@ -108,6 +110,29 @@ function skillRankForScore(score) {
 // Passive unlock ranks per rarity (matches backend RARITY_PASSIVE_UNLOCK_RANK)
 const PASSIVE_UNLOCK_RANK = { R: 5, SR: 4, SSR: 3, UR: 2, LR: 2, GR: 2, N: 3, MYTHIC: 2 };
 
+// --- Evolution stars (mirrors backend _stars_for_score) ---
+function starsForScore(score, isBoss) {
+  let stars;
+  if (score < 0.1) stars = 1;
+  else if (score < 0.25) stars = 2;
+  else if (score < 0.45) stars = 3;
+  else if (score < 0.65) stars = 4;
+  else if (score < 0.85) stars = 5;
+  else stars = 6;
+  if (isBoss) stars += 1;
+  return stars;
+}
+
+// --- Boss transformation tier (mirrors backend _transformation_tier) ---
+function transformationTier(stars, evolved) {
+  if (stars >= 7 && evolved) return "Mythic Form";
+  if (stars >= 6) return "Ascendant";
+  if (stars >= 5) return "Transcendent";
+  if (stars >= 4) return "Evolved";
+  if (stars >= 3) return "Awakened";
+  return null;
+}
+
 // --- Gear bonus percentages (approximation from progression) ---
 function gearBonusPct(score, gearTier, enhancement, crystalTier) {
   if (gearTier === 0) return null;
@@ -158,9 +183,19 @@ export function spireEnemyProgression(floor, level, isBoss, templateRarity) {
     }
   }
 
+  // Evolution stars (rarity-scaled star bonus — growth system), capped by
+  // the evolved rarity's star cap.
+  const stars = Math.min(starsForScore(score, isBoss), maxStarsForRarity(evolvedRarity));
+  const evolved = evolvedRarity !== templateRarity;
+  const transformation = isBoss
+    ? { tier: transformationTier(stars, evolved), stars, evolved_rarity: evolvedRarity, evolved }
+    : null;
+
   return {
     ascension,
     evolvedRarity,
+    stars,
+    transformation,
     gearBonus,
     skillRank,
     passiveLocked: !passiveUnlocked,
@@ -168,6 +203,7 @@ export function spireEnemyProgression(floor, level, isBoss, templateRarity) {
     progression: {
       level,
       rarity: evolvedRarity,
+      stars,
       ascension,
       gear_tier: gearTier,
       gear_enhancement: enhancement,

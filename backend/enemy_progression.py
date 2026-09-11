@@ -180,6 +180,47 @@ def _crystal_tier_for_score(score):
     return 5
 
 
+# --- Evolution stars (1..rarity cap) ---
+def _stars_for_score(score, is_boss=False):
+    """Evolution stars derived from the progression score. Stars are the
+    growth system's third pillar (RARITY_STAR_BONUS) — higher progression
+    enemies have evolved further. Bosses get +1 star so their transformation
+    outpaces regular enemies at the same stage."""
+    if score < 0.10:
+        stars = 1
+    elif score < 0.25:
+        stars = 2
+    elif score < 0.45:
+        stars = 3
+    elif score < 0.65:
+        stars = 4
+    elif score < 0.85:
+        stars = 5
+    else:
+        stars = 6
+    if is_boss:
+        stars += 1
+    return stars
+
+
+# --- Boss transformation tier ---
+def _transformation_tier(stars, evolved):
+    """A descriptive evolution/transform stage for a boss, derived from its
+    evolution stars and whether it has ascended above its native rarity.
+    Higher stages mean the boss has evolved further for its level/stage."""
+    if stars >= 7 and evolved:
+        return "Mythic Form"
+    if stars >= 6:
+        return "Ascendant"
+    if stars >= 5:
+        return "Transcendent"
+    if stars >= 4:
+        return "Evolved"
+    if stars >= 3:
+        return "Awakened"
+    return None
+
+
 # --- Skill rank (1-10) ---
 def _skill_rank_for_score(score):
     if score < 0.05:
@@ -225,7 +266,7 @@ def get_enemy_progression(
         BOSS_MAX_LEVEL, ASCENSION_MAX, SKILL_RANK_MAX,
         GEAR_ENHANCE_MAX, REFORGE_MAX_PER_JUTSU,
         RARITY_PASSIVE_UNLOCK_RANK, PASSIVE_UNLOCK_RANK,
-        GEAR_SETS,
+        GEAR_SETS, max_stars_for_rarity,
     )
 
     # --- Compute progression score ---
@@ -266,6 +307,10 @@ def get_enemy_progression(
     target_rarity_idx = _rarity_for_score(score, is_boss)
     target_rarity = _rarity_index_to_name(target_rarity_idx)
 
+    # --- Evolution stars (rarity-scaled star bonus — growth system) ---
+    stars = _stars_for_score(score, is_boss)
+    stars = min(stars, max_stars_for_rarity(target_rarity))
+
     # --- Ascension ---
     ascension = _ascension_for_score(score)
     ascension = min(ascension, ASCENSION_MAX.get(target_rarity, 16))
@@ -299,6 +344,7 @@ def get_enemy_progression(
         "level": level,
         "target_rarity_idx": target_rarity_idx,
         "target_rarity": target_rarity,
+        "stars": stars,
         "ascension": ascension,
         "gear_tier": gear_tier,
         "gear_enhancement": gear_enhancement,
@@ -495,7 +541,7 @@ def compute_enemy_stats(template: dict, progression: dict) -> dict:
     and adds gear/crystal bonuses on top — the same pipeline a player
     hero goes through.
     """
-    from game_data import RARITY_BASE, ROLE_MOD
+    from game_data import RARITY_BASE, ROLE_MOD, RARITY_STAR_BONUS
     from expansion_systems import compute_stats_for_rarity
 
     evolved_rarity = resolve_evolved_rarity(template, progression)
@@ -503,6 +549,14 @@ def compute_enemy_stats(template: dict, progression: dict) -> dict:
     ascension = progression["ascension"]
 
     stats = compute_stats_for_rarity(template["id"], level, ascension, evolved_rarity)
+
+    # Apply the rarity-scaled evolution star bonus — the growth system's
+    # third pillar (RARITY_STAR_BONUS). Mirrors the player hero
+    # _star_bonus_mult so enemies grow at the same evolved pace as heroes.
+    stars = progression.get("stars", 1)
+    star_mult = 1 + max(0, (stars or 1) - 1) * RARITY_STAR_BONUS.get(evolved_rarity, 0.15)
+    for _k in ("hp", "atk", "def"):
+        stats[_k] = round(stats[_k] * star_mult)
 
     gear_bonus = compute_enemy_gear_bonus(progression, template)
 
@@ -592,11 +646,16 @@ def build_enemy(template: dict, progression: dict, is_boss: bool = False, is_eli
         seed=seed,
     )
 
+    stars = progression.get("stars", 1)
+    native_rarity = template.get("rarity", evolved_rarity)
+    evolved = evolved_rarity != native_rarity
+
     enemy = {
         "template_id": template["id"],
         "level": progression["level"],
         "ascension": progression["ascension"],
         "evolved_rarity": evolved_rarity,
+        "stars": stars,
         "stats_override": stats,
         "skill_rank": progression["skill_rank"],
         "passive_locked": not progression["passive_unlocked"],
@@ -607,9 +666,22 @@ def build_enemy(template: dict, progression: dict, is_boss: bool = False, is_eli
     if combat_mods:
         enemy["combat_modifiers"] = combat_mods
 
+    # Bosses are smartly assigned an evolution/transformation tier based on
+    # their level/stage progression (encoded in evolution stars + rarity
+    # ascension). This surfaces the boss's evolved state for the UI.
+    if is_boss:
+        tier = _transformation_tier(stars, evolved)
+        enemy["transformation"] = {
+            "tier": tier,
+            "stars": stars,
+            "evolved_rarity": evolved_rarity,
+            "evolved": evolved,
+        }
+
     enemy["progression"] = {
         "level": progression["level"],
         "rarity": evolved_rarity,
+        "stars": stars,
         "ascension": progression["ascension"],
         "gear_tier": progression["gear_tier"],
         "gear_enhancement": progression["gear_enhancement"],

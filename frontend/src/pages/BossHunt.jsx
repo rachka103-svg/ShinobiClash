@@ -80,10 +80,15 @@ export default function BossHunt() {
     const template = catalogById[boss.template_id];
     if (!template) return;
 
+    const bossRarity = boss.rarity || template.rarity;
+    const bossStars = maxStarsForRarity(bossRarity);
+    const evolved = bossRarity !== template.rarity;
     const enemy = {
       template_id: boss.template_id,
       level: boss.level || 60,
       ascension: 15,
+      evolved_rarity: bossRarity,
+      stars: bossStars,
       stats_override: null,
       skill_rank: 10,
       passive_locked: false,
@@ -91,6 +96,12 @@ export default function BossHunt() {
       combat_modifiers: boss.combat_modifiers || {},
       boss_mechanic: boss.boss_mechanic || null,
       escalating_damage: boss.escalating_damage || false,
+      transformation: {
+        tier: transformationTier(bossStars, evolved),
+        stars: bossStars,
+        evolved_rarity: bossRarity,
+        evolved,
+      },
       boss_identity: {
         name: boss.name,
         element: boss.element,
