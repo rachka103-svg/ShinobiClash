@@ -36,8 +36,8 @@ const EvoStars = ({ count, max, size = "w-4 h-4", testid }) => (
   <div className="flex gap-0.5" data-testid={testid}>
     {Array.from({ length: max }).map((_, i) => (
       <Star key={i} className={size} style={{
-        color: i < count ? "#FFCA28" : "#334155",
-        fill: i < count ? "#FFCA28" : "transparent",
+        color: i < count ? "#E5A540" : "#334155",
+        fill: i < count ? "#E5A540" : "transparent",
       }} />
     ))}
   </div>
@@ -428,8 +428,8 @@ const frame = rarityFrame(effectiveRarity);
               data-testid="modal-squad-toggle"
               className="w-full mt-4 flex items-center justify-center gap-2 py-3 rounded-xl font-display text-lg tracking-wide transition-colors disabled:opacity-40"
               style={squad.inSquad
-                ? { background: "rgba(0,229,255,0.14)", border: "1px solid rgba(0,229,255,0.5)", color: "#00E5FF" }
-                : { background: "#00E5FF", color: "#05050A" }}
+                ? { background: "rgba(229,165,64,0.14)", border: "1px solid rgba(229,165,64,0.5)", color: "#E5A540" }
+                : { background: "#E5A540", color: "#101010" }}
             >
               {squad.inSquad ? <><Check className="w-5 h-5" /> IN SQUAD · TAP TO REMOVE</> : <><Plus className="w-5 h-5" /> {squad.canAdd ? "ADD TO SQUAD" : "SQUAD FULL"}</>}
             </button>
@@ -461,7 +461,7 @@ const frame = rarityFrame(effectiveRarity);
                   <span className="font-display text-xl text-ink">Lv.{instance.level}<span className="text-slate-500 text-sm">/{instance.level_cap}</span></span>
                   <div className="flex gap-0.5" data-testid="ascension-stars">
                     {Array.from({ length: instance.ascension_max }).map((_, i) => (
-                      <ChevronsUp key={i} className="w-4 h-4" style={{ color: i < instance.ascension ? "#00E5FF" : "#334155" }} />
+                      <ChevronsUp key={i} className="w-4 h-4" style={{ color: i < instance.ascension ? "#E5A540" : "#334155" }} />
                     ))}
                   </div>
                 </div>
@@ -470,7 +470,7 @@ const frame = rarityFrame(effectiveRarity);
                   <span data-testid="hero-exp-label">{progression.atCap ? "MAX — ascend to continue" : `${instance.exp} / ${instance.exp_to_next}`}</span>
                 </div>
                 <div className="h-2 rounded bg-black/50 overflow-hidden">
-                  <div className="h-full rounded" style={{ width: `${expPct}%`, background: "linear-gradient(90deg,#00E5FF,#76FF03)" }} />
+                  <div className="h-full rounded" style={{ width: `${expPct}%`, background: "linear-gradient(90deg,#E5A540,#76FF03)" }} />
                 </div>
                 </div>
 
@@ -520,7 +520,7 @@ const frame = rarityFrame(effectiveRarity);
                     onClick={progression.onAscend}
                     disabled={busy || !progression.canAscend}
                     data-testid="ascend-button"
-                    className="w-full py-3 mt-4 mb-2 rounded-xl font-display text-base sm:text-lg tracking-wide bg-amber-400 text-[#05050A] hover:bg-amber-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 flex-wrap"
+                    className="w-full py-3 mt-4 mb-2 rounded-xl font-display text-base sm:text-lg tracking-wide bg-amber-400 text-[#101010] hover:bg-amber-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 flex-wrap"
                   >
                     {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <ChevronsUp className="w-5 h-5" />}
                     {progression.atCap ? "ASCEND" : "REACH LV.CAP TO ASCEND"}
@@ -676,7 +676,7 @@ const frame = rarityFrame(effectiveRarity);
                                 {h.portrait ? <img src={h.portrait} alt="" className="w-full aspect-[3/4] object-cover object-top" /> : <div className="w-full aspect-[3/4] flex items-center justify-center text-xs text-slate-500">{h.name?.slice(0, 2)}</div>}
                                 <div className="px-1 py-1 text-left">
                                   <div className="text-[8px] font-bold text-ink truncate">{h.name}</div>
-                                  <div className="text-[8px]" style={{ color: isSSR ? "#AB47BC" : "#64748b" }}>{rr} · {h.stars || 1}★</div>
+                                  <div className="text-[8px]" style={{ color: isSSR ? "#A740E5" : "#64748b" }}>{rr} · {h.stars || 1}★</div>
                                 </div>
                                 {selected && <Check className="absolute top-1 right-1 w-4 h-4 text-amber-300 drop-shadow" />}
                               </button>
@@ -699,7 +699,7 @@ const frame = rarityFrame(effectiveRarity);
                         </div>
                       </div>
                     )}
-                    <button onClick={() => setShowEvoConfirm(true)} disabled={busy || !evoAffordable} data-testid="hero-evolve-confirm-button" className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-amber-400 to-amber-300 text-[#05050A] hover:from-amber-300 hover:to-amber-200 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+                    <button onClick={() => setShowEvoConfirm(true)} disabled={busy || !evoAffordable} data-testid="hero-evolve-confirm-button" className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-amber-400 to-amber-300 text-[#101010] hover:from-amber-300 hover:to-amber-200 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
                       {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Star className="w-5 h-5" />}
                       EVOLVE TO {(instance.stars || 1) + 1}★
                     </button>
@@ -720,9 +720,9 @@ const frame = rarityFrame(effectiveRarity);
                     {/* Transform preview */}
                     <div className="rounded-xl bg-black/[0.04] border border-black/10 p-3 mb-4" data-testid="transform-preview">
                       <div className="flex items-center justify-center gap-2 mb-3">
-                        <span className="text-sm font-bold" style={{ color: RARITY[instance.rarity]?.color || "#FFCA28" }}>{instance.rarity || template.rarity}</span>
+                        <span className="text-sm font-bold" style={{ color: RARITY[instance.rarity]?.color || "#E5A540" }}>{instance.rarity || template.rarity}</span>
                         <ArrowRight className="w-4 h-4 text-slate-500" />
-                        <span className="text-sm font-bold" style={{ color: RARITY[ascTarget]?.color || "#00E5FF" }}>{ascTarget}</span>
+                        <span className="text-sm font-bold" style={{ color: RARITY[ascTarget]?.color || "#E5A540" }}>{ascTarget}</span>
                         <span className="text-xs text-slate-500">· {instance.stars_max + 1}★ max</span>
                       </div>
                       <p className="text-xs text-slate-500 text-center mb-3">
@@ -773,7 +773,7 @@ const frame = rarityFrame(effectiveRarity);
                         onClick={doTranscend}
                         disabled={busy || !ascAffordable}
                         data-testid="hero-transform-button"
-                        className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-jutsu to-chakra text-[#05050A] hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2"
+                        className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-jutsu to-chakra text-[#101010] hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2"
                       >
                         {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                         ⭐ TRANSFORM TO {ascTarget}
@@ -807,7 +807,7 @@ const frame = rarityFrame(effectiveRarity);
                       </div>
                     </div>
                     <div className="h-2 rounded-full bg-black/50 overflow-hidden mb-3">
-                      <div className="h-full rounded-full" style={{ width: `${(skill.rank / skill.rank_max) * 100}%`, background: "linear-gradient(90deg,#7C4DFF,#00E5FF)" }} />
+                      <div className="h-full rounded-full" style={{ width: `${(skill.rank / skill.rank_max) * 100}%`, background: "linear-gradient(90deg,#7C4DFF,#E5A540)" }} />
                     </div>
 
                     {/* Passive unlock status */}
@@ -831,7 +831,7 @@ const frame = rarityFrame(effectiveRarity);
                           <CostRow icon={<Coins className="w-4 h-4 text-amber-400" />} label="Ryo" have={user?.ryo || 0} need={skillCost.ryo} testid="skill-cost-ryo" />
                         </div>
                         <button onClick={doSkillUp} disabled={busy || !skillAffordable} data-testid="hero-skill-up-button"
-                          className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-jutsu to-chakra text-[#05050A] hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2">
+                          className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-jutsu to-chakra text-[#101010] hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2">
                           {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <ChevronsUp className="w-5 h-5" />}
                           {(skill.rank + 1) === skill.passive_unlock_rank ? "UNLOCK PASSIVE" : `RANK UP → ${skill.rank + 1}`}
                         </button>
@@ -883,7 +883,7 @@ const frame = rarityFrame(effectiveRarity);
                                         data-testid={`reforge-${j.id}-${m.id}`}
                                         className="text-[10px] px-2 py-1 rounded-md border transition-colors disabled:opacity-40"
                                         style={{
-                                          color: has ? "#64748b" : "#FFCA28",
+                                          color: has ? "#64748b" : "#E5A540",
                                           borderColor: has ? "rgba(255,255,255,0.1)" : "rgba(255,202,40,0.35)",
                                           background: has ? "transparent" : "rgba(255,202,40,0.08)",
                                         }}
@@ -903,10 +903,10 @@ const frame = rarityFrame(effectiveRarity);
                       {reforgeNextCost && (
                         <div className="flex items-center gap-3 mt-3 pt-2 border-t border-black/10">
                           <span className="text-[10px] uppercase tracking-widest text-slate-500">Next Reforge</span>
-                          <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: shardsOwned >= reforgeNextCost.shards ? "#FFCA28" : "#FF5722" }}>
+                          <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: shardsOwned >= reforgeNextCost.shards ? "#E5A540" : "#FF5722" }}>
                             <Star className="w-3 h-3" />{shardsOwned}/{reforgeNextCost.shards}
                           </span>
-                          <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: (user?.ryo || 0) >= reforgeNextCost.ryo ? "#FFCA28" : "#FF5722" }}>
+                          <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: (user?.ryo || 0) >= reforgeNextCost.ryo ? "#E5A540" : "#FF5722" }}>
                             <Coins className="w-3 h-3" />{(user?.ryo || 0)}/{reforgeNextCost.ryo}
                           </span>
                         </div>
@@ -939,7 +939,7 @@ const frame = rarityFrame(effectiveRarity);
                         onClick={() => setGearSlot(active ? null : slot)}
                         data-testid={`hero-gear-slot-${slot}`}
                         className={`relative p-3 rounded-xl text-left transition-colors ${active ? "bg-black/[0.06]" : "bg-black/[0.04] hover:bg-black/[0.05]"}`}
-                        style={{ border: `1.5px solid ${active ? "#00E5FF" : color}` }}
+                        style={{ border: `1.5px solid ${active ? "#E5A540" : color}` }}
                       >
                         <div className="flex items-center gap-2">
                           <ItemIcon icon={sm.icon} className="w-5 h-5" style={{ color: g ? color : "#64748B" }} />

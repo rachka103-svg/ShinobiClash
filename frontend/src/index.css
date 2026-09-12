@@ -5,19 +5,21 @@
 @tailwind utilities;
 
 :root {
-    --chakra: #00B8D4;
+    --chakra: #E5A540;
     --fox: #FF5722;
-    --jutsu: #C020E0;
+    --jutsu: #A740E5;
     --ink: #241C33;
     --base: #F4EEE2;
     --panel: #FFFFFF;
 
     /* RGB triplets (space-separated) so Tailwind can apply opacity
        modifiers like bg-chakra/15 via rgb(var(--x-rgb) / <alpha-value>). */
-    --chakra-rgb: 0 184 212;
+    --chakra-rgb: 229 165 64;
     --fox-rgb: 255 87 34;
-    --jutsu-rgb: 192 32 224;
+    --jutsu-rgb: 167 64 229;
     --ink-rgb: 36 28 51;
+    --energy: #00E5FF;
+    --energy-rgb: 0 229 255;
 
     --body-bg-color: #F4EEE2;
     --body-bg-image: radial-gradient(120% 90% at 50% -10%, #FBF6EC 0%, #F1E9DA 55%, #ECE3D1 100%);
@@ -45,11 +47,11 @@
     --radius: 0.4rem;
 
     /* ---- Prestige gold tokens (kept, tuned for light surfaces) ---- */
-    --gold: #B8860B;
-    --gold-2: #C8A24A;
-    --gold-dim: rgba(184, 134, 11, 0.16);
-    --gold-hairline: rgba(184, 134, 11, 0.34);
-    --gold-stroke: rgba(184, 134, 11, 0.5);
+    --gold: #E5A540;
+    --gold-2: #F0B855;
+    --gold-dim: rgba(229, 165, 64, 0.22);
+    --gold-hairline: rgba(229, 165, 64, 0.38);
+    --gold-stroke: rgba(229, 165, 64, 0.55);
 
     --stroke-soft: rgba(30, 20, 50, 0.06);
     --stroke: rgba(30, 20, 50, 0.10);
@@ -120,64 +122,66 @@
    mode — no component-level branching required.
    ========================================================================== */
 .dark {
-    --chakra: #00E5FF;
+    --chakra: #E5A540;
     --fox: #FF5722;
-    --jutsu: #D500F9;
+    --jutsu: #A740E5;
     --ink: #FFFFFF;
-    --base: #05050A;
-    --panel: #0B0B14;
+    --base: #101010;
+    --panel: #181818;
 
-    --chakra-rgb: 0 229 255;
+    --chakra-rgb: 229 165 64;
     --fox-rgb: 255 87 34;
-    --jutsu-rgb: 213 0 249;
+    --jutsu-rgb: 167 64 229;
     --ink-rgb: 255 255 255;
+    --energy: #00E5FF;
+    --energy-rgb: 0 229 255;
 
-    --body-bg-color: #05050A;
+    --body-bg-color: #101010;
     --body-bg-image: none;
     --body-color: #FFFFFF;
 
-    --background: 240 33% 3%;
+    --background: 0 0% 6%;
     --foreground: 0 0% 100%;
-    --card: 240 30% 6%;
+    --card: 0 0% 9%;
     --card-foreground: 0 0% 100%;
-    --popover: 240 30% 6%;
+    --popover: 0 0% 9%;
     --popover-foreground: 0 0% 100%;
-    --primary: 187 100% 50%;
-    --primary-foreground: 240 33% 3%;
-    --secondary: 240 20% 14%;
+    --primary: 37 76% 57%;
+    --primary-foreground: 0 0% 6%;
+    --secondary: 0 0% 14%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 240 16% 16%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 240 20% 16%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 16%;
     --accent-foreground: 0 0% 100%;
     --destructive: 350 100% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 20% 18%;
-    --input: 240 20% 16%;
-    --ring: 187 100% 50%;
+    --border: 0 0% 18%;
+    --input: 0 0% 16%;
+    --ring: 37 76% 57%;
 
-    --gold: #FFCA28;
-    --gold-2: #FFC857;
-    --gold-dim: rgba(255, 202, 40, 0.22);
-    --gold-hairline: rgba(255, 202, 40, 0.38);
-    --gold-stroke: rgba(255, 202, 40, 0.55);
+    --gold: #E5A540;
+    --gold-2: #F0B855;
+    --gold-dim: rgba(229, 165, 64, 0.22);
+    --gold-hairline: rgba(229, 165, 64, 0.38);
+    --gold-stroke: rgba(229, 165, 64, 0.55);
 
     --stroke-soft: rgba(255, 255, 255, 0.08);
     --stroke: rgba(255, 255, 255, 0.12);
     --stroke-hard: rgba(255, 255, 255, 0.18);
 
     --glass-border: rgba(255, 255, 255, 0.10);
-    --glass-bg: rgba(11, 11, 20, 0.65);
-    --glass-panel-bg: rgba(11, 11, 20, 0.62);
-    --panel-bg: linear-gradient(160deg, rgba(20, 22, 38, 0.9), rgba(8, 8, 16, 0.95));
+    --glass-bg: rgba(16, 16, 16, 0.65);
+    --glass-panel-bg: rgba(16, 16, 16, 0.62);
+    --panel-bg: linear-gradient(160deg, rgba(30, 30, 30, 0.9), rgba(16, 16, 16, 0.95));
     --panel-inset-highlight: rgba(255, 255, 255, 0.06);
     --shadow-deep: 0 18px 60px rgba(0, 0, 0, 0.55);
     --shadow-lift: 0 24px 80px rgba(0, 0, 0, 0.62);
 
-    --scrollbar-track: #0B0B14;
-    --scrollbar-thumb: #1f2640;
-    --scrollbar-thumb-hover: #00E5FF66;
-    --selection-bg: rgba(0, 229, 255, 0.3);
+    --scrollbar-track: #181818;
+    --scrollbar-thumb: #2a2a2a;
+    --scrollbar-thumb-hover: #E5A54066;
+    --selection-bg: rgba(229, 165, 64, 0.3);
     --selection-color: #fff;
 }
 
