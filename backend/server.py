@@ -2812,6 +2812,27 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     for iid, qty in rw.get("items", {}).items():
         inventory[iid] = inventory.get(iid, 0) + qty
 
+    # --- Elemental Resonance bonus (Elemental Sanctum dungeons) ---
+    # Bring 2+ heroes of the dungeon's element and the shrine resonates,
+    # granting +50% of the essence dropped. Encourages elemental team-building
+    # and makes the sanctum feel distinct from the generic resource dungeons.
+    resonance_bonus = None
+    if trial.get("category") == "elemental" and trial.get("element"):
+        d_element = trial["element"]
+        ninjas = user.get("ninjas", [])
+        part_ids = set(body.participants or list(user.get("team", [])))
+        matched = sum(
+            1 for n in ninjas
+            if n.get("instance_id") in part_ids
+            and gd.CATALOG_BY_ID.get(n.get("template_id"), {}).get("element") == d_element
+        )
+        essence_id = f"{d_element.lower()}_essence"
+        # Light/Dark map to their essence ids directly; Lightning -> lightning_essence
+        if matched >= 2 and rw.get("items", {}).get(essence_id):
+            bonus = max(1, rw["items"][essence_id] // 2)
+            inventory[essence_id] = inventory.get(essence_id, 0) + bonus
+            resonance_bonus = {"element": d_element, "matched": matched, "essence_id": essence_id, "qty": bonus}
+
     # --- Resource Dungeon extras (gear drops / blueprint rolls) ---
     gear_reward = None
     blueprint_reward = None
@@ -2839,8 +2860,11 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     items_out = dict(rw.get("items", {}))
     if blueprint_reward:
         items_out[blueprint_reward] = items_out.get(blueprint_reward, 0) + 1
+    if resonance_bonus:
+        items_out[resonance_bonus["essence_id"]] = items_out.get(resonance_bonus["essence_id"], 0) + resonance_bonus["qty"]
     return {"profile": public_user(user),
-            "rewards": {"ryo": rw.get("ryo", 0), "items": items_out, "hero_exp": hero_exp, "gear": gear_reward},
+            "rewards": {"ryo": rw.get("ryo", 0), "items": items_out, "hero_exp": hero_exp, "gear": gear_reward,
+                        "resonance_bonus": resonance_bonus},
             "result": "win", "level_up": level_up}
 
 

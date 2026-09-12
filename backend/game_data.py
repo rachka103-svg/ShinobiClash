@@ -2615,15 +2615,50 @@ def craft_gear(slot: str) -> dict:
 # existing energy gating + battle flow works with ZERO new combat plumbing.
 # ---------------------------------------------------------------------------
 DUNGEONS = [
+    # --- Resource dungeons (Ryo + EXP) ---
     {"id": "gold_vault", "name": "Gold Vault", "icon": "coins", "color": "#FFC857",
-     "desc": "Raid the vault — the deeper you go, the bigger the Ryo haul.", "focus": "ryo"},
+     "desc": "Raid the vault — the deeper you go, the bigger the Ryo haul.", "focus": "ryo",
+     "category": "resource"},
     {"id": "exp_temple", "name": "EXP Temple", "icon": "sparkles", "color": "#00E5FF",
-     "desc": "Ancient halls overflowing with EXP tomes and spirit dust.", "focus": "tomes"},
+     "desc": "Ancient halls overflowing with EXP tomes and spirit dust.", "focus": "tomes",
+     "category": "resource"},
+    # --- Elemental Sanctum — one shrine per element, drops that element's
+    # essence (the ascension/evolution material for same-element heroes).
+    # Enemies are themed to the element so the run feels distinct per shrine.
+    {"id": "fire_sanctum",   "name": "Fire Sanctum",   "icon": "flame",    "color": "#FF5722",
+     "desc": "A volcanic shrine where flame condenses into Fire Essence.", "focus": "fire_essence",
+     "category": "elemental", "element": "Fire"},
+    {"id": "water_sanctum",  "name": "Water Sanctum",  "icon": "droplet",  "color": "#29B6F6",
+     "desc": "Drowned halls where the tide pools into Water Essence.", "focus": "water_essence",
+     "category": "elemental", "element": "Water"},
+    {"id": "earth_sanctum",  "name": "Earth Sanctum",  "icon": "mountain", "color": "#A1887F",
+     "desc": "Caverns of living stone that yield Earth Essence.", "focus": "earth_essence",
+     "category": "elemental", "element": "Earth"},
+    {"id": "wind_sanctum",   "name": "Wind Sanctum",   "icon": "wind",     "color": "#00E676",
+     "desc": "A howling spire that gathers gales into Wind Essence.", "focus": "wind_essence",
+     "category": "elemental", "element": "Wind"},
+    {"id": "storm_sanctum",  "name": "Storm Sanctum",  "icon": "zap",      "color": "#FFCA28",
+     "desc": "A charged peak where lightning crystallises into Lightning Essence.", "focus": "lightning_essence",
+     "category": "elemental", "element": "Lightning"},
+    {"id": "radiance_sanctum", "name": "Radiance Sanctum", "icon": "sun",  "color": "#FFD54F",
+     "desc": "A sunlit sanctum that distils radiance into Light Essence.", "focus": "light_essence",
+     "category": "elemental", "element": "Light"},
+    {"id": "shadow_sanctum", "name": "Shadow Sanctum",  "icon": "moon",    "color": "#7C4DFF",
+     "desc": "A lightless vault where shadow condenses into Dark Essence.", "focus": "dark_essence",
+     "category": "elemental", "element": "Dark"},
 ]
 DUNGEON_TIER_LEVELS = [4, 12, 22, 34, 48]
 _DUNGEON_ENEMY_SETS = {
     "gold_vault":   ["spark", "zephyr", "raijin"],
     "exp_temple":   ["frost", "ember", "lumina"],
+    # Elemental sanctums — themed rosters (low → high rarity per slot).
+    "fire_sanctum":     ["ember", "ember_scout", "prometheus", "pele", "hephaestus"],
+    "water_sanctum":    ["ripple", "saltide", "poseidon", "tiamat", "leviathan"],
+    "earth_sanctum":    ["boulder", "stoneback", "terra", "gaia", "osiris"],
+    "wind_sanctum":     ["zephyr", "dust_wisp", "thor", "hermes", "gale"],
+    "storm_sanctum":    ["spark", "voltling", "raijin", "zeus", "odin"],
+    "radiance_sanctum": ["glow_sentinel", "glimmer", "apollo", "athena", "amaterasu"],
+    "shadow_sanctum":   ["shade_walker", "shiver", "anubis", "hades", "loki"],
 }
 
 
@@ -2635,13 +2670,18 @@ def _dungeon_trial_entries() -> list:
             lvl = DUNGEON_TIER_LEVELS[tier - 1]
             count = 2 if tier <= 2 else 3
             enemies = [{"template_id": roster[i % len(roster)], "level": lvl + i} for i in range(count)]
-            out.append({
+            entry = {
                 "id": f"d_{d['id']}_t{tier}", "dungeon_id": d["id"], "tier": tier,
                 "name": f"{d['name']} — Tier {tier}", "icon": d["icon"], "color": d["color"],
                 "enemies": enemies,
                 "rewards": _dungeon_reward_table(d["id"], tier),
                 "gear_drop": None,
-            })
+            }
+            if d.get("category"):
+                entry["category"] = d["category"]
+            if d.get("element"):
+                entry["element"] = d["element"]
+            out.append(entry)
     return out
 
 
@@ -2650,14 +2690,30 @@ def _dungeon_reward_table(dungeon_id: str, tier: int) -> dict:
         return {"ryo": 380 + round(tier ** 1.5 * 320), "hero_exp": 30 + tier * 15,
                 "items": ({"scrap_iron": tier // 2} if tier >= 2 else {})}
     # exp_temple
-    tomes = [
-        {"exp_tome_minor": 4},
-        {"exp_tome_minor": 4, "exp_tome_greater": 1},
-        {"exp_tome_greater": 3, "spirit_dust": 1},
-        {"exp_tome_greater": 3, "exp_tome_ancient": 1, "spirit_dust": 2},
-        {"exp_tome_ancient": 2, "exp_tome_greater": 2, "spirit_dust": 3},
-    ][tier - 1]
-    return {"ryo": 90 + tier * 60, "hero_exp": 40 + tier * 20, "items": tomes}
+    if dungeon_id == "exp_temple":
+        tomes = [
+            {"exp_tome_minor": 4},
+            {"exp_tome_minor": 4, "exp_tome_greater": 1},
+            {"exp_tome_greater": 3, "spirit_dust": 1},
+            {"exp_tome_greater": 3, "exp_tome_ancient": 1, "spirit_dust": 2},
+            {"exp_tome_ancient": 2, "exp_tome_greater": 2, "spirit_dust": 3},
+        ][tier - 1]
+        return {"ryo": 90 + tier * 60, "hero_exp": 40 + tier * 20, "items": tomes}
+    # Elemental sanctums — drop the matching elemental essence (the
+    # ascension/evolution material). Essence scales with tier; higher tiers
+    # also yield a little evo_essence and Ryo so the run is never wasted.
+    d = next((x for x in DUNGEONS if x["id"] == dungeon_id), None)
+    if d and d.get("category") == "elemental":
+        essence_id = d["focus"]
+        base_essence = 2 + tier * 2            # T1=4 ... T5=12
+        items = {essence_id: base_essence}
+        if tier >= 3:
+            items["evo_essence"] = tier - 2     # supplementary evolution material
+        if tier >= 4:
+            items["spirit_dust"] = (tier - 3)   # fuse into evo_essence
+        return {"ryo": 60 + tier * 50, "hero_exp": 35 + tier * 18, "items": items}
+    # Fallback (unknown dungeon) — small generic reward
+    return {"ryo": 100 + tier * 50, "hero_exp": 30 + tier * 15, "items": {}}
 
 
 DUNGEON_TRIALS = _dungeon_trial_entries()

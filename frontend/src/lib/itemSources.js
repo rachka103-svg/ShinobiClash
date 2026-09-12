@@ -14,14 +14,14 @@ export const ITEM_SOURCES = {
   boss_core:           { route: "/boss-hunt", source: "Boss Hunt", detail: "Ripped from defeated Boss Hunt bosses. Required for Transformation to GR." },
   lunar_essence:       { route: "/tsukuyomi", source: "Tsukuyomi", detail: "A rare prize torn from Nightmare bosses in the Tsukuyomi Infinite Nightmare." },
 
-  // Elemental essences (future ascension materials)
-  fire_essence:        { route: "/dungeons",  source: "Dungeons", detail: "Condensed flame. A future ascension material for Fire heroes. Found in Dungeons." },
-  water_essence:       { route: "/dungeons",  source: "Dungeons", detail: "Condensed tide. A future ascension material for Water heroes. Found in Dungeons." },
-  earth_essence:       { route: "/dungeons",  source: "Dungeons", detail: "Condensed stone. A future ascension material for Earth heroes. Found in Dungeons." },
-  wind_essence:        { route: "/dungeons",  source: "Dungeons", detail: "Condensed gale. A future ascension material for Wind heroes. Found in Dungeons." },
-  lightning_essence:   { route: "/dungeons",  source: "Dungeons", detail: "Condensed storm. A future ascension material for Lightning heroes. Found in Dungeons." },
-  light_essence:       { route: "/dungeons",  source: "Dungeons", detail: "Condensed radiance. A future ascension material for Light heroes. Found in Dungeons." },
-  dark_essence:        { route: "/dungeons",  source: "Dungeons", detail: "Condensed shadow. A future ascension material for Dark heroes. Found in Dungeons." },
+  // Elemental essences — drop from the Elemental Sanctum shrines (one per element)
+  fire_essence:        { route: "/dungeons",  source: "Fire Sanctum",   detail: "Condensed flame. Drops from the Fire Sanctum shrine in the Elemental Sanctum. Bring 2+ Fire heroes for a Resonance bonus." },
+  water_essence:       { route: "/dungeons",  source: "Water Sanctum",  detail: "Condensed tide. Drops from the Water Sanctum shrine in the Elemental Sanctum. Bring 2+ Water heroes for a Resonance bonus." },
+  earth_essence:       { route: "/dungeons",  source: "Earth Sanctum",  detail: "Condensed stone. Drops from the Earth Sanctum shrine in the Elemental Sanctum. Bring 2+ Earth heroes for a Resonance bonus." },
+  wind_essence:        { route: "/dungeons",  source: "Wind Sanctum",   detail: "Condensed gale. Drops from the Wind Sanctum shrine in the Elemental Sanctum. Bring 2+ Wind heroes for a Resonance bonus." },
+  lightning_essence:   { route: "/dungeons",  source: "Storm Sanctum",  detail: "Condensed storm. Drops from the Storm Sanctum shrine in the Elemental Sanctum. Bring 2+ Lightning heroes for a Resonance bonus." },
+  light_essence:       { route: "/dungeons",  source: "Radiance Sanctum", detail: "Condensed radiance. Drops from the Radiance Sanctum shrine in the Elemental Sanctum. Bring 2+ Light heroes for a Resonance bonus." },
+  dark_essence:        { route: "/dungeons",  source: "Shadow Sanctum", detail: "Condensed shadow. Drops from the Shadow Sanctum shrine in the Elemental Sanctum. Bring 2+ Dark heroes for a Resonance bonus." },
 
   // EXP tomes + spirit dust (EXP Temple dungeon)
   exp_tome_minor:      { route: "/dungeons",  source: "EXP Temple", detail: "Drops from EXP Temple dungeon Tiers 1–2." },
