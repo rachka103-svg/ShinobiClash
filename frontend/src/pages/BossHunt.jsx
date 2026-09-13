@@ -4,6 +4,8 @@ import { Swords, Skull, Zap, ChevronRight, Flame, Droplet, Wind, Mountain, Sun, 
 import { useGame } from "@/context/GameContext";
 import { useAuth } from "@/context/AuthContext";
 import { rarityFrame, glow, RARITY, ELEMENT } from "@/lib/theme";
+import { maxStarsForRarity } from "@/lib/gameConstants";
+import { transformationTier } from "@/lib/enemyProgression";
 import api from "@/lib/api";
 import { cachedFetch } from "@/lib/cache";
 import { preloadBattleAssets, getBattleBackground } from "@/lib/preload";
@@ -20,10 +22,10 @@ const RARITY_LABELS = {
 };
 
 const REWARD_LABELS = {
-  boss_crystal: { name: "Boss Crystal", icon: "💎" },
-  event_gear: { name: "Event Gear", icon: "⚔️" },
-  essence: { name: "Essence", icon: "🔮" },
-  boss_card: { name: "Boss Card", icon: "🃏" },
+  boss_crystal: { name: "Boss Crystal", icon: "https://media.base44.com/images/public/6a95b687e54c815596ebfc07/53f44f9d8_generated_d106d66d.png" },
+  event_gear: { name: "Event Gear", icon: "https://media.base44.com/images/public/6a95b687e54c815596ebfc07/ffcf2e186_generated_c2248e7f.png" },
+  essence: { name: "Essence", icon: "https://media.base44.com/images/public/6a95b687e54c815596ebfc07/1ffc8322d_generated_93a565a4.png" },
+  boss_card: { name: "Boss Card", icon: "https://media.base44.com/images/public/6a95b687e54c815596ebfc07/3b5a23e5b_generated_b123f19c.png" },
 };
 
 /** Deterministic ember particle positions — stable across re-renders. */
@@ -80,10 +82,15 @@ export default function BossHunt() {
     const template = catalogById[boss.template_id];
     if (!template) return;
 
+    const bossRarity = boss.rarity || template.rarity;
+    const bossStars = maxStarsForRarity(bossRarity);
+    const evolved = bossRarity !== template.rarity;
     const enemy = {
       template_id: boss.template_id,
       level: boss.level || 60,
       ascension: 15,
+      evolved_rarity: bossRarity,
+      stars: bossStars,
       stats_override: null,
       skill_rank: 10,
       passive_locked: false,
@@ -91,6 +98,12 @@ export default function BossHunt() {
       combat_modifiers: boss.combat_modifiers || {},
       boss_mechanic: boss.boss_mechanic || null,
       escalating_damage: boss.escalating_damage || false,
+      transformation: {
+        tier: transformationTier(bossStars, evolved),
+        stars: bossStars,
+        evolved_rarity: bossRarity,
+        evolved,
+      },
       boss_identity: {
         name: boss.name,
         element: boss.element,
@@ -290,7 +303,6 @@ export default function BossHunt() {
                   onClick={() => canFight && launchBattle(selectedBoss)}
                   className="relative block w-full rounded-2xl overflow-hidden boss-float group cursor-pointer transition-transform"
                   style={{
-                    maxHeight: "clamp(360px, 62vh, 620px)",
                     boxShadow: `0 0 50px ${rarityColor}44, 0 0 100px ${rarityColor}22, 0 0 140px ${elemColor}15, 0 20px 60px rgba(0,0,0,0.7)`,
                     border: `3px solid ${frame.strokeColor}`,
                     animation: "bossGlow 3s ease-in-out infinite alternate, bossFloat 6s ease-in-out infinite",
@@ -307,7 +319,7 @@ export default function BossHunt() {
                     src={bossTemplate.portrait}
                     alt={selectedBoss.name}
                     className="w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    style={{ maxHeight: "clamp(360px, 62vh, 620px)" }}
+                    style={{ height: "clamp(380px, 58vh, 580px)", objectPosition: "top" }}
                   />
 
                   {/* Bottom gradient scrim */}
@@ -410,23 +422,41 @@ export default function BossHunt() {
               <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-display">
                 Your Team
               </div>
-              <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
+              <div className="flex items-center justify-center gap-2.5 sm:gap-3 flex-wrap">
                 {teamHeroes.length > 0 ? (
                   teamHeroes.map(({ inst, tmpl }, i) => {
                     const tRarity = tmpl.rarity;
                     const tColor = RARITY[tRarity]?.color || "#9E9E9E";
+                    const tFrame = rarityFrame(tRarity);
+                    const hpPct = inst.hp_current != null && inst.hp_max ? (inst.hp_current / inst.hp_max) * 100 : 100;
                     return (
                       <div
                         key={i}
-                        className="flex-shrink-0 w-14 sm:w-20 rounded-lg overflow-hidden border bg-black/50 backdrop-blur-sm transition-transform hover:scale-105"
-                        style={{ borderColor: tColor + "55", boxShadow: `0 0 12px ${tColor}22` }}
+                        className="flex-shrink-0 w-24 sm:w-32 lg:w-36 rounded-xl overflow-hidden border bg-black/60 backdrop-blur-sm transition-transform hover:scale-105"
+                        style={{ borderColor: tColor + "66", boxShadow: `0 0 16px ${tColor}33` }}
                       >
-                        {tmpl.portrait && (
-                          <img src={tmpl.portrait} alt={tmpl.name} className="w-full h-14 sm:h-20 object-cover" />
-                        )}
-                        <div className="p-1">
-                          <p className="text-[9px] text-white font-display tracking-wide truncate">{tmpl.name}</p>
-                          <p className="text-[8px] text-slate-400">Lv.{inst.level}</p>
+                        <div className="relative">
+                          {tmpl.portrait && (
+                            <img src={tmpl.portrait} alt={tmpl.name} className="w-full h-28 sm:h-36 lg:h-40 object-cover object-top" />
+                          )}
+                          {/* Level badge top-right */}
+                          <span className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-display tracking-wide text-white border border-white/15">
+                            LV.{inst.level}
+                          </span>
+                          {/* Rarity badge top-left */}
+                          <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-[8px] font-bold tracking-wide border" style={{ color: tColor, borderColor: tColor + "66" }}>
+                            {tRarity}
+                          </span>
+                        </div>
+                        <div className="p-1.5 sm:p-2">
+                          <p className="text-[10px] sm:text-xs text-white font-display tracking-wide truncate">{tmpl.name}</p>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-[8px] sm:text-[9px] text-slate-400">HP</span>
+                            <span className="text-[8px] sm:text-[9px] text-slate-300 tabular-nums">{(inst.hp_max || inst.power || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="w-full h-1.5 rounded-full bg-black/60 overflow-hidden mt-0.5">
+                            <div className="h-full rounded-full" style={{ width: `${hpPct}%`, background: `linear-gradient(90deg, ${tColor}, ${tColor}aa)` }} />
+                          </div>
                         </div>
                       </div>
                     );
@@ -510,10 +540,13 @@ export default function BossHunt() {
                 <div className="grid grid-cols-4 gap-2">
                   {selectedBoss.rewards.items?.map((item, i) => {
                     const info = REWARD_LABELS[item] || { name: item, icon: "🎁" };
+                    const isImg = info.icon?.startsWith("http");
                     return (
                       <div key={i} className="flex flex-col items-center gap-1">
-                        <div className="w-11 h-11 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-lg">
-                          {info.icon}
+                        <div className="w-11 h-11 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+                          {isImg
+                            ? <img src={info.icon} alt={info.name} className="w-full h-full object-cover" />
+                            : <span className="text-lg">{info.icon}</span>}
                         </div>
                         <span className="text-[8px] text-slate-400 text-center leading-tight">{info.name}</span>
                       </div>

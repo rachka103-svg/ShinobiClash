@@ -8,7 +8,7 @@
  * mutable game state.
  */
 
-const CACHE_VERSION = "shinobi-v1";
+const CACHE_VERSION = "shinobi-v3";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const IMG_CACHE = `${CACHE_VERSION}-img`;
 

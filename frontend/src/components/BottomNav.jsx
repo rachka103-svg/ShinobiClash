@@ -9,23 +9,23 @@ import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose 
 
 // Thumb-reachable primary destinations; Battle is the elevated center action.
 const PRIMARY = [
-  { to: "/", label: "Home", icon: Home, color: "#00E5FF", testid: "nav-lobby" },
-  { to: "/summon", label: "Summon", icon: Sparkles, color: "#FFCA28", testid: "nav-summon" },
+  { to: "/", label: "Home", icon: Home, color: "#E5A540", testid: "nav-lobby" },
+  { to: "/summon", label: "Summon", icon: Sparkles, color: "#E5A540", testid: "nav-summon" },
   { to: "/battle", label: "Battle", icon: Swords, color: "#FF5722", center: true, testid: "nav-battle" },
-  { to: "/roster", label: "Heroes", icon: Users, color: "#D500F9", testid: "nav-roster" },
+  { to: "/roster", label: "Heroes", icon: Users, color: "#A740E5", testid: "nav-roster" },
 ];
 
 const MORE = [
-  { to: "/shop", label: "Shop", icon: ShoppingBag, color: "#FFCA28", testid: "nav-shop" },
+  { to: "/shop", label: "Shop", icon: ShoppingBag, color: "#E5A540", testid: "nav-shop" },
   { to: "/campaign", label: "Campaign", icon: Scroll, color: "#FF5722", testid: "nav-campaign" },
   { to: "/tsukuyomi", label: "Tsukuyomi", icon: Moon, color: "#7C4DFF", testid: "nav-tsukuyomi" },
   { to: "/dungeons", label: "Dungeons", icon: Landmark, color: "#7C4DFF", testid: "nav-dungeons" },
   { to: "/boss-hunt", label: "Boss Hunt", icon: Skull, color: "#FF1744", testid: "nav-boss-hunt" },
-  { to: "/spire", label: "Spire", icon: Castle, color: "#D500F9", testid: "nav-spire" },
+  { to: "/spire", label: "Spire", icon: Castle, color: "#A740E5", testid: "nav-spire" },
   { to: "/arena", label: "Arena", icon: Crosshair, color: "#FF1744", testid: "nav-arena" },
   { to: "/gallery", label: "Gallery", icon: LayoutGrid, color: "#00E676", testid: "nav-gallery" },
   { to: "/forge", label: "Forge", icon: Anvil, color: "#FF5722", testid: "nav-forge" },
-  { to: "/leaderboard", label: "Ranks", icon: Trophy, color: "#FFCA28", testid: "nav-leaderboard" },
+  { to: "/leaderboard", label: "Ranks", icon: Trophy, color: "#E5A540", testid: "nav-leaderboard" },
 ];
 
 /**
@@ -37,7 +37,7 @@ export default function BottomNav() {
   const { user } = useAuth();
   const loc = useLocation();
   const more = user?.role === "admin"
-    ? [...MORE, { to: "/admin", label: "Admin", icon: Wand2, color: "#00E5FF", testid: "nav-admin" }]
+    ? [...MORE, { to: "/admin", label: "Admin", icon: Wand2, color: "#E5A540", testid: "nav-admin" }]
     : MORE;
   const moreActive = more.some((m) => m.to === loc.pathname);
   const isActive = (to) => (to === "/" ? loc.pathname === "/" : loc.pathname === to);
@@ -49,11 +49,11 @@ export default function BottomNav() {
       className="fixed bottom-0 inset-x-0 z-40 pb-[env(safe-area-inset-bottom)]"
       data-testid="bottom-nav"
     >
-      <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-[#05050A] via-[#05050A]/85 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-[#101010] via-[#101010]/85 to-transparent pointer-events-none" />
       <div className="relative mx-auto max-w-lg px-3 pb-2">
         <div
           className="relative flex items-end justify-between rounded-2xl px-2 h-16 border border-black/10"
-          style={{ background: "rgba(11,11,20,0.96)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.07), 0 -8px 30px rgba(0,0,0,0.5)" }}
+          style={{ background: "rgba(16,16,16,0.96)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.07), 0 -8px 30px rgba(0,0,0,0.5)" }}
         >
           {/* gold hairline crown */}
           <div className="gold-pinstripe absolute -top-px inset-x-6 opacity-60" />
@@ -64,8 +64,8 @@ export default function BottomNav() {
                 <Sheet key="more">
                   <SheetTrigger asChild>
                     <button data-testid="nav-more" className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full group">
-                      <Grid3x3 className="w-5 h-5 transition-colors" style={{ color: moreActive ? "#00E5FF" : "#94a3b8" }} />
-                      <span className="text-[10px] font-semibold tracking-wide" style={{ color: moreActive ? "#00E5FF" : "#64748b" }}>More</span>
+                      <Grid3x3 className="w-5 h-5 transition-colors" style={{ color: moreActive ? "#E5A540" : "#94a3b8" }} />
+                      <span className="text-[10px] font-semibold tracking-wide" style={{ color: moreActive ? "#E5A540" : "#64748b" }}>More</span>
                     </button>
                   </SheetTrigger>
                   <SheetContent side="bottom" className="bg-[#FFFFFF] border-t border-black/10 rounded-t-3xl pb-[calc(1.5rem+env(safe-area-inset-bottom))]" data-testid="nav-more-sheet">

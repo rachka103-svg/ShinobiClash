@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { ItemIcon } from "@/components/ItemIcon";
+import { getItemSource } from "@/lib/itemSources";
 
 // Must mirror backend forge_production.py production_recipe()
 const MATERIAL_BANDS = [
@@ -37,7 +38,7 @@ function productionRecipe(cat, tier) {
 
 const PAGE_SIZE = 12;
 
-export default function ForgeProduction() {
+export default function ForgeProduction({ onItemClick }) {
   const { user, setUser } = useAuth();
   const { productionCategories, items, forgeMaxLevel } = useGame();
   const [selCat, setSelCat] = useState(productionCategories[0]?.id || "hp_potion");
@@ -199,13 +200,16 @@ export default function ForgeProduction() {
                   const have = inv[mid] || 0;
                   const enough = have >= need;
                   const meta = items[mid] || {};
+                  const src = getItemSource(mid);
                   return (
                     <span
                       key={mid}
-                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ${enough ? "text-slate-600" : "text-fox"}`}
+                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ${enough ? "text-slate-600" : "text-fox"} ${src ? "cursor-pointer hover:text-chakra hover:bg-chakra/5" : ""}`}
+                      onClick={src && onItemClick ? () => onItemClick(mid) : undefined}
                     >
                       <ItemIcon icon={meta.icon} className="w-3 h-3" style={{ color: meta.color }} />
                       {meta.name || mid} <span className="font-bold">{have}/{need}</span>
+                      {src && <span className="text-chakra/60">→</span>}
                     </span>
                   );
                 })}

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Skull, Flame } from "lucide-react";
 import { ELEMENT, RARITY } from "@/lib/styles";
 import { ElementIcon } from "@/components/ElementIcons";
+import { GAME_ICONS, isIconUrl } from "@/lib/gameIcons";
 
 // Pre-computed ember particle configs (deterministic, no hooks needed)
 const EMBER_PARTICLES = Array.from({ length: 14 }, (_, i) => ({
@@ -264,16 +265,16 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
         <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center" data-testid={`statuses-${c.uid}`}>
           {c.statuses.map((s) => {
             const STATUS_VISUAL = {
-              burn: { icon: "🔥", color: "#FF5722", label: "Burn" },
-              poison: { icon: "☠", color: "#76FF03", label: "Poison" },
-              bleed: { icon: "🩸", color: "#FF1744", label: "Bleed" },
-              stun: { icon: "💫", color: "#FFCA28", label: "Stun" },
-              freeze: { icon: "❄", color: "#40C4FF", label: "Freeze" },
-              shock: { icon: "⚡", color: "#FFEB3B", label: "Shock" },
-              atk_down: { icon: "⚔", color: "#FF9100", label: "ATK Down" },
-              def_down: { icon: "🛡", color: "#FF9100", label: "DEF Down" },
-              curse_dot: { icon: "👁", color: "#E040FB", label: `Curse x${s.stacks || 1}` },
-              blood_mark: { icon: "🔖", color: "#E040FB", label: `Mark x${s.stacks || 1}` },
+              burn: { icon: GAME_ICONS.fire, color: "#FF5722", label: "Burn" },
+              poison: { icon: GAME_ICONS.poison, color: "#76FF03", label: "Poison" },
+              bleed: { icon: GAME_ICONS.bleed, color: "#FF1744", label: "Bleed" },
+              stun: { icon: GAME_ICONS.stun, color: "#FFCA28", label: "Stun" },
+              freeze: { icon: GAME_ICONS.freeze, color: "#40C4FF", label: "Freeze" },
+              shock: { icon: GAME_ICONS.lightning, color: "#FFEB3B", label: "Shock" },
+              atk_down: { icon: GAME_ICONS.swords, color: "#FF9100", label: "ATK Down" },
+              def_down: { icon: GAME_ICONS.shield, color: "#FF9100", label: "DEF Down" },
+              curse_dot: { icon: GAME_ICONS.curse, color: "#E040FB", label: `Curse x${s.stacks || 1}` },
+              blood_mark: { icon: GAME_ICONS.mark, color: "#E040FB", label: `Mark x${s.stacks || 1}` },
             };
             const vis = STATUS_VISUAL[s.effectType] || { icon: "•", color: "#F48FB1", label: s.effectType };
             const turns = s.duration ?? 0;
@@ -281,7 +282,9 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
               <span key={s.id} title={`${vis.label}${turns > 0 ? ` (${turns}t)` : ""}`}
                 className="status-badge flex items-center gap-0.5 leading-none px-1 py-0.5 rounded bg-black/75 border"
                 style={{ color: vis.color, borderColor: `${vis.color}66` }}>
-                <span className={isBoss ? "text-xs" : "text-[9px]"}>{vis.icon}</span>
+                {isIconUrl(vis.icon)
+                  ? <img src={vis.icon} alt={vis.label} className={isBoss ? "w-3.5 h-3.5" : "w-2.5 h-2.5"} style={{ objectFit: "cover", borderRadius: "2px" }} />
+                  : <span className={isBoss ? "text-xs" : "text-[9px]"}>{vis.icon}</span>}
                 {turns > 0 && turns < 99 && <span className={`${isBoss ? "text-[9px]" : "text-[7px]"} font-bold opacity-80`}>{turns}</span>}
               </span>
             );

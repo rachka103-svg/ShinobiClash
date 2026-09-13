@@ -32,6 +32,7 @@ import progression as prog
 import evolution_materials as evo_mat
 import admin_config as ac
 import player_progression as pp
+import boss_configs as bh
 
 # Cryptographically-secure RNG for all gameplay-affecting randomness (gacha
 # pulls, gear/loot drops, pity/5050 rolls). random.random()/random.choice()
@@ -229,6 +230,7 @@ class EvolveIn(BaseModel):
     instance_id: str
     method: str = "shards"  # "shards" | "fodder"
     fodder_ids: List[str] = []
+    allow_ssr: bool = False  # must be True when SSR fodder is selected
 
 
 class GearEquipIn(BaseModel):
@@ -377,6 +379,18 @@ class ArtDescribeIn(BaseModel):
     style: Optional[str] = None
     role: Optional[str] = None
     notes: str = Field(default="", max_length=300)
+
+
+class SkinSaveIn(BaseModel):
+    template_id: str
+    name: str = Field(min_length=1, max_length=40)
+    image: str  # base64 data URL
+    stat_bonuses: Optional[dict] = None  # e.g. {"atk_pct": 5, "hp_pct": 10}
+
+
+class SkinSelectIn(BaseModel):
+    instance_id: str
+    skin_id: Optional[str] = None  # None to unequip
 
 
 class ArtGenerateIn(BaseModel):
@@ -680,11 +694,12 @@ def new_ninja_instance(template_id: str, level: int = 1) -> dict:
     return {"instance_id": str(uuid.uuid4()), "template_id": template_id, "level": level, "exp": 0, "ascension": 0, "stars": 1, "skill_rank": 1}
 
 
-def _star_bonus_mult(stars: int) -> float:
+def _star_bonus_mult(stars: int, rarity: str = "R") -> float:
     """Each star beyond the 1st adds a permanent stat bonus (evolution is
     the ONLY way to gain stars) — this is what gives duplicate shards and
-    rare evolution materials real long-term value."""
-    return 1 + max(0, (stars or 1) - 1) * gd.STAR_BONUS_PER_STAR
+    rare evolution materials real long-term value. Higher rarities gain
+    MORE per star, widening the gap with investment."""
+    return 1 + max(0, (stars or 1) - 1) * gd.RARITY_STAR_BONUS.get(rarity, 0.15)
 
 
 def _power_from_stats(s: dict) -> int:
@@ -717,13 +732,25 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_gear: dic
         return
     rarity = ex.effective_rarity(inst, tmpl)
     native_rarity = tmpl["rarity"]
-    star_mult = _star_bonus_mult(inst["stars"])
+    star_mult = _star_bonus_mult(inst["stars"], rarity)
     base_stats = ex.compute_stats_for_rarity(inst["template_id"], inst["level"], asc, rarity)
     star_stats = {k: (round(v * star_mult) if k in ("hp", "atk", "def") else v) for k, v in base_stats.items()}
     equipped = gear_by_hero.get(inst["instance_id"], [])
     geared = gd.apply_gear_to_stats(star_stats, equipped) if equipped else star_stats
     socketed = [crystal_by_gear[g["gear_id"]] for g in equipped if g["gear_id"] in crystal_by_gear]
     final_stats = ex.apply_crystals_to_stats(geared, socketed) if socketed else geared
+    # Skin — swap portrait and apply optional stat bonuses
+    skin_id = inst.get("skin_id")
+    skin = gd.get_skin(inst["template_id"], skin_id) if skin_id else None
+    if skin:
+        inst["skin"] = skin
+        bonuses = skin.get("stat_bonuses") or {}
+        for key, pct in bonuses.items():
+            stat_key = key.replace("_pct", "")
+            if stat_key in final_stats and pct:
+                final_stats[stat_key] = round(final_stats[stat_key] * (1 + pct / 100))
+    else:
+        inst["skin"] = None
     # Boss Crysta combat modifiers — aggregated from socketed Boss Crystas
     crystal_mods = ex.extract_crystal_combat_modifiers(socketed) if socketed else {}
     inst["crystal_combat_modifiers"] = crystal_mods if crystal_mods else None
@@ -748,6 +775,7 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_gear: dic
     inst["star_up_cost"] = inst["evolution_cost"]["shards"] if inst["evolution_cost"] else None
     inst["evolution_fodder_cost"] = evo_mat.get_fodder_requirement(stars) if stars < stars_max else None
     inst["faction"] = tmpl.get("faction")
+    inst["element"] = tmpl.get("element")
     inst["role"] = tmpl.get("role")
     skill_rank = inst.get("skill_rank", 1)
     sk = gd.skill_public(rarity, skill_rank)
@@ -812,11 +840,13 @@ def public_user(user: dict) -> dict:
         "ninjas": ninjas,
         "inventory": user.get("inventory", {}),
         "hero_shards": user.get("hero_shards", {}),
+        "skins": gd._SKINS,
         "gear": [gear_public(g) for g in gear_all],
         "crystals": [ex.crystal_public(c) for c in crystal_all],
         "crystal_config": {
             "tiers": ex.CRYSTAL_TIERS,
             "drop_fraction": ex.CRYSTAL_DROP_FRACTION,
+            "drop_rates": ex.crystal_drop_rates(),
         },
         "stepup": stepup_public(user),
         "pity": user.get("pity") or gd.fresh_pity_state(),
@@ -1021,6 +1051,7 @@ async def catalog():
             "trials": gd.TRIALS + gd.DUNGEON_TRIALS,
             "banner": banner_info(), "factions": gd.FACTIONS, "roles": gd.ROLES,
             "tags": gd.TAGS, "rarities": gd.RARITIES,
+            "skins": gd._SKINS,
             "enemy_templates": [gd.CATALOG_BY_ID.get(t["id"], t) for t in gd.NIGHTMARE_BOSS_TEMPLATES],
             "gem_costs": {
                 "summon": gd.GEM_SUMMON_COST,
@@ -1061,7 +1092,9 @@ async def catalog():
                 "ascension_benefits": prog.ASCENSION_BENEFITS,
                 "elemental_essence_enabled": prog.ELEMENTAL_ESSENCE_ENABLED,
                 "element_essence": prog.ELEMENT_ESSENCE,
-                "star_bonus_per_star": gd.STAR_BONUS_PER_STAR,
+                "star_bonus_per_star": gd.RARITY_STAR_BONUS,
+                "level_growth": gd.RARITY_LEVEL_GROWTH,
+                "ascension_growth": gd.RARITY_ASCENSION_GROWTH,
             },
             "dungeons": [
                 {**d, "tiers": [
@@ -1637,7 +1670,7 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
     crystal_reward = None
     if chapter >= 2 and rng.random() < 0.02 + min(0.01, chapter * 0.0005):
         _crystal_diff = {"normal": "normal", "hard": "hard", "difficult": "nightmare", "extreme": "nightmare"}.get(body.difficulty, "normal")
-        _crystal_inst = ex.roll_crystal(_crystal_diff)
+        _crystal_inst = ex.roll_crystal(_crystal_diff, mode="campaign")
         user.setdefault("crystals", []).append(_crystal_inst)
         crystal_reward = ex.crystal_public(_crystal_inst)
         rewards["crystal"] = crystal_reward
@@ -2064,7 +2097,7 @@ async def claim_achievement(achievement_id: str, user: dict = Depends(get_curren
     return {"profile": public_user(user), "reward": reward}
 
 
-async def _do_evolve(instance_id: str, user: dict, method: str = "shards", fodder_ids: Optional[List[str]] = None) -> dict:
+async def _do_evolve(instance_id: str, user: dict, method: str = "shards", fodder_ids: Optional[List[str]] = None, allow_ssr: bool = False) -> dict:
     """Evolution star breakthrough. Players choose ONE route:
     1) hero-specific shards, or 2) same-element R/SR/optional SSR hero fodder.
     Ryo and the non-shard evolution materials remain shared requirements.
@@ -2096,14 +2129,28 @@ async def _do_evolve(instance_id: str, user: dict, method: str = "shards", fodde
             raise HTTPException(status_code=400, detail=f"Not enough shards ({have_shards}/{cost['shards']})")
     else:
         req = evo_mat.get_fodder_requirement(stars)
+        if not req:
+            raise HTTPException(status_code=400, detail="Fodder evolution is unavailable for this star level")
         protected_gear_ids = {g.get("equipped_by") for g in user.get("gear", []) if g.get("equipped_by")}
-        ok, msg, selected, total = evo_mat.validate_fodder_selection(
-            user.get("ninjas", []), instance_id, tmpl.get("element"), fodder_ids or [], team_ids, protected_gear_ids
+        # Raw DB ninja instances don't carry `element` (it lives on the
+        # template).  Resolve it here so server-side fodder validation can
+        # enforce the same-element rule.  Also ensure evolved_rarity is set
+        # (it normally is after the v2 migration, but be defensive).
+        for n in user.get("ninjas", []):
+            if not n.get("element"):
+                nt = gd.CATALOG_BY_ID.get(n.get("template_id"))
+                if nt:
+                    n["element"] = nt.get("element")
+            if not n.get("evolved_rarity"):
+                nt = gd.CATALOG_BY_ID.get(n.get("template_id"))
+                if nt:
+                    n["evolved_rarity"] = ex.effective_rarity(n, nt)
+        ok, msg, selected, _assignments = evo_mat.validate_fodder_selection(
+            user.get("ninjas", []), instance_id, tmpl.get("element"), fodder_ids or [],
+            team_ids, protected_gear_ids, current_star=stars, allow_ssr=allow_ssr
         )
         if not ok:
             raise HTTPException(status_code=400, detail=msg)
-        if total < req["value"]:
-            raise HTTPException(status_code=400, detail=f"Not enough Evolution material value ({total}/{req['value']})")
 
     if user.get("ryo", 0) < cost["ryo"]:
         raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost['ryo']}")
@@ -2137,7 +2184,7 @@ async def _do_evolve(instance_id: str, user: dict, method: str = "shards", fodde
 
 @api_router.post("/game/hero/evolve")
 async def evolve_hero(body: EvolveIn, user: dict = Depends(get_current_user)):
-    return await _do_evolve(body.instance_id, user, body.method, body.fodder_ids)
+    return await _do_evolve(body.instance_id, user, body.method, body.fodder_ids, body.allow_ssr)
 
 
 @api_router.post("/game/hero/star-up")
@@ -2748,7 +2795,7 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     spire_crystal = None
     if advancing and rng.random() < min(0.08, 0.03 + floor * 0.001):
         _spire_diff = "nightmare" if floor >= 50 else ("hard" if floor >= 20 else "normal")
-        _spire_inst = ex.roll_crystal(_spire_diff)
+        _spire_inst = ex.roll_crystal(_spire_diff, mode="spire")
         user.setdefault("crystals", []).append(_spire_inst)
         spire_crystal = ex.crystal_public(_spire_inst)
     user["inventory"] = inventory
@@ -2792,6 +2839,27 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     for iid, qty in rw.get("items", {}).items():
         inventory[iid] = inventory.get(iid, 0) + qty
 
+    # --- Elemental Resonance bonus (Elemental Sanctum dungeons) ---
+    # Bring 2+ heroes of the dungeon's element and the shrine resonates,
+    # granting +50% of the essence dropped. Encourages elemental team-building
+    # and makes the sanctum feel distinct from the generic resource dungeons.
+    resonance_bonus = None
+    if trial.get("category") == "elemental" and trial.get("element"):
+        d_element = trial["element"]
+        ninjas = user.get("ninjas", [])
+        part_ids = set(body.participants or list(user.get("team", [])))
+        matched = sum(
+            1 for n in ninjas
+            if n.get("instance_id") in part_ids
+            and gd.CATALOG_BY_ID.get(n.get("template_id"), {}).get("element") == d_element
+        )
+        essence_id = f"{d_element.lower()}_essence"
+        # Light/Dark map to their essence ids directly; Lightning -> lightning_essence
+        if matched >= 2 and rw.get("items", {}).get(essence_id):
+            bonus = max(1, rw["items"][essence_id] // 2)
+            inventory[essence_id] = inventory.get(essence_id, 0) + bonus
+            resonance_bonus = {"element": d_element, "matched": matched, "essence_id": essence_id, "qty": bonus}
+
     # --- Resource Dungeon extras (gear drops / blueprint rolls) ---
     gear_reward = None
     blueprint_reward = None
@@ -2819,8 +2887,11 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     items_out = dict(rw.get("items", {}))
     if blueprint_reward:
         items_out[blueprint_reward] = items_out.get(blueprint_reward, 0) + 1
+    if resonance_bonus:
+        items_out[resonance_bonus["essence_id"]] = items_out.get(resonance_bonus["essence_id"], 0) + resonance_bonus["qty"]
     return {"profile": public_user(user),
-            "rewards": {"ryo": rw.get("ryo", 0), "items": items_out, "hero_exp": hero_exp, "gear": gear_reward},
+            "rewards": {"ryo": rw.get("ryo", 0), "items": items_out, "hero_exp": hero_exp, "gear": gear_reward,
+                        "resonance_bonus": resonance_bonus},
             "result": "win", "level_up": level_up}
 
 
@@ -3072,8 +3143,9 @@ async def load_catalog_config():
         custom = (cfg or {}).get("custom_heroes", [])
         overrides = (cfg or {}).get("portrait_overrides", {})
         hero_overrides = (cfg or {}).get("hero_overrides", {})
+        skins = (cfg or {}).get("skins", {})
         tsuku_portraits = (cfg or {}).get("tsukuyomi_portrait_overrides", {})
-        gd.load_dynamic(custom, overrides, hero_overrides)
+        gd.load_dynamic(custom, overrides, hero_overrides, skins)
         gd.load_tsukuyomi_portraits(tsuku_portraits)
     except Exception as e:
         logger.warning("Could not load dynamic catalog config (%s); using static catalog", e)
@@ -3084,6 +3156,7 @@ async def persist_catalog_config():
         {"_id": "catalog"},
         {"$set": {"custom_heroes": gd._CUSTOM_HEROES, "portrait_overrides": gd._PORTRAIT_OVERRIDES,
                   "hero_overrides": gd._HERO_OVERRIDES,
+                  "skins": gd._SKINS,
                   "tsukuyomi_portrait_overrides": gd._TSUKUYOMI_PORTRAIT_OVERRIDES}},
         upsert=True,
     )
@@ -3385,6 +3458,77 @@ async def admin_delete_hero(hid: str, _: dict = Depends(get_admin_user)):
     return {"ok": True, "deleted": hid}
 
 
+# ---- Skin management ----
+
+@api_router.get("/admin/skins")
+async def admin_list_skins(_: dict = Depends(get_admin_user)):
+    return {"skins": gd.all_skins()}
+
+
+@api_router.post("/admin/skin/save")
+async def admin_save_skin(body: SkinSaveIn, _: dict = Depends(get_admin_user)):
+    if body.template_id not in gd.CATALOG_BY_ID:
+        raise HTTPException(status_code=404, detail="Hero template not found")
+    skin_id = _unique_id(f"skin_{_slugify(body.name)}")
+    skin = {"id": skin_id, "name": body.name.strip(), "image": body.image,
+            "stat_bonuses": body.stat_bonuses or {}}
+    gd.upsert_skin(body.template_id, skin)
+    await persist_catalog_config()
+    return {"ok": True, "skin": {**skin, "template_id": body.template_id}}
+
+
+@api_router.delete("/admin/skin/{template_id}/{skin_id}")
+async def admin_delete_skin(template_id: str, skin_id: str, _: dict = Depends(get_admin_user)):
+    gd.remove_skin(template_id, skin_id)
+    # Also clear this skin from any player instances that have it equipped
+    await db.users.update_many(
+        {"ninjas": {"$elemMatch": {"skin_id": skin_id}}},
+        {"$set": {"ninjas.$[n].skin_id": None}},
+        array_filters=[{"n.skin_id": skin_id}],
+    )
+    await persist_catalog_config()
+    return {"ok": True, "deleted": skin_id}
+
+
+@api_router.post("/game/hero/skin")
+async def select_skin(body: SkinSelectIn, user: dict = Depends(get_current_user)):
+    """Player selects a skin for one of their hero instances."""
+    inst = next((n for n in user.get("ninjas", []) if n["instance_id"] == body.instance_id), None)
+    if not inst:
+        raise HTTPException(status_code=404, detail="Hero instance not found")
+    if body.skin_id:
+        skin = gd.get_skin(inst["template_id"], body.skin_id)
+        if not skin:
+            raise HTTPException(status_code=404, detail="Skin not found for this hero")
+        inst["skin_id"] = body.skin_id
+    else:
+        inst.pop("skin_id", None)
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"ninjas": user["ninjas"]}})
+    return {"profile": public_user(user)}
+
+
+# ---- Shard unlock ----
+
+@api_router.post("/game/hero/unlock")
+async def unlock_hero_with_shards(body: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Unlock a hero from 100+ shards — creates a new instance and consumes 100 shards."""
+    template_id = body.get("template_id")
+    if not template_id or template_id not in gd.CATALOG_BY_ID:
+        raise HTTPException(status_code=404, detail="Hero not found")
+    shards = user.get("hero_shards", {}).get(template_id, 0)
+    if shards < 100:
+        raise HTTPException(status_code=400, detail=f"Need 100 shards to unlock (have {shards})")
+    already_owned = any(n["template_id"] == template_id for n in user.get("ninjas", []))
+    if already_owned:
+        raise HTTPException(status_code=400, detail="Hero already owned")
+    user["hero_shards"][template_id] = shards - 100
+    user.setdefault("ninjas", []).append(new_ninja_instance(template_id))
+    await db.users.update_one({"_id": user["_id"]},
+                              {"$set": {"hero_shards": user["hero_shards"], "ninjas": user["ninjas"]}})
+    tmpl = gd.CATALOG_BY_ID[template_id]
+    return {"profile": public_user(user), "unlocked": {"template_id": template_id, "name": tmpl["name"]}}
+
+
 class BannerIn(BaseModel):
     template_id: str
 
@@ -3619,6 +3763,135 @@ async def admin_update_boss_mechanic(mech_id: str, body: dict = Body(...), _: di
     except KeyError:
         raise HTTPException(status_code=404, detail="Boss mechanic not found")
     return {"mechanic": updated}
+
+
+# ---------------------------------------------------------------------------
+# ADMIN — Enemy / Boss management across all modes.
+# ---------------------------------------------------------------------------
+
+@api_router.get("/admin/enemies")
+async def admin_list_enemies(_: dict = Depends(get_admin_user)):
+    """Return all boss/enemy definitions grouped by mode for the admin panel."""
+    # Nightmare boss templates (used by Tsukuyomi + Boss Hunt)
+    nightmare = []
+    for t in gd.NIGHTMARE_BOSS_TEMPLATES:
+        tmpl = gd.CATALOG_BY_ID.get(t["id"], t)
+        nightmare.append({
+            "id": t["id"], "name": t["name"], "element": t["element"],
+            "rarity": t["rarity"], "role": t["role"], "lore": t.get("lore", ""),
+            "base_stats": tmpl.get("base_stats", t.get("base_stats")),
+            "jutsus": tmpl.get("jutsus", t.get("jutsus", [])),
+            "portrait": tmpl.get("portrait", t.get("portrait")),
+            "passive": tmpl.get("passive", t.get("passive")),
+        })
+
+    # Tsukuyomi bosses
+    tsukuyomi = []
+    for b in gd.TSUKUYOMI_BOSSES:
+        tmpl = gd.CATALOG_BY_ID.get(b["template_id"], {})
+        tsukuyomi.append({
+            "id": b["id"], "index": b["index"], "name": b["name"],
+            "template_id": b["template_id"], "element": b["element"],
+            "rarity": b["rarity"], "base_level": b["base_level"],
+            "boss_gear": b.get("boss_gear", {}),
+            "gear_set": b.get("gear_set"), "gear_set_name": b.get("gear_set_name"),
+            "boss_mechanic": b.get("boss_mechanic"),
+            "adds": b.get("adds", []),
+            "rare_chance": b.get("rare_chance", 0),
+            "portrait": b.get("portrait"),
+            "base_stats": tmpl.get("base_stats", {}),
+            "jutsus": tmpl.get("jutsus", []),
+        })
+
+    # Boss Hunt configs
+    boss_hunt = []
+    for cfg in bh.BOSS_HUNT_CONFIGS:
+        tmpl = gd.CATALOG_BY_ID.get(cfg["boss_template_id"], {})
+        boss_hunt.append({
+            "id": cfg["id"], "name": cfg["name"], "rarity": cfg["rarity"],
+            "boss_template_id": cfg["boss_template_id"],
+            "boss_mechanic": cfg.get("boss_mechanic"),
+            "base_level": cfg.get("base_level", 1),
+            "enrage_rounds": cfg.get("enrage_rounds"),
+            "base_stats": tmpl.get("base_stats", {}),
+            "jutsus": tmpl.get("jutsus", []),
+            "portrait": tmpl.get("portrait"),
+            "rewards": cfg.get("rewards", {}),
+            "adds": cfg.get("adds", []),
+        })
+
+    return {
+        "nightmare_bosses": nightmare,
+        "tsukuyomi_bosses": tsukuyomi,
+        "boss_hunt_bosses": boss_hunt,
+        "boss_mechanics": ac._json_safe(gd.BOSS_MECHANICS),
+    }
+
+
+@api_router.put("/admin/enemy/{template_id}")
+async def admin_update_enemy(template_id: str, body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    """Update a nightmare boss / enemy template's base_stats, jutsus, or passive."""
+    if template_id not in gd.CATALOG_BY_ID:
+        raise HTTPException(status_code=404, detail="Enemy template not found")
+    overrides = {}
+    if "base_stats" in body:
+        overrides["base_stats"] = body["base_stats"]
+    if "jutsus" in body:
+        overrides["jutsus"] = body["jutsus"]
+    if "passive" in body:
+        overrides["passive"] = body["passive"]
+    if "name" in body:
+        overrides["name"] = body["name"]
+    if "element" in body:
+        overrides["element"] = body["element"]
+    if "rarity" in body:
+        overrides["rarity"] = body["rarity"]
+    if "role" in body:
+        overrides["role"] = body["role"]
+    if overrides:
+        gd.set_hero_override(template_id, overrides)
+        await persist_catalog_config()
+    return {"ok": True, "template_id": template_id, "overrides": overrides}
+
+
+@api_router.put("/admin/tsukuyomi-boss/{boss_id}")
+async def admin_update_tsukuyomi_boss(boss_id: str, body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    """Update a Tsukuyomi boss's gear scaling, level, or adds."""
+    boss = gd.TSUKUYOMI_BY_ID.get(boss_id)
+    if not boss:
+        raise HTTPException(status_code=404, detail="Tsukuyomi boss not found")
+    if "base_level" in body:
+        boss["base_level"] = int(body["base_level"])
+    if "boss_gear" in body:
+        boss["boss_gear"] = body["boss_gear"]
+    if "rare_chance" in body:
+        boss["rare_chance"] = float(body["rare_chance"])
+    if "adds" in body:
+        boss["adds"] = body["adds"]
+    if "boss_mechanic" in body:
+        boss["boss_mechanic"] = body["boss_mechanic"]
+    await persist_catalog_config()
+    return {"ok": True, "boss": boss}
+
+
+@api_router.put("/admin/boss-hunt/{boss_id}")
+async def admin_update_boss_hunt(boss_id: str, body: dict = Body(...), _: dict = Depends(get_admin_user)):
+    """Update a Boss Hunt boss configuration."""
+    cfg = bh.get_boss_hunt_config(boss_id)
+    if not cfg:
+        raise HTTPException(status_code=404, detail="Boss Hunt config not found")
+    if "base_level" in body:
+        cfg["base_level"] = int(body["base_level"])
+    if "enrage_rounds" in body:
+        cfg["enrage_rounds"] = int(body["enrage_rounds"])
+    if "boss_mechanic" in body:
+        cfg["boss_mechanic"] = body["boss_mechanic"]
+    if "rewards" in body:
+        cfg["rewards"] = body["rewards"]
+    if "adds" in body:
+        cfg["adds"] = body["adds"]
+    await persist_catalog_config()
+    return {"ok": True, "boss": cfg}
 
 
 # ---------------------------------------------------------------------------
