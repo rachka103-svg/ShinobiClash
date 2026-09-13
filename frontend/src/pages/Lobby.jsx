@@ -85,7 +85,7 @@ export default function Lobby() {
         data-testid="leader-hero"
       >
         {leaderTpl ? (
-          <img src={leaderTpl.portrait} alt={leaderTpl.name} className="absolute inset-0 w-full h-full object-cover object-top" />
+          <img src={leader?.skin?.image || leaderTpl.portrait} alt={leaderTpl.name} className="absolute inset-0 w-full h-full object-cover object-top" />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900" />
         )}

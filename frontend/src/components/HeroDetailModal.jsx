@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   Heart, Sword, Shield, Wind, Star, ChevronsUp, Gem, Coins, Sparkles, Check,
   Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2, RotateCcw, X,
-  AlertTriangle,
+  AlertTriangle, Shirt,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -52,7 +52,7 @@ export default function HeroDetailModal({
   open, onClose, template, instance = null, owned = false, obtain = null, progression = null, squad = null,
 }) {
   const { user, setUser } = useAuth();
-  const { gearConfig, items, expTomeGoldCost, reforgeModifiers, reforgeMaxPerJutsu, catalogById } = useGame();
+  const { gearConfig, items, expTomeGoldCost, reforgeModifiers, reforgeMaxPerJutsu, catalogById, skins } = useGame();
   const navigate = useNavigate();
   const [tab, setTab] = useState("train");
   const [qty, setQty] = useState(1);
@@ -66,6 +66,7 @@ export default function HeroDetailModal({
   const [selectedFodder, setSelectedFodder] = useState([]);
   const [allowSSRFodder, setAllowSSRFodder] = useState(false);
   const [showEvoConfirm, setShowEvoConfirm] = useState(false);
+  const [skinBusy, setSkinBusy] = useState(false);
   const teamIds = new Set(user?.team || []);
   const fodderCandidates = useMemo(() => {
     if (!instance || !template?.element) return [];
@@ -288,6 +289,27 @@ const frame = rarityFrame(effectiveRarity);
 
   const closeAll = () => { setImmersive(false); onClose(); };
 
+  // ---------- Skin selection ----------
+  const heroSkins = template ? (skins?.[template.id] || []) : [];
+  const currentSkin = instance?.skin || null;
+
+  const selectSkin = async (skinId) => {
+    if (!instance) return;
+    setSkinBusy(true);
+    try {
+      const { data } = await api.post("/game/hero/skin", {
+        instance_id: instance.instance_id,
+        skin_id: skinId || null,
+      });
+      setUser(data.profile);
+      toast.success(skinId ? "Skin equipped!" : "Skin removed");
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err?.response?.data?.detail) || err.message);
+    } finally {
+      setSkinBusy(false);
+    }
+  };
+
   // Navigate to the page where an item can be obtained
   const goToItemSource = (itemId) => {
     const src = getItemSource(itemId);
@@ -345,7 +367,7 @@ const frame = rarityFrame(effectiveRarity);
           /* ---------- Immersive: art-only, info hidden ---------- */
           <div className="relative bg-black flex items-center justify-center min-h-[70vh]" data-testid="hero-immersive-view">
             <img
-              src={template.portrait}
+              src={instance?.skin?.image || template.portrait}
               alt={template.name}
               className="w-full max-h-[92vh] object-contain select-none"
               draggable={false}
@@ -381,7 +403,7 @@ const frame = rarityFrame(effectiveRarity);
         <>
         {/* ---------- Portrait card (left on desktop, top on mobile) ---------- */}
         <div className="relative h-[280px] sm:h-[340px] lg:h-auto lg:w-[40%] shrink-0">
-          <img src={template.portrait} alt={template.name} className="w-full h-full object-cover object-top" />
+          <img src={instance?.skin?.image || template.portrait} alt={template.name} className="w-full h-full object-cover object-top" />
           <div className="absolute inset-x-0 top-0 h-28 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${element.color}40, transparent)` }} />
           {/* Bottom fade on mobile; right fade on desktop */}
           <div className="absolute inset-0 bg-gradient-to-t from-[#FFFFFF] via-transparent to-transparent pointer-events-none lg:hidden" />
@@ -447,11 +469,12 @@ const frame = rarityFrame(effectiveRarity);
 
           {progression && instance ? (
             <Tabs value={tab} onValueChange={setTab} className="mt-6 min-w-0" data-testid="hero-detail-tabs">
-              <TabsList className="grid grid-cols-4 w-full bg-black/[0.04] border border-black/10 rounded-xl h-11">
+              <TabsList className="grid grid-cols-5 w-full bg-black/[0.04] border border-black/10 rounded-xl h-11">
                 <TabsTrigger value="train" data-testid="hero-train-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-chakra/15 data-[state=active]:text-chakra rounded-lg">TRAIN</TabsTrigger>
                 <TabsTrigger value="evolve" data-testid="hero-evolve-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-amber-400/15 data-[state=active]:text-amber-300 rounded-lg">EVOLVE</TabsTrigger>
                 <TabsTrigger value="skills" data-testid="hero-skills-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">SKILLS</TabsTrigger>
                 <TabsTrigger value="gear" data-testid="hero-gear-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-fox/15 data-[state=active]:text-fox rounded-lg">GEAR</TabsTrigger>
+                <TabsTrigger value="skins" data-testid="hero-skins-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">SKINS</TabsTrigger>
               </TabsList>
 
               {/* ================= TRAIN ================= */}
@@ -1050,6 +1073,69 @@ const frame = rarityFrame(effectiveRarity);
                     {allGear.filter((g) => g.slot === gearSlot && g.equipped_by !== instance.instance_id).length === 0 && !equippedBySlot[gearSlot] && (
                       <p className="text-xs text-slate-500 text-center py-4">No {slotMeta[gearSlot]?.name} pieces yet — farm the Gear Foundry or pull from the Armory.</p>
                     )}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* ================= SKINS ================= */}
+              <TabsContent value="skins" className="mt-4" data-testid="hero-skins-panel">
+                <div className="flex items-center gap-2 mb-3">
+                  <Shirt className="w-4 h-4 text-jutsu" />
+                  <p className="text-xs uppercase tracking-widest text-slate-500">Hero Skins</p>
+                </div>
+                {heroSkins.length > 0 ? (
+                  <>
+                    <p className="text-xs text-slate-500 mb-3">Select a skin to change this hero's appearance. Skins with stat bonuses apply automatically in battle.</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3" data-testid="skin-grid">
+                      {/* Default / no skin */}
+                      <button
+                        onClick={() => selectSkin(null)}
+                        disabled={skinBusy}
+                        data-testid="skin-default"
+                        className={`relative rounded-lg overflow-hidden border-2 transition-all ${!currentSkin ? "border-chakra ring-1 ring-chakra/40" : "border-black/10 hover:border-white/30"}`}
+                      >
+                        <div className="w-full aspect-[3/4] flex items-center justify-center bg-black/[0.04]">
+                          <img src={template.portrait} alt="Default" className="w-full h-full object-cover object-top opacity-70" />
+                        </div>
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2">
+                          <p className="text-xs font-bold text-white">Default</p>
+                        </div>
+                        {!currentSkin && (
+                          <span className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-chakra text-[#05050A] flex items-center justify-center"><Check className="w-3 h-3" /></span>
+                        )}
+                      </button>
+                      {heroSkins.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => selectSkin(s.id)}
+                          disabled={skinBusy}
+                          data-testid={`skin-select-${s.id}`}
+                          className={`relative rounded-lg overflow-hidden border-2 transition-all ${currentSkin?.id === s.id ? "border-chakra ring-1 ring-chakra/40" : "border-black/10 hover:border-white/30"}`}
+                        >
+                          <img src={s.image} alt={s.name} className="w-full aspect-[3/4] object-cover" />
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2">
+                            <p className="text-xs font-bold text-white truncate">{s.name}</p>
+                            {Object.keys(s.stat_bonuses || {}).length > 0 && (
+                              <div className="flex flex-wrap gap-0.5 mt-0.5">
+                                {Object.entries(s.stat_bonuses).map(([k, v]) => (
+                                  <span key={k} className="text-[8px] font-bold px-1 rounded bg-amber-400/20 text-amber-300">+{v}% {k.replace("_pct", "").toUpperCase()}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {currentSkin?.id === s.id && (
+                            <span className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-chakra text-[#05050A] flex items-center justify-center"><Check className="w-3 h-3" /></span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    {skinBusy && <div className="flex justify-center mt-3"><Loader2 className="w-5 h-5 text-chakra animate-spin" /></div>}
+                  </>
+                ) : (
+                  <div className="text-center py-8">
+                    <Shirt className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500">No skins available for this hero yet.</p>
+                    <p className="text-xs text-slate-500 mt-1">Admins can create skins from the Admin panel → Skins tab.</p>
                   </div>
                 )}
               </TabsContent>

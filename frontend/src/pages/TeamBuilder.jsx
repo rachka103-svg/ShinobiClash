@@ -14,6 +14,7 @@ import { useAudio } from "@/context/AudioContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { evaluateTeamSynergy, TEAM_SYNERGIES } from "@/lib/teamSynergy";
 import { isIconUrl } from "@/lib/gameIcons";
+import { heroPortrait } from "@/lib/utils";
 
 const EL_ICON = { Fire: Flame, Water: Droplet, Wind: WindIcon, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: Sun };
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
@@ -358,7 +359,7 @@ const SquadSlotCard = ({ hero, index, onView, onRemove }) => {
       className="relative aspect-[3/4.2] rounded-2xl overflow-hidden text-left group cursor-pointer"
       style={{ border: `${fr.strokeWidth}px solid ${fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color}`, boxShadow: `0 0 34px ${(fr.useCrimson ? CRIMSON.base : fr.useGold ? GOLD.base : r.color)}33` }}
       onClick={onView}>
-      <img src={hero.portrait} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" />
+      <img src={heroPortrait(hero)} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" />
       <div className="absolute inset-0" style={{ background: `linear-gradient(to top, #101010f2 6%, #10101066 42%, transparent 70%)` }} />
       {fr.cornerLevel >= 2 && <DecoCorners rarity={hero.rarity} size={18} />}
 
@@ -392,7 +393,7 @@ const CollectionCard = ({ hero, slot, squadFull, onView, onToggle }) => {
       className="relative aspect-[3/4] rounded-xl overflow-hidden text-left group transition-transform active:scale-95 cursor-pointer"
       style={{ border: `${selected ? 2 : fr.strokeWidth}px solid ${selected ? "#E5A540" : (fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color + "aa")}`, boxShadow: selected ? "0 0 22px #E5A54066" : `0 0 12px ${r.color}22` }}
       onClick={onView}>
-      <img src={hero.portrait} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" loading="lazy" />
+      <img src={heroPortrait(hero)} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" loading="lazy" />
       <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #101010f5 8%, #10101055 45%, transparent 72%)" }} />
       {fr.cornerLevel >= 2 && <DecoCorners rarity={hero.rarity} size={12} />}
 

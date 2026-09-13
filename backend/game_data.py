@@ -2178,6 +2178,7 @@ STATIC_CATALOG = [dict(n) for n in NINJA_CATALOG]
 _CUSTOM_HEROES = []
 _PORTRAIT_OVERRIDES = {}
 _HERO_OVERRIDES = {}
+_SKINS = {}  # {template_id: [{id, name, image, stat_bonuses: {atk_pct: 5, hp_pct: 10, ...}}]}
 
 
 # ---------------------------------------------------------------------------
@@ -2317,12 +2318,56 @@ def _rebuild_catalog():
         CATALOG_BY_ID[nb["id"]] = nb
 
 
-def load_dynamic(custom_heroes, overrides, hero_overrides=None):
-    global _CUSTOM_HEROES, _PORTRAIT_OVERRIDES, _HERO_OVERRIDES
+def load_dynamic(custom_heroes, overrides, hero_overrides=None, skins=None):
+    global _CUSTOM_HEROES, _PORTRAIT_OVERRIDES, _HERO_OVERRIDES, _SKINS
     _CUSTOM_HEROES = [dict(h) for h in (custom_heroes or [])]
     _PORTRAIT_OVERRIDES = dict(overrides or {})
     _HERO_OVERRIDES = dict(hero_overrides or {})
+    _SKINS = dict(skins or {})
     _rebuild_catalog()
+
+
+def get_skins(template_id):
+    """Return all skins for a given hero template."""
+    return _SKINS.get(template_id, [])
+
+
+def get_skin(template_id, skin_id):
+    """Return a single skin by id, or None."""
+    for s in _SKINS.get(template_id, []):
+        if s["id"] == skin_id:
+            return s
+    return None
+
+
+def upsert_skin(template_id, skin):
+    """Add or update a skin for a hero template."""
+    skins = _SKINS.setdefault(template_id, [])
+    existing = next((s for s in skins if s["id"] == skin["id"]), None)
+    if existing:
+        idx = skins.index(existing)
+        skins[idx] = dict(skin)
+    else:
+        skins.append(dict(skin))
+    _rebuild_catalog()
+
+
+def remove_skin(template_id, skin_id):
+    """Remove a skin from a hero template."""
+    skins = _SKINS.get(template_id, [])
+    _SKINS[template_id] = [s for s in skins if s["id"] != skin_id]
+    if not _SKINS[template_id]:
+        _SKINS.pop(template_id, None)
+    _rebuild_catalog()
+
+
+def all_skins():
+    """Return all skins as a flat list with template_id included."""
+    result = []
+    for tid, skins in _SKINS.items():
+        for s in skins:
+            result.append({**s, "template_id": tid})
+    return result
 
 
 def upsert_custom_hero(hero):

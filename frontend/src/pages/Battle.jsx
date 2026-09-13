@@ -458,7 +458,8 @@ export default function Battle() {
           !inst.passive_locked,
           inst.reforge || null,
           inst.crystal_combat_modifiers || null, // Boss Crysta combat modifiers
-          Object.keys(synergyBonuses).length > 0 ? synergyBonuses : null
+          Object.keys(synergyBonuses).length > 0 ? synergyBonuses : null,
+          inst.skin?.image || null // equipped skin portrait override
         )
       )
       .filter(Boolean);

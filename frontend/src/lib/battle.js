@@ -648,7 +648,8 @@ export function buildCombatant(
   passiveUnlocked = true,
   reforge = null,
   combatModifiers = null,
-  synergyBonuses = null
+  synergyBonuses = null,
+  portraitOverride = null
 ) {
   if (!template) {
     console.error("[buildCombatant] Missing template for uid:", uid, "side:", side);
@@ -758,7 +759,7 @@ export function buildCombatant(
     side,
 
     templateId: template.id,
-    portrait: template.portrait,
+    portrait: portraitOverride || template.portrait,
     name: template.name,
     element: template.element,
     rarity: template.rarity,
