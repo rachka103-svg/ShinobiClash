@@ -3,6 +3,7 @@
 
 import { spireFloorConfig, pickRarity, getSpirePath, pickPathElement } from "./spireConfig";
 import { spireEnemyProgression } from "./enemyProgression";
+import { RARITY_LEVEL_GROWTH, RARITY_ASCENSION_GROWTH, computeStatsForRarity } from "./gameConstants";
 import {
   classifyDamageType,
   getCombatModifiers,
@@ -125,8 +126,12 @@ function normalizeCritMultiplier(v) {
 export function computeStats(template, level, ascension = 0) {
   const b = template.base_stats;
 
-  const gl = 1 + 0.09 * (level - 1);
-  const ga = 1 + 0.12 * ascension;
+  // Rarity-scaled growth rates (mirrors backend RARITY_*_GROWTH) so even
+  // legacy/ Trial enemies that lack a pre-computed stats_override grow at
+  // their tier's pace rather than a flat rate.
+  const r = template.rarity;
+  const gl = 1 + (RARITY_LEVEL_GROWTH[r] ?? 0.09) * (level - 1);
+  const ga = 1 + (RARITY_ASCENSION_GROWTH[r] ?? 0.12) * ascension;
 
   // Crit stats come from the backend as percentages (e.g. 6, 145).
   // Normalize to decimal (0.06, 1.45) at this boundary.
@@ -222,18 +227,22 @@ export function applyEnemyGear(stats, gearBonus) {
   // Supports both flat and percentage bonuses from real gear pieces.
   return {
     ...stats,
+
     hp: Math.round(
       (stats.hp + (gearBonus.hp_flat || 0)) *
         (1 + (gearBonus.hp_pct || 0) / 100)
     ),
+
     atk: Math.round(
       (stats.atk + (gearBonus.atk_flat || 0)) *
         (1 + (gearBonus.atk_pct || 0) / 100)
     ),
+
     def: Math.round(
       (stats.def + (gearBonus.def_flat || 0)) *
         (1 + (gearBonus.def_pct || 0) / 100)
     ),
+
     spd: Math.round(
       (stats.spd + (gearBonus.spd_flat || 0)) *
         (1 + (gearBonus.spd_pct || 0) / 100)
@@ -991,6 +1000,9 @@ export function spireEnemies(
         template_id: b.id,
         level: bossLevel,
         ascension: prog.ascension,
+        evolved_rarity: prog.evolvedRarity,
+        stars: prog.stars,
+        transformation: prog.transformation,
         gear_bonus: prog.gearBonus,
         skill_rank: prog.skillRank,
         passive_locked: prog.passiveLocked,
@@ -1042,6 +1054,8 @@ export function spireEnemies(
       template_id: tmpl.id,
       level: enemyLevel,
       ascension: prog.ascension,
+      evolved_rarity: prog.evolvedRarity,
+      stars: prog.stars,
       gear_bonus: prog.gearBonus,
       skill_rank: prog.skillRank,
       passive_locked: prog.passiveLocked,
@@ -1646,6 +1660,12 @@ export function resolveOnHitEffects(
 ) {
   const events = [];
 
+  // Ensure the target always has a status array.
+  // This prevents status-effect resolution from failing
+  // when a combatant enters battle without initialized statuses.
+  target.statuses =
+    target.statuses || [];
+
   let burstDamage = 0;
 
   if (
@@ -1799,6 +1819,7 @@ export function resolveOnHitEffects(
     );
   }
 
+  // Apply all jutsu-defined and reforge-defined effects.
   const effectEvents =
     applyJutsuEffects(
       actor,
@@ -3017,7 +3038,9 @@ export function enterBossPhase(
             100)
       );
 
-    boss.shield += amt;
+    // Replace the previous phase shield rather than stacking
+    // a new phase shield on top of an old remaining shield.
+    boss.shield = amt;
 
     boss.aoeHitsTaken = 0;
 
@@ -3087,7 +3110,9 @@ export function enterBossPhase(
             (phase.shield_pct / 100)
         );
 
-      boss.shield += amt;
+      // Replace any previous shield when a new phase
+      // explicitly grants a fresh phase shield.
+      boss.shield = amt;
 
       events.push(
         makeEvent(

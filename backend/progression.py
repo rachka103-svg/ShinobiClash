@@ -58,38 +58,66 @@ def is_ascension_rarity(rarity: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# EVOLUTION COSTS (star breakthrough)
-# The shard cost depends on the CURRENT STAR being evolved FROM (the
-# transition index), so it is consistent whether the hero is a natural
-# high-rarity hero climbing from 1 star or an ascended hero continuing from
-# its carried-forward stars. The rarity only gates the cap.
-#
-#   star 1 -> 2  = 80 shards
-#   star 2 -> 3  = 120
-#   star 3 -> 4  = 150
-#   star 4 -> 5  = 200
-#   star 5 -> 6  = 300
-#   star 6 -> 7  = 400
-#   star 7 -> 8  = 500
+# EVOLUTION COSTS (star breakthrough) — RARITY-AWARE
+# Higher rarity heroes need FEWER shards per star (duplicates feel valuable)
+# but MORE Ryo and RARER materials. The shard cost is base × rarity multiplier;
+# Ryo scales up with rarity. Materials escalate by star level:
+#   Stars 1-2: evo_essence (Campaign)
+#   Stars 3-4: + elemental essence (Endless Spire)
+#   Stars 5-6: + nightmare materials (Tsukuyomi)
+#   Star  7:   + celestial core (ultimate evolution)
 # ---------------------------------------------------------------------------
-EVOLUTION_SHARD_COST_BY_STAR = {
-    1: 80, 2: 120, 3: 150, 4: 200, 5: 300, 6: 400, 7: 500,
+# Shard route: flat costs per star transition. Starts at 80 and rises
+# gradually. The 6->7 step starts a new chapter after a rarity
+# transformation (resets low), then climbs steeply. Stars 8-12 are
+# included for future-proofing even though current star caps max at 8.
+EVOLUTION_SHARD_BASE = {
+    1: 80, 2: 100, 3: 120, 4: 160, 5: 220,
+    6: 80, 7: 120, 8: 180, 9: 260, 10: 360, 11: 480,
 }
-# Gold (Ryo) co-cost for evolution — a modest gold sink alongside shards.
-EVOLUTION_RYO_COST_BY_STAR = {
-    1: 800, 2: 1400, 3: 2200, 4: 3200, 5: 4500, 6: 6000, 7: 8000,
+EVOLUTION_RYO_BASE = {
+    1: 1000, 2: 2000, 3: 3500, 4: 5500, 5: 8000,
+    6: 12000, 7: 18000, 8: 25000, 9: 35000, 10: 50000, 11: 70000,
 }
+# Higher rarity = higher Ryo investment (shards are flat for all rarities)
+RARITY_RYO_MULT = {
+    "R": 0.8, "SR": 1.0, "SSR": 1.3, "UR": 1.7, "LR": 2.2, "GR": 3.0,
+}
+# Kept for backward compatibility (catalog endpoint exposes them)
+EVOLUTION_SHARD_COST_BY_STAR = EVOLUTION_SHARD_BASE
+EVOLUTION_RYO_COST_BY_STAR = EVOLUTION_RYO_BASE
 
 
-def get_evolution_cost(rarity: str, current_star: int) -> Optional[dict]:
+def get_evolution_cost(rarity: str, current_star: int, element: Optional[str] = None) -> Optional[dict]:
     """Full cost to evolve from `current_star` -> `current_star + 1`.
-    Returns None if the hero is already at its rarity's star cap."""
+    Returns None if the hero is already at its rarity's star cap.
+    Shard cost is flat (same for all rarities). Ryo scales with rarity.
+    Materials escalate by star level (Campaign → Spire → Tsukuyomi → Boss)."""
     cap = get_max_stars_for_rarity(rarity)
     if current_star >= cap:
         return None
-    shards = EVOLUTION_SHARD_COST_BY_STAR.get(current_star, 500)
-    ryo = EVOLUTION_RYO_COST_BY_STAR.get(current_star, 8000)
-    return {"shards": shards, "ryo": ryo, "items": {}}
+    ryo_mult = RARITY_RYO_MULT.get(rarity, 1.0)
+    shards = EVOLUTION_SHARD_BASE.get(current_star, 480)
+    ryo = round(EVOLUTION_RYO_BASE.get(current_star, 70000) * ryo_mult)
+
+    items = {}
+    # Stars 1-2: common evolution material (Campaign source)
+    if current_star <= 2:
+        items["evo_essence"] = 5 + current_star * 5
+    # Stars 3-4: add elemental essence (Endless Spire source)
+    if current_star >= 3:
+        eid = essence_id_for_element(element or "Fire")
+        items[eid] = 5 + (current_star - 2) * 5
+    # Stars 5-6: add nightmare materials (Tsukuyomi source)
+    if current_star >= 5:
+        items["nightmare_dust"] = 10 + (current_star - 4) * 5
+        items["dream_fragment"] = 3 + (current_star - 4) * 2
+    # Star 7: add lunar essence + celestial core (ultimate evolution)
+    if current_star >= 7:
+        items["lunar_essence"] = 5
+        items["celestial_core"] = 2
+
+    return {"shards": shards, "ryo": ryo, "items": items}
 
 
 # ---------------------------------------------------------------------------
@@ -97,13 +125,16 @@ def get_evolution_cost(rarity: str, current_star: int) -> Optional[dict]:
 # Shards + Gold (+ Elemental Essence, prepared but gated behind
 # ELEMENTAL_ESSENCE_ENABLED so the game is playable before essences drop).
 # ---------------------------------------------------------------------------
+# Nightmare materials (from Tsukuyomi) and boss cores (from Boss Hunt) are
+# added to higher-tier ascensions. The LR -> GR (ultimate) transformation
+# requires a boss_core — obtainable only from Boss Hunt.
 ASCENSION_COSTS = {
-    # current_rarity: {shards, ryo, essence_qty}
-    "R":   {"shards": 200, "ryo": 25000,  "essence": 10},
-    "SR":  {"shards": 300, "ryo": 40000,  "essence": 15},
-    "SSR": {"shards": 450, "ryo": 60000,  "essence": 20},
-    "UR":  {"shards": 650, "ryo": 90000,  "essence": 30},
-    "LR":  {"shards": 900, "ryo": 130000, "essence": 45},
+    # current_rarity: {shards, ryo, essence_qty, nightmare_dust, dream_fragment, lunar_essence, boss_core}
+    "R":   {"shards": 250, "ryo": 20000,  "essence": 10, "nightmare_dust": 0,  "dream_fragment": 0,  "lunar_essence": 0, "boss_core": 0},
+    "SR":  {"shards": 300, "ryo": 35000,  "essence": 15, "nightmare_dust": 0,  "dream_fragment": 0,  "lunar_essence": 0, "boss_core": 0},
+    "SSR": {"shards": 350, "ryo": 55000,  "essence": 20, "nightmare_dust": 10, "dream_fragment": 0,  "lunar_essence": 0, "boss_core": 0},
+    "UR":  {"shards": 400, "ryo": 80000,  "essence": 25, "nightmare_dust": 15, "dream_fragment": 8,  "lunar_essence": 0, "boss_core": 0},
+    "LR":  {"shards": 450, "ryo": 120000, "essence": 30, "nightmare_dust": 20, "dream_fragment": 12, "lunar_essence": 8, "boss_core": 3},
 }
 
 # Elemental Ascension Materials — each element maps to its essence item id.
@@ -118,7 +149,7 @@ ELEMENT_ESSENCE = {
     "Light":     "light_essence",
     "Dark":      "dark_essence",
 }
-ELEMENTAL_ESSENCE_ENABLED = False  # flip to True once essences drop in-game
+ELEMENTAL_ESSENCE_ENABLED = True   # Essences now drop from Endless Spire
 
 
 def essence_id_for_element(element: str) -> str:
@@ -127,7 +158,8 @@ def essence_id_for_element(element: str) -> str:
 
 def get_ascension_cost(current_rarity: str, element: Optional[str] = None) -> Optional[dict]:
     """Cost to ascend from `current_rarity` -> the next tier. Returns None at
-    the GR cap. Includes elemental essence in `items` only when enabled."""
+    the GR cap. Includes elemental essence, nightmare materials, and boss
+    cores in `items` as the tier escalates."""
     target = get_next_rarity(current_rarity)
     if not target:
         return None
@@ -138,12 +170,22 @@ def get_ascension_cost(current_rarity: str, element: Optional[str] = None) -> Op
     if ELEMENTAL_ESSENCE_ENABLED and element:
         eid = essence_id_for_element(element)
         items[eid] = base["essence"]
+    # Nightmare materials (Tsukuyomi) — introduced at SSR+
+    if base.get("nightmare_dust", 0) > 0:
+        items["nightmare_dust"] = base["nightmare_dust"]
+    if base.get("dream_fragment", 0) > 0:
+        items["dream_fragment"] = base["dream_fragment"]
+    if base.get("lunar_essence", 0) > 0:
+        items["lunar_essence"] = base["lunar_essence"]
+    # Boss core (Boss Hunt) — required only for the ultimate LR -> GR transformation
+    if base.get("boss_core", 0) > 0:
+        items["boss_core"] = base["boss_core"]
     return {
         "shards": base["shards"],
         "ryo": base["ryo"],
         "items": items,
         "target": target,
-        "essence_qty": base["essence"],  # always exposed for UI "coming soon" display
+        "essence_qty": base["essence"],
         "essence_id": essence_id_for_element(element) if element else None,
         "essence_enabled": ELEMENTAL_ESSENCE_ENABLED,
     }
@@ -191,6 +233,8 @@ def ascension_skill_multipliers(native_rarity_order: int, effective_rarity_order
 # Validation helpers (used by the server endpoints).
 # ---------------------------------------------------------------------------
 def can_evolve(rarity: str, stars: int, shards: int, ryo: int, inventory: dict) -> bool:
+    """Checks whether the shard route is affordable. Fodder route has its own
+    validation in evolution_materials.validate_fodder_selection."""
     cost = get_evolution_cost(rarity, stars)
     if not cost:
         return False

@@ -5,11 +5,14 @@ import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import { spireEnemies } from "@/lib/battle";
 import { spireFloorConfig, SPIRE_MAX_FLOOR, SPIRE_PATHS, getSpirePath } from "@/lib/spireConfig";
-import { computeStats } from "@/lib/battle";
+import { computeStats, applyEnemyGear } from "@/lib/battle";
+import { computeStatsForRarity } from "@/lib/gameConstants";
 import { startBattle } from "@/lib/energy";
+import { preloadBattleAssets, getBattleBackground } from "@/lib/preload";
 import SpireProgression from "@/components/spire/SpireProgression";
 import SpireChallenge from "@/components/spire/SpireChallenge";
 import TrialDungeonCard from "@/components/spire/TrialDungeonCard";
+import { isIconUrl } from "@/lib/gameIcons";
 
 export default function Spire() {
   const { user, setUser } = useAuth();
@@ -52,7 +55,10 @@ export default function Spire() {
     for (const e of enemies) {
       const t = catalogById[e.template_id];
       if (!t) continue;
-      const s = computeStats(t, e.level, e.ascension || 0);
+      const base = e.evolved_rarity
+        ? computeStatsForRarity(t, e.level, e.ascension || 0, e.evolved_rarity, e.stars || 1)
+        : computeStats(t, e.level, e.ascension || 0);
+      const s = e.gear_bonus ? applyEnemyGear(base, e.gear_bonus) : base;
       total += Math.round(s.hp * 0.4 + s.atk * 2.2 + s.def * 1.6 + s.spd * 1.2 + s.chakra * 1.0);
     }
     return Math.round(total * cfg.statMult);
@@ -72,7 +78,7 @@ export default function Spire() {
   return (
     <div className="w-full max-w-[1504px] mx-auto px-6 lg:px-11 pt-3 pb-4 relative" data-testid="spire-page">
       {/* Background image */}
-      <div className="fixed inset-0 bg-cover bg-center -z-10" style={{ backgroundImage: "url(/bg-spire.png)" }} />
+      <div className="fixed inset-0 bg-cover bg-center -z-10" style={{ backgroundImage: "url(/bg-spire.webp)" }} />
       {/* Dark overlay for readability */}
       <div className="fixed inset-0 -z-10" style={{ background: "linear-gradient(180deg, rgba(13,10,17,0.55) 0%, rgba(13,10,17,0.35) 40%, rgba(13,10,17,0.75) 100%)" }} />
       {/* ── Title area ── */}
@@ -106,7 +112,9 @@ export default function Spire() {
               }`}
               style={active ? { background: p.accent, boxShadow: `0 0 14px ${p.accent}66` } : {}}
             >
-              <span className="text-base">{p.icon}</span>
+              {isIconUrl(p.icon)
+                ? <img src={p.icon} alt={p.label} className="w-4 h-4 rounded object-cover" />
+                : <span className="text-base">{p.icon}</span>}
               {p.label}
             </button>
           );
@@ -116,7 +124,9 @@ export default function Spire() {
       {/* ── Eligible heroes notice for elemental paths ── */}
       {pathCfg.element && (
         <div className="mb-4 px-4 py-2.5 rounded-xl flex items-center gap-2" style={{ background: `${pathCfg.accent}11`, border: `1px solid ${pathCfg.accent}33` }} data-testid="spire-element-notice">
-          <span className="text-lg">{pathCfg.icon}</span>
+          {isIconUrl(pathCfg.icon)
+            ? <img src={pathCfg.icon} alt={pathCfg.element} className="w-5 h-5 rounded object-cover" />
+            : <span className="text-lg">{pathCfg.icon}</span>}
           <span className="text-sm font-bold" style={{ color: pathCfg.accent }}>{pathCfg.element.toUpperCase()} SPIRE</span>
           <span className="text-xs text-slate-400">·</span>
           <span className="text-sm text-slate-300">
@@ -142,7 +152,14 @@ export default function Spire() {
           ryoReward={ryoReward}
           recPower={recPower}
           pathCfg={pathCfg}
-          onChallenge={() => startBattle({ mode: "spire", id: floor, navigate, setUser, spirePath: path })}
+          onChallenge={() => {
+            // Preload enemy portraits before navigating
+            const portraits = enemies
+              .map((e) => catalogById[e.template_id]?.portrait)
+              .filter(Boolean);
+            preloadBattleAssets({ portraits, background: getBattleBackground("spire") });
+            startBattle({ mode: "spire", id: floor, navigate, setUser, spirePath: path });
+          }}
         />
       </div>
 

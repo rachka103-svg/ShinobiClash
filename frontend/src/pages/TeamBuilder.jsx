@@ -13,6 +13,7 @@ import HeroDetailModal from "@/components/HeroDetailModal";
 import { useAudio } from "@/context/AudioContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { evaluateTeamSynergy, TEAM_SYNERGIES } from "@/lib/teamSynergy";
+import { isIconUrl } from "@/lib/gameIcons";
 
 const EL_ICON = { Fire: Flame, Water: Droplet, Wind: WindIcon, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: Sun };
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
@@ -26,7 +27,7 @@ const ascensionCost = (rarity, asc) => ({
 const StarRow = ({ n = 1, max = 6 }) => (
   <div className="flex gap-0.5">
     {Array.from({ length: max }).map((_, i) => (
-      <Star key={i} className="w-2.5 h-2.5" style={{ color: i < n ? "#FFCA28" : "#3a3a44", fill: i < n ? "#FFCA28" : "transparent" }} />
+      <Star key={i} className="w-2.5 h-2.5" style={{ color: i < n ? "#E5A540" : "#3a3a44", fill: i < n ? "#E5A540" : "transparent" }} />
     ))}
   </div>
 );
@@ -169,7 +170,7 @@ export default function TeamBuilder() {
             Tap a hero to view details · tap <span className="text-chakra">+</span> to add to your squad. <span className="text-chakra font-semibold">({team.length}/{cap})</span>
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="glass-panel px-4 py-2.5 flex items-center gap-2.5">
             <Zap className="w-5 h-5 text-fox" />
             <div className="leading-none">
@@ -178,7 +179,7 @@ export default function TeamBuilder() {
             </div>
           </div>
           <button onClick={save} disabled={busy || team.length === 0} data-testid="save-team-button"
-            className="flex items-center gap-2 px-5 py-3 rounded-xl font-display text-lg tracking-wide bg-chakra text-[#05050A] hover:bg-cyan-300 transition-colors disabled:opacity-50">
+            className="flex items-center gap-2 px-5 py-3 rounded-xl font-display text-lg tracking-wide bg-chakra text-[#101010] hover:bg-[#F0B855] transition-colors disabled:opacity-50">
             {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} SAVE SQUAD
           </button>
           <button onClick={autoForm} data-testid="auto-form-button"
@@ -210,7 +211,7 @@ export default function TeamBuilder() {
                     <span>Lv.{unlockLevel}</span>
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-slate-800/60 overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${progress}%`, background: "linear-gradient(90deg, #6366f1, #818cf8)" }} />
+                    <div className="h-full rounded-full" style={{ width: `${progress}%`, background: "linear-gradient(90deg, #E5A540, #F0B855)" }} />
                   </div>
                 </div>
               </div>
@@ -244,7 +245,9 @@ export default function TeamBuilder() {
             {synergy.active.map((s) => (
               <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/[0.04] border border-black/10"
                 title={s.label}>
-                <span className="text-lg">{s.icon}</span>
+                {isIconUrl(s.icon)
+                  ? <img src={s.icon} alt={s.name} className="w-5 h-5 rounded object-cover" />
+                  : <span className="text-lg">{s.icon}</span>}
                 <div className="leading-tight">
                   <p className="text-sm font-semibold text-ink">{s.name}</p>
                   <p className="text-[10px] text-slate-500">{s.label}</p>
@@ -356,7 +359,7 @@ const SquadSlotCard = ({ hero, index, onView, onRemove }) => {
       style={{ border: `${fr.strokeWidth}px solid ${fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color}`, boxShadow: `0 0 34px ${(fr.useCrimson ? CRIMSON.base : fr.useGold ? GOLD.base : r.color)}33` }}
       onClick={onView}>
       <img src={hero.portrait} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" />
-      <div className="absolute inset-0" style={{ background: `linear-gradient(to top, #05050Af2 6%, #05050A66 42%, transparent 70%)` }} />
+      <div className="absolute inset-0" style={{ background: `linear-gradient(to top, #101010f2 6%, #10101066 42%, transparent 70%)` }} />
       {fr.cornerLevel >= 2 && <DecoCorners rarity={hero.rarity} size={18} />}
 
       <button onClick={(e) => { e.stopPropagation(); onRemove(); }} data-testid={`squad-remove-${index}`}
@@ -387,14 +390,14 @@ const CollectionCard = ({ hero, slot, squadFull, onView, onToggle }) => {
   return (
     <div data-testid={`team-card-${hero.template_id}`}
       className="relative aspect-[3/4] rounded-xl overflow-hidden text-left group transition-transform active:scale-95 cursor-pointer"
-      style={{ border: `${selected ? 2 : fr.strokeWidth}px solid ${selected ? "#00E5FF" : (fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color + "aa")}`, boxShadow: selected ? "0 0 22px #00E5FF66" : `0 0 12px ${r.color}22` }}
+      style={{ border: `${selected ? 2 : fr.strokeWidth}px solid ${selected ? "#E5A540" : (fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color + "aa")}`, boxShadow: selected ? "0 0 22px #E5A54066" : `0 0 12px ${r.color}22` }}
       onClick={onView}>
       <img src={hero.portrait} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" loading="lazy" />
-      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #05050Af5 8%, #05050A55 45%, transparent 72%)" }} />
+      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #101010f5 8%, #10101055 45%, transparent 72%)" }} />
       {fr.cornerLevel >= 2 && <DecoCorners rarity={hero.rarity} size={12} />}
 
       {selected && (
-        <span className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 w-6 h-6 rounded-full bg-chakra text-[#05050A] flex items-center justify-center font-display text-sm" style={{ boxShadow: "0 0 10px #00E5FF" }}>{slot + 1}</span>
+        <span className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 w-6 h-6 rounded-full bg-chakra text-[#101010] flex items-center justify-center font-display text-sm" style={{ boxShadow: "0 0 10px #E5A540" }}>{slot + 1}</span>
       )}
 
       {/* quick add / remove */}
@@ -402,7 +405,7 @@ const CollectionCard = ({ hero, slot, squadFull, onView, onToggle }) => {
         data-testid={`team-toggle-${hero.template_id}`}
         className="absolute bottom-1.5 right-1.5 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all disabled:opacity-30"
         title={selected ? "Remove from squad" : "Add to squad"}
-        style={selected ? { background: "#00E5FF", color: "#05050A" } : { background: "rgba(0,0,0,0.6)", border: "1px solid rgba(0,229,255,0.5)", color: "#00E5FF" }}>
+        style={selected ? { background: "#E5A540", color: "#101010" } : { background: "rgba(0,0,0,0.6)", border: "1px solid rgba(229,165,64,0.5)", color: "#E5A540" }}>
         {selected ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
       </button>
 
@@ -430,7 +433,7 @@ const Synergy = ({ icon: Icon, color, label, main }) => (
   </div>
 );
 
-const ElChip = ({ active, color = "#00E5FF", onClick, children, testid }) => (
+const ElChip = ({ active, color = "#E5A540", onClick, children, testid }) => (
   <button onClick={onClick} data-testid={testid}
     className="w-9 h-9 rounded-lg flex items-center justify-center transition-all shrink-0"
     style={active ? { background: `${color}22`, color, border: `1px solid ${color}` } : { color: "rgba(148,163,184,0.85)", border: "1px solid rgba(255,255,255,0.1)" }}>

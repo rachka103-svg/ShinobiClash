@@ -25,6 +25,7 @@ from typing import Optional
 
 import game_data as gd
 import progression as prog
+import boss_crystas as bc_registry
 
 # ---------------------------------------------------------------------------
 # Shared rarity helpers — the ascension ladder is owned by progression.py
@@ -139,10 +140,11 @@ def hero_base_stats(template_id: str, rarity: str) -> dict:
 def compute_stats_for_rarity(template_id: str, level: int, ascension: int,
                              rarity: str) -> dict:
     """Like gd.compute_stats but recomputes the base for `rarity` (used when a
-    hero has transcended beyond its native tier)."""
+    hero has transcended beyond its native tier). Growth rates scale with the
+    EFFECTIVE rarity, so an ascended hero grows at its new tier's pace."""
     b = hero_base_stats(template_id, rarity)
-    gl = 1 + 0.09 * (level - 1)
-    ga = 1 + 0.12 * ascension
+    gl = 1 + gd.RARITY_LEVEL_GROWTH.get(rarity, 0.08) * (level - 1)
+    ga = 1 + gd.RARITY_ASCENSION_GROWTH.get(rarity, 0.10) * ascension
     return {
         "hp": round(b["hp"] * gl * ga),
         "atk": round(b["atk"] * gl * ga),
@@ -182,15 +184,55 @@ CRYSTAL_SUBSTAT_POOL = [
 # crystal drop caps at ~2.5%.
 CRYSTAL_DROP_FRACTION = 0.18
 
+# ---------------------------------------------------------------------------
+# Explicit per-tier drop probabilities (percentages) by game mode + difficulty.
+# Each sub-table sums to 100.  These are the authoritative rates used by
+# roll_crystal() when a mode is supplied; the frontend reads them via the
+# crystal_config API so players can see exact odds.
+#
+# Design principles:
+#   • Higher difficulty shifts probability toward Prismatic / Radiant / Astral.
+#   • Endless Spire is slightly more generous than Campaign at the same
+#     difficulty because crystal drops there are rarer per-clear (lower base
+#     drop chance) — the per-drop tier table compensates.
+#   • Radiant is intentionally rare in Campaign normal (4%) but becomes
+#     meaningful at nightmare (18%).  Prismatic is the "mid-rare" tier that
+#     players will see regularly in harder content.
+# ---------------------------------------------------------------------------
+CRYSTAL_DROP_RATES = {
+    "campaign": {
+        "normal":    {"chipped": 50, "faceted": 30, "prismatic": 15, "radiant":  4, "astral": 1},
+        "hard":      {"chipped": 35, "faceted": 30, "prismatic": 22, "radiant": 10, "astral": 3},
+        "nightmare": {"chipped": 20, "faceted": 25, "prismatic": 30, "radiant": 18, "astral": 7},
+    },
+    "spire": {
+        "normal":    {"chipped": 45, "faceted": 30, "prismatic": 18, "radiant":  5, "astral": 2},
+        "hard":      {"chipped": 30, "faceted": 28, "prismatic": 25, "radiant": 12, "astral": 5},
+        "nightmare": {"chipped": 15, "faceted": 20, "prismatic": 30, "radiant": 25, "astral":10},
+    },
+}
 
-def roll_crystal(difficulty: str = "normal") -> dict:
-    """Generate a new crystal instance. Higher difficulty skews the tier
-    roll toward the top of the table."""
+# Fallback table for Tsukuyomi / Boss Hunt regular crystal drops (no mode).
+_CRYSTAL_DEFAULT_RATES = CRYSTAL_DROP_RATES["campaign"]
+
+
+def crystal_drop_rates() -> dict:
+    """Returns the full per-mode, per-difficulty drop-rate table for API
+    consumption (frontend display, admin tooling)."""
+    return CRYSTAL_DROP_RATES
+
+
+def roll_crystal(difficulty: str = "normal", mode: str | None = None) -> dict:
+    """Generate a new crystal instance.
+
+    When ``mode`` is given (``"campaign"`` or ``"spire"``) the tier is rolled
+    against the explicit per-tier probability table for that mode + difficulty.
+    When omitted (Tsukuyomi / Boss Hunt regular drops) the campaign default
+    table is used so behaviour stays backward-compatible."""
+    rates_table = CRYSTAL_DROP_RATES.get(mode, _CRYSTAL_DEFAULT_RATES) if mode else _CRYSTAL_DEFAULT_RATES
+    rates = rates_table.get(difficulty, rates_table.get("normal", _CRYSTAL_DEFAULT_RATES["normal"]))
     tiers = CRYSTAL_TIERS
-    luck = {"normal": 0.15, "hard": 0.35, "nightmare": 0.55}.get(difficulty, 0.15)
-    weights = []
-    for i, _ in enumerate(tiers):
-        weights.append(max(1.0, (len(tiers) - i) * 10 * (1 - luck) + (i + 1) * 10 * luck))
+    weights = [rates.get(t["id"], 0) for t in tiers]
     tier = gd.secure_rng.choices(tiers, weights=weights, k=1)[0]
     main_stat = gd.secure_rng.choice(list(CRYSTAL_MAIN_BASE.keys()))
     n_subs = tier["subs"]
@@ -211,6 +253,10 @@ def roll_crystal(difficulty: str = "normal") -> dict:
 
 
 def crystal_main_value(crystal: dict) -> int:
+    # Boss Crystas carry their own stat_mult (scales with boss rarity).
+    if crystal.get("stat_mult"):
+        base = CRYSTAL_MAIN_BASE[crystal["main_stat"]]
+        return max(1, round(base * crystal["stat_mult"] * (1 + 0.08 * crystal.get("plus", 0))))
     tier = CRYSTAL_BY_ID.get(crystal["tier"], CRYSTAL_TIERS[0])
     base = CRYSTAL_MAIN_BASE[crystal["main_stat"]]
     return max(1, round(base * tier["mult"] * (1 + 0.08 * crystal.get("plus", 0))))
@@ -276,23 +322,96 @@ def apply_crystals_to_stats(base: dict, crystals: list) -> dict:
 
 
 def crystal_public(c: dict) -> dict:
+    is_boss = bool(c.get("boss_crysta_id"))
     tier = CRYSTAL_BY_ID.get(c["tier"], CRYSTAL_TIERS[0])
-    return {
+    out = {
         **c,
-        "tier_name": tier["name"],
-        "tier_color": tier["color"],
+        "tier_name": "Boss Crysta" if is_boss else tier["name"],
+        "tier_color": "#FF1744" if is_boss else tier["color"],
         "main_value": crystal_main_value(c),
         "score": crystal_score(c),
     }
+    if is_boss:
+        bc = bc_registry.BOSS_CRYSTAS_BY_ID.get(c["boss_crysta_id"])
+        if bc:
+            out["boss_crysta"] = {
+                "name": bc["name"],
+                "description": bc["description"],
+                "boss_name": bc["boss_name"],
+                "element": bc["element"],
+                "source": bc.get("source", "tsukuyomi"),
+                "rarity": bc.get("rarity", ""),
+                "combat_modifiers": bc.get("combat_modifiers", {}),
+            }
+    return out
 
 
 def roll_crystal_drop(gear_rare_chance: float) -> Optional[dict]:
-    """Returns a new crystal if the drop roll succeeds, else None.
+    """Returns a new regular crystal if the drop roll succeeds, else None.
 
     `gear_rare_chance` is the boss's computed gear rare-drop rate (already
     scaled by boss index + difficulty). The crystal rolls at a fraction of
     that rate so it stays rarer than equipment."""
     chance = gear_rare_chance * CRYSTAL_DROP_FRACTION
     if gd.secure_rng.random() < chance:
-        return roll_crystal("normal")
+        return roll_crystal("normal")  # Tsukuyomi: uses default campaign rates
     return None
+
+
+def roll_boss_crysta(boss_id: str) -> Optional[dict]:
+    """Creates a Boss Crysta crystal instance for the given Tsukuyomi or
+    Boss Hunt boss. Returns None if no Boss Crysta is defined for that boss_id."""
+    bc = bc_registry.BOSS_CRYSTAS_BY_BOSS_ID.get(boss_id)
+    if not bc:
+        return None
+    return {
+        "crystal_id": str(_uuid.uuid4()),
+        "tier": "boss",
+        "main_stat": bc["main_stat"],
+        "stat_mult": bc["stat_mult"],
+        "plus": 0,
+        "subs": [{"stat": s[0], "value": s[1]} for s in bc["subs"]],
+        "socketed_in": None,
+        "locked": False,
+        "boss_crysta_id": bc["id"],
+        "combat_modifiers": dict(bc.get("combat_modifiers", {})),
+    }
+
+
+# Caps applied when aggregating combat modifiers from multiple Boss Crystas
+# equipped on the same hero — prevents overpowered stacking.
+_COMBAT_MOD_CAPS = {
+    "damage_reduction": 0.30,
+    "lifesteal_pct": 15,
+    "regen_pct": 8,
+    "shield_pct": 30,
+    "cc_resistance": 0.30,
+    "debuff_resistance": 0.25,
+    "physical_resistance": 0.30,
+    "magic_resistance": 0.30,
+    "physical_damage_reduction": 0.30,
+    "magic_damage_reduction": 0.30,
+    "crit_resistance": 0.30,
+    "crit_damage_reduction": 0.30,
+}
+
+
+def extract_crystal_combat_modifiers(crystals: list) -> dict:
+    """Aggregates combat modifiers from socketed Boss Crystas on a hero.
+    Returns an empty dict if no Boss Crystas are socketed."""
+    mods = {}
+    for c in crystals:
+        cm = c.get("combat_modifiers")
+        if not cm:
+            continue
+        for key, val in cm.items():
+            if isinstance(val, dict):
+                mods.setdefault(key, {})
+                for k, v in val.items():
+                    mods[key][k] = mods[key].get(k, 0) + v
+            elif isinstance(val, (int, float)):
+                mods[key] = mods.get(key, 0) + val
+    for key, cap in _COMBAT_MOD_CAPS.items():
+        if key in mods and isinstance(mods[key], (int, float)):
+            mods[key] = min(cap, mods[key])
+    return mods

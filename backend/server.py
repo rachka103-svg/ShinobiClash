@@ -29,6 +29,7 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage
 import game_data as gd
 import expansion_systems as ex
 import progression as prog
+import evolution_materials as evo_mat
 import admin_config as ac
 import player_progression as pp
 
@@ -226,6 +227,9 @@ class SummonIn(BaseModel):
 
 class EvolveIn(BaseModel):
     instance_id: str
+    method: str = "shards"  # "shards" | "fodder"
+    fodder_ids: List[str] = []
+    allow_ssr: bool = False  # must be True when SSR fodder is selected
 
 
 class GearEquipIn(BaseModel):
@@ -677,11 +681,12 @@ def new_ninja_instance(template_id: str, level: int = 1) -> dict:
     return {"instance_id": str(uuid.uuid4()), "template_id": template_id, "level": level, "exp": 0, "ascension": 0, "stars": 1, "skill_rank": 1}
 
 
-def _star_bonus_mult(stars: int) -> float:
+def _star_bonus_mult(stars: int, rarity: str = "R") -> float:
     """Each star beyond the 1st adds a permanent stat bonus (evolution is
     the ONLY way to gain stars) — this is what gives duplicate shards and
-    rare evolution materials real long-term value."""
-    return 1 + max(0, (stars or 1) - 1) * gd.STAR_BONUS_PER_STAR
+    rare evolution materials real long-term value. Higher rarities gain
+    MORE per star, widening the gap with investment."""
+    return 1 + max(0, (stars or 1) - 1) * gd.RARITY_STAR_BONUS.get(rarity, 0.15)
 
 
 def _power_from_stats(s: dict) -> int:
@@ -714,13 +719,16 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_gear: dic
         return
     rarity = ex.effective_rarity(inst, tmpl)
     native_rarity = tmpl["rarity"]
-    star_mult = _star_bonus_mult(inst["stars"])
+    star_mult = _star_bonus_mult(inst["stars"], rarity)
     base_stats = ex.compute_stats_for_rarity(inst["template_id"], inst["level"], asc, rarity)
     star_stats = {k: (round(v * star_mult) if k in ("hp", "atk", "def") else v) for k, v in base_stats.items()}
     equipped = gear_by_hero.get(inst["instance_id"], [])
     geared = gd.apply_gear_to_stats(star_stats, equipped) if equipped else star_stats
     socketed = [crystal_by_gear[g["gear_id"]] for g in equipped if g["gear_id"] in crystal_by_gear]
     final_stats = ex.apply_crystals_to_stats(geared, socketed) if socketed else geared
+    # Boss Crysta combat modifiers — aggregated from socketed Boss Crystas
+    crystal_mods = ex.extract_crystal_combat_modifiers(socketed) if socketed else {}
+    inst["crystal_combat_modifiers"] = crystal_mods if crystal_mods else None
     inst["rarity"] = rarity
     inst["native_rarity"] = native_rarity
     inst["evolved_rarity"] = inst.get("evolved_rarity") or native_rarity
@@ -738,9 +746,11 @@ def _hydrate_ninja_instance(inst: dict, gear_by_hero: dict, crystal_by_gear: dic
     stars_max = gd.max_stars_for_rarity(rarity)
     inst["stars_max"] = stars_max
     inst["at_star_cap"] = stars >= stars_max
-    inst["evolution_cost"] = gd.evolution_cost(rarity, stars) if stars < stars_max else None
+    inst["evolution_cost"] = gd.evolution_cost(rarity, stars, tmpl.get("element")) if stars < stars_max else None
     inst["star_up_cost"] = inst["evolution_cost"]["shards"] if inst["evolution_cost"] else None
+    inst["evolution_fodder_cost"] = evo_mat.get_fodder_requirement(stars) if stars < stars_max else None
     inst["faction"] = tmpl.get("faction")
+    inst["element"] = tmpl.get("element")
     inst["role"] = tmpl.get("role")
     skill_rank = inst.get("skill_rank", 1)
     sk = gd.skill_public(rarity, skill_rank)
@@ -810,6 +820,7 @@ def public_user(user: dict) -> dict:
         "crystal_config": {
             "tiers": ex.CRYSTAL_TIERS,
             "drop_fraction": ex.CRYSTAL_DROP_FRACTION,
+            "drop_rates": ex.crystal_drop_rates(),
         },
         "stepup": stepup_public(user),
         "pity": user.get("pity") or gd.fresh_pity_state(),
@@ -1026,7 +1037,9 @@ async def catalog():
             "pity_config": {
                 "soft_pity_start": gd.MYTHIC_SOFT_PITY_START,
                 "hard_pity": gd.MYTHIC_HARD_PITY,
+                "lr_hard_pity": gd.LR_HARD_PITY,
                 "featured_5050": gd.FEATURED_MYTHIC_5050,
+                "featured_5050_rarity": "GR",
                 "x10_guarantee_rarity": gd.X10_GUARANTEE_RARITY,
                 "pity_rarity": gd.TOP_RARITY,
                 "pity_currencies": ["gems", "ticket"],
@@ -1052,7 +1065,9 @@ async def catalog():
                 "ascension_benefits": prog.ASCENSION_BENEFITS,
                 "elemental_essence_enabled": prog.ELEMENTAL_ESSENCE_ENABLED,
                 "element_essence": prog.ELEMENT_ESSENCE,
-                "star_bonus_per_star": gd.STAR_BONUS_PER_STAR,
+                "star_bonus_per_star": gd.RARITY_STAR_BONUS,
+                "level_growth": gd.RARITY_LEVEL_GROWTH,
+                "ascension_growth": gd.RARITY_ASCENSION_GROWTH,
             },
             "dungeons": [
                 {**d, "tiers": [
@@ -1185,17 +1200,64 @@ async def boss_hunt_complete(body: dict, user: dict = Depends(get_current_user))
 
         # Track cleared bosses
         cleared_bosses = user.get("cleared_bosses", [])
-        if boss_id not in cleared_bosses:
+        is_first_clear = boss_id not in cleared_bosses
+        if is_first_clear:
             cleared_bosses.append(boss_id)
             # First-clear bonus
             rewards["gems"] += 50
             rewards["first_clear"] = True
 
+        # Boss Core drop — required for ultimate Transformation (LR -> GR)
+        inventory = user.get("inventory", {})
+        boss_core_qty = 2 if is_first_clear else 1
+        inventory["boss_core"] = inventory.get("boss_core", 0) + boss_core_qty
+        rewards["evolution_materials"] = {"boss_core": boss_core_qty}
+
+        # Signature Crysta drop — the boss's unique crystal.
+        # Uses the crystal_drop_rate from the boss config (very low, endgame).
+        crystal_reward = None
+        crystal_drop_rate = base_rewards.get("crystal_drop_rate", 1.0) / 100.0  # config stores as percentage
+        if rng.random() < crystal_drop_rate:
+            bc_instance = ex.roll_boss_crysta(boss_id)
+            if bc_instance:
+                user.setdefault("crystals", []).append(bc_instance)
+                crystal_reward = ex.crystal_public(bc_instance)
+                rewards["crystal"] = crystal_reward
+
         await db.users.update_one({"_id": user["_id"]}, {
-            "$set": {"ryo": user["ryo"], "gems": user["gems"], "cleared_bosses": cleared_bosses},
+            "$set": {"ryo": user["ryo"], "gems": user["gems"], "cleared_bosses": cleared_bosses,
+                     "inventory": inventory, "crystals": user.get("crystals", [])},
         })
 
     return {"result": result, "rewards": rewards, "profile": public_user(user)}
+
+
+@api_router.get("/game/crystas/collection")
+async def crysta_collection(user: dict = Depends(get_current_user)):
+    """Returns all signature Crysta definitions with the user's collection
+    status (obtained/not obtained) for the collection UI."""
+    from boss_crystas import BOSS_CRYSTAS
+    owned_ids = set()
+    for c in user.get("crystals", []):
+        bcid = c.get("boss_crysta_id")
+        if bcid:
+            owned_ids.add(bcid)
+    collection = []
+    for bc in BOSS_CRYSTAS:
+        collection.append({
+            "id": bc["id"],
+            "name": bc["name"],
+            "boss_name": bc["boss_name"],
+            "boss_id": bc["boss_id"],
+            "element": bc["element"],
+            "rarity": bc["rarity"],
+            "source": bc.get("source", "tsukuyomi"),
+            "description": bc["description"],
+            "main_stat": bc["main_stat"],
+            "combat_modifiers": bc.get("combat_modifiers", {}),
+            "obtained": bc["id"] in owned_ids,
+        })
+    return {"crystas": collection, "total": len(collection), "obtained": len(owned_ids)}
 
 
 @api_router.get("/game/profile")
@@ -1479,7 +1541,7 @@ def _roll_battle_item_drops(user: dict, chapter: int, first_clear: bool) -> dict
 def _roll_battle_gear_drop(user: dict, chapter: int) -> Optional[dict]:
     """Campaign battles from Chapter 2+ have a flat chance to drop a gear
     piece (the long-term equipment loop), capped by GEAR_INVENTORY_CAP."""
-    if chapter < 2 or len(user.get("gear", [])) >= GEAR_INVENTORY_CAP or rng.random() >= 0.14:
+    if chapter < 2 or len(user.get("gear", [])) >= GEAR_INVENTORY_CAP or rng.random() >= 0.07:
         return None
     g = gd.roll_gear(min_tier=1, max_tier=min(1 + chapter // 3, 5), luck=min(0.5, chapter * 0.04))
     user.setdefault("gear", []).append(g)
@@ -1565,8 +1627,26 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
             inventory[iid] = inventory.get(iid, 0) + qty
         rewards.setdefault("forge_materials", {}).update(forge_drops)
 
+    # Evolution material — evo_essence drops from Campaign (foundation material)
+    evo_qty = 2 + chapter
+    if first_clear:
+        evo_qty += 3
+    inventory["evo_essence"] = inventory.get("evo_essence", 0) + evo_qty
+    rewards.setdefault("evolution_materials", {})["evo_essence"] = evo_qty
+
     # gear drops — battles from Chapter 2 onward can drop gear (long-term loop)
     rewards["gear"] = _roll_battle_gear_drop(user, chapter)
+
+    # Regular crystal drop — rare drop from Campaign (Chipped → Astral tiers).
+    # Rarer than gear (7%): ~2% base, scaling slightly with chapter depth.
+    # Boss crystas are NOT obtainable here — only regular stat crystals.
+    crystal_reward = None
+    if chapter >= 2 and rng.random() < 0.02 + min(0.01, chapter * 0.0005):
+        _crystal_diff = {"normal": "normal", "hard": "hard", "difficult": "nightmare", "extreme": "nightmare"}.get(body.difficulty, "normal")
+        _crystal_inst = ex.roll_crystal(_crystal_diff, mode="campaign")
+        user.setdefault("crystals", []).append(_crystal_inst)
+        crystal_reward = ex.crystal_public(_crystal_inst)
+        rewards["crystal"] = crystal_reward
 
     if first_clear:
         _apply_campaign_first_clear_bonus(user, stage, body.stage_id, cleared, ninjas, rewards)
@@ -1581,7 +1661,7 @@ async def battle_complete(body: BattleCompleteIn, user: dict = Depends(get_curre
         {"_id": user["_id"]},
         {"$set": {"ryo": user["ryo"], "gems": user.get("gems", 0), "level": user["level"], "exp": user["exp"],
                   "ninjas": ninjas, "inventory": inventory, "cleared_stages": cleared, "wins": user["wins"],
-                  "daily": user["daily"], "gear": user.get("gear", [])}},
+                  "daily": user["daily"], "gear": user.get("gear", []), "crystals": user.get("crystals", [])}},
     )
     user["cleared_stages"] = cleared
     return {"profile": public_user(user), "rewards": rewards, "result": "win", "first_clear": first_clear, "level_up": level_up}
@@ -1598,6 +1678,8 @@ def _rarity_pool(min_rarity: str = None, exclude_top: bool = True,
     floor = gd.RARITY_ORDER[min_rarity] if min_rarity else -1
     out = []
     for tid, t in gd.CATALOG_BY_ID.items():
+        if t.get("is_nightmare_boss"):
+            continue
         ri = gd.RARITY_ORDER[t["rarity"]]
         if exclude_top and t["rarity"] == gd.TOP_RARITY:
             continue
@@ -1605,7 +1687,7 @@ def _rarity_pool(min_rarity: str = None, exclude_top: bool = True,
             w = weights.get(t["rarity"], 0)
             if w <= 0:
                 continue
-            if featured_id and tid == featured_id:
+            if featured_id and tid == featured_id and t["rarity"] != "GR":
                 w = w * FEATURED_RATE_MULT
             out.append((tid, w))
     return out
@@ -1617,11 +1699,10 @@ def _weighted_choice(pool: list) -> str:
     return rng.choices(tids, weights=weights, k=1)[0]
 
 
-def _roll_top_rarity_pity(pity: dict, currency: str, featured: Optional[str],
-                          featured_is_top: bool, top: str) -> tuple:
-    """Evaluates the top-rarity pity roll for a single pull (GEM/TICKET
-    banners only). Mutates `pity` in place. Returns
-    (chosen_template_id_or_None, pity_note)."""
+def _roll_top_rarity_pity(pity: dict, currency: str, top: str) -> tuple:
+    """Evaluates the UR pity roll for a single pull (GEM/TICKET banners only).
+    UR has soft pity from pull 60 and hard pity at 90. Mutates `pity` in place.
+    Returns (chosen_template_id_or_None, pity_note)."""
     if currency not in ("gems", "ticket"):
         return None, None
     counter = pity.get("ur", pity.get("gr", pity.get("mythic", 0))) + 1
@@ -1629,23 +1710,26 @@ def _roll_top_rarity_pity(pity: dict, currency: str, featured: Optional[str],
         pity["ur"] = counter
         return None, None
 
-    chosen = None
-    pity_note = None
-    tops = [tid for tid, t in gd.CATALOG_BY_ID.items() if t["rarity"] == top]
-    if featured_is_top:
-        if pity.get("featured_guarantee"):
-            chosen = featured; pity["featured_guarantee"] = False; pity_note = "featured_guaranteed"
-        elif rng.random() < gd.FEATURED_MYTHIC_5050:
-            chosen = featured; pity_note = "featured_5050_won"
-        else:
-            others = [m for m in tops if m != featured] or tops
-            chosen = rng.choice(others); pity["featured_guarantee"] = True; pity_note = "featured_5050_lost"
-    else:
-        chosen = rng.choice(tops) if tops else None
+    tops = [tid for tid, t in gd.CATALOG_BY_ID.items() if t["rarity"] == top and not t.get("is_nightmare_boss")]
+    chosen = rng.choice(tops) if tops else None
     pity["ur"] = 0
-    if counter >= gd.MYTHIC_HARD_PITY:
-        pity_note = pity_note or "hard_pity"
+    pity_note = "hard_pity" if counter >= gd.MYTHIC_HARD_PITY else "pity"
     return chosen, pity_note
+
+
+def _apply_gr_featured_5050(chosen: str, featured: str, pity: dict) -> tuple:
+    """Applies the featured GR 50/50 system when a GR is pulled from the
+    normal pool. Returns (chosen_template_id, pity_note)."""
+    gr_pool = [tid for tid, t in gd.CATALOG_BY_ID.items()
+              if t["rarity"] == "GR" and not t.get("is_nightmare_boss")]
+    non_featured = [tid for tid in gr_pool if tid != featured] or gr_pool
+    if pity.get("featured_guarantee"):
+        pity["featured_guarantee"] = False
+        return featured, "featured_guaranteed"
+    if rng.random() < gd.FEATURED_MYTHIC_5050:
+        return featured, "featured_5050_won"
+    pity["featured_guarantee"] = True
+    return rng.choice(non_featured), "featured_5050_lost"
 
 
 def _grant_summoned_hero(user: dict, chosen: str) -> tuple:
@@ -1665,22 +1749,44 @@ def _grant_summoned_hero(user: dict, chosen: str) -> tuple:
 
 def _pull_once(user: dict, pity: dict, currency: str = "gems", force_sr_plus: bool = False) -> dict:
     """Executes ONE gacha pull.
-    - GEM / TICKET banner: GR (top tier) pity — base rate, soft-pity ramp, hard
-      pity guarantee. A natural GR resets the counter. Featured GR is 50/50
-      with a guarantee after a loss (state on `pity.featured_guarantee`).
+    - GEM / TICKET banner: UR pity (soft 60, hard 90) + LR pity (hard 180).
+      GR has no pity — natural pull only with featured 50/50.
     - GOLD / RYO banner: NO pity and much lower rare rates (via GOLD weights).
-    Rate-up is applied multiplicatively inside `_rarity_pool` (never a flat
-    chance). Mutates `pity`/`user`; returns the result dict."""
+    Mutates `pity`/`user`; returns the result dict."""
     top = gd.TOP_RARITY
     featured = FEATURED_BANNER["template_id"]
     featured_tmpl = gd.CATALOG_BY_ID.get(featured) if featured else None
-    featured_is_top = bool(featured_tmpl and featured_tmpl["rarity"] == top)
+    featured_is_gr = bool(featured_tmpl and featured_tmpl["rarity"] == "GR")
 
-    chosen, pity_note = _roll_top_rarity_pity(pity, currency, featured, featured_is_top, top)
+    # Increment LR pity counter every pull (resets when LR is obtained)
+    if currency in ("gems", "ticket"):
+        pity["lr"] = pity.get("lr", 0) + 1
+
+    # 1. UR pity check (gems/ticket only)
+    chosen, pity_note = _roll_top_rarity_pity(pity, currency, top)
+
+    # 2. LR pity check — hard pity at 180 (gems/ticket only)
+    if chosen is None and currency in ("gems", "ticket") and pity.get("lr", 0) >= gd.LR_HARD_PITY:
+        lr_pool = [tid for tid, t in gd.CATALOG_BY_ID.items()
+                   if t["rarity"] == "LR" and not t.get("is_nightmare_boss")]
+        if lr_pool:
+            chosen = rng.choice(lr_pool)
+            pity["lr"] = 0
+            pity_note = "lr_hard_pity"
+
+    # 3. Normal pool pull
     if chosen is None:
         pool = _rarity_pool(min_rarity=gd.X10_GUARANTEE_RARITY if force_sr_plus else None,
                             currency=currency, featured_id=featured)
         chosen = _weighted_choice(pool)
+        pulled_rarity = gd.CATALOG_BY_ID[chosen]["rarity"]
+        # Reset LR counter on natural LR pull
+        if pulled_rarity == "LR":
+            pity["lr"] = 0
+        # Apply featured GR 50/50
+        if pulled_rarity == "GR" and featured_is_gr:
+            chosen, pity_note = _apply_gr_featured_5050(chosen, featured, pity)
+
     pity["total_pulls"] = pity.get("total_pulls", 0) + 1
 
     tmpl, is_duplicate, shards_gained = _grant_summoned_hero(user, chosen)
@@ -1690,8 +1796,7 @@ def _pull_once(user: dict, pity: dict, currency: str = "gems", force_sr_plus: bo
 
 
 def _gold_summon_cost(count: int) -> int:
-    """Total Ryo cost for `count` gold summons. x10 gets a 20% discount
-    (8x single cost instead of 10x)."""
+    """Total Ryo cost for `count` gold summons. x10 = 10x single cost."""
     if count >= 10:
         return gd.GOLD_SUMMON_X10_COST
     return gd.SUMMON_COST * count
@@ -1965,10 +2070,14 @@ async def claim_achievement(achievement_id: str, user: dict = Depends(get_curren
     return {"profile": public_user(user), "reward": reward}
 
 
-async def _do_evolve(instance_id: str, user: dict) -> dict:
-    """Evolution (star breakthrough) — the ONLY way to raise stars. Early
-    stars burn duplicate shards + ryo; stars 4-6 additionally require rare
-    evolution materials (Evolution Essence / Celestial Cores)."""
+async def _do_evolve(instance_id: str, user: dict, method: str = "shards", fodder_ids: Optional[List[str]] = None, allow_ssr: bool = False) -> dict:
+    """Evolution star breakthrough. Players choose ONE route:
+    1) hero-specific shards, or 2) same-element R/SR/optional SSR hero fodder.
+    Ryo and the non-shard evolution materials remain shared requirements.
+    """
+    method = (method or "shards").lower()
+    if method not in {"shards", "fodder"}:
+        raise HTTPException(status_code=400, detail="Invalid Evolution method")
     inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == instance_id), None)
     if not inst:
         raise HTTPException(status_code=404, detail="Hero not found")
@@ -1980,19 +2089,60 @@ async def _do_evolve(instance_id: str, user: dict) -> dict:
     stars_max = gd.max_stars_for_rarity(rarity)
     if stars >= stars_max:
         raise HTTPException(status_code=400, detail="This hero is already at maximum evolution for its rarity — Ascend to raise the cap")
-    cost = gd.evolution_cost(rarity, stars)
+    cost = gd.evolution_cost(rarity, stars, tmpl.get("element"))
+    if not cost:
+        raise HTTPException(status_code=400, detail="Evolution is unavailable for this hero")
+
     hero_shards = user.setdefault("hero_shards", {})
     inventory = user.get("inventory", {})
-    have_shards = hero_shards.get(inst["template_id"], 0)
-    if have_shards < cost["shards"]:
-        raise HTTPException(status_code=400, detail=f"Not enough shards ({have_shards}/{cost['shards']})")
+    team_ids = user.get("team", [])
+    if method == "shards":
+        have_shards = hero_shards.get(inst["template_id"], 0)
+        if have_shards < cost["shards"]:
+            raise HTTPException(status_code=400, detail=f"Not enough shards ({have_shards}/{cost['shards']})")
+    else:
+        req = evo_mat.get_fodder_requirement(stars)
+        if not req:
+            raise HTTPException(status_code=400, detail="Fodder evolution is unavailable for this star level")
+        protected_gear_ids = {g.get("equipped_by") for g in user.get("gear", []) if g.get("equipped_by")}
+        # Raw DB ninja instances don't carry `element` (it lives on the
+        # template).  Resolve it here so server-side fodder validation can
+        # enforce the same-element rule.  Also ensure evolved_rarity is set
+        # (it normally is after the v2 migration, but be defensive).
+        for n in user.get("ninjas", []):
+            if not n.get("element"):
+                nt = gd.CATALOG_BY_ID.get(n.get("template_id"))
+                if nt:
+                    n["element"] = nt.get("element")
+            if not n.get("evolved_rarity"):
+                nt = gd.CATALOG_BY_ID.get(n.get("template_id"))
+                if nt:
+                    n["evolved_rarity"] = ex.effective_rarity(n, nt)
+        ok, msg, selected, _assignments = evo_mat.validate_fodder_selection(
+            user.get("ninjas", []), instance_id, tmpl.get("element"), fodder_ids or [],
+            team_ids, protected_gear_ids, current_star=stars, allow_ssr=allow_ssr
+        )
+        if not ok:
+            raise HTTPException(status_code=400, detail=msg)
+
     if user.get("ryo", 0) < cost["ryo"]:
         raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {cost['ryo']}")
     for iid, qty in cost["items"].items():
         if inventory.get(iid, 0) < qty:
             name = gd.ITEMS.get(iid, {}).get("name", iid)
             raise HTTPException(status_code=400, detail=f"Not enough {name} ({inventory.get(iid, 0)}/{qty})")
-    hero_shards[inst["template_id"]] = have_shards - cost["shards"]
+
+    # Deduct exactly one selected route.
+    if method == "shards":
+        hero_shards[inst["template_id"]] = hero_shards.get(inst["template_id"], 0) - cost["shards"]
+    else:
+        selected_ids = list(fodder_ids or [])
+        selected_set = set(selected_ids)
+        # Preserve exact consumed instances so the existing Revert feature can
+        # refund fodder evolutions without fabricating new heroes.
+        history = inst.setdefault("evolution_fodder_history", [])
+        history.append({"from_star": stars, "fodder": [dict(n) for n in selected]})
+        user["ninjas"] = [n for n in user.get("ninjas", []) if n.get("instance_id") not in selected_set]
     user["ryo"] -= cost["ryo"]
     for iid, qty in cost["items"].items():
         inventory[iid] -= qty
@@ -2002,18 +2152,18 @@ async def _do_evolve(instance_id: str, user: dict) -> dict:
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"], "inventory": inventory,
         "daily": user["daily"], "achievements": user.get("achievements")}})
-    return {"profile": public_user(user), "instance_id": inst["instance_id"], "stars": inst["stars"]}
+    return {"profile": public_user(user), "instance_id": inst["instance_id"], "stars": inst["stars"], "method": method}
 
 
 @api_router.post("/game/hero/evolve")
 async def evolve_hero(body: EvolveIn, user: dict = Depends(get_current_user)):
-    return await _do_evolve(body.instance_id, user)
+    return await _do_evolve(body.instance_id, user, body.method, body.fodder_ids, body.allow_ssr)
 
 
 @api_router.post("/game/hero/star-up")
 async def star_up(body: StarUpIn, user: dict = Depends(get_current_user)):
-    """Legacy route — kept for compatibility; now runs the Evolution system."""
-    return await _do_evolve(body.instance_id, user)
+    """Legacy route — kept for compatibility; defaults to Hero Shards."""
+    return await _do_evolve(body.instance_id, user, "shards", [])
 
 
 @api_router.post("/game/hero/transcend")
@@ -2265,14 +2415,24 @@ async def revert_hero(body: RevertIn, user: dict = Depends(get_current_user)):
     #    iterating by star number is correct regardless of which rarity each
     #    star was earned at).
     stars = inst.get("stars", 1)
-    for i in range(stars - 1):
-        cost = gd.evolution_cost(rarity, i)
+    _elem = tmpl.get("element")
+    for i in range(1, stars):
+        cost = gd.evolution_cost(rarity, i, _elem)
         if not cost:
             continue
         shards_refund += cost["shards"]
         ryo_refund += cost["ryo"]
         for iid, qty in cost["items"].items():
             inventory[iid] = inventory.get(iid, 0) + qty
+
+    # 3a) Fodder-based Evolution costs → restore the exact consumed hero
+    # instances recorded on this hero. Shard-based evolutions continue to use
+    # the normal shard refund path above.
+    for event in reversed(inst.get("evolution_fodder_history", [])):
+        for fodder in event.get("fodder", []):
+            if not any(n.get("instance_id") == fodder.get("instance_id") for n in user.get("ninjas", [])):
+                user.setdefault("ninjas", []).append(fodder)
+    inst["evolution_fodder_history"] = []
 
     # 3b) Rarity Ascension costs → refund shards + Ryo + essence for each
     #     tier the hero was ascended above its native rarity.
@@ -2593,10 +2753,24 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     inventory = user.get("inventory", {})
     for iid, qty in r["items"].items():
         inventory[iid] = inventory.get(iid, 0) + qty
-    # Elemental essence — small per-path reward identity, no new currency system
+    # Elemental essence — drops from elemental Spire paths (used for Evolution 3★+)
     if path != "normal" and advancing:
         essence_id = f"{path}_essence"
-        inventory[essence_id] = inventory.get(essence_id, 0) + (3 if r.get("boss") else 1)
+        inventory[essence_id] = inventory.get(essence_id, 0) + (5 if r.get("boss") else 2)
+    # evo_essence also drops from normal Spire (supplementary Campaign source)
+    if advancing:
+        evo_qty = 1 + floor // 10
+        inventory["evo_essence"] = inventory.get("evo_essence", 0) + evo_qty
+
+    # Regular crystal drop — rare drop from Endless Spire (Chipped → Astral).
+    # Drop rate scales with floor depth: ~3% base, +0.1% per floor (capped).
+    # Boss crystas are NOT obtainable here — only regular stat crystals.
+    spire_crystal = None
+    if advancing and rng.random() < min(0.08, 0.03 + floor * 0.001):
+        _spire_diff = "nightmare" if floor >= 50 else ("hard" if floor >= 20 else "normal")
+        _spire_inst = ex.roll_crystal(_spire_diff, mode="spire")
+        user.setdefault("crystals", []).append(_spire_inst)
+        spire_crystal = ex.crystal_public(_spire_inst)
     user["inventory"] = inventory
     if advancing:
         if path == "normal":
@@ -2613,10 +2787,12 @@ async def spire_complete(body: SpireCompleteIn, user: dict = Depends(get_current
     level_up = await grant_player_exp(user, r.get("hero_exp_base", 0))
     await db.users.update_one({"_id": user["_id"]}, {"$set": {
         "ryo": user["ryo"], "gems": user.get("gems", 0), "ninjas": user["ninjas"], "inventory": inventory,
+        "crystals": user.get("crystals", []),
         "spire_floor": user.get("spire_floor", current), "spire_floors": user.get("spire_floors", {}), "daily": user["daily"],
         "level": user["level"], "exp": user["exp"]}})
     rewards = {"ryo": r["ryo"], "gems": gems_gained, "items": r["items"], "hero_exp": hero_exp,
-               "boss": r["boss"], "milestone": r.get("milestone", False), "advancing": advancing}
+               "boss": r["boss"], "milestone": r.get("milestone", False), "advancing": advancing,
+               "crystal": spire_crystal}
     if path != "normal" and advancing:
         rewards["essence"] = f"{path}_essence"
     return {"profile": public_user(user), "rewards": rewards, "result": "win", "floor": floor, "advancing": advancing, "level_up": level_up}
@@ -2635,6 +2811,27 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     inventory = user.get("inventory", {})
     for iid, qty in rw.get("items", {}).items():
         inventory[iid] = inventory.get(iid, 0) + qty
+
+    # --- Elemental Resonance bonus (Elemental Sanctum dungeons) ---
+    # Bring 2+ heroes of the dungeon's element and the shrine resonates,
+    # granting +50% of the essence dropped. Encourages elemental team-building
+    # and makes the sanctum feel distinct from the generic resource dungeons.
+    resonance_bonus = None
+    if trial.get("category") == "elemental" and trial.get("element"):
+        d_element = trial["element"]
+        ninjas = user.get("ninjas", [])
+        part_ids = set(body.participants or list(user.get("team", [])))
+        matched = sum(
+            1 for n in ninjas
+            if n.get("instance_id") in part_ids
+            and gd.CATALOG_BY_ID.get(n.get("template_id"), {}).get("element") == d_element
+        )
+        essence_id = f"{d_element.lower()}_essence"
+        # Light/Dark map to their essence ids directly; Lightning -> lightning_essence
+        if matched >= 2 and rw.get("items", {}).get(essence_id):
+            bonus = max(1, rw["items"][essence_id] // 2)
+            inventory[essence_id] = inventory.get(essence_id, 0) + bonus
+            resonance_bonus = {"element": d_element, "matched": matched, "essence_id": essence_id, "qty": bonus}
 
     # --- Resource Dungeon extras (gear drops / blueprint rolls) ---
     gear_reward = None
@@ -2663,8 +2860,11 @@ async def trial_complete(body: TrialCompleteIn, user: dict = Depends(get_current
     items_out = dict(rw.get("items", {}))
     if blueprint_reward:
         items_out[blueprint_reward] = items_out.get(blueprint_reward, 0) + 1
+    if resonance_bonus:
+        items_out[resonance_bonus["essence_id"]] = items_out.get(resonance_bonus["essence_id"], 0) + resonance_bonus["qty"]
     return {"profile": public_user(user),
-            "rewards": {"ryo": rw.get("ryo", 0), "items": items_out, "hero_exp": hero_exp, "gear": gear_reward},
+            "rewards": {"ryo": rw.get("ryo", 0), "items": items_out, "hero_exp": hero_exp, "gear": gear_reward,
+                        "resonance_bonus": resonance_bonus},
             "result": "win", "level_up": level_up}
 
 
@@ -2716,6 +2916,17 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
         for iid, qty in forge_drops.items():
             inventory[iid] = inventory.get(iid, 0) + qty
 
+    # Nightmare material drops — nightmare_dust, dream_fragment, lunar_essence
+    # Used for high-star Evolution (5★+) and Ascension (SSR+)
+    _tsuku_mats = {
+        "normal":   {"nightmare_dust": 3},
+        "hard":     {"nightmare_dust": 5, "dream_fragment": 2},
+        "nightmare":{"nightmare_dust": 8, "dream_fragment": 4, "lunar_essence": 1},
+    }
+    _mat_drops = _tsuku_mats.get(body.difficulty, {"nightmare_dust": 3})
+    for iid, qty in _mat_drops.items():
+        inventory[iid] = inventory.get(iid, 0) + qty
+
     # RARE drop — a single random piece of the boss's signature gear set.
     gear_reward = None
     rare_hit = rng.random() < r["rare_chance"]
@@ -2724,13 +2935,38 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
         user.setdefault("gear", []).append(g)
         gear_reward = gear_public(g)
 
-    # CRYSTAL drop — a super-rare bonus that scales with the boss's gear
-    # rare-drop chance (boss index + difficulty) at a fraction of that rate.
+    # BOSS CRYSTA drop — the signature crystal for this Nightmare boss.
+    # Drops at the same super-rare rate as the old crystal drop (a fraction
+    # of the boss's gear rare-drop chance) but always yields THIS boss's
+    # signature crystal, not a random one.
     crystal_reward = None
-    crystal_hit = ex.roll_crystal_drop(r["rare_chance"])
+    crystal_chance = r["rare_chance"] * ex.CRYSTAL_DROP_FRACTION
+    crystal_hit = rng.random() < crystal_chance
     if crystal_hit:
-        user.setdefault("crystals", []).append(crystal_hit)
-        crystal_reward = ex.crystal_public(crystal_hit)
+        bc_instance = ex.roll_boss_crysta(body.boss_id)
+        if bc_instance:
+            user.setdefault("crystals", []).append(bc_instance)
+            crystal_reward = ex.crystal_public(bc_instance)
+
+    # BOSS CARD drop — the nightmare boss itself as a playable hero card.
+    # Super-low chance per difficulty. Nightmare bosses are NOT summonable;
+    # this is the ONLY way to obtain their cards.
+    card_reward = None
+    card_chance = gd.TSUKUYOMI_CARD_DROP_CHANCE.get(body.difficulty, 0.005)
+    card_hit = rng.random() < card_chance
+    if card_hit:
+        boss_template_id = boss.get("template_id")
+        if boss_template_id and boss_template_id in gd.CATALOG_BY_ID:
+            tmpl, is_dupe, shards = _grant_summoned_hero(user, boss_template_id)
+            card_reward = {
+                "template_id": boss_template_id,
+                "name": tmpl["name"],
+                "rarity": tmpl["rarity"],
+                "element": tmpl["element"],
+                "portrait": tmpl["portrait"],
+                "duplicate": is_dupe,
+                "shards_gained": shards,
+            }
 
     # progress: remember the highest difficulty cleared per boss
     tsuku = user.get("tsukuyomi") or {}
@@ -2780,7 +3016,9 @@ async def tsukuyomi_complete(body: TsukuyomiCompleteIn, user: dict = Depends(get
                         "gear": gear_reward, "rare_hit": rare_hit, "rare_chance": r["rare_chance"],
                         "gear_set_name": boss["gear_set_name"], "first_clear_bonus": first_clear_bonus,
                         "crystal": crystal_reward,
-                        "crystal_chance": round(r["rare_chance"] * ex.CRYSTAL_DROP_FRACTION, 4)},
+                        "crystal_chance": round(crystal_chance, 4),
+                        "card": card_reward,
+                        "card_chance": round(card_chance, 4)},
             "level_up": level_up,
             "highest_cleared": highest_cleared}
 

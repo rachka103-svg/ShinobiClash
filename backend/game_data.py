@@ -217,7 +217,7 @@ NINJA_CATALOG = []
 # roughly equals the next tier's base — exactly the intended feel.
 RARITY_BASE = {
     "N":      {"hp": 500,  "atk": 75,   "def": 38,  "spd": 80,  "chakra": 95,  "crit_rate": 4,  "crit_damage": 135, "accuracy": 83, "resistance": 4},
-    "R":      {"hp": 800,  "atk": 115,  "def": 60,  "spd": 95,  "chakra": 100, "crit_rate": 6,  "crit_damage": 145, "accuracy": 87, "resistance": 7},
+    "R":      {"hp": 680,  "atk": 98,   "def": 50,  "spd": 92,  "chakra": 98,  "crit_rate": 5,  "crit_damage": 140, "accuracy": 85, "resistance": 6},
     "SR":     {"hp": 1240, "atk": 178,  "def": 93,  "spd": 113, "chakra": 118, "crit_rate": 8,  "crit_damage": 155, "accuracy": 89, "resistance": 10},
     "SSR":    {"hp": 1920, "atk": 276,  "def": 144, "spd": 132, "chakra": 138, "crit_rate": 11, "crit_damage": 170, "accuracy": 91, "resistance": 15},
     "UR":     {"hp": 2980, "atk": 430,  "def": 224, "spd": 155, "chakra": 160, "crit_rate": 14, "crit_damage": 185, "accuracy": 93, "resistance": 20},
@@ -226,6 +226,23 @@ RARITY_BASE = {
     "MYTHIC": {"hp": 11100,"atk": 1600, "def": 837, "spd": 244, "chakra": 250, "crit_rate": 28, "crit_damage": 280, "accuracy": 98, "resistance": 48},
 }
 STAT_KEYS = ("hp", "atk", "def", "spd", "chakra", "crit_rate", "crit_damage", "accuracy", "resistance")
+
+# ---------------------------------------------------------------------------
+# Rarity-based GROWTH RATES — higher rarities grow faster per level, per
+# ascension, and per evolution star. This ensures a fully-maxed R card can
+# never equal a fully-maxed GR card: the gap widens with investment, not
+# just at base. These multiply the per-level / per-ascension / per-star
+# growth coefficients.
+# ---------------------------------------------------------------------------
+RARITY_LEVEL_GROWTH = {
+    "N": 0.05, "R": 0.05, "SR": 0.10, "SSR": 0.12, "UR": 0.14, "LR": 0.16, "GR": 0.18, "MYTHIC": 0.20,
+}
+RARITY_ASCENSION_GROWTH = {
+    "N": 0.06, "R": 0.07, "SR": 0.12, "SSR": 0.14, "UR": 0.16, "LR": 0.18, "GR": 0.20, "MYTHIC": 0.22,
+}
+RARITY_STAR_BONUS = {
+    "N": 0.10, "R": 0.10, "SR": 0.18, "SSR": 0.21, "UR": 0.24, "LR": 0.27, "GR": 0.30, "MYTHIC": 0.33,
+}
 ROLE_MOD = {
     "Attacker": {"hp": 1.0,  "atk": 1.0,  "def": 1.0,  "spd": 1.0,  "chakra": 1.0},
     "Tank":     {"hp": 1.45, "atk": 0.72, "def": 1.4,  "spd": 0.7,  "chakra": 1.0},
@@ -1270,11 +1287,11 @@ _NINJA_IDS = {"blaze", "ripple", "zephyr", "boulder", "spark", "ember", "frost",
 _V2_IDS = {h[0] for h in _HERO_DEFS_V2}
 for _n in NINJA_CATALOG:
     if _n["id"] in _V2_IDS:
-        _n["portrait"] = "/heroes/_placeholder.png"
+        _n["portrait"] = "/heroes/_placeholder.webp"
     elif _n["id"] in _NINJA_IDS:
-        _n["portrait"] = f"/ninjas/{_n['id']}.png"
+        _n["portrait"] = f"/ninjas/{_n['id']}.webp"
     else:
-        _n["portrait"] = f"/heroes/{_n['id']}.png"
+        _n["portrait"] = f"/heroes/{_n['id']}.webp"
 
 CATALOG_BY_ID = {n["id"]: n for n in NINJA_CATALOG}
 
@@ -1294,19 +1311,19 @@ STARTER_NINJAS = ["blaze", "ripple", "zephyr"]
 
 # Weighted summon pool (per rarity). Lower rarity = higher chance.
 # GEM banner (premium) — the standard, pity-backed rates.
-SUMMON_WEIGHTS = {"R": 1000, "SR": 320, "SSR": 95, "UR": 20, "LR": 6, "GR": 2}
+SUMMON_WEIGHTS = {"R": 10000, "SR": 3321, "SSR": 1107, "UR": 342, "LR": 171, "GR": 21}
 # GOLD/RYO banner (budget) — SUPER low chance at rare heroes and NO pity.
 # Heavily floored to R/SR; UR/GR are vanishingly rare here.
-GOLD_SUMMON_WEIGHTS = {"R": 4000, "SR": 520, "SSR": 60, "UR": 4, "LR": 1.5, "GR": 0.5}
+GOLD_SUMMON_WEIGHTS = {"R": 10000, "SR": 1258, "SSR": 193, "UR": 37, "LR": 4, "GR": 2}
 # Gold (Ryo) summon cost — significantly increased from 300 to make gold
 # summons a meaningful decision rather than something players can spam.
 # A new player clearing Chapter 1 earns ~10k Ryo (first clears + rewards),
 # so 5000 = ~2 summons per chapter of first-clear progress. Daily income
 # (login + missions + stage replays + gold vault) is ~2.5k-4k Ryo, giving
 # roughly 2-3 summons per day from routine play.
-SUMMON_COST = 5000
-# x10 Gold Summon — 8x the single cost (20% discount vs 10 individual pulls).
-GOLD_SUMMON_X10_COST = 40000
+SUMMON_COST = 10000
+# x10 Gold Summon — 10x the single cost (no bulk discount).
+GOLD_SUMMON_X10_COST = 100000
 
 # Shards gained when pulling a hero already owned (duplicate protection —
 # duplicates are NEVER wasted). Lower rarity yields more shards since it's
@@ -1325,9 +1342,8 @@ def max_stars_for_rarity(rarity: str) -> int:
 
 
 def star_up_cost(rarity: str, current_star: int) -> int:
-    """Shards required to raise a hero from `current_star` to `current_star + 1`."""
-    ri = RARITY_ORDER[rarity]
-    return round((40 + ri * 15) * (1 + 0.6 * (current_star - 1)))
+    """Legacy helper; returns the current centralized Evolution shard cost."""
+    return evolution_cost(rarity, current_star).get("shards", 0) if evolution_cost(rarity, current_star) else 0
 
 # ---------------------------------------------------------------------------
 # Campaign stages
@@ -1808,8 +1824,9 @@ def max_level(rarity: str) -> int:
 def compute_stats(template_id: str, level: int, ascension: int = 0) -> dict:
     t = CATALOG_BY_ID[template_id]
     b = t["base_stats"]
-    gl = 1 + 0.09 * (level - 1)
-    ga = 1 + 0.12 * ascension
+    rarity = t["rarity"]
+    gl = 1 + RARITY_LEVEL_GROWTH.get(rarity, 0.08) * (level - 1)
+    ga = 1 + RARITY_ASCENSION_GROWTH.get(rarity, 0.10) * ascension
     return {
         "hp": round(b["hp"] * gl * ga),
         "atk": round(b["atk"] * gl * ga),
@@ -2007,7 +2024,7 @@ from datetime import datetime, timezone, timedelta
 
 ENERGY_MAX_DEFAULT = 100
 ENERGY_REGEN_SECONDS = 180  # +1 energy every 3 minutes -> full regen in 5h
-ENERGY_COST = {"campaign": 10, "spire": 0, "trial": 8, "tsukuyomi": 0}
+ENERGY_COST = {"campaign": 5, "spire": 0, "trial": 8, "tsukuyomi": 0}
 
 
 def _parse_iso(ts: Optional[str]) -> datetime:
@@ -2422,13 +2439,13 @@ EXP_TOME_GOLD_COST = {"exp_tome_minor": 25, "exp_tome_greater": 110, "exp_tome_a
 STAR_BONUS_PER_STAR = 0.18  # +18% HP/ATK/DEF per star beyond the 1st (big evolution payoff)
 
 
-def evolution_cost(rarity: str, current_star: int):
+def evolution_cost(rarity: str, current_star: int, element: str = None):
     """Full cost to evolve a hero from `current_star` -> `current_star + 1`.
     Delegates to the centralized progression config (per-rarity star caps +
-    shard/gold costs). Returns None when the hero is already at its rarity's
-    star cap (no further evolution possible — Ascension is the next step)."""
+    rarity-aware shard/gold costs + material requirements). Returns None when
+    the hero is already at its rarity's star cap."""
     import progression as _prog
-    return _prog.get_evolution_cost(rarity, current_star)
+    return _prog.get_evolution_cost(rarity, current_star, element)
 
 
 # ---------------------------------------------------------------------------
@@ -2598,15 +2615,50 @@ def craft_gear(slot: str) -> dict:
 # existing energy gating + battle flow works with ZERO new combat plumbing.
 # ---------------------------------------------------------------------------
 DUNGEONS = [
+    # --- Resource dungeons (Ryo + EXP) ---
     {"id": "gold_vault", "name": "Gold Vault", "icon": "coins", "color": "#FFC857",
-     "desc": "Raid the vault — the deeper you go, the bigger the Ryo haul.", "focus": "ryo"},
+     "desc": "Raid the vault — the deeper you go, the bigger the Ryo haul.", "focus": "ryo",
+     "category": "resource"},
     {"id": "exp_temple", "name": "EXP Temple", "icon": "sparkles", "color": "#00E5FF",
-     "desc": "Ancient halls overflowing with EXP tomes and spirit dust.", "focus": "tomes"},
+     "desc": "Ancient halls overflowing with EXP tomes and spirit dust.", "focus": "tomes",
+     "category": "resource"},
+    # --- Elemental Sanctum — one shrine per element, drops that element's
+    # essence (the ascension/evolution material for same-element heroes).
+    # Enemies are themed to the element so the run feels distinct per shrine.
+    {"id": "fire_sanctum",   "name": "Fire Sanctum",   "icon": "flame",    "color": "#FF5722",
+     "desc": "A volcanic shrine where flame condenses into Fire Essence.", "focus": "fire_essence",
+     "category": "elemental", "element": "Fire"},
+    {"id": "water_sanctum",  "name": "Water Sanctum",  "icon": "droplet",  "color": "#29B6F6",
+     "desc": "Drowned halls where the tide pools into Water Essence.", "focus": "water_essence",
+     "category": "elemental", "element": "Water"},
+    {"id": "earth_sanctum",  "name": "Earth Sanctum",  "icon": "mountain", "color": "#A1887F",
+     "desc": "Caverns of living stone that yield Earth Essence.", "focus": "earth_essence",
+     "category": "elemental", "element": "Earth"},
+    {"id": "wind_sanctum",   "name": "Wind Sanctum",   "icon": "wind",     "color": "#00E676",
+     "desc": "A howling spire that gathers gales into Wind Essence.", "focus": "wind_essence",
+     "category": "elemental", "element": "Wind"},
+    {"id": "storm_sanctum",  "name": "Storm Sanctum",  "icon": "zap",      "color": "#FFCA28",
+     "desc": "A charged peak where lightning crystallises into Lightning Essence.", "focus": "lightning_essence",
+     "category": "elemental", "element": "Lightning"},
+    {"id": "radiance_sanctum", "name": "Radiance Sanctum", "icon": "sun",  "color": "#FFD54F",
+     "desc": "A sunlit sanctum that distils radiance into Light Essence.", "focus": "light_essence",
+     "category": "elemental", "element": "Light"},
+    {"id": "shadow_sanctum", "name": "Shadow Sanctum",  "icon": "moon",    "color": "#7C4DFF",
+     "desc": "A lightless vault where shadow condenses into Dark Essence.", "focus": "dark_essence",
+     "category": "elemental", "element": "Dark"},
 ]
 DUNGEON_TIER_LEVELS = [4, 12, 22, 34, 48]
 _DUNGEON_ENEMY_SETS = {
     "gold_vault":   ["spark", "zephyr", "raijin"],
     "exp_temple":   ["frost", "ember", "lumina"],
+    # Elemental sanctums — themed rosters (low → high rarity per slot).
+    "fire_sanctum":     ["ember", "ember_scout", "prometheus", "pele", "hephaestus"],
+    "water_sanctum":    ["ripple", "saltide", "poseidon", "tiamat", "leviathan"],
+    "earth_sanctum":    ["boulder", "stoneback", "terra", "gaia", "osiris"],
+    "wind_sanctum":     ["zephyr", "dust_wisp", "thor", "hermes", "gale"],
+    "storm_sanctum":    ["spark", "voltling", "raijin", "zeus", "odin"],
+    "radiance_sanctum": ["glow_sentinel", "glimmer", "apollo", "athena", "amaterasu"],
+    "shadow_sanctum":   ["shade_walker", "shiver", "anubis", "hades", "loki"],
 }
 
 
@@ -2618,13 +2670,18 @@ def _dungeon_trial_entries() -> list:
             lvl = DUNGEON_TIER_LEVELS[tier - 1]
             count = 2 if tier <= 2 else 3
             enemies = [{"template_id": roster[i % len(roster)], "level": lvl + i} for i in range(count)]
-            out.append({
+            entry = {
                 "id": f"d_{d['id']}_t{tier}", "dungeon_id": d["id"], "tier": tier,
                 "name": f"{d['name']} — Tier {tier}", "icon": d["icon"], "color": d["color"],
                 "enemies": enemies,
                 "rewards": _dungeon_reward_table(d["id"], tier),
                 "gear_drop": None,
-            })
+            }
+            if d.get("category"):
+                entry["category"] = d["category"]
+            if d.get("element"):
+                entry["element"] = d["element"]
+            out.append(entry)
     return out
 
 
@@ -2633,14 +2690,30 @@ def _dungeon_reward_table(dungeon_id: str, tier: int) -> dict:
         return {"ryo": 380 + round(tier ** 1.5 * 320), "hero_exp": 30 + tier * 15,
                 "items": ({"scrap_iron": tier // 2} if tier >= 2 else {})}
     # exp_temple
-    tomes = [
-        {"exp_tome_minor": 4},
-        {"exp_tome_minor": 4, "exp_tome_greater": 1},
-        {"exp_tome_greater": 3, "spirit_dust": 1},
-        {"exp_tome_greater": 3, "exp_tome_ancient": 1, "spirit_dust": 2},
-        {"exp_tome_ancient": 2, "exp_tome_greater": 2, "spirit_dust": 3},
-    ][tier - 1]
-    return {"ryo": 90 + tier * 60, "hero_exp": 40 + tier * 20, "items": tomes}
+    if dungeon_id == "exp_temple":
+        tomes = [
+            {"exp_tome_minor": 4},
+            {"exp_tome_minor": 4, "exp_tome_greater": 1},
+            {"exp_tome_greater": 3, "spirit_dust": 1},
+            {"exp_tome_greater": 3, "exp_tome_ancient": 1, "spirit_dust": 2},
+            {"exp_tome_ancient": 2, "exp_tome_greater": 2, "spirit_dust": 3},
+        ][tier - 1]
+        return {"ryo": 90 + tier * 60, "hero_exp": 40 + tier * 20, "items": tomes}
+    # Elemental sanctums — drop the matching elemental essence (the
+    # ascension/evolution material). Essence scales with tier; higher tiers
+    # also yield a little evo_essence and Ryo so the run is never wasted.
+    d = next((x for x in DUNGEONS if x["id"] == dungeon_id), None)
+    if d and d.get("category") == "elemental":
+        essence_id = d["focus"]
+        base_essence = 2 + tier * 2            # T1=4 ... T5=12
+        items = {essence_id: base_essence}
+        if tier >= 3:
+            items["evo_essence"] = tier - 2     # supplementary evolution material
+        if tier >= 4:
+            items["spirit_dust"] = (tier - 3)   # fuse into evo_essence
+        return {"ryo": 60 + tier * 50, "hero_exp": 35 + tier * 18, "items": items}
+    # Fallback (unknown dungeon) — small generic reward
+    return {"ryo": 100 + tier * 50, "hero_exp": 30 + tier * 15, "items": {}}
 
 
 DUNGEON_TRIALS = _dungeon_trial_entries()
@@ -2669,6 +2742,7 @@ MYTHIC_HARD_PITY = 90
 MYTHIC_SOFT_PITY_CEIL = 0.35     # ramped UR chance just before hard pity
 FEATURED_MYTHIC_5050 = 0.5
 TOP_RARITY = "UR"                # UR is the pity target; GR has NO pity (super rare)
+LR_HARD_PITY = 180               # LR pity — guaranteed LR by pull 180 (no soft pity)
 X10_GUARANTEE_RARITY = "SR"      # every x10 contains at least one SR or better
 GEAR_SUMMON_GEM_COST = 90
 GEAR_SUMMON_RATES = {"rare": 62, "epic": 30, "legendary": 8}
@@ -2709,7 +2783,7 @@ mythic_chance = pity_chance
 
 
 def fresh_pity_state() -> dict:
-    return {"ur": 0, "featured_guarantee": False, "total_pulls": 0}
+    return {"ur": 0, "lr": 0, "featured_guarantee": False, "total_pulls": 0}
 
 
 
@@ -2727,6 +2801,7 @@ ITEMS.update({
     "spirit_dust":     {"id": "spirit_dust", "name": "Spirit Dust", "type": "material", "value": 0, "icon": "sparkles", "color": "#80DEEA", "desc": "Fuse 4 into Evolution Essence."},
     "evo_essence":     {"id": "evo_essence", "name": "Evolution Essence", "type": "material", "value": 0, "icon": "sparkles", "color": "#D500F9", "desc": "Rare material for high-tier hero evolution."},
     "celestial_core":  {"id": "celestial_core", "name": "Celestial Core", "type": "material", "value": 0, "icon": "gem", "color": "#FFC857", "desc": "The rarest evolution material — for the final stars."},
+    "boss_core":       {"id": "boss_core", "name": "Boss Core", "type": "material", "value": 0, "icon": "skull", "color": "#FF1744", "desc": "A core ripped from a defeated Boss Hunt boss. Required for the ultimate Transformation to GR."},
     "blueprint_weapon":    {"id": "blueprint_weapon", "name": "Weapon Blueprint", "type": "material", "value": 0, "icon": "sword", "color": "#FF7043", "desc": "Craft a random Weapon in the Forge."},
     "blueprint_armor":     {"id": "blueprint_armor", "name": "Armor Blueprint", "type": "material", "value": 0, "icon": "shield", "color": "#42A5F5", "desc": "Craft a random Armor in the Forge."},
     "blueprint_accessory": {"id": "blueprint_accessory", "name": "Accessory Blueprint", "type": "material", "value": 0, "icon": "gem", "color": "#26C6DA", "desc": "Craft a random Accessory in the Forge."},
@@ -2761,6 +2836,10 @@ TSUKU_SCALING_CONFIG = {
     "adds_start_stage": 8,          # First add appears at this stage (normal diff)
     "second_add_start_stage": 18,   # Second add appears at this stage (normal diff)
 }
+
+# Boss card drop chance from Tsukuyomi battles — super low per difficulty.
+# Nightmare bosses are NOT summonable; their cards can only be obtained here.
+TSUKUYOMI_CARD_DROP_CHANCE = {"normal": 0.005, "hard": 0.01, "nightmare": 0.015}
 
 TSUKUYOMI_DIFFICULTIES = [
     {"id": "normal",    "name": "Normal",    "power_mult": 1.0, "rate_bonus": 0.00, "reward_mult": 1.0, "color": "#00E5FF"},
@@ -2827,7 +2906,7 @@ for _hid, _name, _el, _rar, _role, _lore in _NIGHTMARE_BOSS_DEFS:
         "role": _role, "lore": _lore, "base_stats": _hero_stats(_rar, _role),
         "jutsus": _hero_jutsus(_hid, _name, _el, _rar, _role),
         "passive": _passive_for(_hid, _role),
-        "portrait": "/heroes/_placeholder.png",
+        "portrait": "/heroes/_placeholder.webp",
         "is_nightmare_boss": True,
     })
 NIGHTMARE_BOSS_BY_ID = {t["id"]: t for t in NIGHTMARE_BOSS_TEMPLATES}
@@ -2869,7 +2948,7 @@ def _tsukuyomi_boss_defs() -> list:
             "element": t["element"],
             "rarity": t["rarity"],
             "base_level": cfg["base_level"] + (idx - 1) * cfg["level_per_stage"],
-            "rare_chance": round(min(0.10, 0.05 + (i // 5) * 0.0125), 4),
+            "rare_chance": round(min(0.06, 0.01 + (i // 5) * 0.0125), 4),
             "gear_set": set_keys[i % len(set_keys)],
             "gear_set_name": GEAR_SETS[set_keys[i % len(set_keys)]]["name"],
             "gear_set_color": GEAR_SETS[set_keys[i % len(set_keys)]]["color"],
@@ -3007,7 +3086,7 @@ def tsukuyomi_rewards(boss: dict, difficulty: str = "normal") -> dict:
     }
     if difficulty == "nightmare":
         items["lunar_essence"] = 1
-    rare_chance = round(min(0.15, boss["rare_chance"] + diff["rate_bonus"]), 4)
+    rare_chance = round(min(0.10, boss["rare_chance"] + diff["rate_bonus"]), 4)
     return {"ryo": ryo, "hero_exp": hero_exp, "items": items, "rare_chance": rare_chance}
 
 
@@ -3076,7 +3155,8 @@ def tsukuyomi_boss_public(boss: dict, progress: dict = None, highest_cleared: in
         "lock_requirement": lock_requirement,
         "difficulties": [
             {**d, "recommended_power": tsukuyomi_recommended_power(boss, d["id"]),
-             "enemies": tsukuyomi_enemies(boss, d["id"])}
+             "enemies": tsukuyomi_enemies(boss, d["id"]),
+             "card_drop_chance": TSUKUYOMI_CARD_DROP_CHANCE.get(d["id"], 0.005)}
             for d in TSUKUYOMI_DIFFICULTIES
         ],
     }
@@ -3244,9 +3324,12 @@ BEGINNER_PULL_COUNT = 10
 
 
 def beginner_pool():
-    """Weighted (template_id, weight) list over ALL catalog heroes."""
+    """Weighted (template_id, weight) list over ALL catalog heroes.
+    Nightmare bosses are excluded — they are not summonable cards."""
     out = []
     for tid, t in CATALOG_BY_ID.items():
+        if t.get("is_nightmare_boss"):
+            continue
         out.append((tid, SUMMON_WEIGHTS.get(t["rarity"], 1)))
     return out
 

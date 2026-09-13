@@ -97,10 +97,10 @@ export default function BattlefieldEnv({ element = "Dark", region = null, shake 
 
   // Mode-specific background images
   const MODE_BG = {
-    bosshunt: { img: "/bosshunt-shrine.png", glow: "rgba(139,0,0,0.12)", fog: "rgba(139,0,0,0.08)", biome: "shrine" },
-    tsukuyomi: { img: "/bg-tsukuyomi.png", glow: "rgba(181,62,255,0.15)", fog: "rgba(124,77,255,0.10)", biome: "tsukuyomi" },
-    spire: { img: "/bg-spire.png", glow: "rgba(106,90,205,0.12)", fog: "rgba(106,90,205,0.08)", biome: "spire" },
-    campaign: { img: "/bg-campaign.png", glow: "rgba(212,138,77,0.10)", fog: "rgba(212,138,77,0.06)", biome: "campaign" },
+    bosshunt: { img: "/bosshunt-shrine.webp", glow: "rgba(139,0,0,0.12)", fog: "rgba(139,0,0,0.08)", biome: "shrine" },
+    tsukuyomi: { img: "/bg-tsukuyomi.webp", glow: "rgba(181,62,255,0.15)", fog: "rgba(124,77,255,0.10)", biome: "tsukuyomi" },
+    spire: { img: "/bg-spire.webp", glow: "rgba(106,90,205,0.12)", fog: "rgba(106,90,205,0.08)", biome: "spire" },
+    campaign: { img: "/bg-campaign.webp", glow: "rgba(212,138,77,0.10)", fog: "rgba(212,138,77,0.06)", biome: "campaign" },
   };
 
   const modeBg = (shrine || mode === "bosshunt") ? MODE_BG.bosshunt

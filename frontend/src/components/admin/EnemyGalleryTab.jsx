@@ -86,10 +86,10 @@ export default function EnemyGalleryTab() {
                   style={{ borderColor: r.color, boxShadow: `0 0 16px ${r.color}33` }}
                 >
                   <img
-                    src={t.portrait || "/heroes/_placeholder.png"}
+                    src={t.portrait || "/heroes/_placeholder.webp"}
                     alt={t.name}
                     className="absolute inset-0 w-full h-full object-cover object-top"
-                    onError={(e) => { e.target.src = "/heroes/_placeholder.png"; }}
+                    onError={(e) => { e.target.src = "/heroes/_placeholder.webp"; }}
                   />
                   <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #05050Af5 8%, #05050A55 45%, transparent 72%)" }} />
                   <div className="absolute top-2 left-2 flex items-center gap-1.5">

@@ -60,10 +60,7 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
           }
         : {
             border: `${tier >= 1 ? 1.5 : 1}px solid ${rarity.color}`,
-            boxShadow: `
-              0 0 ${5 + tier * 4}px ${rarity.color}55,
-              inset 0 0 14px ${rarity.color}1f
-            `,
+            boxShadow: `0 0 ${5 + tier * 4}px ${rarity.color}55, inset 0 0 14px ${rarity.color}1f`,
           };
 
   return (
@@ -120,11 +117,7 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
 
       <div className="px-2 py-1.5">
         <div className="flex items-center gap-1.5">
-          <ElementIcon
-            element={ninja.element}
-            size={14}
-          />
-
+          <ElementIcon element={ninja.element} size={14} />
           <p className="font-display text-base tracking-wide text-ink truncate leading-none">
             {ninja.name}
           </p>

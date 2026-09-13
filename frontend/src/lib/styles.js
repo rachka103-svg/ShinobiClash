@@ -3,7 +3,7 @@
 // New code should prefer importing directly from "@/lib/theme".
 export { RARITY, ELEMENT } from "@/lib/theme";
 
-export const portraitUrl = (id) => `/ninjas/${id}.png`;
+export const portraitUrl = (id) => `/ninjas/${id}.webp`;
 
 // Lucide icon name per inventory item (resolved in components).
 export const ITEM_ICON = {

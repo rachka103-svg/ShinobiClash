@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import { cachedFetch, invalidateCache } from "@/lib/cache";
+import { preloadBattleAssets, getBattleBackground } from "@/lib/preload";
 import { RARITY, ELEMENT } from "@/lib/styles";
 import { GOLD } from "@/lib/theme";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -46,30 +48,40 @@ export default function Tsukuyomi() {
 
   useEffect(() => {
     let alive = true;
-    api.get("/game/tsukuyomi").then(({ data }) => {
-      if (!alive) return;
-      setBosses(data.bosses || []);
-      setProgress(data.progress || {});
-      setHighestCleared(data.highest_cleared || 0);
-      setEnergyCost(data.energy_cost || 0);
-      // Auto-navigate to the current available stage (highest_cleared + 1)
-      // unless the player has a saved position that is still unlocked.
-      const hc = data.highest_cleared || 0;
-      const availableIdx = Math.min(hc, (data.bosses || []).length - 1); // index 0-based, stage = idx+1
-      setIndex((i) => {
-        const saved = Math.max(0, Math.min((data.bosses || []).length - 1, i));
-        // If saved stage is cleared or available, keep it; otherwise jump to available
-        const savedBoss = (data.bosses || [])[saved];
-        if (savedBoss && savedBoss.status !== "locked") return saved;
-        return availableIdx;
+    // Use cached fetch — returns instantly on warm cache, revalidates in background
+    cachedFetch("/game/tsukuyomi", { ttl: 60_000, revalidate: true }, api)
+      .then((data) => {
+        if (!alive) return;
+        setBosses(data.bosses || []);
+        setProgress(data.progress || {});
+        setHighestCleared(data.highest_cleared || 0);
+        setEnergyCost(data.energy_cost || 0);
+        const hc = data.highest_cleared || 0;
+        const availableIdx = Math.min(hc, (data.bosses || []).length - 1);
+        setIndex((i) => {
+          const saved = Math.max(0, Math.min((data.bosses || []).length - 1, i));
+          const savedBoss = (data.bosses || [])[saved];
+          if (savedBoss && savedBoss.status !== "locked") return saved;
+          return availableIdx;
+        });
+        setLoading(false);
+
+        // Preload portraits for the next few nightmares
+        const nextPortraits = (data.bosses || [])
+          .slice(index, index + 3)
+          .map((b) => {
+            const tmpl = catalogById[b.template_id];
+            return tmpl?.portrait;
+          })
+          .filter(Boolean);
+        preloadBattleAssets({ portraits: nextPortraits, background: getBattleBackground("tsukuyomi") });
+      })
+      .catch((e) => {
+        toast.error(formatApiErrorDetail(e?.response?.data?.detail) || "Failed to load nightmares");
+        setLoading(false);
       });
-      setLoading(false);
-    }).catch((e) => {
-      toast.error(formatApiErrorDetail(e?.response?.data?.detail) || "Failed to load nightmares");
-      setLoading(false);
-    });
     return () => { alive = false; };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const boss = bosses[index] || null;
   const rarity = boss ? (RARITY[boss.rarity] || RARITY.SSR) : RARITY.SSR;
@@ -143,6 +155,7 @@ export default function Tsukuyomi() {
       }));
       const { data } = await api.post("/game/battle/start", { mode: "tsukuyomi", id: boss.id });
       if (data.profile) setUser(data.profile);
+      invalidateCache("/game/tsukuyomi");
       navigate(`/battle/tsukuyomi/${boss.id}`);
     } catch (e) {
       toast.error(formatApiErrorDetail(e?.response?.data?.detail) || "Unable to enter the nightmare");
@@ -171,7 +184,7 @@ export default function Tsukuyomi() {
       data-testid="tsukuyomi-page"
     >
       {/* Background image */}
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url(/bg-tsukuyomi.png)" }} />
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url(/bg-tsukuyomi.webp)" }} />
       {/* Dark overlay for readability */}
       <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(11,5,20,0.55) 0%, rgba(11,5,20,0.35) 40%, rgba(11,5,20,0.75) 100%)" }} />
       {/* ambient nebula glow */}
@@ -323,14 +336,18 @@ export default function Tsukuyomi() {
 
                     {/* Drop info */}
                     {isCenter && (
-                      <div className="grid grid-cols-3 gap-1.5 mt-2" data-testid="tsukuyomi-gear-drop">
+                      <div className="grid grid-cols-4 gap-1.5 mt-2" data-testid="tsukuyomi-gear-drop">
                         <div className="rounded-lg px-2 py-1.5" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                          <p className="text-[8px] uppercase tracking-widest flex items-center gap-0.5" style={{ color: "#94A3B8" }}><Percent className="w-2.5 h-2.5" /> Rare</p>
+                          <p className="text-[8px] uppercase tracking-widest flex items-center gap-0.5" style={{ color: "#94A3B8" }}><Percent className="w-2.5 h-2.5" /> Gear</p>
                           <p className="font-display text-sm leading-none mt-0.5" style={{ color: DIFF_COLOR[difficulty] }}>{bRare}%</p>
                         </div>
                         <div className="rounded-lg px-2 py-1.5" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                           <p className="text-[8px] uppercase tracking-widest flex items-center gap-0.5" style={{ color: "#94A3B8" }}><Gem className="w-2.5 h-2.5" /> Crystal</p>
                           <p className="font-display text-sm leading-none mt-0.5" style={{ color: "#D500F9" }}>{(bRare * 0.18).toFixed(1)}%</p>
+                        </div>
+                        <div className="rounded-lg px-2 py-1.5" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                          <p className="text-[8px] uppercase tracking-widest flex items-center gap-0.5" style={{ color: "#94A3B8" }}><Star className="w-2.5 h-2.5" /> Card</p>
+                          <p className="font-display text-sm leading-none mt-0.5" style={{ color: "#FFD700" }}>{(bDiff?.card_drop_chance != null ? (bDiff.card_drop_chance * 100).toFixed(1) : "0.5")}%</p>
                         </div>
                         <div className="rounded-lg px-2 py-1.5" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                           <p className="text-[8px] uppercase tracking-widest" style={{ color: "#94A3B8" }}>Materials</p>

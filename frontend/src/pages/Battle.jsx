@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Bot, Gauge, Film, Settings } from "lucide-react";
+import { useResponsiveLayout } from "@/hooks/useResponsive";
 import BattleFighter from "@/components/BattleFighter";
 import BattleCommandPanel from "@/components/BattleCommandPanel";
 import { BattleTurnOrder, BattleInfoPanel } from "@/components/BattleSidePanels";
@@ -9,6 +10,8 @@ import BattleEntry from "@/components/cinematic/BattleEntry";
 import BattleAttackFx from "@/components/cinematic/BattleAttackFx";
 import BattleUltimate from "@/components/cinematic/BattleUltimate";
 import BattleVictory from "@/components/cinematic/BattleVictory";
+import { getCinematicMode, getCinematicDuration } from "@/lib/cinematicMode";
+import { preloadBattleAssets, getBattleBackground } from "@/lib/preload";
 import LevelUpOverlay from "@/components/LevelUpOverlay";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
@@ -30,7 +33,8 @@ import {
   isImmune,
   applyJutsuEffects,
 } from "@/lib/battle";
-import { getDifficulty } from "@/lib/energy";
+import { computeStatsForRarity, maxStarsForRarity } from "@/lib/gameConstants";
+import { getDifficulty, startBattle } from "@/lib/energy";
 import { evaluateTeamSynergy } from "@/lib/teamSynergy";
 import { getCombatModifiers, computeLifesteal, combatModifiersSummary } from "@/lib/combatModifiers";
 import api from "@/lib/api";
@@ -173,6 +177,7 @@ export default function Battle() {
   } = useGame();
 
   const { playSfx } = useAudio();
+  const layout = useResponsiveLayout();
 
   // Arena opponents are ephemeral snapshots stored before navigation.
   const arenaOpponent =
@@ -295,6 +300,10 @@ export default function Battle() {
 
   const [events, setEvents] = useState([]);
 
+  // Incremented on Retry to re-trigger the init effect without a full
+  // page reload — the battle shell stays mounted and state resets.
+  const [retryKey, setRetryKey] = useState(0);
+
   const [auto, setAutoState] = useState(() => {
     try {
       return localStorage.getItem("sc_battle_auto") === "1";
@@ -412,6 +421,14 @@ export default function Battle() {
   useEffect(() => {
     if (!ready || !user || Object.keys(catalogById).length === 0) return;
 
+    // Reset report + victory state — the component stays mounted when
+    // navigating to the next stage via "Next", so stale flags from the
+    // previous battle would prevent the new battle's completion from
+    // being reported and would show the old battle's rewards.
+    reportedRef.current = false;
+    setResultData(null);
+    setShowLevelUp(false);
+
     // --- Evaluate team synergy ---
     const allyTemplates = (user.team || [])
       .slice(0, user.team_cap || 5)
@@ -440,7 +457,7 @@ export default function Battle() {
           inst.skill_rank || 1,
           !inst.passive_locked,
           inst.reforge || null,
-          null, // combatModifiers — allies don't have enemy combat modifiers
+          inst.crystal_combat_modifiers || null, // Boss Crysta combat modifiers
           Object.keys(synergyBonuses).length > 0 ? synergyBonuses : null
         )
       )
@@ -450,18 +467,21 @@ export default function Battle() {
       const template = catalogById[e.template_id];
 
       // Enemies with the new progression system carry pre-computed
-      // stats_override (evolved rarity + ascension + gear + crystals),
-      // skill_rank, passive_locked, and reforge — all derived from real
-      // RPG systems on the backend. Legacy enemies fall back to the
-      // old computeStats + applyEnemyGear path.
+      // stats_override (evolved rarity + ascension + gear + crystals + star
+      // bonus), skill_rank, passive_locked, and reforge — all derived from
+      // real RPG systems on the backend. Client-built enemies (Spire) carry
+      // evolved_rarity + stars and are computed here via the same rarity-
+      // scaled growth + star bonus. Legacy/Trial enemies fall back to
+      // computeStats (rarity-scaled native growth).
       const statsOverride = e.stats_override || null;
 
-      const gearedStats = !statsOverride && e.gear_bonus
-        ? applyEnemyGear(
-            computeStats(template, e.level, e.ascension || 0),
-            e.gear_bonus
-          )
-        : statsOverride;
+      let gearedStats = statsOverride;
+      if (!gearedStats) {
+        const baseStats = e.evolved_rarity
+          ? computeStatsForRarity(template, e.level, e.ascension || 0, e.evolved_rarity, e.stars || 1)
+          : computeStats(template, e.level, e.ascension || 0);
+        gearedStats = e.gear_bonus ? applyEnemyGear(baseStats, e.gear_bonus) : baseStats;
+      }
 
       return buildCombatant(
         nextUid(),
@@ -562,13 +582,55 @@ export default function Battle() {
 
     setPhase("intro");
 
+    const introMode = getCinematicMode({
+      speed: speedRef.current,
+      auto: autoRef.current,
+      type: "intro",
+    });
+    const introDuration = getCinematicDuration(introMode, 2800, speedRef.current);
+
+    // Preload enemy/hero portraits and battle background for instant rendering
+    const portraits = all
+      .map((c) => c.portrait)
+      .filter(Boolean);
+    preloadBattleAssets({
+      portraits,
+      background: getBattleBackground(mode, stage?.region),
+    });
+
     const t = setTimeout(
       () => beginTurnAt(0, all, initialOrder),
-      ms(900)
+      Math.max(60, introDuration)
     );
 
     return () => clearTimeout(t);
-  }, [mode, id, catalogById]);
+  }, [mode, id, catalogById, retryKey]);
+
+  // ---------- RETRY (in-place, no page reload) ----------
+
+  const handleRetry = useCallback(() => {
+    // Reset all battle state — the init effect re-runs via retryKey bump
+    setResultData(null);
+    setShowLevelUp(false);
+    setCombs([]);
+    setPhase("intro");
+    setActiveUid(null);
+    setRound(1);
+    setFloaters([]);
+    setLog([]);
+    setEvents([]);
+    setCinematicAction(null);
+    setUltimateData(null);
+    setScreenShake(false);
+    setAttackingUid(null);
+    setTargeting(null);
+    actionLockRef.current = false;
+    ptrRef.current = 0;
+    orderRef.current = [];
+    reportedRef.current = false;
+    _uid = 0;
+    setRetryKey((k) => k + 1);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const aliveSide = (arr, side) =>
     arr.some((c) => c.side === side && c.alive);
@@ -776,12 +838,20 @@ export default function Battle() {
       const isUltimate =
         jutsu.chakra_cost >= 70;
 
-      setCinematicAction({
-        key: actionCounterRef.current,
-        jutsuName: jutsu.name,
-        element: actor.element,
-        isAoe: jutsu.type === "aoe",
+      const atkMode = getCinematicMode({
+        speed: speedRef.current,
+        auto: autoRef.current,
+        type: "attack",
       });
+
+      if (atkMode !== "DISABLED") {
+        setCinematicAction({
+          key: actionCounterRef.current,
+          jutsuName: jutsu.name,
+          element: actor.element,
+          isAoe: jutsu.type === "aoe",
+        });
+      }
 
       let arr = cloneArr(combRef.current);
 
@@ -1317,9 +1387,16 @@ export default function Battle() {
 
       // ---------- ULTIMATE ----------
 
+      const ultMode = getCinematicMode({
+        speed: speedRef.current,
+        auto: autoRef.current,
+        type: "ultimate",
+      });
+
       if (
         isUltimate &&
-        cinemaRef.current
+        cinemaRef.current &&
+        ultMode !== "DISABLED"
       ) {
         setUltimateData({
           key: actionCounterRef.current,
@@ -1329,9 +1406,11 @@ export default function Battle() {
           portrait: actor.portrait,
         });
 
+        const ultDuration = getCinematicDuration(ultMode, 1200, speedRef.current);
+
         setTimeout(
           () => advance(arr),
-          ms(1200)
+          ultDuration
         );
       } else {
         advance(arr);
@@ -1551,6 +1630,25 @@ export default function Battle() {
 
           setResultData(data);
 
+          // Preload next stage assets while the victory screen is showing
+          if (mode === "campaign" && phase === "win") {
+            const idx = stages.findIndex((s) => s.id === id);
+            const nextStage = idx >= 0 && idx < stages.length - 1 ? stages[idx + 1] : null;
+            if (nextStage) {
+              const nextPortraits = (nextStage.enemies || [])
+                .map((e) => catalogById[e.template_id]?.portrait)
+                .filter(Boolean);
+              preloadBattleAssets({ portraits: nextPortraits });
+            }
+          } else if (mode === "spire" && phase === "win") {
+            // Preload next spire floor enemies
+            const nextEnemies = catalog.length ? spireEnemies(floor + 1, catalog, spirePath) : [];
+            const nextPortraits = nextEnemies
+              .map((e) => catalogById[e.template_id]?.portrait)
+              .filter(Boolean);
+            preloadBattleAssets({ portraits: nextPortraits, background: getBattleBackground("spire") });
+          }
+
           if (data.level_up) {
             setTimeout(
               () =>
@@ -1661,6 +1759,24 @@ export default function Battle() {
     (c) => c.side === "enemy"
   );
 
+  // Identify the main boss for boss-fight modes (tsukuyomi, boss hunt,
+  // campaign boss stages, or any enemy carrying a boss mechanic) and
+  // center it on the battlefield, flanking any additional enemies left/right.
+  const bossEnemy =
+    enemies.find((c) => c.bossMechanicId) ||
+    (mode === "bosshunt" ||
+    mode === "tsukuyomi" ||
+    (mode === "campaign" && stage?.is_boss)
+      ? enemies[0]
+      : null);
+
+  const arrangedEnemies = (() => {
+    if (!bossEnemy || enemies.length <= 1) return enemies;
+    const others = enemies.filter((c) => c.uid !== bossEnemy.uid);
+    const mid = Math.ceil(others.length / 2);
+    return [...others.slice(0, mid), bossEnemy, ...others.slice(mid)];
+  })();
+
   const activeActor =
     combs.find(
       (c) => c.uid === activeUid
@@ -1680,6 +1796,14 @@ export default function Battle() {
 
   const dominantElement =
     enemies[0]?.element || "Dark";
+
+  // Cinematic modes for current speed/auto state
+  const introMode = getCinematicMode({ speed, auto, type: "intro" });
+  const introDuration = getCinematicDuration(introMode, 2800, speed);
+  const attackMode = getCinematicMode({ speed, auto, type: "attack" });
+  const attackDuration = getCinematicDuration(attackMode, 600, speed);
+  const ultMode = getCinematicMode({ speed, auto, type: "ultimate" });
+  const ultDuration = getCinematicDuration(ultMode, 1200, speed);
 
   return (
     <div
@@ -1703,7 +1827,7 @@ export default function Battle() {
       />
 
       {/* Battle entry */}
-      {cinema && (
+      {cinema && introMode !== "DISABLED" && (
         <BattleEntry
           title={title}
           chapter={
@@ -1715,6 +1839,7 @@ export default function Battle() {
               ? `FLOOR ${floor}`
               : mode.toUpperCase()
           }
+          duration={introDuration}
           onDone={() =>
             setIntroDone(true)
           }
@@ -1722,9 +1847,10 @@ export default function Battle() {
       )}
 
       {/* Attack effects */}
-      {cinema && (
+      {cinema && attackMode !== "DISABLED" && (
         <BattleAttackFx
           action={cinematicAction}
+          duration={attackDuration}
           onShake={(strength) => {
             setScreenShake(true);
 
@@ -1740,9 +1866,10 @@ export default function Battle() {
       )}
 
       {/* Ultimate cinematic */}
-      {cinema && (
+      {cinema && ultMode !== "DISABLED" && (
         <BattleUltimate
           data={ultimateData}
+          duration={ultDuration}
           onDone={() =>
             setUltimateData(null)
           }
@@ -1750,83 +1877,73 @@ export default function Battle() {
       )}
 
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-20 glass border-b border-white/10 px-4 py-1.5 flex items-center justify-between">
+      <div className="absolute top-0 left-0 right-0 z-20 glass border-b border-white/10 px-2 sm:px-4 py-1 flex items-center justify-between">
         <button
-          onClick={() =>
-            navigate(backTo)
-          }
+          onClick={() => navigate(backTo)}
           data-testid="battle-exit"
-          className="text-slate-400 hover:text-white text-sm font-semibold"
+          className="text-slate-400 hover:text-white text-xs sm:text-sm font-semibold shrink-0"
         >
           ← Retreat
         </button>
 
-        <div className="text-center">
-          <div className="font-display text-lg tracking-widest text-white leading-none truncate max-w-[45vw]">
+        <div className="text-center min-w-0">
+          <div className="font-display text-sm sm:text-lg tracking-widest text-white leading-none truncate max-w-[28vw] sm:max-w-[45vw]">
             {title}
           </div>
-
-          <div className="text-[10px] text-chakra font-semibold">
+          <div className="text-[9px] sm:text-[10px] text-chakra font-semibold">
             ROUND {round}
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <button
             onClick={cycleSpeed}
             data-testid="battle-speed-toggle"
             title="Battle speed"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-display tracking-wide border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-display tracking-wide border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
           >
-            <Gauge className="w-3.5 h-3.5" />
+            <Gauge className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             {speed}X
           </button>
-
           <button
-            onClick={() =>
-              setAuto(!auto)
-            }
+            onClick={() => setAuto(!auto)}
             data-testid="battle-auto-toggle"
             title="Auto-battle"
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-display tracking-wide border transition-colors ${
-              auto
-                ? "border-chakra text-chakra bg-cyan-500/15"
-                : "border-white/15 text-slate-300 hover:text-white hover:border-white/30"
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-display tracking-wide border transition-colors ${
+              auto ? "border-chakra text-chakra bg-cyan-500/15" : "border-white/15 text-slate-300 hover:text-white hover:border-white/30"
             }`}
           >
-            <Bot className="w-3.5 h-3.5" />
+            <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             AUTO
           </button>
-
           <button
-            onClick={() =>
-              setCinema(!cinema)
-            }
-            title={
-              cinema
-                ? "Cinematics on"
-                : "Cinematics off"
-            }
-            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-display tracking-wide border transition-colors ${
-              cinema
-                ? "border-violet-400/50 text-violet-300 bg-violet-500/10"
-                : "border-white/15 text-slate-400 hover:text-white"
+            onClick={() => setCinema(!cinema)}
+            title={cinema ? "Cinematics on" : "Cinematics off"}
+            className={`flex items-center px-1.5 py-1 rounded-lg text-xs border transition-colors ${
+              cinema ? "border-violet-400/50 text-violet-300 bg-violet-500/10" : "border-white/15 text-slate-400 hover:text-white"
             }`}
           >
-            <Film className="w-3.5 h-3.5" />
+            <Film className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           </button>
-
           <button
             title="Settings"
-            className="flex items-center px-2 py-1.5 rounded-lg border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
+            className="hidden sm:flex items-center px-2 py-1.5 rounded-lg border border-white/15 text-slate-300 hover:text-white hover:border-white/30 transition-colors"
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Battlefield */}
-      <div className="absolute inset-0 z-10 flex pt-10 pb-20">
+      {/* Battlefield — top padding clears the header, bottom clears the
+          command panel. Both compress on short (landscape) viewports so the
+          combatants stay readable instead of being squeezed into a sliver. */}
+      <div
+        className="absolute inset-0 z-10 flex"
+        style={{
+          paddingTop: layout.isShort ? "2.25rem" : "2.5rem",
+          paddingBottom: layout.isShort ? "3.5rem" : "4.5rem",
+        }}
+      >
         {/* Turn order */}
         <BattleTurnOrder
           combs={combs}
@@ -1838,8 +1955,8 @@ export default function Battle() {
         {/* Center battlefield */}
         <div className="flex-1 flex flex-col justify-center min-w-0">
           {/* Enemies */}
-          <div className="flex justify-center gap-3 sm:gap-5 px-4 mb-2">
-            {enemies.map((c) => (
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 px-2 mb-1">
+            {arrangedEnemies.map((c) => (
               <BattleFighter
                 key={c.uid}
                 c={c}
@@ -1861,7 +1978,7 @@ export default function Battle() {
                 }
                 flip
                 subdued
-                isBoss={mode === "bosshunt" || !!c.bossMechanicId}
+                isBoss={c.uid === bossEnemy?.uid || !!c.bossMechanicId}
               />
             ))}
           </div>
@@ -1895,7 +2012,7 @@ export default function Battle() {
           </div>
 
           {/* Allies */}
-          <div className="flex justify-center gap-3 sm:gap-5 px-4 mt-2">
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 px-2 mt-1">
             {allies.map((c) => (
               <BattleFighter
                 key={c.uid}
@@ -1954,14 +2071,14 @@ export default function Battle() {
         onNext={
           mode === "spire"
             ? () =>
-                window.location.assign(
+                navigate(
                   `/battle/spire/${
                     floor + 1
                   }`
                 )
             : mode === "trial"
             ? () =>
-                window.location.reload()
+                handleRetry()
             : mode === "arena"
             ? () =>
                 navigate("/arena")
@@ -1985,11 +2102,15 @@ export default function Battle() {
                     : null;
 
                 if (next) {
-                  window.location.assign(
-                    `/battle/campaign/${next.id}`
-                  );
+                  startBattle({
+                    mode: "campaign",
+                    id: next.id,
+                    navigate,
+                    setUser,
+                    difficulty: difficultyCfg.id,
+                  });
                 } else {
-                  window.location.assign(
+                  navigate(
                     "/campaign"
                   );
                 }
@@ -1998,9 +2119,7 @@ export default function Battle() {
         onLobby={() =>
           navigate("/")
         }
-        onRetry={() =>
-          window.location.reload()
-        }
+        onRetry={handleRetry}
       />
 
       <LevelUpOverlay

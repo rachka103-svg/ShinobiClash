@@ -15,3 +15,12 @@ root.render(
     <App />
   </QueryClientProvider>,
 );
+
+// Register the service worker for PWA offline-capable asset caching.
+// API calls (player progression, currencies, battle results) are never
+// cached — the server stays authoritative for all mutable game state.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register(`${process.env.PUBLIC_URL || ""}/service-worker.js`).catch(() => {});
+  });
+}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Coins, Gem, Zap, ArrowRight, Star, Sparkles, Ticket } from "lucide-react";
 import { CoinsIcon, GemsIcon } from "@/components/GameIcons";
+import CrystalDropBanner from "@/components/cinematic/CrystalDropBanner";
 
 const ITEM_META = {
   exp_tome_minor: { icon: Sparkles, color: "#9E9E9E", label: "Minor EXP Tome" },
@@ -28,15 +29,29 @@ const ITEM_META = {
  */
 export default function BattleVictory({ open, result, mode, floor, onBack, onNext, onLobby, onRetry, isWin }) {
   const [stage, setStage] = useState(0); // 0=hidden, 1=title, 2=rewards, 3=buttons
+  const [crystalBanner, setCrystalBanner] = useState(false);
 
   useEffect(() => {
-    if (!open) { setStage(0); return; }
-    // Sequence: title appears → rewards → buttons
+    if (!open) { setStage(0); setCrystalBanner(false); return; }
+    const rewards = result?.rewards;
+    if (rewards?.crystal?.boss_crysta) {
+      setCrystalBanner(true);
+      return;
+    }
     const t1 = setTimeout(() => setStage(1), 200);
     const t2 = setTimeout(() => setStage(2), 2000);
     const t3 = setTimeout(() => setStage(3), 3500);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (open && !crystalBanner && stage === 0 && result?.rewards?.crystal?.boss_crysta) {
+      const t1 = setTimeout(() => setStage(1), 200);
+      const t2 = setTimeout(() => setStage(2), 2000);
+      const t3 = setTimeout(() => setStage(3), 3500);
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    }
+  }, [crystalBanner, stage, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!open) return null;
 
@@ -52,6 +67,13 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
   }
 
   return (
+    <>
+    {/* Crystal Drop Banner — special rare-drop presentation */}
+    <CrystalDropBanner
+      crystal={crystalBanner ? rewards?.crystal : null}
+      onDismiss={() => setCrystalBanner(false)}
+    />
+
     <div className="fixed inset-0 z-[120] pointer-events-none overflow-hidden flex items-center justify-center" data-testid="cinematic-victory">
       {/* Darkened battlefield */}
       <div className="absolute inset-0 victory-fade" style={{ background: "rgba(5,5,10,0.92)", backdropFilter: "blur(4px)" }} />
@@ -138,6 +160,12 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
               })}
             </div>
           )}
+          {/* Elemental Resonance bonus */}
+          {rewards.resonance_bonus && (
+            <div className="reward-reveal font-display text-lg mt-2 flex items-center gap-1.5" style={{ animationDelay: "1.2s", opacity: 0, animationFillMode: "forwards", color: rewards.resonance_bonus.essence_id === "light_essence" ? "#FFD54F" : "#00E676", textShadow: "0 0 16px rgba(0,230,118,0.5)" }} data-testid="victory-resonance-bonus">
+              <Zap size={18} className="fill-current" /> {rewards.resonance_bonus.element} RESONANCE! +{rewards.resonance_bonus.qty} bonus essence
+            </div>
+          )}
           {/* Ninja recruit */}
           {rewards.ninja && (
             <div className="reward-reveal text-jutsu font-display text-lg mt-1" style={{ animationDelay: "1.3s", opacity: 0, animationFillMode: "forwards" }}>
@@ -153,7 +181,13 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
           {/* Crystal drop */}
           {rewards.crystal && (
             <div className="reward-reveal font-display text-lg mt-1 flex items-center gap-1.5" style={{ animationDelay: "1.7s", opacity: 0, animationFillMode: "forwards", color: rewards.crystal.tier_color || "#AB47BC" }}>
-              <Gem size={18} /> ★ {rewards.crystal.tier_name} Crystal ({rewards.crystal.main_stat.toUpperCase()})
+              <Gem size={18} /> ★ {rewards.crystal.boss_crysta ? rewards.crystal.boss_crysta.name : `${rewards.crystal.tier_name} Crystal`} ({rewards.crystal.main_stat.toUpperCase()})
+            </div>
+          )}
+          {/* Boss card drop */}
+          {rewards.card && (
+            <div className="reward-reveal font-display text-lg mt-1 flex items-center gap-1.5" style={{ animationDelay: "1.9s", opacity: 0, animationFillMode: "forwards", color: "#FFD700", textShadow: "0 0 16px rgba(255,215,0,0.6)" }} data-testid="victory-boss-card">
+              <Star size={18} fill="currentColor" /> ★ {rewards.card.duplicate ? `${rewards.card.name} shards (+${rewards.card.shards_gained})` : `New ally: ${rewards.card.name}`}
             </div>
           )}
           {/* Level-up indicator */}
@@ -206,5 +240,6 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
         </div>
       )}
     </div>
+    </>
   );
 }

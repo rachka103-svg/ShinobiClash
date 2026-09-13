@@ -164,7 +164,7 @@ export default function SummonCinematic({ open, results = [], onClose }) {
               <div className="absolute inset-0 flex items-center justify-center">
                 <SummonCircle
                   color={bestEnergy.color}
-                  size={300}
+                  size={Math.min(window.innerWidth * 0.82, 340)}
                   active={stage === "energy"}
                   className="z-10"
                 />
@@ -318,7 +318,7 @@ export default function SummonCinematic({ open, results = [], onClose }) {
         {stage === "done" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             {isMulti && (
-              <div className="grid grid-cols-5 gap-2 max-w-2xl mb-6 px-4">
+              <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5 max-w-md sm:max-w-2xl mb-6 px-2 sm:px-4">
                 {results.map((r, i) => {
                   const color = r.kind === "gear" ? (r.color || "#29B6F6") : (RARITY[r.rarity] || RARITY.R).color;
                   return (
@@ -332,7 +332,7 @@ export default function SummonCinematic({ open, results = [], onClose }) {
                           <ItemIcon icon={r.icon || "anvil"} className="w-6 h-6" style={{ color }} />
                         </div>
                       ) : (
-                        <img src={r.portrait} alt={r.name} className="w-full h-full object-cover object-top" />
+                        <img src={r.portrait} alt={r.name} className="w-full h-full object-cover object-top" decoding="async" />
                       )}
                     </div>
                   );
@@ -397,11 +397,11 @@ function CharacterReveal({ result, stage, duplicate, bestEnergy }) {
       )}
 
       {/* Character art — 60-70% of screen */}
-      <div className="relative" style={{ width: "65%", maxWidth: 320, height: "55%", maxHeight: 420 }}>
+      <div className="relative" style={{ width: "78%", maxWidth: 380, height: "60%", maxHeight: 480 }}>
         {/* Silhouette phase (during reveal start) */}
         {stage === "reveal" && (
           <div className="absolute inset-0 rounded-2xl overflow-hidden silhouette-reveal" style={{ border: `2px solid ${color}` }}>
-            <img src={result.portrait} alt="" className="w-full h-full object-cover object-top" />
+            <img src={result.portrait} alt="" className="w-full h-full object-cover object-top" decoding="async" />
             {/* Rim light */}
             <div className="absolute inset-0 rim-light" style={{ background: `linear-gradient(180deg, ${color}33 0%, transparent 30%)`, mixBlendMode: "screen" }} />
           </div>
@@ -410,7 +410,7 @@ function CharacterReveal({ result, stage, duplicate, bestEnergy }) {
         {/* Full reveal (done stage) */}
         {stage === "done" && !duplicate && (
           <div className="absolute inset-0 char-reveal-fade rounded-2xl overflow-hidden" style={{ border: `2px solid ${color}`, boxShadow: `0 0 40px ${color}66, 0 0 80px ${color}33` }}>
-            <img src={result.portrait} alt={result.name} className="w-full h-full object-cover object-top" />
+            <img src={result.portrait} alt={result.name} className="w-full h-full object-cover object-top" decoding="async" fetchpriority="high" />
             {fr?.cornerLevel >= 2 && <DecoCorners rarity={result.rarity} size={14} />}
             {r && r.tier >= 3 && <RaritySparkles rarity={result.rarity} />}
             <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, transparent 50%, ${elBg === "#05050A" ? "#05050A" : "rgba(5,5,10,0.8)"} 100%)` }} />
@@ -420,7 +420,7 @@ function CharacterReveal({ result, stage, duplicate, bestEnergy }) {
         {/* Duplicate dissolve */}
         {duplicate && (
           <div className="absolute inset-0 duplicate-dissolve rounded-2xl overflow-hidden" style={{ border: `2px solid ${color}` }}>
-            <img src={result.portrait} alt="" className="w-full h-full object-cover object-top" />
+            <img src={result.portrait} alt="" className="w-full h-full object-cover object-top" decoding="async" />
             {/* Fragment burst */}
             {Array.from({ length: 10 }).map((_, i) => {
               const angle = (i / 10) * Math.PI * 2;
@@ -508,7 +508,7 @@ function MultiSummonGrid({ results, revealedCount, onReveal }) {
       <p className="font-display text-lg tracking-[0.3em] text-slate-500 mb-4">
         {revealedCount} / {results.length} REVEALED
       </p>
-      <div className="grid grid-cols-5 gap-2 sm:gap-3 max-w-lg px-4">
+      <div className="grid grid-cols-5 gap-1.5 sm:gap-3 w-full max-w-md sm:max-w-lg px-2 sm:px-4">
         {results.map((r, i) => {
           const revealed = i < revealedCount;
           const color = r.kind === "gear"
@@ -543,7 +543,7 @@ function MultiSummonGrid({ results, revealedCount, onReveal }) {
                       <ItemIcon icon={r.icon || "anvil"} className="w-6 h-6" style={{ color }} />
                     </div>
                   ) : (
-                    <img src={r.portrait} alt={r.name} className="w-full h-full object-cover object-top" />
+                    <img src={r.portrait} alt={r.name} className="w-full h-full object-cover object-top" decoding="async" />
                   )}
                 </div>
               )}
@@ -588,7 +588,7 @@ function CardReveal({ result, onClose }) {
       {/* Character reveal */}
       {phase !== "rarity" && (
         <>
-          <div className="relative summon-card-expand" style={{ width: "60%", maxWidth: 280, height: "55%", maxHeight: 380 }}>
+          <div className="relative summon-card-expand" style={{ width: "72%", maxWidth: 340, height: "60%", maxHeight: 440 }}>
             <div className="absolute inset-0 char-reveal-fade rounded-2xl overflow-hidden" style={{ border: `2px solid ${color}`, boxShadow: `0 0 40px ${color}66` }}>
               {isGear ? (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-2" style={{ background: "#0B0B14" }}>
@@ -597,7 +597,7 @@ function CardReveal({ result, onClose }) {
                 </div>
               ) : (
                 <>
-                  <img src={result.portrait} alt={result.name} className="w-full h-full object-cover object-top" />
+                  <img src={result.portrait} alt={result.name} className="w-full h-full object-cover object-top" decoding="async" fetchpriority="high" />
                   <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, transparent 50%, ${elBg === "#05050A" ? "#05050A" : "rgba(5,5,10,0.8)"} 100%)` }} />
                 </>
               )}
