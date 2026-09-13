@@ -21,15 +21,20 @@ export default function BattleHub() {
 
   const modes = [
     { to: "/campaign", label: "CAMPAIGN", icon: Scroll, color: "#FF9D00",
-      sub: `${cleared}/${stages.length} stages cleared`, testid: "mode-campaign" },
+      sub: `${cleared}/${stages.length} stages cleared`, testid: "mode-campaign",
+      art: "/heroes/ember_scout.webp" },
     { to: "/dungeons", label: "DUNGEONS", icon: Landmark, color: "#00E676",
-      sub: "Gold · EXP · Materials", testid: "mode-dungeons" },
+      sub: "Gold · EXP · Materials", testid: "mode-dungeons",
+      art: "/heroes/stoneback.webp" },
     { to: "/boss-hunt", label: "BOSS HUNT", icon: Skull, color: "#FF1744",
-      sub: "Hunt Powerful Bosses", testid: "mode-boss-hunt" },
+      sub: "Hunt Powerful Bosses", testid: "mode-boss-hunt",
+      art: "/heroes/apep.webp" },
     { to: "/spire", label: "ENDLESS SPIRE", icon: Castle, color: "#D500F9",
-      sub: `Floor ${user?.spire_floor || 0} reached`, testid: "mode-spire" },
+      sub: `Floor ${user?.spire_floor || 0} reached`, testid: "mode-spire",
+      art: "/heroes/zeus.webp" },
     { to: "/summon", label: "SUMMON", icon: Moon, color: "#7C4DFF",
-      sub: "New Shinobi Available", testid: "mode-summon" },
+      sub: "New Shinobi Available", testid: "mode-summon",
+      art: "/heroes/amaterasu.webp" },
   ];
 
   return (
@@ -140,15 +145,24 @@ export default function BattleHub() {
                     data-testid={m.testid}
                     className="group relative block rounded-2xl overflow-hidden transition-all duration-300 active:scale-[0.97] hover:-translate-y-1 h-[180px] lg:h-[220px]"
                     style={{
-                      background: `linear-gradient(165deg, ${m.color}10, rgba(16,16,20,0.90) 65%)`,
                       border: `1px solid ${m.color}40`,
                       boxShadow: `0 4px 24px rgba(0,0,0,0.4)`,
                     }}
                   >
+                    {/* Shinobi artwork background */}
+                    <img
+                      src={m.art}
+                      alt={m.label}
+                      className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110"
+                    />
+                    {/* Dark gradient overlay for text readability */}
+                    <div className="absolute inset-0" style={{
+                      background: `linear-gradient(180deg, ${m.color}15 0%, rgba(10,10,14,0.55) 45%, rgba(10,10,14,0.92) 100%)`
+                    }} />
                     {/* Hover glow */}
                     <div
                       className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                      style={{ background: `radial-gradient(80% 60% at 50% 30%, ${m.color}20, transparent)` }}
+                      style={{ background: `radial-gradient(80% 60% at 50% 30%, ${m.color}25, transparent)` }}
                     />
                     {/* Top accent line */}
                     <div
@@ -156,21 +170,17 @@ export default function BattleHub() {
                       style={{ background: m.color, boxShadow: `0 0 10px ${m.color}` }}
                     />
 
-                    <div className="relative h-full flex flex-col items-center justify-center gap-3 p-4">
-                      <div
-                        className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110"
-                        style={{
-                          background: `${m.color}1a`,
-                          boxShadow: `0 0 20px ${m.color}33, inset 0 0 12px ${m.color}22`,
-                          border: `1px solid ${m.color}55`,
-                        }}
-                      >
-                        <Icon className="w-7 h-7 lg:w-8 lg:h-8" style={{ color: m.color }} />
+                    <div className="relative h-full flex flex-col justify-end p-3 lg:p-4">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <div
+                          className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center shrink-0"
+                          style={{ background: `${m.color}22`, border: `1px solid ${m.color}55` }}
+                        >
+                          <Icon className="w-4 h-4 lg:w-5 lg:h-5" style={{ color: m.color }} />
+                        </div>
+                        <h3 className="font-display text-sm lg:text-base tracking-wide text-white leading-none">{m.label}</h3>
                       </div>
-                      <div className="text-center">
-                        <h3 className="font-display text-base lg:text-lg tracking-wide text-white leading-none">{m.label}</h3>
-                        <p className="text-[10px] lg:text-[11px] text-slate-400 mt-1.5 leading-tight">{m.sub}</p>
-                      </div>
+                      <p className="text-[10px] lg:text-[11px] text-slate-300/80 leading-tight pl-10 lg:pl-11">{m.sub}</p>
                     </div>
 
                     {/* Bottom accent bar */}
@@ -200,35 +210,24 @@ export default function BattleHub() {
                     data-testid={m.testid}
                     className="group relative block rounded-xl overflow-hidden transition-all active:scale-[0.97]"
                     style={{
-                      background: `linear-gradient(165deg, ${m.color}12, rgba(16,16,20,0.92) 65%)`,
                       border: `1px solid ${m.color}40`,
                       height: "130px",
                     }}
                   >
-                    <div
-                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                      style={{ background: `radial-gradient(80% 60% at 50% 30%, ${m.color}18, transparent)` }}
-                    />
-                    <div className="relative h-full flex flex-col items-center justify-center gap-2 p-3">
-                      <div
-                        className="w-11 h-11 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110"
-                        style={{
-                          background: `${m.color}1a`,
-                          boxShadow: `0 0 14px ${m.color}33`,
-                          border: `1px solid ${m.color}55`,
-                        }}
-                      >
-                        <Icon className="w-5 h-5" style={{ color: m.color }} />
+                    <img src={m.art} alt={m.label} className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110" />
+                    <div className="absolute inset-0" style={{
+                      background: `linear-gradient(180deg, ${m.color}12 0%, rgba(10,10,14,0.50) 45%, rgba(10,10,14,0.92) 100%)`
+                    }} />
+                    <div className="relative h-full flex flex-col justify-end p-2.5">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <div className="w-6 h-6 rounded flex items-center justify-center shrink-0" style={{ background: `${m.color}22`, border: `1px solid ${m.color}55` }}>
+                          <Icon className="w-3.5 h-3.5" style={{ color: m.color }} />
+                        </div>
+                        <h3 className="font-display text-[11px] tracking-wide text-white leading-none">{m.label}</h3>
                       </div>
-                      <div className="text-center">
-                        <h3 className="font-display text-xs tracking-wide text-white leading-none">{m.label}</h3>
-                        <p className="text-[9px] text-slate-400 mt-1 leading-tight">{m.sub}</p>
-                      </div>
+                      <p className="text-[9px] text-slate-300/70 leading-tight pl-7">{m.sub}</p>
                     </div>
-                    <div
-                      className="absolute bottom-0 left-0 right-0 h-0.5"
-                      style={{ background: m.color, boxShadow: `0 0 6px ${m.color}` }}
-                    />
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: m.color, boxShadow: `0 0 6px ${m.color}` }} />
                   </Link>
                 </motion.div>
               );
@@ -244,22 +243,22 @@ export default function BattleHub() {
                 data-testid="mode-arena"
                 className="group relative block rounded-xl overflow-hidden transition-all active:scale-[0.97]"
                 style={{
-                  background: `linear-gradient(165deg, #FF174412, rgba(16,16,20,0.92) 65%)`,
                   border: `1px solid #FF174440`,
                   height: "130px",
                 }}
               >
-                <div className="relative h-full flex flex-col items-center justify-center gap-2 p-3">
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110"
-                    style={{ background: "#FF17441a", boxShadow: "0 0 14px #FF174433", border: "1px solid #FF174455" }}
-                  >
-                    <Crosshair className="w-5 h-5" style={{ color: "#FF1744" }} />
+                <img src="/heroes/hades.webp" alt="ARENA" className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110" />
+                <div className="absolute inset-0" style={{
+                  background: `linear-gradient(180deg, #FF174412 0%, rgba(10,10,14,0.50) 45%, rgba(10,10,14,0.92) 100%)`
+                }} />
+                <div className="relative h-full flex flex-col justify-end p-2.5">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className="w-6 h-6 rounded flex items-center justify-center shrink-0" style={{ background: "#FF174422", border: "1px solid #FF174455" }}>
+                      <Crosshair className="w-3.5 h-3.5" style={{ color: "#FF1744" }} />
+                    </div>
+                    <h3 className="font-display text-[11px] tracking-wide text-white leading-none">ARENA</h3>
                   </div>
-                  <div className="text-center">
-                    <h3 className="font-display text-xs tracking-wide text-white leading-none">ARENA</h3>
-                    <p className="text-[9px] text-slate-400 mt-1 leading-tight">PvP Battles</p>
-                  </div>
+                  <p className="text-[9px] text-slate-300/70 leading-tight pl-7">PvP Battles</p>
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: "#FF1744", boxShadow: "0 0 6px #FF1744" }} />
               </Link>
