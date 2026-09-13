@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Swords, Loader2, Zap, Mail, Lock, Eye, EyeOff,
-  Flower2, Mountain, Sparkles,
+  Scroll, Mountain, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -125,7 +125,7 @@ export default function Login() {
 
       {/* ── Bottom-right feature icons ── */}
       <div className="absolute bottom-5 right-8 z-20 hidden sm:flex items-center gap-6">
-        <FeatureIcon icon={Flower2} label="COLLECT" sub="Unique Shinobi" />
+        <FeatureIcon icon={Scroll} label="COLLECT" sub="Unique Shinobi" />
         <FeatureIcon icon={Swords} label="BATTLE" sub="Epic Foes" />
         <FeatureIcon icon={Sparkles} label="EVOLVE" sub="True Power" gold />
         <FeatureIcon icon={Mountain} label="EXPLORE" sub="Living World" />
