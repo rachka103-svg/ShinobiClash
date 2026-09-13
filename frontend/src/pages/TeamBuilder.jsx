@@ -35,7 +35,7 @@ const StarRow = ({ n = 1, max = 6 }) => (
 
 export default function TeamBuilder() {
   const { user, setUser } = useAuth();
-  const { catalogById, items } = useGame();
+  const { catalogById, catalog, items, refreshCatalog } = useGame();
   const { playSfx } = useAudio();
   const [team, setTeam] = useState(user?.team || []);
   const [busy, setBusy] = useState(false);
@@ -45,6 +45,7 @@ export default function TeamBuilder() {
   const [rarFilter, setRarFilter] = useState("ALL");
   const [rarOpen, setRarOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [unlockBusy, setUnlockBusy] = useState(null);
 
   const cap = user?.team_cap || 3;
   const nextSlotLevel = user?.next_slot_level || null;
@@ -56,11 +57,31 @@ export default function TeamBuilder() {
 
   useEffect(() => { setTeam((user?.team || []).slice(0, cap)); }, [user?.id, JSON.stringify(user?.team), cap]);
 
+  // Ensure the catalog is fresh so custom heroes with enough shards to
+  // unlock appear as unlockable cards (the cached catalog may be stale).
+  useEffect(() => { refreshCatalog(); }, [refreshCatalog]);
+
   const owned = useMemo(
     () => (user?.ninjas || []).map((inst) => ({ ...inst, ...catalogById[inst.template_id], rarity: inst.rarity || inst.evolved_rarity || catalogById[inst.template_id]?.rarity })).filter((o) => o.name),
     [user?.ninjas, catalogById]
   );
   const ownedById = useMemo(() => Object.fromEntries(owned.map((o) => [o.instance_id, o])), [owned]);
+  const ownedTemplateIds = useMemo(() => new Set(owned.map((o) => o.template_id)), [owned]);
+
+  // Heroes the player doesn't own yet but has 100+ shards for — shown as
+  // unlockable cards in the collection grid. Uses hero_shards keys (only
+  // regular heroes have shards) + catalogById for template data, avoiding
+  // the stale catalog array.
+  const unlockable = useMemo(
+    () => Object.entries(user?.hero_shards || {})
+      .filter(([id, count]) => count >= 100 && !ownedTemplateIds.has(id))
+      .map(([id, count]) => {
+        const t = catalogById[id];
+        return t ? { ...t, _unlockable: true, shards: count } : null;
+      })
+      .filter(Boolean),
+    [catalogById, ownedTemplateIds, user?.hero_shards]
+  );
 
   const toggle = (uid) => {
     if (team.includes(uid)) setTeam(team.filter((t) => t !== uid));
@@ -88,11 +109,26 @@ export default function TeamBuilder() {
   }, [teamTmpls]);
 
   const filtered = useMemo(() => {
-    return owned
+    return [...owned, ...unlockable]
       .filter((o) => (elFilter === "ALL" || o.element === elFilter) && (rarFilter === "ALL" || o.rarity === rarFilter))
       .sort((a, b) => (RARITY_RANK[b.rarity] - RARITY_RANK[a.rarity]) || (b.power || 0) - (a.power || 0));
-  }, [owned, elFilter, rarFilter]);
+  }, [owned, unlockable, elFilter, rarFilter]);
   const visible = showAll ? filtered : filtered.slice(0, 12);
+
+  const unlockHero = async (templateId) => {
+    setUnlockBusy(templateId);
+    try {
+      const { data } = await api.post("/game/hero/unlock", { template_id: templateId });
+      setUser(data.profile);
+      playSfx("levelup");
+      toast.success(`${data.unlocked.name} unlocked!`);
+    } catch (err) {
+      playSfx("error");
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally {
+      setUnlockBusy(null);
+    }
+  };
 
   const autoForm = () => {
     const best = [...owned].sort((a, b) => (b.power || 0) - (a.power || 0)).slice(0, cap).map((o) => o.instance_id);
@@ -281,7 +317,7 @@ export default function TeamBuilder() {
       {/* ===================== Collection ===================== */}
       <div className="flex items-center gap-3 flex-wrap mb-3">
         <h2 className="font-display text-2xl tracking-wide text-ink">SHINOBI COLLECTION</h2>
-        <span className="text-sm text-slate-500" data-testid="collection-count">{owned.length} / 60</span>
+        <span className="text-sm text-slate-500" data-testid="collection-count">{owned.length} / {catalog.length}</span>
         <div className="flex items-center gap-1.5 ml-auto flex-wrap">
           <ElChip active={elFilter === "ALL"} onClick={() => setElFilter("ALL")} testid="el-filter-ALL"><span className="text-xs font-bold px-1">ALL</span></ElChip>
           {ELEMENTS.map((el) => {
@@ -317,10 +353,14 @@ export default function TeamBuilder() {
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3" data-testid="shinobi-collection">
-        {visible.map((n) => (
-          <CollectionCard key={n.instance_id} hero={n} slot={team.indexOf(n.instance_id)} squadFull={team.length >= cap}
-            onView={() => setDetailId(n.instance_id)} onToggle={() => toggle(n.instance_id)} />
-        ))}
+        {visible.map((n) =>
+          n._unlockable ? (
+            <UnlockableCard key={n.id} hero={n} onUnlock={() => unlockHero(n.id)} busy={unlockBusy === n.id} />
+          ) : (
+            <CollectionCard key={n.instance_id} hero={n} slot={team.indexOf(n.instance_id)} squadFull={team.length >= cap}
+              onView={() => setDetailId(n.instance_id)} onToggle={() => toggle(n.instance_id)} />
+          )
+        )}
       </div>
       {visible.length === 0 && <p className="text-center text-slate-500 py-10">No shinobi match these filters.</p>}
 
@@ -441,3 +481,38 @@ const ElChip = ({ active, color = "#E5A540", onClick, children, testid }) => (
     {children}
   </button>
 );
+
+const UnlockableCard = ({ hero, onUnlock, busy }) => {
+  const r = RARITY[hero.rarity] || RARITY.R;
+  const fr = rarityFrame(hero.rarity);
+  return (
+    <div data-testid={`unlock-card-${hero.id}`}
+      className="relative aspect-[3/4] rounded-xl overflow-hidden text-left group transition-transform active:scale-95"
+      style={{ border: `${fr.strokeWidth}px solid ${fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color + "aa"}`, boxShadow: `0 0 12px ${r.color}22` }}>
+      <img src={heroPortrait(hero)} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top opacity-40 grayscale" loading="lazy" />
+      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #101010f5 8%, #10101099 45%, #10101055 72%)" }} />
+      {fr.cornerLevel >= 2 && <DecoCorners rarity={hero.rarity} size={12} />}
+
+      <div className="absolute top-1.5 left-1.5 z-20 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/70 border border-white/15">
+        <Lock className="w-3 h-3 text-amber-300" />
+        <span className="text-[10px] font-bold text-amber-300">LOCKED</span>
+      </div>
+      <div className="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/70 border border-white/15">
+        <Star className="w-3 h-3 text-amber-300" />
+        <span className="text-[10px] font-bold text-white">{hero.shards}/100</span>
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 z-10 p-2">
+        <h4 className="font-display text-xs sm:text-sm tracking-wide text-white truncate">{hero.name}</h4>
+        <p className="text-[10px] text-slate-400">{hero.role}</p>
+      </div>
+
+      <button onClick={(e) => { e.stopPropagation(); onUnlock(); }} disabled={busy}
+        data-testid={`unlock-button-${hero.id}`}
+        className="absolute bottom-1.5 left-1.5 right-1.5 z-20 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-amber-500 text-[#101010] font-display text-sm tracking-wide hover:bg-amber-400 transition-colors disabled:opacity-50">
+        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+        {busy ? "UNLOCKING..." : "UNLOCK"}
+      </button>
+    </div>
+  );
+};
