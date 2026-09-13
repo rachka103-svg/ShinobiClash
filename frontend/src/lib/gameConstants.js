@@ -10,13 +10,13 @@ export const RARITY_ORDER = { N: 0, R: 1, SR: 2, SSR: 3, UR: 4, LR: 5, GR: 6, MY
 // Rarity-based growth rates — higher rarities grow faster per level,
 // per ascension, and per evolution star (mirrors backend RARITY_*_GROWTH).
 export const RARITY_LEVEL_GROWTH = {
-  N: 0.06, R: 0.08, SR: 0.10, SSR: 0.12, UR: 0.14, LR: 0.16, GR: 0.18, MYTHIC: 0.20,
+  N: 0.05, R: 0.05, SR: 0.10, SSR: 0.12, UR: 0.14, LR: 0.16, GR: 0.18, MYTHIC: 0.20,
 };
 export const RARITY_ASCENSION_GROWTH = {
-  N: 0.08, R: 0.10, SR: 0.12, SSR: 0.14, UR: 0.16, LR: 0.18, GR: 0.20, MYTHIC: 0.22,
+  N: 0.06, R: 0.07, SR: 0.12, SSR: 0.14, UR: 0.16, LR: 0.18, GR: 0.20, MYTHIC: 0.22,
 };
 export const RARITY_STAR_BONUS = {
-  N: 0.12, R: 0.15, SR: 0.18, SSR: 0.21, UR: 0.24, LR: 0.27, GR: 0.30, MYTHIC: 0.33,
+  N: 0.10, R: 0.10, SR: 0.18, SSR: 0.21, UR: 0.24, LR: 0.27, GR: 0.30, MYTHIC: 0.33,
 };
 
 // Per-rarity star caps (mirrors backend progression.MAX_STARS).
@@ -27,7 +27,7 @@ export const STAT_KEYS = ["hp", "atk", "def", "spd", "chakra", "crit_rate", "cri
 
 export const RARITY_BASE = {
   N:      { hp: 500,  atk: 75,   def: 38,  spd: 80,  chakra: 95,  crit_rate: 4,  crit_damage: 135, accuracy: 83, resistance: 4 },
-  R:      { hp: 800,  atk: 115,  def: 60,  spd: 95,  chakra: 100, crit_rate: 6,  crit_damage: 145, accuracy: 87, resistance: 7 },
+  R:      { hp: 680,  atk: 98,   def: 50,  spd: 92,  chakra: 98,  crit_rate: 5,  crit_damage: 140, accuracy: 85, resistance: 6 },
   SR:     { hp: 1240, atk: 178,  def: 93,  spd: 113, chakra: 118, crit_rate: 8,  crit_damage: 155, accuracy: 89, resistance: 10 },
   SSR:    { hp: 1920, atk: 276,  def: 144, spd: 132, chakra: 138, crit_rate: 11, crit_damage: 170, accuracy: 91, resistance: 15 },
   UR:     { hp: 2980, atk: 430,  def: 224, spd: 155, chakra: 160, crit_rate: 14, crit_damage: 185, accuracy: 93, resistance: 20 },

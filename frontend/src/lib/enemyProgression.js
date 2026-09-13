@@ -124,7 +124,7 @@ function starsForScore(score, isBoss) {
 }
 
 // --- Boss transformation tier (mirrors backend _transformation_tier) ---
-function transformationTier(stars, evolved) {
+export function transformationTier(stars, evolved) {
   if (stars >= 7 && evolved) return "Mythic Form";
   if (stars >= 6) return "Ascendant";
   if (stars >= 5) return "Transcendent";
