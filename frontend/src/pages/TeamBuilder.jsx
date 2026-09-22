@@ -35,7 +35,7 @@ const StarRow = ({ n = 1, max = 6 }) => (
 
 export default function TeamBuilder() {
   const { user, setUser } = useAuth();
-  const { catalogById, catalog, items, refreshCatalog } = useGame();
+  const { catalogById, catalog, items } = useGame();
   const { playSfx } = useAudio();
   const [team, setTeam] = useState(user?.team || []);
   const [busy, setBusy] = useState(false);
@@ -56,10 +56,6 @@ export default function TeamBuilder() {
   const MAX_SLOTS = 5;
 
   useEffect(() => { setTeam((user?.team || []).slice(0, cap)); }, [user?.id, JSON.stringify(user?.team), cap]);
-
-  // Ensure the catalog is fresh so custom heroes with enough shards to
-  // unlock appear as unlockable cards (the cached catalog may be stale).
-  useEffect(() => { refreshCatalog(); }, [refreshCatalog]);
 
   const owned = useMemo(
     () => (user?.ninjas || []).map((inst) => ({ ...inst, ...catalogById[inst.template_id], rarity: inst.rarity || inst.evolved_rarity || catalogById[inst.template_id]?.rarity })).filter((o) => o.name),

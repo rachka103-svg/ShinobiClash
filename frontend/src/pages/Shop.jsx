@@ -7,6 +7,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import { cachedFetch } from "@/lib/cache";
 
 const ICONS = { zap: Zap, coins: Coins, ticket: Ticket, anvil: Anvil, gem: Gem, sparkles: Sparkles, "book-open": BookOpen, scroll: Scroll, "scroll-text": ScrollText, hammer: Hammer, box: Box };
 
@@ -25,7 +26,8 @@ export default function Shop() {
 
   useEffect(() => {
     let alive = true;
-    api.get("/game/shop").then(({ data }) => { if (alive) { setItems(data.items || []); setDeals(data.deals || []); setLoading(false); } })
+    cachedFetch("/game/shop", { ttl: 60_000, revalidate: true }, api)
+      .then((data) => { if (alive) { setItems(data.items || []); setDeals(data.deals || []); setLoading(false); } })
       .catch((e) => { toast.error(formatApiErrorDetail(e?.response?.data?.detail) || "Failed to load shop"); setLoading(false); });
     return () => { alive = false; };
   }, []);

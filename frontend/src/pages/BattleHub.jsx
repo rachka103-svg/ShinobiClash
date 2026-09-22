@@ -9,6 +9,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useAudio } from "@/context/AudioContext";
 import { useGame } from "@/context/GameContext";
 import { RARITY } from "@/lib/theme";
+import { prefetchPageData, prefetchBattleHubImages } from "@/lib/prefetch";
+import { useEffect } from "react";
 
 const PILL_BG = {
   background: "rgba(13, 17, 23, 0.72)",
@@ -45,6 +47,13 @@ export default function BattleHub() {
     try { localStorage.setItem("sc_battle_speed", String(v)); } catch { /* */ }
   };
   const handleLogout = async () => { await logout(); navigate("/login"); };
+
+  // Prefetch data for pages reachable from the battle hub + preload
+  // the mode card images so they render instantly.
+  useEffect(() => {
+    prefetchPageData();
+    prefetchBattleHubImages();
+  }, []);
 
   const modes = [
     { to: "/campaign", label: "CAMPAIGN", icon: Scroll, color: "#A740E5",

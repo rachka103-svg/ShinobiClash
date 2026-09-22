@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { Scroll, Users, Swords, Sparkles, Castle, LayoutGrid, Crosshair, ChevronRight, PartyPopper } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -9,6 +10,7 @@ import MissionsPanel from "@/components/MissionsPanel";
 import DailyLoginCard from "@/components/DailyLoginCard";
 import { heroPortrait } from "@/lib/utils";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import { prefetchPageData, prefetchBattleHubImages } from "@/lib/prefetch";
 import "./Lobby.css";
 
 const ELEMENT_QUOTES = {
@@ -28,6 +30,13 @@ const SECTION_BG_TILES = "https://media.base44.com/images/public/6a95b687e54c815
 export default function Lobby() {
   const { user, setUser, refreshProfile } = useAuth();
   const { catalogById, stages, gemCosts } = useGame();
+
+  // Prefetch data + images for common navigation targets so pages
+  // render instantly when the user taps a tile.
+  useEffect(() => {
+    prefetchPageData();
+    prefetchBattleHubImages();
+  }, []);
 
   const teamInstances = (user?.team || [])
     .map((tid) => user.ninjas.find((n) => n.instance_id === tid))
