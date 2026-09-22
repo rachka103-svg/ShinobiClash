@@ -9,8 +9,9 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { formatApiErrorDetail } from "@/lib/api";
 
-const GOLD = "#d4af37";
-const GOLD_BRIGHT = "#f0c75e";
+const GOLD = "#c4a882";
+const GOLD_BRIGHT = "#d4c29f";
+const JADE = "#44d6b5";
 
 export default function Login() {
   const { login, register } = useAuth();
@@ -82,10 +83,10 @@ export default function Login() {
         <h1
           className="font-display text-3xl sm:text-4xl tracking-wider leading-none mt-1"
           style={{
-            background: `linear-gradient(135deg, ${GOLD_BRIGHT}, #fff 60%, ${GOLD})`,
+            background: `linear-gradient(135deg, ${JADE}, #fff 55%, ${GOLD})`,
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
-            filter: "drop-shadow(0 2px 8px rgba(212,175,55,0.3))",
+            filter: `drop-shadow(0 2px 8px ${JADE}44)`,
           }}
         >
           SHINOBI STRIKE
@@ -149,7 +150,7 @@ export default function Login() {
             >
               <p
                 className="font-display text-2xl sm:text-3xl tracking-[0.3em] text-white/90"
-                style={{ textShadow: "0 0 24px rgba(212,175,55,0.4)" }}
+                style={{ textShadow: `0 0 24px ${JADE}55` }}
               >
                 CLICK TO START
               </p>
@@ -203,7 +204,7 @@ export default function Login() {
                     className="flex-1 py-2 rounded-md text-sm font-semibold tracking-wide transition-all"
                     style={
                       mode === m
-                        ? { background: GOLD, color: "#0a0a0c", boxShadow: `0 0 12px ${GOLD}55` }
+                        ? { background: JADE, color: "#0a0a0c", boxShadow: `0 0 12px ${JADE}55` }
                         : { color: "rgba(255,255,255,0.4)" }
                     }
                   >
@@ -252,9 +253,9 @@ export default function Login() {
                   data-testid="auth-submit-button"
                   className="w-full py-3 rounded-lg font-display text-lg tracking-wider transition-all disabled:opacity-60 flex items-center justify-center gap-2"
                   style={{
-                    background: `linear-gradient(90deg, ${GOLD}, ${GOLD_BRIGHT})`,
+                    background: `linear-gradient(90deg, ${JADE}, ${GOLD})`,
                     color: "#0a0a0c",
-                    boxShadow: `0 0 20px ${GOLD}44`,
+                    boxShadow: `0 0 20px ${JADE}44`,
                   }}
                 >
                   {busy && <Loader2 className="w-5 h-5 animate-spin" />}
@@ -280,7 +281,7 @@ export default function Login() {
                   color: "rgba(255,255,255,0.7)",
                 }}
               >
-                {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" style={{ color: GOLD }} />}
+                {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" style={{ color: JADE }} />}
                 QUICK PLAY — DEMO
               </button>
 
@@ -289,7 +290,7 @@ export default function Login() {
                   type="button"
                   onClick={() => toast.info("Password reset is not available in the demo.")}
                   className="hover:text-white/70 transition-colors"
-                  style={{ color: GOLD_BRIGHT }}
+                  style={{ color: JADE }}
                 >
                   Already have an account? Sign In
                 </button>
@@ -315,14 +316,14 @@ const FeatureIcon = ({ icon: Icon, label, sub, gold }) => (
     <div
       className="w-10 h-10 rounded-lg flex items-center justify-center"
       style={{
-        background: gold ? `${GOLD}15` : "rgba(255,255,255,0.04)",
-        border: gold ? `1px solid ${GOLD}55` : "1px solid rgba(255,255,255,0.1)",
-        boxShadow: gold ? `0 0 14px ${GOLD}33` : "none",
+        background: gold ? `${JADE}15` : "rgba(255,255,255,0.04)",
+        border: gold ? `1px solid ${JADE}55` : "1px solid rgba(255,255,255,0.1)",
+        boxShadow: gold ? `0 0 14px ${JADE}33` : "none",
       }}
     >
-      <Icon className="w-5 h-5" style={{ color: gold ? GOLD_BRIGHT : "rgba(255,255,255,0.6)" }} />
+      <Icon className="w-5 h-5" style={{ color: gold ? JADE : "rgba(255,255,255,0.6)" }} />
     </div>
-    <p className="text-[9px] tracking-[0.15em] uppercase" style={{ color: gold ? GOLD_BRIGHT : "rgba(255,255,255,0.5)" }}>
+    <p className="text-[9px] tracking-[0.15em] uppercase" style={{ color: gold ? JADE : "rgba(255,255,255,0.5)" }}>
       {label}
     </p>
     <p className="text-[8px] text-white/30">{sub}</p>
@@ -342,7 +343,7 @@ const Field = ({ label, testid, icon, trailing, type, ...props }) => (
         type={type}
         required
         data-testid={testid}
-        className="w-full py-2.5 rounded-lg bg-black/50 border border-white/10 text-white placeholder-white/20 focus:border-[#d4af37] focus:outline-none transition-all pl-10 pr-10 text-sm"
+        className="w-full py-2.5 rounded-lg bg-black/50 border border-white/10 text-white placeholder-white/20 focus:border-[#44d6b5] focus:outline-none transition-all pl-10 pr-10 text-sm"
       />
       {trailing && <span className="absolute right-3 top-1/2 -translate-y-1/2">{trailing}</span>}
     </div>
