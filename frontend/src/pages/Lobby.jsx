@@ -131,6 +131,8 @@ export default function Lobby() {
           </div>
         </section>
 
+        {/* ===================== DASHBOARD — right column ========================= */}
+        <div className="pagoda-dashboard">
         {/* ===================== NEXT MISSION — temple offering ===================== */}
         <section className="pagoda-section" style={{ "--section-bg": `url(${SECTION_BG_MISSION})` }}>
           <h2 className="pagoda-panel-title">Next Mission</h2>
@@ -186,8 +188,7 @@ export default function Lobby() {
             <MissionsPanel missions={user?.missions} onClaimed={setUser} />
           </div>
         </section>
-
-        <div className="pagoda-footer">A New Generation of Ninja RPG</div>
+        </div>{/* end pagoda-dashboard */}
       </div>
     </div>
   );
