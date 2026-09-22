@@ -69,6 +69,7 @@ const CatalogErrorBanner = () => {
 function Shell({ children, bare }) {
   const loc = useLocation();
   const hideBottomNav = loc.pathname === "/boss-hunt";
+  const hideGameHud = loc.pathname === "/battle";
   if (bare) {
     return (
       <div className="App grain min-h-screen relative">
@@ -79,9 +80,9 @@ function Shell({ children, bare }) {
   return (
     <div className="App grain min-h-screen relative overflow-hidden">
       <CatalogErrorBanner />
-      <GameHud />
+      {!hideGameHud && <GameHud />}
       <main
-        className={`fixed inset-x-0 top-0 bottom-0 z-10 overflow-y-auto pt-[calc(var(--game-header-height)+var(--sat))] ${hideBottomNav ? "" : "pb-[calc(var(--game-nav-height)+var(--sab)+0.5rem)]"}`}
+        className={`fixed inset-x-0 top-0 bottom-0 z-10 overflow-y-auto ${hideGameHud ? "" : "pt-[calc(var(--game-header-height)+var(--sat))]"} ${hideBottomNav ? "" : "pb-[calc(var(--game-nav-height)+var(--sab)+0.5rem)]"}`}
         data-testid="app-main"
       >
         {children}
