@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Scroll, Moon, Castle, Crosshair, Landmark, Swords, Zap, Bot, Gauge, Sparkles, Skull } from "lucide-react";
+import { Scroll, Moon, Castle, Crosshair, Landmark, Swords, Zap, Bot, Gauge, Sparkles, Skull, Crown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
+import { RARITY } from "@/lib/theme";
 
 /**
  * BattleHub — cinematic battle mode selection.
@@ -20,21 +21,21 @@ export default function BattleHub() {
   const cycleSpeed = () => { const v = speed >= 3 ? 1 : speed + 1; setSpeed(v); try { localStorage.setItem("sc_battle_speed", String(v)); } catch { /* */ } };
 
   const modes = [
-    { to: "/campaign", label: "CAMPAIGN", icon: Scroll, color: "#FF9D00",
+    { to: "/campaign", label: "CAMPAIGN", icon: Scroll, color: "#FF6B35",
       sub: `${cleared}/${stages.length} stages cleared`, testid: "mode-campaign",
-      art: "/heroes/ember_scout.webp" },
+      art: "/custom/ares.png", rarity: "SSR", heroName: "Ares" },
     { to: "/dungeons", label: "DUNGEONS", icon: Landmark, color: "#00E676",
       sub: "Gold · EXP · Materials", testid: "mode-dungeons",
-      art: "/heroes/stoneback.webp" },
+      art: "/custom/ymir.png", rarity: "GR", heroName: "Ymir" },
     { to: "/boss-hunt", label: "BOSS HUNT", icon: Skull, color: "#FF1744",
       sub: "Hunt Powerful Bosses", testid: "mode-boss-hunt",
-      art: "/heroes/apep.webp" },
-    { to: "/spire", label: "ENDLESS SPIRE", icon: Castle, color: "#D500F9",
+      art: "/custom/fenrir.png", rarity: "GR", heroName: "Fenrir" },
+    { to: "/spire", label: "ENDLESS SPIRE", icon: Castle, color: "#A740E5",
       sub: `Floor ${user?.spire_floor || 0} reached`, testid: "mode-spire",
-      art: "/heroes/zeus.webp" },
-    { to: "/summon", label: "SUMMON", icon: Moon, color: "#7C4DFF",
+      art: "/custom/odin.png", rarity: "UR", heroName: "Odin" },
+    { to: "/summon", label: "SUMMON", icon: Moon, color: "#E5A540",
       sub: "New Shinobi Available", testid: "mode-summon",
-      art: "/heroes/amaterasu.webp" },
+      art: "/custom/amaterasu.png", rarity: "UR", heroName: "Amaterasu" },
   ];
 
   return (
@@ -43,23 +44,43 @@ export default function BattleHub() {
       <div className="fixed inset-0 bg-cover bg-center" style={{ backgroundImage: "url(/art/login-bg-epic.png)" }} />
       {/* Dark gradient — art visible at top, darkens toward bottom for card readability */}
       <div className="fixed inset-0" style={{
-        background: "linear-gradient(180deg, rgba(10,10,12,0.45) 0%, rgba(10,10,12,0.15) 25%, rgba(10,10,12,0.75) 65%, rgba(10,10,12,0.97) 100%)"
+        background: "linear-gradient(180deg, rgba(10,10,12,0.55) 0%, rgba(10,10,12,0.25) 20%, rgba(10,10,12,0.70) 60%, rgba(10,10,12,0.97) 100%)"
       }} />
       {/* Purple ambient glow */}
       <div className="fixed inset-0 pointer-events-none" style={{
-        background: "radial-gradient(50% 35% at 35% 30%, rgba(124,77,255,0.10) 0%, transparent 70%)"
+        background: "radial-gradient(50% 40% at 30% 35%, rgba(124,77,255,0.12) 0%, transparent 70%)"
       }} />
+      {/* Red moon glow — upper right */}
+      <div className="fixed inset-0 pointer-events-none" style={{
+        background: "radial-gradient(25% 20% at 80% 15%, rgba(255,23,68,0.08) 0%, transparent 60%)"
+      }} />
+
+      {/* ── Large featured hero — left side ── */}
+      <motion.div
+        initial={{ opacity: 0, x: -40 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 1.0, delay: 0.2 }}
+        className="hidden md:block fixed left-0 bottom-0 z-[5] pointer-events-none"
+        style={{ width: "42vw", maxWidth: "620px", height: "78vh" }}
+      >
+        <img
+          src="/custom/nm_shadow_sovereign.png"
+          alt="Shadow Sovereign"
+          className="w-full h-full object-contain object-bottom"
+          style={{ filter: "drop-shadow(0 0 40px rgba(124,77,255,0.25))" }}
+        />
+      </motion.div>
 
       {/* ── Content layer ── */}
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* ── Top bar: title + battle prefs ── */}
         <div className="flex items-center justify-between px-4 sm:px-8 lg:px-12 pt-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "#FF572218", border: "1px solid #FF572255" }}>
-              <Swords className="w-6 h-6 text-fox" />
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, rgba(255,87,34,0.18), rgba(124,77,255,0.18))", border: "1px solid rgba(255,87,34,0.40)" }}>
+              <Swords className="w-6 h-6" style={{ color: "#FF6B35" }} />
             </div>
             <div>
-              <h1 className="font-display text-3xl sm:text-4xl tracking-wide text-white leading-none">BATTLE</h1>
+              <h1 className="font-display text-3xl sm:text-4xl tracking-wide text-white leading-none" style={{ textShadow: "0 0 30px rgba(255,107,53,0.30)" }}>BATTLE</h1>
               <p className="text-slate-400 text-xs mt-0.5">Choose your battlefield.</p>
             </div>
           </div>
@@ -82,12 +103,21 @@ export default function BattleHub() {
         {/* ── Hero area: tagline (left) + featured banner (right) ── */}
         <div className="flex-1 flex items-center px-4 sm:px-8 lg:px-12 pt-6 pb-2">
           {/* Left tagline */}
-          <div className="flex-1 max-w-lg">
+          <div className="flex-1 max-w-lg relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="flex items-center gap-2 mb-3"
+            >
+              <Crown className="w-5 h-5" style={{ color: "#E5A540" }} />
+              <span className="text-[11px] tracking-[0.25em] uppercase text-[#E5A540]/80 font-display">Featured · Shadow Sovereign</span>
+            </motion.div>
             <motion.p
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8 }}
-              className="text-2xl sm:text-3xl lg:text-5xl text-white/85 leading-tight"
+              className="text-2xl sm:text-3xl lg:text-5xl text-white/90 leading-tight"
               style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 300, fontStyle: "italic" }}
             >
               A new chapter awakens.
@@ -98,32 +128,57 @@ export default function BattleHub() {
               transition={{ delay: 0.4 }}
               className="flex items-center gap-2 mt-3 sm:mt-4"
             >
-              <div className="h-px w-12 bg-gradient-to-r from-[#d4af37] to-transparent" />
-              <span className="text-[11px] tracking-[0.2em] uppercase text-[#d4af37]/70">Battle Modes</span>
+              <div className="h-px w-12 bg-gradient-to-r from-[#E5A540] to-transparent" />
+              <span className="text-[11px] tracking-[0.2em] uppercase text-[#E5A540]/70">Battle Modes</span>
             </motion.div>
           </div>
 
-          {/* Featured banner — right side, aligned with card row right edge */}
+          {/* Featured banner — right side, with nightmare boss art */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="hidden sm:block w-56 lg:w-72 rounded-2xl p-4 lg:p-5 backdrop-blur-md shrink-0"
+            className="hidden sm:block w-64 lg:w-80 rounded-2xl overflow-hidden backdrop-blur-md shrink-0"
             style={{
-              background: "rgba(16,16,20,0.80)",
-              border: "1px solid rgba(124,77,255,0.35)",
-              boxShadow: "0 0 40px rgba(124,77,255,0.12), inset 0 1px 0 rgba(255,255,255,0.05)",
+              background: "rgba(16,16,20,0.85)",
+              border: "1px solid rgba(124,77,255,0.40)",
+              boxShadow: "0 0 50px rgba(124,77,255,0.15), inset 0 1px 0 rgba(255,255,255,0.06)",
             }}
           >
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 lg:w-5 lg:h-5" style={{ color: "#7C4DFF" }} />
-              <h3 className="font-display text-lg lg:text-xl tracking-wide text-white">ETERNAL NIGHTMARE</h3>
+            {/* Nightmare boss art */}
+            <div className="relative h-28 lg:h-36 overflow-hidden">
+              <img
+                src="/custom/nm_eternal_nightmare.png"
+                alt="Eternal Nightmare"
+                className="absolute inset-0 w-full h-full object-cover object-top"
+                style={{ filter: "saturate(1.15)" }}
+              />
+              <div className="absolute inset-0" style={{
+                background: "linear-gradient(180deg, rgba(16,16,20,0.20) 0%, rgba(16,16,20,0.60) 60%, rgba(16,16,20,0.95) 100%)"
+              }} />
+              <div className="absolute top-2.5 right-2.5 flex items-center gap-1 px-2 py-0.5 rounded-full" style={{
+                background: "rgba(255,23,68,0.20)", border: "1px solid rgba(255,23,68,0.45)"
+              }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-[9px] font-display tracking-widest text-red-300">LIVE</span>
+              </div>
             </div>
-            <p className="text-[10px] lg:text-xs text-red-300/80 tracking-[0.1em] mb-3">NEW BOSS • TSUKUYOMI</p>
-            <Link to="/tsukuyomi" className="text-sm text-white/70 hover:text-white transition-colors flex items-center gap-1 group">
-              Challenge Now
-              <span className="transition-transform group-hover:translate-x-1">→</span>
-            </Link>
+            <div className="p-4 lg:p-5">
+              <div className="flex items-center gap-2 mb-1.5">
+                <Sparkles className="w-4 h-4 lg:w-5 lg:h-5" style={{ color: "#7C4DFF" }} />
+                <h3 className="font-display text-lg lg:text-xl tracking-wide text-white">ETERNAL NIGHTMARE</h3>
+              </div>
+              <p className="text-[10px] lg:text-xs text-red-300/80 tracking-[0.1em] mb-3">NEW BOSS • TSUKUYOMI</p>
+              <Link to="/tsukuyomi" className="text-sm text-white/80 hover:text-white transition-colors flex items-center gap-1.5 group" style={{
+                background: "linear-gradient(135deg, rgba(124,77,255,0.25), rgba(255,23,68,0.20))",
+                border: "1px solid rgba(124,77,255,0.40)",
+              }}>
+                <span className="px-3 py-1.5 rounded-lg flex items-center gap-1.5 w-full">
+                  Challenge Now
+                  <span className="transition-transform group-hover:translate-x-1">→</span>
+                </span>
+              </Link>
+            </div>
           </motion.div>
         </div>
 
@@ -143,32 +198,43 @@ export default function BattleHub() {
                   <Link
                     to={m.to}
                     data-testid={m.testid}
-                    className="group relative block rounded-2xl overflow-hidden transition-all duration-300 active:scale-[0.97] hover:-translate-y-1 h-[180px] lg:h-[220px]"
+                    className="group relative block rounded-2xl overflow-hidden transition-all duration-300 active:scale-[0.97] hover:-translate-y-1.5 h-[200px] lg:h-[240px]"
                     style={{
-                      border: `1px solid ${m.color}40`,
-                      boxShadow: `0 4px 24px rgba(0,0,0,0.4)`,
+                      border: `1px solid ${m.color}50`,
+                      boxShadow: `0 4px 24px rgba(0,0,0,0.5), 0 0 0 1px ${m.color}10`,
                     }}
                   >
                     {/* Shinobi artwork background */}
                     <img
                       src={m.art}
                       alt={m.label}
-                      className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110"
+                      className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110"
                     />
                     {/* Dark gradient overlay for text readability */}
                     <div className="absolute inset-0" style={{
-                      background: `linear-gradient(180deg, ${m.color}15 0%, rgba(10,10,14,0.55) 45%, rgba(10,10,14,0.92) 100%)`
+                      background: `linear-gradient(180deg, ${m.color}10 0%, rgba(10,10,14,0.40) 35%, rgba(10,10,14,0.88) 80%, rgba(10,10,14,0.96) 100%)`
                     }} />
                     {/* Hover glow */}
                     <div
                       className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                      style={{ background: `radial-gradient(80% 60% at 50% 30%, ${m.color}25, transparent)` }}
+                      style={{ background: `radial-gradient(80% 60% at 50% 30%, ${m.color}30, transparent)` }}
                     />
                     {/* Top accent line */}
                     <div
-                      className="absolute top-0 left-0 right-0 h-0.5 opacity-50 group-hover:opacity-100 group-hover:h-1 transition-all"
-                      style={{ background: m.color, boxShadow: `0 0 10px ${m.color}` }}
+                      className="absolute top-0 left-0 right-0 h-0.5 opacity-60 group-hover:opacity-100 group-hover:h-1 transition-all"
+                      style={{ background: m.color, boxShadow: `0 0 12px ${m.color}` }}
                     />
+                    {/* Rarity badge */}
+                    {m.rarity && (
+                      <div className="absolute top-2.5 right-2.5 px-1.5 py-0.5 rounded text-[9px] lg:text-[10px] font-display tracking-wider font-bold" style={{
+                        color: RARITY[m.rarity]?.color || "#fff",
+                        background: `${RARITY[m.rarity]?.color || "#fff"}20`,
+                        border: `1px solid ${RARITY[m.rarity]?.color || "#fff"}50`,
+                        textShadow: `0 0 8px ${RARITY[m.rarity]?.color || "#fff"}60`,
+                      }}>
+                        {m.rarity}
+                      </div>
+                    )}
 
                     <div className="relative h-full flex flex-col justify-end p-3 lg:p-4">
                       <div className="flex items-center gap-2 mb-1.5">
@@ -186,7 +252,7 @@ export default function BattleHub() {
                     {/* Bottom accent bar */}
                     <div
                       className="absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-300 group-hover:h-1"
-                      style={{ background: m.color, boxShadow: `0 0 8px ${m.color}` }}
+                      style={{ background: m.color, boxShadow: `0 0 10px ${m.color}` }}
                     />
                   </Link>
                 </motion.div>
@@ -210,14 +276,23 @@ export default function BattleHub() {
                     data-testid={m.testid}
                     className="group relative block rounded-xl overflow-hidden transition-all active:scale-[0.97]"
                     style={{
-                      border: `1px solid ${m.color}40`,
-                      height: "130px",
+                      border: `1px solid ${m.color}50`,
+                      height: "140px",
                     }}
                   >
                     <img src={m.art} alt={m.label} className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110" />
                     <div className="absolute inset-0" style={{
-                      background: `linear-gradient(180deg, ${m.color}12 0%, rgba(10,10,14,0.50) 45%, rgba(10,10,14,0.92) 100%)`
+                      background: `linear-gradient(180deg, ${m.color}10 0%, rgba(10,10,14,0.40) 35%, rgba(10,10,14,0.88) 80%, rgba(10,10,14,0.95) 100%)`
                     }} />
+                    {m.rarity && (
+                      <div className="absolute top-1.5 right-1.5 px-1 py-0.5 rounded text-[8px] font-display tracking-wider font-bold" style={{
+                        color: RARITY[m.rarity]?.color || "#fff",
+                        background: `${RARITY[m.rarity]?.color || "#fff"}20`,
+                        border: `1px solid ${RARITY[m.rarity]?.color || "#fff"}50`,
+                      }}>
+                        {m.rarity}
+                      </div>
+                    )}
                     <div className="relative h-full flex flex-col justify-end p-2.5">
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <div className="w-6 h-6 rounded flex items-center justify-center shrink-0" style={{ background: `${m.color}22`, border: `1px solid ${m.color}55` }}>
@@ -243,11 +318,11 @@ export default function BattleHub() {
                 data-testid="mode-arena"
                 className="group relative block rounded-xl overflow-hidden transition-all active:scale-[0.97]"
                 style={{
-                  border: `1px solid #FF174440`,
-                  height: "130px",
+                  border: `1px solid #FF174450`,
+                  height: "140px",
                 }}
               >
-                <img src="/heroes/hades.webp" alt="ARENA" className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110" />
+                <img src="/custom/hades.png" alt="ARENA" className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110" />
                 <div className="absolute inset-0" style={{
                   background: `linear-gradient(180deg, #FF174412 0%, rgba(10,10,14,0.50) 45%, rgba(10,10,14,0.92) 100%)`
                 }} />
