@@ -38,16 +38,16 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
 
   // ---- Boss sizing (responsive via clamp) ----
   // Height targets ~35% of battle viewport so the complete card stays visible on all devices
-  const bossW = "clamp(150px, 26vw, 290px)";
-  const bossH = "clamp(150px, 35vh, 320px)";
-  const bossContainerW = "clamp(170px, 28vw, 310px)";
+  const bossW = "clamp(150px, 26vw, 380px)";
+  const bossH = "clamp(150px, 35vh, 420px)";
+  const bossContainerW = "clamp(170px, 28vw, 400px)";
 
   // ---- Regular sizing (fluid so N fighters never overflow horizontally) ----
   // Scales down on narrow/short viewports and grows on desktop. The container
   // is slightly wider than the card to leave room for the name/HP/CK readouts.
-  const regW = "clamp(58px, 16vw, 110px)";
-  const regH = "clamp(78px, 20vh, 144px)";
-  const regContainerW = "clamp(66px, 18vw, 125px)";
+  const regW = "clamp(58px, 16vw, 175px)";
+  const regH = "clamp(78px, 22vh, 230px)";
+  const regContainerW = "clamp(66px, 18vw, 195px)";
 
   const cardW = isBoss ? bossW : regW;
   const cardH = isBoss ? bossH : regH;
@@ -185,7 +185,7 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
         {subdued && <div className="absolute inset-0 bg-black/15" />}
         {!c.alive && <Skull className="absolute inset-0 m-auto w-8 h-8 text-white/70" />}
         {/* Level badge */}
-        <span className={`absolute top-1 right-1 font-display text-white bg-black/60 px-1 py-0.5 rounded ${isBoss ? "text-sm" : "text-[10px]"}`}>LV.{c.level}</span>
+        <span className={`absolute top-1 right-1 font-display text-white bg-black/60 px-1 py-0.5 rounded ${isBoss ? "text-sm" : "text-[10px] sm:text-xs lg:text-sm"}`}>LV.{c.level}</span>
         {/* Enraged */}
         {c.enraged && (
           <span data-testid={`enraged-${c.uid}`} className={`absolute top-1 left-1 flex items-center gap-0.5 font-display text-white bg-red-600/80 px-1 rounded ${isBoss ? "text-xs" : "text-[8px]"}`}>
@@ -232,16 +232,16 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
       {/* Name */}
       <div className="flex items-center justify-center gap-1 mt-1.5">
         <ElementIcon element={c.element} size={isBoss ? 18 : 14} />
-        <p className={`font-semibold truncate ${isBoss ? "text-base" : "text-xs"}`} style={{ color: elColor, textShadow: isBoss ? `0 0 10px ${elColor}88` : "none" }}>{c.name.split(" ")[0]}</p>
+        <p className={`font-semibold truncate ${isBoss ? "text-base" : "text-xs sm:text-sm lg:text-base"}`} style={{ color: elColor, textShadow: isBoss ? `0 0 10px ${elColor}88` : "none" }}>{c.name.split(" ")[0]}</p>
       </div>
 
       {/* HP bar + value */}
       <div className="w-full mt-0.5">
-        <div className={`flex items-center justify-between mb-0.5 ${isBoss ? "text-[11px]" : "text-[9px]"}`}>
+        <div className={`flex items-center justify-between mb-0.5 ${isBoss ? "text-[11px]" : "text-[9px] sm:text-[10px] lg:text-xs"}`}>
           <span className="text-fox font-bold">HP</span>
           <span className="text-slate-300 tabular-nums">{c.hp.toLocaleString()}/{c.maxHp.toLocaleString()}</span>
         </div>
-        <div className={`w-full rounded bg-black/60 overflow-hidden ${isBoss ? "h-3" : "h-2"}`}>
+        <div className={`w-full rounded bg-black/60 overflow-hidden ${isBoss ? "h-3" : "h-2 lg:h-2.5"}`}>
           <div className="h-full rounded hp-bar-fill" style={{ width: `${hpPct}%`, background: "linear-gradient(90deg,#FF1744,#FF8A80)" }} />
         </div>
       </div>
@@ -251,11 +251,11 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
 
       {/* Chakra bar + value */}
       <div className="w-full mt-0.5">
-        <div className={`flex items-center justify-between mb-0.5 ${isBoss ? "text-[11px]" : "text-[9px]"}`}>
+        <div className={`flex items-center justify-between mb-0.5 ${isBoss ? "text-[11px]" : "text-[9px] sm:text-[10px] lg:text-xs"}`}>
           <span className="text-chakra font-bold">⚡</span>
           <span className="text-slate-300 tabular-nums">{c.chakra}/{c.maxChakra}</span>
         </div>
-        <div className={`w-full rounded bg-black/60 overflow-hidden ${isBoss ? "h-2.5" : "h-1.5"}`}>
+        <div className={`w-full rounded bg-black/60 overflow-hidden ${isBoss ? "h-2.5" : "h-1.5 lg:h-2"}`}>
           <div className="h-full rounded ck-bar-fill" style={{ width: `${ckPct}%`, background: "#00E5FF" }} />
         </div>
       </div>
@@ -283,9 +283,9 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
                 className="status-badge flex items-center gap-0.5 leading-none px-1 py-0.5 rounded bg-black/75 border"
                 style={{ color: vis.color, borderColor: `${vis.color}66` }}>
                 {isIconUrl(vis.icon)
-                  ? <img src={vis.icon} alt={vis.label} className={isBoss ? "w-3.5 h-3.5" : "w-2.5 h-2.5"} style={{ objectFit: "cover", borderRadius: "2px" }} />
-                  : <span className={isBoss ? "text-xs" : "text-[9px]"}>{vis.icon}</span>}
-                {turns > 0 && turns < 99 && <span className={`${isBoss ? "text-[9px]" : "text-[7px]"} font-bold opacity-80`}>{turns}</span>}
+                  ? <img src={vis.icon} alt={vis.label} className={isBoss ? "w-3.5 h-3.5" : "w-2.5 h-2.5 lg:w-4 lg:h-4"} style={{ objectFit: "cover", borderRadius: "2px" }} />
+                  : <span className={isBoss ? "text-xs" : "text-[9px] lg:text-[11px]"}>{vis.icon}</span>}
+                {turns > 0 && turns < 99 && <span className={`${isBoss ? "text-[9px]" : "text-[7px] lg:text-[9px]"} font-bold opacity-80`}>{turns}</span>}
               </span>
             );
           })}

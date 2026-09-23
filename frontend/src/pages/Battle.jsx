@@ -1956,7 +1956,7 @@ export default function Battle() {
         {/* Center battlefield */}
         <div className="flex-1 flex flex-col justify-center min-w-0">
           {/* Enemies */}
-          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 px-2 mb-1">
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 lg:gap-6 px-2 mb-1">
             {arrangedEnemies.map((c) => (
               <BattleFighter
                 key={c.uid}
@@ -2013,7 +2013,7 @@ export default function Battle() {
           </div>
 
           {/* Allies */}
-          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 px-2 mt-1">
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 lg:gap-6 px-2 mt-1">
             {allies.map((c) => (
               <BattleFighter
                 key={c.uid}

@@ -14,15 +14,15 @@ export function BattleTurnOrder({ combs, order, ptr, className }) {
     .slice(0, 6);
 
   return (
-    <div className={`flex-col items-center gap-1.5 py-3 px-2 shrink-0 ${className}`}>
-      <p className="text-[8px] uppercase tracking-widest text-slate-500 font-bold mb-1">Turn Order</p>
+    <div className={`flex-col items-center gap-1.5 lg:gap-2 py-3 px-2 shrink-0 ${className}`}>
+      <p className="text-[8px] lg:text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1">Turn Order</p>
       {upcoming.map((c, i) => {
         const r = RARITY[c.rarity] || RARITY.R;
         const isActive = i === 0;
         return (
           <div
             key={c.uid}
-            className={`relative w-9 h-9 rounded-lg overflow-hidden border-2 ${isActive ? "ring-2 ring-chakra" : ""}`}
+            className={`relative w-9 h-9 lg:w-12 lg:h-12 rounded-lg overflow-hidden border-2 ${isActive ? "ring-2 ring-chakra" : ""}`}
             style={{ borderColor: r.color, opacity: c.alive ? 1 : 0.3 }}
           >
             <img src={c.portrait} alt={c.name} className="w-full h-full object-cover object-top" />
@@ -44,7 +44,7 @@ export function BattleInfoPanel({ log, enemies, className }) {
   const defeated = enemies.filter((e) => !e.alive).length;
 
   return (
-    <div className={`flex-col gap-2 py-3 px-3 w-52 shrink-0 ${className}`}>
+    <div className={`flex-col gap-2 py-3 px-3 w-52 lg:w-64 shrink-0 ${className}`}>
       {/* Battle Log */}
       <div>
         <p className="text-[8px] uppercase tracking-widest text-slate-500 font-bold mb-1.5">Battle Log</p>
