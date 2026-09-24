@@ -94,18 +94,28 @@ export default function HeroDetailModal({
       });
   }, [user?.ninjas, user?.team, instance?.instance_id, template?.element, catalogById]);
 
-  if (!template) return null;
- const effectiveRarity = instance?.evolved_rarity || instance?.rarity || template.rarity;
+  // ---------- Values needed by hooks before the early return ----------
+  const evoCost = instance?.evolution_cost || null;
+  const currentStars = instance?.stars || 1;
+  const starsMax = instance?.stars_max || 6;
+  const effectiveRarity = instance?.evolved_rarity || instance?.rarity || template?.rarity;
 
-const rarity = RARITY[effectiveRarity] || RARITY.R;
-const frame = rarityFrame(effectiveRarity);
+  // ---------- Auto-evolve (rush multiple stars at once) ----------
+  const autoEvolveData = useMemo(() => {
+    if (!evoCost || currentStars >= starsMax) return { steps: [], shards: 0, ryo: 0, items: {} };
+    return getAutoEvolveTotalCost(effectiveRarity, currentStars, starsMax, template?.element);
+  }, [evoCost, currentStars, starsMax, effectiveRarity, template?.element]);
+
+  if (!template) return null;
+
+  const rarity = RARITY[effectiveRarity] || RARITY.R;
+  const frame = rarityFrame(effectiveRarity);
   const element = ELEMENT[template.element] || {};
   const stats = instance?.stats || template.base_stats;
   const expPct = instance && instance.exp_to_next ? Math.min(100, (instance.exp / instance.exp_to_next) * 100) : 0;
 
   // ---------- Evolution derived state ----------
   const shardsOwned = instance ? (user?.hero_shards?.[instance.template_id] || 0) : 0;
-  const evoCost = instance?.evolution_cost || null;
   const evoFodderCost = instance?.evolution_fodder_cost || null;
   const inv = user?.inventory || {};
   const selectedFodderHeroes = fodderCandidates.filter((h) => selectedFodder.includes(h.instance_id));
@@ -169,13 +179,6 @@ const frame = rarityFrame(effectiveRarity);
     } finally { setBusyLocal(false); }
   };
 
-  // ---------- Auto-evolve (rush multiple stars at once) ----------
-  const currentStars = instance?.stars || 1;
-  const starsMax = instance?.stars_max || 6;
-  const autoEvolveData = useMemo(() => {
-    if (!evoCost || currentStars >= starsMax) return { steps: [], shards: 0, ryo: 0, items: {} };
-    return getAutoEvolveTotalCost(effectiveRarity, currentStars, starsMax, template.element);
-  }, [evoCost, currentStars, starsMax, effectiveRarity, template.element]);
   const autoEvolveSteps = autoEvolveData.steps;
   const autoEvolveTotal = { shards: autoEvolveData.shards, ryo: autoEvolveData.ryo, items: autoEvolveData.items };
   const autoEvolveAffordable = autoEvolveSteps.length > 0 &&
