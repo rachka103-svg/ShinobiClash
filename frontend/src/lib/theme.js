@@ -12,9 +12,9 @@
 
 // ---- Background / surface layers --------------------------------------
 export const BG = {
-  void: "#05050A",   // deepest background — behind everything
-  deep: "#0B0B14",   // base app background
-  night: "#12121F",  // slightly lifted panel background (used sparingly)
+  void: "#101010",   // deepest background — behind everything
+  deep: "#181818",   // base app background
+  night: "#1f1f1f",  // slightly lifted panel background (used sparingly)
 };
 
 export const SURFACE = {
@@ -36,10 +36,11 @@ export const TEXT = {
 
 // ---- Accent colors — used deliberately, never as a background wash -----
 export const ACCENT = {
-  chakra: "#00E5FF", // primary interactive / highlight
+  chakra: "#E5A540", // primary interactive / highlight (gold)
   fox: "#FF5722",    // primary CTA / energy
-  jutsu: "#D500F9",  // secondary mystical accent (spire/ability)
-  gold: "#FFCA28",   // premium / reward / ascension
+  jutsu: "#A740E5",  // secondary mystical accent (magenta for SSR+)
+  gold: "#E5A540",   // premium / reward / ascension (matches primary gold)
+  energy: "#00E5FF", // cyan reserved for HP/energy bars only
 };
 
 // ---- Rarity — canonical tiers, strong & unmistakable at a glance ------
@@ -47,8 +48,8 @@ export const ACCENT = {
 export const RARITY = {
   R: { label: "R", color: "#9E9E9E", name: "Common", tier: 0 },
   SR: { label: "SR", color: "#29B6F6", name: "Rare", tier: 1 },
-  SSR: { label: "SSR", color: "#AB47BC", name: "Epic", tier: 2 },
-  UR: { label: "UR", color: "#FFCA28", name: "Legendary", tier: 3 },
+  SSR: { label: "SSR", color: "#A740E5", name: "Epic", tier: 2 },
+  UR: { label: "UR", color: "#E5A540", name: "Legendary", tier: 3 },
   LR: { label: "LR", color: "#FF1744", name: "Mythic", tier: 4 },
   LLR: { label: "LLR", color: "#D50000", name: "Limited Mythic", tier: 4 },
   GR: { label: "GR", color: "#64FFDA", name: "Ascendant", tier: 5 },
@@ -101,7 +102,7 @@ export const SHADOW = {
 
 /** Bottom-up gradient for legible text over artwork — no boxed panel needed. */
 export const scrimBottom = (strength = "0.92") =>
-  `linear-gradient(to top, rgba(5,5,10,${strength}) 0%, rgba(5,5,10,0.35) 45%, transparent 75%)`;
+  `linear-gradient(to top, rgba(16,16,16,${strength}) 0%, rgba(16,16,16,0.35) 45%, transparent 75%)`;
 
 /** Subtle inner vignette so portrait edges recede instead of hard-cropping. */
 export const vignetteInset =
@@ -115,11 +116,11 @@ export const rarityTier = (rarityKey) => RARITY[rarityKey]?.tier ?? 0;
 // interactive accent. Used for gold hairlines, corner filigree and crests.
 // ---------------------------------------------------------------------------
 export const GOLD = {
-  base: "#FFCA28",
-  bright: "#FFC857",
-  dim: "rgba(255,202,40,0.22)",
-  hairline: "rgba(255,202,40,0.38)",
-  stroke: "rgba(255,202,40,0.55)",
+  base: "#E5A540",
+  bright: "#F0B855",
+  dim: "rgba(229,165,64,0.22)",
+  hairline: "rgba(229,165,64,0.38)",
+  stroke: "rgba(229,165,64,0.55)",
 };
 
 /** GODLY — the pinnacle prestige treatment for GR. A prismatic, color-shifting

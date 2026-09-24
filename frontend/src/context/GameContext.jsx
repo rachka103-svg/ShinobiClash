@@ -28,6 +28,7 @@ export function GameProvider({ children }) {
   const [dungeons, setDungeons] = useState([]);
   const [reforgeModifiers, setReforgeModifiers] = useState({});
   const [reforgeMaxPerJutsu, setReforgeMaxPerJutsu] = useState(2);
+  const [skins, setSkins] = useState({});
   const [productionCategories, setProductionCategories] = useState([]);
   const [forgeMaxLevel, setForgeMaxLevel] = useState(200);
   const [enemyTemplates, setEnemyTemplates] = useState([]);
@@ -53,6 +54,7 @@ export function GameProvider({ children }) {
     setDungeons(data.dungeons || []);
     setReforgeModifiers(data.reforge_modifiers || {});
     setReforgeMaxPerJutsu(data.reforge_max_per_jutsu || 2);
+    setSkins(data.skins || {});
     setProductionCategories(data.production_categories || []);
     setForgeMaxLevel(data.forge_max_level || 200);
     const map = {};
@@ -101,7 +103,7 @@ export function GameProvider({ children }) {
     <GameContext.Provider value={{
       catalog, catalogById, advantage, stages, chapters, bossMechanics, items, trials, summonCost, goldSummonX10Cost, gemCosts, banner,
       summonRates, summonRatesRyo, pityConfig, gearConfig, craftRecipes, fusionRecipes, expTomeGoldCost, dungeons,
-      reforgeModifiers, reforgeMaxPerJutsu, productionCategories, forgeMaxLevel, enemyTemplates,
+      reforgeModifiers, reforgeMaxPerJutsu, productionCategories, forgeMaxLevel, enemyTemplates, skins,
       loading, catalogError, retryCatalog: loadInitialData, refreshCatalog,
     }}>
       {children}

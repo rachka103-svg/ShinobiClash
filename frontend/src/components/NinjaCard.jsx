@@ -3,6 +3,7 @@ import { RARITY, ELEMENT } from "@/lib/styles";
 import { rarityFrame, GOLD, GODLY, CRIMSON } from "@/lib/theme";
 import { auraClass, RaritySparkles, DecoCorners } from "@/components/RarityFx";
 import { ElementIcon } from "@/components/ElementIcons";
+import { heroPortrait } from "@/lib/utils";
 
 export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid }) => {
   // Always prefer the hero's transformed rarity over its original catalog rarity.
@@ -86,7 +87,7 @@ export const NinjaCard = ({ ninja, onClick, selected, disabled, badge, testid })
     >
       <div className="aspect-[3/4] overflow-hidden bg-black/40 relative">
         <img
-          src={ninja.portrait}
+          src={heroPortrait(ninja)}
           alt={ninja.name}
           className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
           loading="lazy"

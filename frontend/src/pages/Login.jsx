@@ -1,19 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Swords, Loader2, Zap, Moon, Sun, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Swords, Loader2, Zap, Mail, Lock, Eye, EyeOff,
+  Scroll, Mountain, Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
-import { useTheme } from "@/context/ThemeContext";
 import { formatApiErrorDetail } from "@/lib/api";
 
-const PURPLE = "#7d26cd";
-const PURPLE_LIGHT = "#9d4eff";
+const GOLD = "#c4a882";
+const GOLD_BRIGHT = "#d4c29f";
+const JADE = "#44d6b5";
 
 export default function Login() {
   const { login, register } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [started, setStarted] = useState(false);
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [busy, setBusy] = useState(false);
@@ -53,161 +56,294 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#0a0a0f]">
-      {/* single full-screen cinematic background */}
+    <div
+      className="min-h-screen relative flex items-center justify-center overflow-hidden bg-[#050303] select-none"
+      data-testid="login-page"
+    >
+      {/* ── Epic background ── */}
       <img
-        src="/spire-assets/login-bg.webp"
+        src="/art/login-bg-epic.png"
         alt=""
         className="absolute inset-0 w-full h-full object-cover object-center"
+        style={{ objectPosition: "center 30%" }}
       />
-      <div className="absolute inset-0 bg-[#0a0a0f]/35" />
+      {/* Subtle darkening for text legibility — keeps art visible */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse at 70% 50%, rgba(5,3,3,0.35) 0%, rgba(5,3,3,0.72) 100%)",
+        }}
+      />
 
-      {/* top-left mini logo */}
-      <div className="absolute top-5 left-6 z-20 flex flex-col items-center gap-1 select-none">
-        <Swords className="w-5 h-5" style={{ color: PURPLE_LIGHT }} />
-        <span className="font-display text-[9px] tracking-[0.2em] text-purple-200/70">SHINOBI CLASH</span>
+      {/* ── Top-right header ── */}
+      <div className="absolute top-5 right-8 z-30 text-right">
+        <p className="text-[10px] tracking-[0.3em] text-white/40 uppercase">v1.0.0</p>
+        <p className="text-[11px] tracking-[0.25em] text-white/70 uppercase mt-0.5">Live the Legend</p>
+        <h1
+          className="font-display text-3xl sm:text-4xl tracking-wider leading-none mt-1"
+          style={{
+            background: `linear-gradient(135deg, ${JADE}, #fff 55%, ${GOLD})`,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            filter: `drop-shadow(0 2px 8px ${JADE}44)`,
+          }}
+        >
+          SHINOBI STRIKE
+        </h1>
+        <p className="text-[10px] tracking-[0.2em] text-white/50 mt-0.5">忍 ストライク</p>
+        <p className="text-[11px] tracking-[0.15em] text-white/60 mt-1.5">
+          BEAUTIFUL SOULS. BURN BRIGHTER.
+        </p>
       </div>
 
-      {/* top-right theme toggle */}
-      <button
-        type="button"
-        onClick={toggleTheme}
-        data-testid="login-theme-toggle"
-        aria-label={isDark ? "Switch to Ivory & Ink light theme" : "Switch to cinematic dark theme"}
-        className="absolute top-5 right-6 z-20 w-9 h-9 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/70 hover:text-white hover:border-purple-400/50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400"
-      >
-        {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-      </button>
+      {/* ── Left vertical kanji ── */}
+      <div className="absolute left-6 top-1/2 -translate-y-1/2 z-20 hidden sm:flex flex-col items-center gap-3">
+        <span
+          className="font-display text-7xl text-white/15 leading-none"
+          style={{ writingMode: "vertical-rl", textShadow: "0 0 30px rgba(255,255,255,0.08)" }}
+        >
+          忍
+        </span>
+        <span
+          className="text-[10px] tracking-[0.3em] text-white/25 uppercase"
+          style={{ writingMode: "vertical-rl" }}
+        >
+          Beautiful Souls
+        </span>
+      </div>
 
-      {/* login card — refined floating glass panel */}
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="relative z-10 w-full max-w-[26rem] rounded-2xl p-7 backdrop-blur-md md:ml-10"
-        style={{
-          background: "rgba(18, 16, 30, 0.88)",
-          border: "1px solid rgba(157, 78, 255, 0.22)",
-          boxShadow: "0 8px 40px rgba(125, 38, 205, 0.12)",
-        }}
-        data-testid="auth-panel"
-      >
-        {/* header */}
-        <div className="flex flex-col items-center mb-8">
-          <Swords className="w-10 h-10 mb-3" style={{ color: PURPLE_LIGHT }} />
-          <h1 className="font-display text-4xl tracking-wider text-slate-200">
-            SHINOBI<span style={{ color: PURPLE_LIGHT }}>CLASH</span>
-          </h1>
-          <p className="text-slate-400 text-sm mt-2">Forge your squad. Conquer the shadow realm.</p>
-        </div>
+      {/* ── Bottom-left footer ── */}
+      <div className="absolute bottom-5 left-8 z-20 hidden sm:block">
+        <p className="text-[10px] tracking-[0.25em] text-white/35 uppercase">
+          A New Generation of Ninja RPG
+        </p>
+        <p className="text-[11px] italic text-white/40 mt-1">
+          "Different paths, one destiny."
+        </p>
+        <p className="text-[9px] tracking-[0.15em] text-white/25 mt-0.5">異なる道、ひとつの運命</p>
+      </div>
 
-        {/* tabs */}
-        <div className="flex mb-6 rounded-lg p-1" style={{ background: "rgba(0,0,0,0.4)" }}>
-          {["login", "register"].map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              data-testid={`tab-${m}`}
-              className="flex-1 py-2 rounded-md text-sm font-semibold tracking-wide transition-all"
-              style={mode === m ? { background: PURPLE, color: "#fff", boxShadow: `0 0 12px ${PURPLE}66` } : { color: "#8a8596" }}
+      {/* ── Bottom-right feature icons ── */}
+      <div className="absolute bottom-5 right-8 z-20 hidden sm:flex items-center gap-6">
+        <FeatureIcon icon={Scroll} label="COLLECT" sub="Unique Shinobi" />
+        <FeatureIcon icon={Swords} label="BATTLE" sub="Epic Foes" />
+        <FeatureIcon icon={Sparkles} label="EVOLVE" sub="True Power" gold />
+        <FeatureIcon icon={Mountain} label="EXPLORE" sub="Living World" />
+      </div>
+
+      {/* ── Phase 1: Click to Start ── */}
+      <AnimatePresence>
+        {!started && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            transition={{ duration: 0.6 }}
+            className="absolute inset-0 z-40 flex flex-col items-center justify-center cursor-pointer"
+            onClick={() => setStarted(true)}
+            data-testid="click-to-start"
+          >
+            <motion.div
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
             >
-              {m === "login" ? "SIGN IN" : "REGISTER"}
-            </button>
-          ))}
-        </div>
+              <p
+                className="font-display text-2xl sm:text-3xl tracking-[0.3em] text-white/90"
+                style={{ textShadow: `0 0 24px ${JADE}55` }}
+              >
+                CLICK TO START
+              </p>
+            </motion.div>
+            <motion.p
+              animate={{ opacity: [0.2, 0.5, 0.2] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+              className="text-[11px] tracking-[0.2em] text-white/40 uppercase mt-4"
+            >
+              Tap anywhere to begin your journey
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        <form onSubmit={submit} className="space-y-4">
-          {mode === "register" && (
-            <Field label="Shinobi Name" value={form.name} onChange={change("name")} placeholder="Choose a codename" testid="name-input" />
-          )}
-          <Field
-            label="Email"
-            type="email"
-            value={form.email}
-            onChange={change("email")}
-            placeholder="you@village.net"
-            testid="email-input"
-            icon={<Mail className="w-4 h-4" />}
-          />
-          <Field
-            label="Password"
-            type={showPw ? "text" : "password"}
-            value={form.password}
-            onChange={change("password")}
-            placeholder="••••••••"
-            testid="password-input"
-            icon={<Lock className="w-4 h-4" />}
-            trailing={
+      {/* ── Phase 2: Login panel ── */}
+      <AnimatePresence>
+        {started && (
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+            className="relative z-30 w-full max-w-[24rem] mx-4 sm:mx-0 sm:mr-12"
+            data-testid="auth-panel"
+          >
+            <div
+              className="rounded-xl p-7 backdrop-blur-xl"
+              style={{
+                background: "rgba(10, 10, 12, 0.82)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                boxShadow: "0 8px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)",
+              }}
+            >
+              {/* heading */}
+              <div className="mb-6">
+                <h2 className="font-display text-xl tracking-[0.15em] text-white">
+                  BEGIN YOUR JOURNEY
+                </h2>
+                <p className="text-[12px] text-white/40 mt-1 tracking-wide">
+                  Summon. Build. Evolve. Transcend.
+                </p>
+              </div>
+
+              {/* tabs */}
+              <div className="flex mb-5 rounded-lg p-0.5" style={{ background: "rgba(0,0,0,0.5)" }}>
+                {["login", "register"].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMode(m)}
+                    data-testid={`tab-${m}`}
+                    className="flex-1 py-2 rounded-md text-sm font-semibold tracking-wide transition-all"
+                    style={
+                      mode === m
+                        ? { background: JADE, color: "#0a0a0c", boxShadow: `0 0 12px ${JADE}55` }
+                        : { color: "rgba(255,255,255,0.4)" }
+                    }
+                  >
+                    {m === "login" ? "SIGN IN" : "REGISTER"}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={submit} className="space-y-3.5">
+                {mode === "register" && (
+                  <Field label="Shinobi Name" value={form.name} onChange={change("name")} placeholder="Choose a codename" testid="name-input" />
+                )}
+                <Field
+                  label="Email"
+                  type="email"
+                  value={form.email}
+                  onChange={change("email")}
+                  placeholder="you@village.net"
+                  testid="email-input"
+                  icon={<Mail className="w-4 h-4" />}
+                />
+                <Field
+                  label="Password"
+                  type={showPw ? "text" : "password"}
+                  value={form.password}
+                  onChange={change("password")}
+                  placeholder="••••••••"
+                  testid="password-input"
+                  icon={<Lock className="w-4 h-4" />}
+                  trailing={
+                    <button
+                      type="button"
+                      onClick={() => setShowPw((s) => !s)}
+                      tabIndex={-1}
+                      className="text-white/30 hover:text-white/60 transition-colors"
+                      aria-label={showPw ? "Hide password" : "Show password"}
+                    >
+                      {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  }
+                />
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  data-testid="auth-submit-button"
+                  className="w-full py-3 rounded-lg font-display text-lg tracking-wider transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                  style={{
+                    background: `linear-gradient(90deg, ${JADE}, ${GOLD})`,
+                    color: "#0a0a0c",
+                    boxShadow: `0 0 20px ${JADE}44`,
+                  }}
+                >
+                  {busy && <Loader2 className="w-5 h-5 animate-spin" />}
+                  {mode === "login" ? "ENTER THE VILLAGE" : "BEGIN YOUR JOURNEY"}
+                </button>
+              </form>
+
+              <div className="flex items-center gap-3 my-4">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-[11px] uppercase tracking-widest text-white/30">or</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+
               <button
                 type="button"
-                onClick={() => setShowPw((s) => !s)}
-                tabIndex={-1}
-                className="text-slate-500 hover:text-slate-300 transition-colors"
-                aria-label={showPw ? "Hide password" : "Show password"}
+                onClick={quickLogin}
+                disabled={busy}
+                data-testid="quick-login-button"
+                className="w-full py-3 rounded-lg font-display text-base tracking-wider transition-all disabled:opacity-60 flex items-center justify-center gap-2 hover:bg-white/5"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  color: "rgba(255,255,255,0.7)",
+                }}
               >
-                {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" style={{ color: JADE }} />}
+                QUICK PLAY — DEMO
               </button>
-            }
-          />
 
-          <button
-            type="submit"
-            disabled={busy}
-            data-testid="auth-submit-button"
-            className="w-full py-3 rounded-lg font-display text-lg tracking-wider text-white transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-[0_0_18px_rgba(125,38,205,0.3)] hover:shadow-[0_0_26px_rgba(168,85,247,0.5)]"
-            style={{ background: "linear-gradient(90deg, #5b21b6, #a855f7)" }}
-          >
-            {busy && <Loader2 className="w-5 h-5 animate-spin" />}
-            {mode === "login" ? "ENTER THE VILLAGE" : "BEGIN YOUR JOURNEY"}
-          </button>
-        </form>
+              <p className="text-center text-xs text-white/40 mt-4">
+                <button
+                  type="button"
+                  onClick={() => toast.info("Password reset is not available in the demo.")}
+                  className="hover:text-white/70 transition-colors"
+                  style={{ color: JADE }}
+                >
+                  Already have an account? Sign In
+                </button>
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        <div className="flex items-center gap-3 my-4">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-[11px] uppercase tracking-widest text-slate-500">or</span>
-          <div className="flex-1 h-px bg-white/10" />
-        </div>
-
-        <button
-          type="button"
-          onClick={quickLogin}
-          disabled={busy}
-          data-testid="quick-login-button"
-          className="w-full py-3 rounded-lg font-display text-lg tracking-wider transition-all disabled:opacity-60 flex items-center justify-center gap-2 hover:shadow-[0_0_16px_rgba(125,38,205,0.35)]"
-          style={{ background: "rgba(10,10,15,0.55)", border: "1px solid rgba(139,92,246,0.45)", color: "#c4b5fd" }}
-        >
-          {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
-          QUICK PLAY — DEMO
-        </button>
-
-        <p className="text-center text-xs text-slate-400 mt-4">
-          <button type="button" onClick={() => toast.info("Password reset is not available in the demo.")} className="hover:text-purple-300 transition-colors">
-            Forgot Password?
-          </button>
-        </p>
-      </motion.div>
-
-      {/* footer */}
-      <div className="absolute bottom-4 left-0 right-0 z-10 flex items-center justify-center gap-2 text-[11px] text-slate-400">
-        <span className="inline-block w-1.5 h-1.5 rotate-45 bg-purple-400/60" />
-        © 2025 SHINOBI CLASH. All Rights Reserved.
-        <span className="inline-block w-1.5 h-1.5 rotate-45 bg-purple-400/60" />
+      {/* ── Copyright ── */}
+      <div className="absolute bottom-5 left-0 right-0 z-10 flex items-center justify-center gap-2 text-[10px] text-white/25 sm:hidden">
+        <span className="inline-block w-1.5 h-1.5 rotate-45 bg-white/20" />
+        © 2025 SHINOBI STRIKE
+        <span className="inline-block w-1.5 h-1.5 rotate-45 bg-white/20" />
       </div>
     </div>
   );
 }
 
+// ── Feature icon component ──
+const FeatureIcon = ({ icon: Icon, label, sub, gold }) => (
+  <div className="flex flex-col items-center gap-1 text-center">
+    <div
+      className="w-10 h-10 rounded-lg flex items-center justify-center"
+      style={{
+        background: gold ? `${JADE}15` : "rgba(255,255,255,0.04)",
+        border: gold ? `1px solid ${JADE}55` : "1px solid rgba(255,255,255,0.1)",
+        boxShadow: gold ? `0 0 14px ${JADE}33` : "none",
+      }}
+    >
+      <Icon className="w-5 h-5" style={{ color: gold ? JADE : "rgba(255,255,255,0.6)" }} />
+    </div>
+    <p className="text-[9px] tracking-[0.15em] uppercase" style={{ color: gold ? JADE : "rgba(255,255,255,0.5)" }}>
+      {label}
+    </p>
+    <p className="text-[8px] text-white/30">{sub}</p>
+  </div>
+);
+
+// ── Form field ──
 const Field = ({ label, testid, icon, trailing, type, ...props }) => (
   <div>
-    <label className="block text-[11px] font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">{label}</label>
+    <label className="block text-[10px] font-semibold text-white/40 mb-1.5 uppercase tracking-wide">
+      {label}
+    </label>
     <div className="relative">
-      {icon && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">{icon}</span>}
+      {icon && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30">{icon}</span>}
       <input
         {...props}
         type={type}
         required
         data-testid={testid}
-        className="w-full py-2.5 rounded-lg bg-black/40 border border-[#3a354a] text-white placeholder-slate-600 focus:border-purple-500 focus:outline-none transition-all pl-10 pr-10"
+        className="w-full py-2.5 rounded-lg bg-black/50 border border-white/10 text-white placeholder-white/20 focus:border-[#44d6b5] focus:outline-none transition-all pl-10 pr-10 text-sm"
       />
       {trailing && <span className="absolute right-3 top-1/2 -translate-y-1/2">{trailing}</span>}
     </div>

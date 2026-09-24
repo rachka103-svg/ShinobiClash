@@ -4,7 +4,7 @@
 import { toast } from "sonner";
 import api, { formatApiErrorDetail } from "@/lib/api";
 
-export const ENERGY_COST = { campaign: 10, spire: 0, trial: 8 };
+export const ENERGY_COST = { campaign: 5, spire: 0, trial: 8 };
 
 // Campaign difficulty tiers. `mult` scales enemy HP/ATK/DEF client-side;
 // `expMult` scales exp rewards server-side (extreme capped at x25).
@@ -20,6 +20,7 @@ export function getDifficulty(id) {
 }
 
 export async function startBattle({ mode, id, navigate, setUser, difficulty, spirePath }) {
+  const toastId = toast.loading("Preparing battle…", { duration: 8000 });
   try {
     const payload = { mode, id: String(id) };
     if (spirePath && mode === "spire") payload.spire_path = spirePath;
@@ -31,8 +32,10 @@ export async function startBattle({ mode, id, navigate, setUser, difficulty, spi
     // Stash spire path so Battle.jsx can generate path-specific enemies
     if (spirePath && mode === "spire") sessionStorage.setItem("spire_path", spirePath);
     else sessionStorage.removeItem("spire_path");
+    toast.dismiss(toastId);
     navigate(`/battle/${mode}/${id}`);
   } catch (e) {
+    toast.dismiss(toastId);
     toast.error(formatApiErrorDetail(e?.response?.data?.detail) || "Unable to start battle");
   }
 }

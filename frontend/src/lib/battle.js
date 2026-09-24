@@ -3,6 +3,7 @@
 
 import { spireFloorConfig, pickRarity, getSpirePath, pickPathElement } from "./spireConfig";
 import { spireEnemyProgression } from "./enemyProgression";
+import { RARITY_LEVEL_GROWTH, RARITY_ASCENSION_GROWTH, computeStatsForRarity } from "./gameConstants";
 import {
   classifyDamageType,
   getCombatModifiers,
@@ -125,8 +126,12 @@ function normalizeCritMultiplier(v) {
 export function computeStats(template, level, ascension = 0) {
   const b = template.base_stats;
 
-  const gl = 1 + 0.09 * (level - 1);
-  const ga = 1 + 0.12 * ascension;
+  // Rarity-scaled growth rates (mirrors backend RARITY_*_GROWTH) so even
+  // legacy/ Trial enemies that lack a pre-computed stats_override grow at
+  // their tier's pace rather than a flat rate.
+  const r = template.rarity;
+  const gl = 1 + (RARITY_LEVEL_GROWTH[r] ?? 0.09) * (level - 1);
+  const ga = 1 + (RARITY_ASCENSION_GROWTH[r] ?? 0.12) * ascension;
 
   // Crit stats come from the backend as percentages (e.g. 6, 145).
   // Normalize to decimal (0.06, 1.45) at this boundary.
@@ -643,7 +648,8 @@ export function buildCombatant(
   passiveUnlocked = true,
   reforge = null,
   combatModifiers = null,
-  synergyBonuses = null
+  synergyBonuses = null,
+  portraitOverride = null
 ) {
   if (!template) {
     console.error("[buildCombatant] Missing template for uid:", uid, "side:", side);
@@ -753,7 +759,7 @@ export function buildCombatant(
     side,
 
     templateId: template.id,
-    portrait: template.portrait,
+    portrait: portraitOverride || template.portrait,
     name: template.name,
     element: template.element,
     rarity: template.rarity,
@@ -995,6 +1001,9 @@ export function spireEnemies(
         template_id: b.id,
         level: bossLevel,
         ascension: prog.ascension,
+        evolved_rarity: prog.evolvedRarity,
+        stars: prog.stars,
+        transformation: prog.transformation,
         gear_bonus: prog.gearBonus,
         skill_rank: prog.skillRank,
         passive_locked: prog.passiveLocked,
@@ -1046,6 +1055,8 @@ export function spireEnemies(
       template_id: tmpl.id,
       level: enemyLevel,
       ascension: prog.ascension,
+      evolved_rarity: prog.evolvedRarity,
+      stars: prog.stars,
       gear_bonus: prog.gearBonus,
       skill_rank: prog.skillRank,
       passive_locked: prog.passiveLocked,
