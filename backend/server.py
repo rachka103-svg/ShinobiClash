@@ -279,6 +279,11 @@ class StarUpIn(BaseModel):
     instance_id: str
 
 
+class AutoEvolveIn(BaseModel):
+    instance_id: str
+    target_star: int  # the star to rush-evolve to (current+1 .. stars_max)
+
+
 class ReforgeIn(BaseModel):
     instance_id: str
     jutsu_id: str
@@ -2191,6 +2196,73 @@ async def evolve_hero(body: EvolveIn, user: dict = Depends(get_current_user)):
 async def star_up(body: StarUpIn, user: dict = Depends(get_current_user)):
     """Legacy route — kept for compatibility; defaults to Hero Shards."""
     return await _do_evolve(body.instance_id, user, "shards", [])
+
+
+@api_router.post("/game/hero/auto-evolve")
+async def auto_evolve(body: AutoEvolveIn, user: dict = Depends(get_current_user)):
+    """Rush-evolve a hero from its current star to ``target_star`` in a single
+    operation, consuming the accumulated shard / Ryo / material costs for
+    every intermediate star level at once. Only the Hero Shards route is
+    supported (fodder involves consuming heroes, which is inherently
+    one-step-at-a-time)."""
+    inst = next((i for i in user.get("ninjas", []) if i["instance_id"] == body.instance_id), None)
+    if not inst:
+        raise HTTPException(status_code=404, detail="Hero not found")
+    tmpl = gd.CATALOG_BY_ID.get(inst["template_id"])
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Hero template not found")
+    stars = inst.get("stars", 1)
+    rarity = ex.effective_rarity(inst, tmpl)
+    stars_max = gd.max_stars_for_rarity(rarity)
+    target = body.target_star
+    if target <= stars:
+        raise HTTPException(status_code=400, detail="Target star must be higher than current stars")
+    if target > stars_max:
+        raise HTTPException(status_code=400, detail=f"Target star exceeds the {rarity} cap of {stars_max}★ — Ascend to raise the cap")
+
+    # Accumulate costs for every star transition from current → target
+    total_shards = 0
+    total_ryo = 0
+    total_items = {}
+    for s in range(stars, target):
+        cost = gd.evolution_cost(rarity, s, tmpl.get("element"))
+        if not cost:
+            raise HTTPException(status_code=400, detail=f"Evolution is unavailable at {s}★")
+        total_shards += cost["shards"]
+        total_ryo += cost["ryo"]
+        for iid, qty in cost["items"].items():
+            total_items[iid] = total_items.get(iid, 0) + qty
+
+    # Validate the player can afford the full cost
+    hero_shards = user.setdefault("hero_shards", {})
+    have_shards = hero_shards.get(inst["template_id"], 0)
+    if have_shards < total_shards:
+        raise HTTPException(status_code=400, detail=f"Not enough shards ({have_shards}/{total_shards}) to reach {target}★")
+    if user.get("ryo", 0) < total_ryo:
+        raise HTTPException(status_code=400, detail=f"Not enough Ryo — need {total_ryo}, have {user.get('ryo', 0)}")
+    inventory = user.get("inventory", {})
+    for iid, qty in total_items.items():
+        if inventory.get(iid, 0) < qty:
+            name = gd.ITEMS.get(iid, {}).get("name", iid)
+            raise HTTPException(status_code=400, detail=f"Not enough {name} ({inventory.get(iid, 0)}/{qty})")
+
+    # Deduct all costs at once
+    hero_shards[inst["template_id"]] = have_shards - total_shards
+    user["ryo"] = user["ryo"] - total_ryo
+    for iid, qty in total_items.items():
+        inventory[iid] -= qty
+    inst["stars"] = target
+    user["inventory"] = inventory
+
+    bump_mission(user, "evolve")
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {
+        "ninjas": user["ninjas"], "hero_shards": hero_shards, "ryo": user["ryo"],
+        "inventory": inventory, "daily": user["daily"], "achievements": user.get("achievements")}})
+    return {
+        "profile": public_user(user), "instance_id": inst["instance_id"],
+        "stars": inst["stars"], "from_star": stars, "to_star": target,
+        "total_shards": total_shards, "total_ryo": total_ryo, "total_items": total_items,
+    }
 
 
 @api_router.post("/game/hero/transcend")

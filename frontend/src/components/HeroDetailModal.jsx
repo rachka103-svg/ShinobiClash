@@ -21,6 +21,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { getItemSource } from "@/lib/itemSources";
+import { getAutoEvolveTotalCost } from "@/lib/evolution";
 
 const CRYSTAL_STAT_LABEL = { hp: "HP", atk: "ATK", def: "DEF", spd: "SPD" };
 
@@ -66,6 +67,8 @@ export default function HeroDetailModal({
   const [selectedFodder, setSelectedFodder] = useState([]);
   const [allowSSRFodder, setAllowSSRFodder] = useState(false);
   const [showEvoConfirm, setShowEvoConfirm] = useState(false);
+  const [autoEvolveTarget, setAutoEvolveTarget] = useState(null);
+  const [showAutoEvolveConfirm, setShowAutoEvolveConfirm] = useState(false);
   const [skinBusy, setSkinBusy] = useState(false);
   const teamIds = new Set(user?.team || []);
   const fodderCandidates = useMemo(() => {
@@ -161,6 +164,37 @@ const frame = rarityFrame(effectiveRarity);
       toast.success(`Evolved to ${data.stars}\u2605! Permanent stat surge unlocked.`);
       setShowEvoConfirm(false);
       setSelectedFodder([]);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setBusyLocal(false); }
+  };
+
+  // ---------- Auto-evolve (rush multiple stars at once) ----------
+  const currentStars = instance?.stars || 1;
+  const starsMax = instance?.stars_max || 6;
+  const autoEvolveData = useMemo(() => {
+    if (!evoCost || currentStars >= starsMax) return { steps: [], shards: 0, ryo: 0, items: {} };
+    return getAutoEvolveTotalCost(effectiveRarity, currentStars, starsMax, template.element);
+  }, [evoCost, currentStars, starsMax, effectiveRarity, template.element]);
+  const autoEvolveSteps = autoEvolveData.steps;
+  const autoEvolveTotal = { shards: autoEvolveData.shards, ryo: autoEvolveData.ryo, items: autoEvolveData.items };
+  const autoEvolveAffordable = autoEvolveSteps.length > 0 &&
+    shardsOwned >= autoEvolveTotal.shards &&
+    (user?.ryo || 0) >= autoEvolveTotal.ryo &&
+    Object.entries(autoEvolveTotal.items).every(([iid, q]) => (inv[iid] || 0) >= q);
+
+  const doAutoEvolve = async () => {
+    if (!autoEvolveTarget) return;
+    setBusyLocal(true);
+    try {
+      const { data } = await api.post("/game/hero/auto-evolve", {
+        instance_id: instance.instance_id,
+        target_star: autoEvolveTarget,
+      });
+      setUser(data.profile);
+      toast.success(`Auto-evolved from ${data.from_star}★ to ${data.to_star}★! Rush evolution complete.`);
+      setShowAutoEvolveConfirm(false);
+      setAutoEvolveTarget(null);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setBusyLocal(false); }
@@ -362,6 +396,65 @@ const frame = rarityFrame(effectiveRarity);
           items={items}
           hasSSR={evoMethod === "fodder" && selectedHasSSR}
         />
+
+        {/* Auto-evolve confirmation */}
+        {showAutoEvolveConfirm && autoEvolveTarget && (() => {
+          let cumShards = 0, cumRyo = 0;
+          const cumItems = {};
+          for (const s of autoEvolveSteps) {
+            cumShards += s.cost.shards;
+            cumRyo += s.cost.ryo;
+            for (const [iid, q] of Object.entries(s.cost.items || {}))
+              cumItems[iid] = (cumItems[iid] || 0) + q;
+            if (s.to === autoEvolveTarget) break;
+          }
+          return (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" data-testid="auto-evolve-confirm-dialog">
+              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={busyLocal ? undefined : () => setShowAutoEvolveConfirm(false)} />
+              <div className="relative w-full max-w-sm rounded-2xl bg-[#0F0F1A] border border-white/15 shadow-2xl overflow-hidden">
+                <div className="px-5 pt-5 pb-3 text-center">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/30 mb-3">
+                    <ChevronsUp className="w-3.5 h-3.5 text-amber-300" />
+                    <span className="font-display text-xs tracking-widest text-amber-300">AUTO EVOLVE TO {autoEvolveTarget}★</span>
+                  </div>
+                  <h3 className="font-display text-2xl text-white tracking-wide">{template?.name}</h3>
+                  <p className="text-xs text-slate-400 mt-1">{currentStars}★ → {autoEvolveTarget}★ · {autoEvolveSteps.findIndex(s => s.to === autoEvolveTarget) + 1} star levels at once</p>
+                </div>
+                <div className="px-5 pb-3 space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Total Consuming</p>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03]">
+                    <Star className="w-3.5 h-3.5 text-amber-300" />
+                    <span className="text-xs text-slate-300 flex-1">{template.name} Shards</span>
+                    <span className="text-xs font-bold text-amber-300">×{cumShards}</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03]">
+                    <Coins className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-xs text-slate-300 flex-1">Ryo</span>
+                    <span className="text-xs font-bold text-amber-400">×{cumRyo.toLocaleString()}</span>
+                  </div>
+                  {Object.entries(cumItems).map(([iid, q]) => (
+                    <div key={iid} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03]">
+                      <Sparkles className="w-3.5 h-3.5" style={{ color: items?.[iid]?.color || "#9E9E9E" }} />
+                      <span className="text-xs text-slate-300 flex-1">{items?.[iid]?.name || iid}</span>
+                      <span className="text-xs font-bold" style={{ color: items?.[iid]?.color || "#9E9E9E" }}>×{q}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mx-5 mb-3 rounded-lg bg-emerald-500/8 border border-emerald-500/20 px-3 py-2 flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-xs text-emerald-400">{template?.name} → {autoEvolveTarget}★</span>
+                </div>
+                <p className="text-[10px] text-slate-500 text-center px-5 pb-3">This action cannot be undone.</p>
+                <div className="flex gap-2 px-5 pb-5">
+                  <button onClick={() => setShowAutoEvolveConfirm(false)} disabled={busyLocal} data-testid="auto-evolve-confirm-cancel" className="flex-1 py-2.5 rounded-xl font-display text-sm tracking-wide text-slate-400 border border-white/10 hover:bg-white/5 transition-colors disabled:opacity-40">CANCEL</button>
+                  <button onClick={doAutoEvolve} disabled={busyLocal} data-testid="auto-evolve-confirm-yes" className="flex-1 py-2.5 rounded-xl font-display text-sm tracking-wide bg-gradient-to-r from-amber-400 to-amber-300 text-[#05050A] hover:from-amber-300 hover:to-amber-200 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+                    {busyLocal ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronsUp className="w-4 h-4" />} CONFIRM
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {immersive ? (
           /* ---------- Immersive: art-only, info hidden ---------- */
@@ -727,6 +820,90 @@ const frame = rarityFrame(effectiveRarity);
                       EVOLVE TO {(instance.stars || 1) + 1}★
                     </button>
                     {!evoAffordable && <p className="text-[10px] text-slate-500 mt-2 text-center">Choose Hero Shards or Elemental Fodder. Ryo and progression materials are shared between both methods.</p>}
+
+                    {/* ---------- AUTO EVOLVE (rush multiple stars) ---------- */}
+                    {autoEvolveSteps.length > 1 && (
+                      <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-3" data-testid="auto-evolve-panel">
+                        <div className="flex items-center gap-2 mb-1">
+                          <ChevronsUp className="w-4 h-4 text-amber-300" />
+                          <p className="font-display text-sm tracking-wide text-ink">AUTO EVOLVE</p>
+                          <span className="ml-auto text-[10px] text-slate-500">Rush to any star with shards</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mb-3">Skip the grind — evolve from {currentStars}★ to your target star in one step. Uses Hero Shards only.</p>
+
+                        {/* Target star selector */}
+                        <div className="flex flex-wrap gap-1.5 mb-3" data-testid="auto-evolve-targets">
+                          {autoEvolveSteps.map((step) => {
+                            const star = step.to;
+                            const isSelected = autoEvolveTarget === star;
+                            // Compute cumulative cost up to this star
+                            let cumShards = 0, cumRyo = 0;
+                            const cumItems = {};
+                            for (const s of autoEvolveSteps) {
+                              cumShards += s.cost.shards;
+                              cumRyo += s.cost.ryo;
+                              for (const [iid, q] of Object.entries(s.cost.items || {}))
+                                cumItems[iid] = (cumItems[iid] || 0) + q;
+                              if (s.to === star) break;
+                            }
+                            const canAfford = shardsOwned >= cumShards && (user?.ryo || 0) >= cumRyo &&
+                              Object.entries(cumItems).every(([iid, q]) => (inv[iid] || 0) >= q);
+                            return (
+                              <button
+                                key={star}
+                                onClick={() => setAutoEvolveTarget(isSelected ? null : star)}
+                                disabled={!canAfford}
+                                data-testid={`auto-evolve-target-${star}`}
+                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                                  isSelected
+                                    ? "bg-amber-400 text-[#101010] border border-amber-400"
+                                    : canAfford
+                                    ? "bg-amber-400/10 text-amber-300 border border-amber-400/30 hover:bg-amber-400/20"
+                                    : "bg-black/[0.04] text-slate-400 border border-black/10 opacity-50"
+                                }`}
+                              >
+                                <Star className="w-3 h-3" />{star}★
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Selected target cost preview */}
+                        {autoEvolveTarget && (() => {
+                          let cumShards = 0, cumRyo = 0;
+                          const cumItems = {};
+                          for (const s of autoEvolveSteps) {
+                            cumShards += s.cost.shards;
+                            cumRyo += s.cost.ryo;
+                            for (const [iid, q] of Object.entries(s.cost.items || {}))
+                              cumItems[iid] = (cumItems[iid] || 0) + q;
+                            if (s.to === autoEvolveTarget) break;
+                          }
+                          return (
+                            <div className="space-y-1.5 mb-3 rounded-lg bg-black/[0.04] p-2.5" data-testid="auto-evolve-cost-preview">
+                              <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Total cost: {currentStars}★ → {autoEvolveTarget}★</p>
+                              <CostRow icon={<Star className="w-4 h-4 text-amber-300" />} label={`${template.name} Shards`} have={shardsOwned} need={cumShards} testid="auto-evolve-cost-shards" />
+                              <CostRow icon={<Coins className="w-4 h-4 text-amber-400" />} label="Ryo" have={user?.ryo || 0} need={cumRyo} testid="auto-evolve-cost-ryo" />
+                              {Object.entries(cumItems).map(([iid, q]) => (
+                                <CostRow key={iid} icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />} label={items[iid]?.name || iid} have={inv[iid] || 0} need={q} testid={`auto-evolve-cost-${iid}`} itemId={iid} onGoToSource={goToItemSource} />
+                              ))}
+                            </div>
+                          );
+                        })()}
+
+                        {autoEvolveTarget && (
+                          <button
+                            onClick={() => setShowAutoEvolveConfirm(true)}
+                            disabled={busy}
+                            data-testid="auto-evolve-confirm-button"
+                            className="w-full py-2.5 rounded-xl font-display text-sm tracking-wide bg-gradient-to-r from-amber-500 to-amber-400 text-[#101010] hover:from-amber-400 hover:to-amber-300 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                          >
+                            <ChevronsUp className="w-4 h-4" />
+                            AUTO EVOLVE TO {autoEvolveTarget}★
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </>
                 ) : ascTarget ? (
                   <>
