@@ -70,9 +70,9 @@ export default function HeroDetailModal({
   const [autoEvolveTarget, setAutoEvolveTarget] = useState(null);
   const [showAutoEvolveConfirm, setShowAutoEvolveConfirm] = useState(false);
   const [skinBusy, setSkinBusy] = useState(false);
-  const teamIds = new Set(user?.team || []);
   const fodderCandidates = useMemo(() => {
     if (!instance || !template?.element) return [];
+    const teamIds = new Set(user?.team || []);
     // Merge template data (name, portrait, element) onto each raw instance —
     // the backend hydrates `element` but `name`/`portrait` live only on the
     // catalog template.  Instance-specific fields (stars, rarity, locked, etc.)
@@ -92,7 +92,7 @@ export default function HeroDetailModal({
         const br = rank[b.evolved_rarity || b.rarity] || 9;
         return ar - br || (a.stars || 1) - (b.stars || 1);
       });
-  }, [user?.ninjas, user?.team, instance?.instance_id, template?.element, catalogById]);
+  }, [user?.ninjas, user?.team, instance, template?.element, catalogById]);
 
   // ---------- Values needed by hooks before the early return ----------
   const evoCost = instance?.evolution_cost || null;
