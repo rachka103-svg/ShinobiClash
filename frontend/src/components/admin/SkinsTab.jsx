@@ -244,7 +244,7 @@ export default function SkinsTab() {
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <Upload className="w-3.5 h-3.5 text-chakra" />
-            <span>Images are stored as data URLs in the game config</span>
+            <span>Images are saved as files and served from /custom/skins</span>
           </div>
         </div>
       </div>

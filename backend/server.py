@@ -45,6 +45,11 @@ rng = secrets.SystemRandom()
 # Generated/uploaded portraits are written here and served by the frontend at /custom/<id>.png
 CUSTOM_DIR = ROOT_DIR.parent / "frontend" / "public" / "custom"
 CUSTOM_DIR.mkdir(parents=True, exist_ok=True)
+# Skin images are stored as files here (served at /custom/skins/<id>.png) and
+# referenced by URL. Keeping them out of the catalog/profile JSON is what keeps
+# those payloads small — embedding them as base64 made each response ~14-21MB.
+SKINS_DIR = CUSTOM_DIR / "skins"
+SKINS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # Setup
@@ -3288,6 +3293,48 @@ def _save_portrait_png(hid: str, image_b64: str) -> str:
     return f"/custom/{hid}.png?v={int(time.time())}"
 
 
+def _save_skin_png(skin_id: str, image: str) -> str:
+    """Write an uploaded skin image to disk and return its public URL.
+
+    Skins travel to the client inside the game catalog and user profile, so
+    they must be URLs rather than inline base64 blobs.
+    """
+    if "," in image and image.strip().startswith("data:"):
+        image = image.split(",", 1)[1]
+    try:
+        data = base64.b64decode(image)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid image data")
+    if len(data) > 6 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large (max 6MB)")
+    is_png = data[:8] == b"\x89PNG\r\n\x1a\n"
+    is_jpg = data[:3] == b"\xff\xd8\xff"
+    if not (is_png or is_jpg):
+        raise HTTPException(status_code=400, detail="Image must be a PNG or JPEG")
+    (SKINS_DIR / f"{skin_id}.png").write_bytes(data)
+    return f"/custom/skins/{skin_id}.png?v={int(time.time())}"
+
+
+def _externalize_skin_images() -> bool:
+    """Move base64 skin images out of the stored catalog into served files.
+
+    Older saves embedded the whole image in the game config, which inflated
+    every profile/catalog response. Returns True when something was migrated.
+    """
+    changed = False
+    for skins in gd._SKINS.values():
+        for skin in skins:
+            image = skin.get("image") or ""
+            if not image.startswith("data:"):
+                continue
+            try:
+                skin["image"] = _save_skin_png(skin["id"], image)
+                changed = True
+            except HTTPException:
+                logger.warning("Could not externalize skin image %s", skin.get("id"))
+    return changed
+
+
 async def _ai_hero_design(body: HeroGenerateIn) -> dict:
     """Use the LLM to design stats/lore/element/role as structured JSON."""
     key = os.environ["EMERGENT_LLM_KEY"]
@@ -3542,7 +3589,7 @@ async def admin_save_skin(body: SkinSaveIn, _: dict = Depends(get_admin_user)):
     if body.template_id not in gd.CATALOG_BY_ID:
         raise HTTPException(status_code=404, detail="Hero template not found")
     skin_id = _unique_id(f"skin_{_slugify(body.name)}")
-    skin = {"id": skin_id, "name": body.name.strip(), "image": body.image,
+    skin = {"id": skin_id, "name": body.name.strip(), "image": _save_skin_png(skin_id, body.image),
             "stat_bonuses": body.stat_bonuses or {}}
     gd.upsert_skin(body.template_id, skin)
     await persist_catalog_config()
@@ -3551,6 +3598,7 @@ async def admin_save_skin(body: SkinSaveIn, _: dict = Depends(get_admin_user)):
 
 @api_router.delete("/admin/skin/{template_id}/{skin_id}")
 async def admin_delete_skin(template_id: str, skin_id: str, _: dict = Depends(get_admin_user)):
+    (SKINS_DIR / f"{skin_id}.png").unlink(missing_ok=True)
     gd.remove_skin(template_id, skin_id)
     # Also clear this skin from any player instances that have it equipped
     await db.users.update_many(
@@ -4194,6 +4242,9 @@ async def root():
 async def startup():
     await db.users.create_index("email", unique=True)
     await load_catalog_config()
+    if _externalize_skin_images():
+        await persist_catalog_config()
+        logger.info("Externalized embedded skin images to /custom/skins")
     await load_banner()
     await load_economy()
     await load_gear_config()
