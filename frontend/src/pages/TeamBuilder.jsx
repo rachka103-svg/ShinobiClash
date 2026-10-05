@@ -13,6 +13,8 @@ import HeroDetailModal from "@/components/HeroDetailModal";
 import { useAudio } from "@/context/AudioContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
 import { evaluateTeamSynergy, TEAM_SYNERGIES } from "@/lib/teamSynergy";
+import { isIconUrl } from "@/lib/gameIcons";
+import { heroPortrait } from "@/lib/utils";
 
 const EL_ICON = { Fire: Flame, Water: Droplet, Wind: WindIcon, Earth: Mountain, Lightning: Zap, Dark: Moon, Light: Sun };
 const ELEMENTS = ["Fire", "Water", "Wind", "Earth", "Lightning", "Dark", "Light"];
@@ -26,14 +28,14 @@ const ascensionCost = (rarity, asc) => ({
 const StarRow = ({ n = 1, max = 6 }) => (
   <div className="flex gap-0.5">
     {Array.from({ length: max }).map((_, i) => (
-      <Star key={i} className="w-2.5 h-2.5" style={{ color: i < n ? "#FFCA28" : "#3a3a44", fill: i < n ? "#FFCA28" : "transparent" }} />
+      <Star key={i} className="w-2.5 h-2.5" style={{ color: i < n ? "#E5A540" : "#3a3a44", fill: i < n ? "#E5A540" : "transparent" }} />
     ))}
   </div>
 );
 
 export default function TeamBuilder() {
   const { user, setUser } = useAuth();
-  const { catalogById, items } = useGame();
+  const { catalogById, catalog, items } = useGame();
   const { playSfx } = useAudio();
   const [team, setTeam] = useState(user?.team || []);
   const [busy, setBusy] = useState(false);
@@ -43,6 +45,7 @@ export default function TeamBuilder() {
   const [rarFilter, setRarFilter] = useState("ALL");
   const [rarOpen, setRarOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [unlockBusy, setUnlockBusy] = useState(null);
 
   const cap = user?.team_cap || 3;
   const nextSlotLevel = user?.next_slot_level || null;
@@ -59,6 +62,22 @@ export default function TeamBuilder() {
     [user?.ninjas, catalogById]
   );
   const ownedById = useMemo(() => Object.fromEntries(owned.map((o) => [o.instance_id, o])), [owned]);
+  const ownedTemplateIds = useMemo(() => new Set(owned.map((o) => o.template_id)), [owned]);
+
+  // Heroes the player doesn't own yet but has 100+ shards for — shown as
+  // unlockable cards in the collection grid. Uses hero_shards keys (only
+  // regular heroes have shards) + catalogById for template data, avoiding
+  // the stale catalog array.
+  const unlockable = useMemo(
+    () => Object.entries(user?.hero_shards || {})
+      .filter(([id, count]) => count >= 100 && !ownedTemplateIds.has(id))
+      .map(([id, count]) => {
+        const t = catalogById[id];
+        return t ? { ...t, _unlockable: true, shards: count } : null;
+      })
+      .filter(Boolean),
+    [catalogById, ownedTemplateIds, user?.hero_shards]
+  );
 
   const toggle = (uid) => {
     if (team.includes(uid)) setTeam(team.filter((t) => t !== uid));
@@ -86,11 +105,26 @@ export default function TeamBuilder() {
   }, [teamTmpls]);
 
   const filtered = useMemo(() => {
-    return owned
+    return [...owned, ...unlockable]
       .filter((o) => (elFilter === "ALL" || o.element === elFilter) && (rarFilter === "ALL" || o.rarity === rarFilter))
       .sort((a, b) => (RARITY_RANK[b.rarity] - RARITY_RANK[a.rarity]) || (b.power || 0) - (a.power || 0));
-  }, [owned, elFilter, rarFilter]);
+  }, [owned, unlockable, elFilter, rarFilter]);
   const visible = showAll ? filtered : filtered.slice(0, 12);
+
+  const unlockHero = async (templateId) => {
+    setUnlockBusy(templateId);
+    try {
+      const { data } = await api.post("/game/hero/unlock", { template_id: templateId });
+      setUser(data.profile);
+      playSfx("levelup");
+      toast.success(`${data.unlocked.name} unlocked!`);
+    } catch (err) {
+      playSfx("error");
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally {
+      setUnlockBusy(null);
+    }
+  };
 
   const autoForm = () => {
     const best = [...owned].sort((a, b) => (b.power || 0) - (a.power || 0)).slice(0, cap).map((o) => o.instance_id);
@@ -178,7 +212,7 @@ export default function TeamBuilder() {
             </div>
           </div>
           <button onClick={save} disabled={busy || team.length === 0} data-testid="save-team-button"
-            className="flex items-center gap-2 px-5 py-3 rounded-xl font-display text-lg tracking-wide bg-chakra text-[#05050A] hover:bg-cyan-300 transition-colors disabled:opacity-50">
+            className="flex items-center gap-2 px-5 py-3 rounded-xl font-display text-lg tracking-wide bg-chakra text-[#101010] hover:bg-[#F0B855] transition-colors disabled:opacity-50">
             {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} SAVE SQUAD
           </button>
           <button onClick={autoForm} data-testid="auto-form-button"
@@ -210,7 +244,7 @@ export default function TeamBuilder() {
                     <span>Lv.{unlockLevel}</span>
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-slate-800/60 overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${progress}%`, background: "linear-gradient(90deg, #6366f1, #818cf8)" }} />
+                    <div className="h-full rounded-full" style={{ width: `${progress}%`, background: "linear-gradient(90deg, #E5A540, #F0B855)" }} />
                   </div>
                 </div>
               </div>
@@ -244,7 +278,9 @@ export default function TeamBuilder() {
             {synergy.active.map((s) => (
               <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/[0.04] border border-black/10"
                 title={s.label}>
-                <span className="text-lg">{s.icon}</span>
+                {isIconUrl(s.icon)
+                  ? <img src={s.icon} alt={s.name} className="w-5 h-5 rounded object-cover" />
+                  : <span className="text-lg">{s.icon}</span>}
                 <div className="leading-tight">
                   <p className="text-sm font-semibold text-ink">{s.name}</p>
                   <p className="text-[10px] text-slate-500">{s.label}</p>
@@ -277,7 +313,7 @@ export default function TeamBuilder() {
       {/* ===================== Collection ===================== */}
       <div className="flex items-center gap-3 flex-wrap mb-3">
         <h2 className="font-display text-2xl tracking-wide text-ink">SHINOBI COLLECTION</h2>
-        <span className="text-sm text-slate-500" data-testid="collection-count">{owned.length} / 60</span>
+        <span className="text-sm text-slate-500" data-testid="collection-count">{owned.length} / {catalog.length}</span>
         <div className="flex items-center gap-1.5 ml-auto flex-wrap">
           <ElChip active={elFilter === "ALL"} onClick={() => setElFilter("ALL")} testid="el-filter-ALL"><span className="text-xs font-bold px-1">ALL</span></ElChip>
           {ELEMENTS.map((el) => {
@@ -313,10 +349,14 @@ export default function TeamBuilder() {
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3" data-testid="shinobi-collection">
-        {visible.map((n) => (
-          <CollectionCard key={n.instance_id} hero={n} slot={team.indexOf(n.instance_id)} squadFull={team.length >= cap}
-            onView={() => setDetailId(n.instance_id)} onToggle={() => toggle(n.instance_id)} />
-        ))}
+        {visible.map((n) =>
+          n._unlockable ? (
+            <UnlockableCard key={n.id} hero={n} onUnlock={() => unlockHero(n.id)} busy={unlockBusy === n.id} />
+          ) : (
+            <CollectionCard key={n.instance_id} hero={n} slot={team.indexOf(n.instance_id)} squadFull={team.length >= cap}
+              onView={() => setDetailId(n.instance_id)} onToggle={() => toggle(n.instance_id)} />
+          )
+        )}
       </div>
       {visible.length === 0 && <p className="text-center text-slate-500 py-10">No shinobi match these filters.</p>}
 
@@ -355,8 +395,8 @@ const SquadSlotCard = ({ hero, index, onView, onRemove }) => {
       className="relative aspect-[3/4.2] rounded-2xl overflow-hidden text-left group cursor-pointer"
       style={{ border: `${fr.strokeWidth}px solid ${fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color}`, boxShadow: `0 0 34px ${(fr.useCrimson ? CRIMSON.base : fr.useGold ? GOLD.base : r.color)}33` }}
       onClick={onView}>
-      <img src={hero.portrait} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" />
-      <div className="absolute inset-0" style={{ background: `linear-gradient(to top, #05050Af2 6%, #05050A66 42%, transparent 70%)` }} />
+      <img src={heroPortrait(hero)} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" />
+      <div className="absolute inset-0" style={{ background: `linear-gradient(to top, #101010f2 6%, #10101066 42%, transparent 70%)` }} />
       {fr.cornerLevel >= 2 && <DecoCorners rarity={hero.rarity} size={18} />}
 
       <button onClick={(e) => { e.stopPropagation(); onRemove(); }} data-testid={`squad-remove-${index}`}
@@ -387,14 +427,14 @@ const CollectionCard = ({ hero, slot, squadFull, onView, onToggle }) => {
   return (
     <div data-testid={`team-card-${hero.template_id}`}
       className="relative aspect-[3/4] rounded-xl overflow-hidden text-left group transition-transform active:scale-95 cursor-pointer"
-      style={{ border: `${selected ? 2 : fr.strokeWidth}px solid ${selected ? "#00E5FF" : (fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color + "aa")}`, boxShadow: selected ? "0 0 22px #00E5FF66" : `0 0 12px ${r.color}22` }}
+      style={{ border: `${selected ? 2 : fr.strokeWidth}px solid ${selected ? "#E5A540" : (fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color + "aa")}`, boxShadow: selected ? "0 0 22px #E5A54066" : `0 0 12px ${r.color}22` }}
       onClick={onView}>
-      <img src={hero.portrait} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" loading="lazy" />
-      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #05050Af5 8%, #05050A55 45%, transparent 72%)" }} />
+      <img src={heroPortrait(hero)} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top" loading="lazy" />
+      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #101010f5 8%, #10101055 45%, transparent 72%)" }} />
       {fr.cornerLevel >= 2 && <DecoCorners rarity={hero.rarity} size={12} />}
 
       {selected && (
-        <span className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 w-6 h-6 rounded-full bg-chakra text-[#05050A] flex items-center justify-center font-display text-sm" style={{ boxShadow: "0 0 10px #00E5FF" }}>{slot + 1}</span>
+        <span className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 w-6 h-6 rounded-full bg-chakra text-[#101010] flex items-center justify-center font-display text-sm" style={{ boxShadow: "0 0 10px #E5A540" }}>{slot + 1}</span>
       )}
 
       {/* quick add / remove */}
@@ -402,7 +442,7 @@ const CollectionCard = ({ hero, slot, squadFull, onView, onToggle }) => {
         data-testid={`team-toggle-${hero.template_id}`}
         className="absolute bottom-1.5 right-1.5 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all disabled:opacity-30"
         title={selected ? "Remove from squad" : "Add to squad"}
-        style={selected ? { background: "#00E5FF", color: "#05050A" } : { background: "rgba(0,0,0,0.6)", border: "1px solid rgba(0,229,255,0.5)", color: "#00E5FF" }}>
+        style={selected ? { background: "#E5A540", color: "#101010" } : { background: "rgba(0,0,0,0.6)", border: "1px solid rgba(229,165,64,0.5)", color: "#E5A540" }}>
         {selected ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
       </button>
 
@@ -430,10 +470,45 @@ const Synergy = ({ icon: Icon, color, label, main }) => (
   </div>
 );
 
-const ElChip = ({ active, color = "#00E5FF", onClick, children, testid }) => (
+const ElChip = ({ active, color = "#E5A540", onClick, children, testid }) => (
   <button onClick={onClick} data-testid={testid}
     className="w-9 h-9 rounded-lg flex items-center justify-center transition-all shrink-0"
     style={active ? { background: `${color}22`, color, border: `1px solid ${color}` } : { color: "rgba(148,163,184,0.85)", border: "1px solid rgba(255,255,255,0.1)" }}>
     {children}
   </button>
 );
+
+const UnlockableCard = ({ hero, onUnlock, busy }) => {
+  const r = RARITY[hero.rarity] || RARITY.R;
+  const fr = rarityFrame(hero.rarity);
+  return (
+    <div data-testid={`unlock-card-${hero.id}`}
+      className="relative aspect-[3/4] rounded-xl overflow-hidden text-left group transition-transform active:scale-95"
+      style={{ border: `${fr.strokeWidth}px solid ${fr.useCrimson ? CRIMSON.stroke : fr.useGold ? GOLD.stroke : r.color + "aa"}`, boxShadow: `0 0 12px ${r.color}22` }}>
+      <img src={heroPortrait(hero)} alt={hero.name} className="absolute inset-0 w-full h-full object-cover object-top opacity-40 grayscale" loading="lazy" />
+      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #101010f5 8%, #10101099 45%, #10101055 72%)" }} />
+      {fr.cornerLevel >= 2 && <DecoCorners rarity={hero.rarity} size={12} />}
+
+      <div className="absolute top-1.5 left-1.5 z-20 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/70 border border-white/15">
+        <Lock className="w-3 h-3 text-amber-300" />
+        <span className="text-[10px] font-bold text-amber-300">LOCKED</span>
+      </div>
+      <div className="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/70 border border-white/15">
+        <Star className="w-3 h-3 text-amber-300" />
+        <span className="text-[10px] font-bold text-white">{hero.shards}/100</span>
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 z-10 p-2">
+        <h4 className="font-display text-xs sm:text-sm tracking-wide text-white truncate">{hero.name}</h4>
+        <p className="text-[10px] text-slate-400">{hero.role}</p>
+      </div>
+
+      <button onClick={(e) => { e.stopPropagation(); onUnlock(); }} disabled={busy}
+        data-testid={`unlock-button-${hero.id}`}
+        className="absolute bottom-1.5 left-1.5 right-1.5 z-20 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-amber-500 text-[#101010] font-display text-sm tracking-wide hover:bg-amber-400 transition-colors disabled:opacity-50">
+        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+        {busy ? "UNLOCKING..." : "UNLOCK"}
+      </button>
+    </div>
+  );
+};

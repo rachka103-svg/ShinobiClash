@@ -3,6 +3,7 @@ import { Image } from "lucide-react";
 import { RARITY, ELEMENT, glow, scrimBottom, vignetteInset, rarityFrame, GOLD, CRIMSON } from "@/lib/theme";
 import { ElementIcon } from "@/components/ElementIcons";
 import { DecoCorners } from "@/components/RarityFx";
+import { heroPortrait } from "@/lib/utils";
 
 /**
  * HeroPortrait — the primary reusable hero-artwork component.
@@ -62,9 +63,9 @@ export default function HeroPortrait({
         "--frame-inset": frame.useCrimson ? CRIMSON.hairline : frame.useGold ? GOLD.hairline : "rgba(255,255,255,0.10)",
       }}
     >
-      {hero.portrait ? (
+      {heroPortrait(hero) ? (
         <img
-          src={hero.portrait}
+          src={heroPortrait(hero)}
           alt={hero.name}
           loading="lazy"
           className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"

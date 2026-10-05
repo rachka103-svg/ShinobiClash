@@ -85,7 +85,7 @@ export default function Campaign() {
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button data-testid="chapter-picker" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black/[0.04] border border-black/10 hover:bg-black/[0.06] transition-colors">
+            <button data-testid="chapter-picker" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 transition-colors" style={{ background: "rgba(11,11,20,0.8)" }}>
               <span className="font-display text-xl tracking-wide" style={{ color: accent }}>CH.{selectedChapter}</span>
               <span className="text-sm text-ink truncate max-w-[42vw]">{chapterMeta?.name}</span>
               <ChevronDown className="w-4 h-4 text-slate-500" />
@@ -129,9 +129,9 @@ export default function Campaign() {
                 active
                   ? "bg-chakra text-[#05050A]"
                   : unlocked
-                  ? "bg-white/[0.06] text-slate-400 hover:bg-white/[0.1] border border-white/10"
-                  : "bg-white/[0.02] text-slate-600 border border-white/5 cursor-not-allowed"
-              }`}
+                  ? "text-slate-300 hover:text-white border border-white/15 cursor-pointer"
+                  : "text-slate-600 border border-white/5 cursor-not-allowed"
+              }`} style={!active ? { background: "rgba(11,11,20,0.7)" } : undefined}
             >
               {d.label}
               {!unlocked && <span className="ml-1 text-[9px]">Lv{d.unlockLevel}</span>}
@@ -164,14 +164,23 @@ export default function Campaign() {
               data-testid={`stage-row-${stage.id}`}
               className="w-full text-left flex items-center gap-3 p-3 rounded-2xl border transition-all disabled:cursor-not-allowed group"
               style={{
-                background: locked ? "rgba(255,255,255,0.02)" : isBoss ? "linear-gradient(120deg, rgba(255,87,34,0.14), rgba(11,11,20,0.94)), #0B0B14" : "rgba(255,255,255,0.04)",
-                borderColor: state === "completed" ? "rgba(0,230,118,0.3)" : isBoss ? "rgba(255,87,34,0.4)" : "rgba(255,255,255,0.1)",
-                opacity: locked ? 0.55 : 1,
+                background: locked
+                  ? "rgba(11,11,20,0.5)"
+                  : isBoss
+                  ? "linear-gradient(120deg, rgba(255,87,34,0.12), rgba(11,11,20,0.85))"
+                  : state === "completed"
+                  ? "rgba(11,11,20,0.8)"
+                  : "rgba(11,11,20,0.75)",
+                borderColor: state === "completed"
+                  ? "rgba(0,230,118,0.25)"
+                  : isBoss ? "rgba(255,87,34,0.35)"
+                  : "rgba(255,255,255,0.1)",
+                opacity: locked ? 0.45 : 1,
               }}
             >
               {/* index / state */}
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-display text-lg"
-                style={{ background: state === "completed" ? "rgba(0,230,118,0.15)" : isBoss ? "rgba(255,87,34,0.18)" : "rgba(255,255,255,0.05)", color: state === "completed" ? "#00E676" : isBoss ? "#FF5722" : "#94a3b8" }}>
+                style={{ background: state === "completed" ? "rgba(0,230,118,0.1)" : isBoss ? "rgba(255,87,34,0.12)" : "rgba(255,255,255,0.05)", color: state === "completed" ? "#00E676" : isBoss ? "#FF5722" : "#cbd5e1" }}>
                 {locked ? <LockIcon size={16} /> : state === "completed" ? <CheckIcon size={20} /> : isBoss ? <CrownIcon size={20} /> : i + 1}
               </div>
 

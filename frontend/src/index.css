@@ -5,23 +5,25 @@
 @tailwind utilities;
 
 :root {
-    --chakra: #00B8D4;
+    --chakra: #E5A540;
     --fox: #FF5722;
-    --jutsu: #C020E0;
+    --jutsu: #A740E5;
     --ink: #241C33;
     --base: #F4EEE2;
     --panel: #FFFFFF;
 
     /* RGB triplets (space-separated) so Tailwind can apply opacity
        modifiers like bg-chakra/15 via rgb(var(--x-rgb) / <alpha-value>). */
-    --chakra-rgb: 0 184 212;
+    --chakra-rgb: 229 165 64;
     --fox-rgb: 255 87 34;
-    --jutsu-rgb: 192 32 224;
+    --jutsu-rgb: 167 64 229;
     --ink-rgb: 36 28 51;
+    --energy: #00E5FF;
+    --energy-rgb: 0 229 255;
 
-    --body-bg-color: #F4EEE2;
-    --body-bg-image: radial-gradient(120% 90% at 50% -10%, #FBF6EC 0%, #F1E9DA 55%, #ECE3D1 100%);
-    --body-color: #241C33;
+    --body-bg-color: #0d1117;
+    --body-bg-image: radial-gradient(120% 90% at 50% -10%, #17232d 0%, #0d1117 60%);
+    --body-color: #f0f5f5;
 
     --background: 42 40% 93%;
     --foreground: 260 28% 16%;
@@ -45,11 +47,11 @@
     --radius: 0.4rem;
 
     /* ---- Prestige gold tokens (kept, tuned for light surfaces) ---- */
-    --gold: #B8860B;
-    --gold-2: #C8A24A;
-    --gold-dim: rgba(184, 134, 11, 0.16);
-    --gold-hairline: rgba(184, 134, 11, 0.34);
-    --gold-stroke: rgba(184, 134, 11, 0.5);
+    --gold: #E5A540;
+    --gold-2: #F0B855;
+    --gold-dim: rgba(229, 165, 64, 0.22);
+    --gold-hairline: rgba(229, 165, 64, 0.38);
+    --gold-stroke: rgba(229, 165, 64, 0.55);
 
     --stroke-soft: rgba(30, 20, 50, 0.06);
     --stroke: rgba(30, 20, 50, 0.10);
@@ -120,65 +122,67 @@
    mode — no component-level branching required.
    ========================================================================== */
 .dark {
-    --chakra: #00E5FF;
-    --fox: #FF5722;
-    --jutsu: #D500F9;
-    --ink: #FFFFFF;
-    --base: #05050A;
-    --panel: #0B0B14;
+    --chakra: #44d6b5;
+    --fox: #c4a882;
+    --jutsu: #7eb8d4;
+    --ink: #f0f5f5;
+    --base: #0d1117;
+    --panel: #161b22;
 
-    --chakra-rgb: 0 229 255;
-    --fox-rgb: 255 87 34;
-    --jutsu-rgb: 213 0 249;
-    --ink-rgb: 255 255 255;
+    --chakra-rgb: 68 214 181;
+    --fox-rgb: 196 168 130;
+    --jutsu-rgb: 126 184 212;
+    --ink-rgb: 240 245 245;
+    --energy: #44d6b5;
+    --energy-rgb: 68 214 181;
 
-    --body-bg-color: #05050A;
-    --body-bg-image: none;
-    --body-color: #FFFFFF;
+    --body-bg-color: #0d1117;
+    --body-bg-image: radial-gradient(120% 90% at 50% -10%, #17232d 0%, #0d1117 60%);
+    --body-color: #f0f5f5;
 
-    --background: 240 33% 3%;
-    --foreground: 0 0% 100%;
-    --card: 240 30% 6%;
-    --card-foreground: 0 0% 100%;
-    --popover: 240 30% 6%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 187 100% 50%;
-    --primary-foreground: 240 33% 3%;
-    --secondary: 240 20% 14%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 240 16% 16%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 240 20% 16%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 350 100% 55%;
+    --background: 205 20% 7%;
+    --foreground: 180 20% 95%;
+    --card: 205 20% 10%;
+    --card-foreground: 180 20% 95%;
+    --popover: 205 20% 10%;
+    --popover-foreground: 180 20% 95%;
+    --primary: 170 57% 56%;
+    --primary-foreground: 205 20% 7%;
+    --secondary: 205 20% 14%;
+    --secondary-foreground: 180 20% 95%;
+    --muted: 205 20% 16%;
+    --muted-foreground: 200 12% 62%;
+    --accent: 205 20% 16%;
+    --accent-foreground: 180 20% 95%;
+    --destructive: 350 80% 52%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 20% 18%;
-    --input: 240 20% 16%;
-    --ring: 187 100% 50%;
+    --border: 200 20% 20%;
+    --input: 200 20% 16%;
+    --ring: 170 57% 56%;
 
-    --gold: #FFCA28;
-    --gold-2: #FFC857;
-    --gold-dim: rgba(255, 202, 40, 0.22);
-    --gold-hairline: rgba(255, 202, 40, 0.38);
-    --gold-stroke: rgba(255, 202, 40, 0.55);
+    --gold: #c4a882;
+    --gold-2: #d4c29f;
+    --gold-dim: rgba(196, 168, 130, 0.22);
+    --gold-hairline: rgba(196, 168, 130, 0.38);
+    --gold-stroke: rgba(196, 168, 130, 0.55);
 
-    --stroke-soft: rgba(255, 255, 255, 0.08);
-    --stroke: rgba(255, 255, 255, 0.12);
-    --stroke-hard: rgba(255, 255, 255, 0.18);
+    --stroke-soft: rgba(123, 158, 181, 0.08);
+    --stroke: rgba(123, 158, 181, 0.14);
+    --stroke-hard: rgba(123, 158, 181, 0.22);
 
-    --glass-border: rgba(255, 255, 255, 0.10);
-    --glass-bg: rgba(11, 11, 20, 0.65);
-    --glass-panel-bg: rgba(11, 11, 20, 0.62);
-    --panel-bg: linear-gradient(160deg, rgba(20, 22, 38, 0.9), rgba(8, 8, 16, 0.95));
-    --panel-inset-highlight: rgba(255, 255, 255, 0.06);
+    --glass-border: rgba(123, 158, 181, 0.18);
+    --glass-bg: rgba(13, 17, 23, 0.65);
+    --glass-panel-bg: rgba(22, 27, 34, 0.62);
+    --panel-bg: linear-gradient(160deg, rgba(22, 27, 34, 0.92), rgba(13, 17, 23, 0.96));
+    --panel-inset-highlight: rgba(123, 158, 181, 0.06);
     --shadow-deep: 0 18px 60px rgba(0, 0, 0, 0.55);
     --shadow-lift: 0 24px 80px rgba(0, 0, 0, 0.62);
 
-    --scrollbar-track: #0B0B14;
-    --scrollbar-thumb: #1f2640;
-    --scrollbar-thumb-hover: #00E5FF66;
-    --selection-bg: rgba(0, 229, 255, 0.3);
-    --selection-color: #fff;
+    --scrollbar-track: #161b22;
+    --scrollbar-thumb: #2a3a44;
+    --scrollbar-thumb-hover: #44d6b566;
+    --selection-bg: rgba(68, 214, 181, 0.3);
+    --selection-color: #f0f5f5;
 }
 
 * {

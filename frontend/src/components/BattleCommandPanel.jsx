@@ -74,12 +74,12 @@ export default function BattleCommandPanel({
         className="absolute bottom-0 left-0 right-0 z-20 glass border-t border-cyan-500/30 px-2 sm:px-3 py-1.5 sm:py-2"
         data-testid="command-panel"
       >
-        <div className="max-w-5xl mx-auto flex items-stretch gap-2 sm:gap-3">
+        <div className="max-w-5xl lg:max-w-6xl mx-auto flex items-stretch gap-2 sm:gap-3 lg:gap-4">
 
           {/* Left: Hero profile */}
-          <div className="flex items-center gap-1.5 shrink-0 w-28 sm:w-44">
+          <div className="flex items-center gap-1.5 shrink-0 w-28 sm:w-44 lg:w-56">
             <div
-              className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden border-2 shrink-0"
+              className="relative w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 rounded-lg overflow-hidden border-2 shrink-0"
               style={{
                 borderColor: el.color || "#94a3b8",
               }}
@@ -92,7 +92,7 @@ export default function BattleCommandPanel({
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="font-display text-sm sm:text-base text-white truncate leading-none">
+              <p className="font-display text-sm sm:text-base lg:text-lg text-white truncate leading-none">
                 {activeActor.name}
               </p>
 
@@ -102,7 +102,7 @@ export default function BattleCommandPanel({
                   size={12}
                 />
 
-                <p className="text-[9px] text-slate-400">
+                <p className="text-[9px] lg:text-xs text-slate-400">
                   Lv.{activeActor.level} ·{" "}
                   {activeActor.element} ·{" "}
                   {activeActor.role}
@@ -163,7 +163,7 @@ export default function BattleCommandPanel({
                 : "Choose a Jutsu"}
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 lg:gap-3">
 
               {selectableJutsus.map((j) => {
                 const usable =
@@ -185,7 +185,7 @@ export default function BattleCommandPanel({
                     }
                     disabled={!usable}
                     data-testid={`jutsu-${j.id}`}
-                    className={`text-left p-2 rounded-lg border transition-all ${
+                    className={`text-left p-2 lg:p-3 rounded-lg border transition-all ${
                       aimed
                         ? "border-chakra bg-cyan-500/15"
                         : "border-white/10 hover:border-white/30"
@@ -205,7 +205,7 @@ export default function BattleCommandPanel({
                         }}
                       />
 
-                      <span className="font-semibold text-white text-xs truncate flex-1">
+                      <span className="font-semibold text-white text-xs lg:text-sm truncate flex-1">
                         {j.name}
                       </span>
 
@@ -222,7 +222,7 @@ export default function BattleCommandPanel({
 
                     </div>
 
-                    <p className="text-[10px] text-slate-400 leading-tight line-clamp-2">
+                    <p className="text-[10px] lg:text-xs text-slate-400 leading-tight line-clamp-2">
                       {j.description}
                     </p>
 

@@ -33,7 +33,8 @@ import {
   isImmune,
   applyJutsuEffects,
 } from "@/lib/battle";
-import { getDifficulty } from "@/lib/energy";
+import { computeStatsForRarity, maxStarsForRarity } from "@/lib/gameConstants";
+import { getDifficulty, startBattle } from "@/lib/energy";
 import { evaluateTeamSynergy } from "@/lib/teamSynergy";
 import { getCombatModifiers, computeLifesteal, combatModifiersSummary } from "@/lib/combatModifiers";
 import api from "@/lib/api";
@@ -420,6 +421,14 @@ export default function Battle() {
   useEffect(() => {
     if (!ready || !user || Object.keys(catalogById).length === 0) return;
 
+    // Reset report + victory state — the component stays mounted when
+    // navigating to the next stage via "Next", so stale flags from the
+    // previous battle would prevent the new battle's completion from
+    // being reported and would show the old battle's rewards.
+    reportedRef.current = false;
+    setResultData(null);
+    setShowLevelUp(false);
+
     // --- Evaluate team synergy ---
     const allyTemplates = (user.team || [])
       .slice(0, user.team_cap || 5)
@@ -449,7 +458,8 @@ export default function Battle() {
           !inst.passive_locked,
           inst.reforge || null,
           inst.crystal_combat_modifiers || null, // Boss Crysta combat modifiers
-          Object.keys(synergyBonuses).length > 0 ? synergyBonuses : null
+          Object.keys(synergyBonuses).length > 0 ? synergyBonuses : null,
+          inst.skin?.image || null // equipped skin portrait override
         )
       )
       .filter(Boolean);
@@ -458,18 +468,21 @@ export default function Battle() {
       const template = catalogById[e.template_id];
 
       // Enemies with the new progression system carry pre-computed
-      // stats_override (evolved rarity + ascension + gear + crystals),
-      // skill_rank, passive_locked, and reforge — all derived from real
-      // RPG systems on the backend. Legacy enemies fall back to the
-      // old computeStats + applyEnemyGear path.
+      // stats_override (evolved rarity + ascension + gear + crystals + star
+      // bonus), skill_rank, passive_locked, and reforge — all derived from
+      // real RPG systems on the backend. Client-built enemies (Spire) carry
+      // evolved_rarity + stars and are computed here via the same rarity-
+      // scaled growth + star bonus. Legacy/Trial enemies fall back to
+      // computeStats (rarity-scaled native growth).
       const statsOverride = e.stats_override || null;
 
-      const gearedStats = !statsOverride && e.gear_bonus
-        ? applyEnemyGear(
-            computeStats(template, e.level, e.ascension || 0),
-            e.gear_bonus
-          )
-        : statsOverride;
+      let gearedStats = statsOverride;
+      if (!gearedStats) {
+        const baseStats = e.evolved_rarity
+          ? computeStatsForRarity(template, e.level, e.ascension || 0, e.evolved_rarity, e.stars || 1)
+          : computeStats(template, e.level, e.ascension || 0);
+        gearedStats = e.gear_bonus ? applyEnemyGear(baseStats, e.gear_bonus) : baseStats;
+      }
 
       return buildCombatant(
         nextUid(),
@@ -1943,7 +1956,7 @@ export default function Battle() {
         {/* Center battlefield */}
         <div className="flex-1 flex flex-col justify-center min-w-0">
           {/* Enemies */}
-          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 px-2 mb-1">
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 lg:gap-6 px-2 mb-1">
             {arrangedEnemies.map((c) => (
               <BattleFighter
                 key={c.uid}
@@ -2000,7 +2013,7 @@ export default function Battle() {
           </div>
 
           {/* Allies */}
-          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 px-2 mt-1">
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-4 lg:gap-6 px-2 mt-1">
             {allies.map((c) => (
               <BattleFighter
                 key={c.uid}
@@ -2090,9 +2103,13 @@ export default function Battle() {
                     : null;
 
                 if (next) {
-                  navigate(
-                    `/battle/campaign/${next.id}`
-                  );
+                  startBattle({
+                    mode: "campaign",
+                    id: next.id,
+                    navigate,
+                    setUser,
+                    difficulty: difficultyCfg.id,
+                  });
                 } else {
                   navigate(
                     "/campaign"

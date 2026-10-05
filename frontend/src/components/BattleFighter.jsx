@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Skull, Flame } from "lucide-react";
 import { ELEMENT, RARITY } from "@/lib/styles";
 import { ElementIcon } from "@/components/ElementIcons";
+import { GAME_ICONS, isIconUrl } from "@/lib/gameIcons";
 
 // Pre-computed ember particle configs (deterministic, no hooks needed)
 const EMBER_PARTICLES = Array.from({ length: 14 }, (_, i) => ({
@@ -37,16 +38,16 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
 
   // ---- Boss sizing (responsive via clamp) ----
   // Height targets ~35% of battle viewport so the complete card stays visible on all devices
-  const bossW = "clamp(150px, 26vw, 290px)";
-  const bossH = "clamp(150px, 35vh, 320px)";
-  const bossContainerW = "clamp(170px, 28vw, 310px)";
+  const bossW = "clamp(150px, 26vw, 380px)";
+  const bossH = "clamp(150px, 35vh, 420px)";
+  const bossContainerW = "clamp(170px, 28vw, 400px)";
 
   // ---- Regular sizing (fluid so N fighters never overflow horizontally) ----
   // Scales down on narrow/short viewports and grows on desktop. The container
   // is slightly wider than the card to leave room for the name/HP/CK readouts.
-  const regW = "clamp(58px, 16vw, 110px)";
-  const regH = "clamp(78px, 20vh, 144px)";
-  const regContainerW = "clamp(66px, 18vw, 125px)";
+  const regW = "clamp(58px, 16vw, 175px)";
+  const regH = "clamp(78px, 22vh, 230px)";
+  const regContainerW = "clamp(66px, 18vw, 195px)";
 
   const cardW = isBoss ? bossW : regW;
   const cardH = isBoss ? bossH : regH;
@@ -184,7 +185,7 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
         {subdued && <div className="absolute inset-0 bg-black/15" />}
         {!c.alive && <Skull className="absolute inset-0 m-auto w-8 h-8 text-white/70" />}
         {/* Level badge */}
-        <span className={`absolute top-1 right-1 font-display text-white bg-black/60 px-1 py-0.5 rounded ${isBoss ? "text-sm" : "text-[10px]"}`}>LV.{c.level}</span>
+        <span className={`absolute top-1 right-1 font-display text-white bg-black/60 px-1 py-0.5 rounded ${isBoss ? "text-sm" : "text-[10px] sm:text-xs lg:text-sm"}`}>LV.{c.level}</span>
         {/* Enraged */}
         {c.enraged && (
           <span data-testid={`enraged-${c.uid}`} className={`absolute top-1 left-1 flex items-center gap-0.5 font-display text-white bg-red-600/80 px-1 rounded ${isBoss ? "text-xs" : "text-[8px]"}`}>
@@ -231,16 +232,16 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
       {/* Name */}
       <div className="flex items-center justify-center gap-1 mt-1.5">
         <ElementIcon element={c.element} size={isBoss ? 18 : 14} />
-        <p className={`font-semibold truncate ${isBoss ? "text-base" : "text-xs"}`} style={{ color: elColor, textShadow: isBoss ? `0 0 10px ${elColor}88` : "none" }}>{c.name.split(" ")[0]}</p>
+        <p className={`font-semibold truncate ${isBoss ? "text-base" : "text-xs sm:text-sm lg:text-base"}`} style={{ color: elColor, textShadow: isBoss ? `0 0 10px ${elColor}88` : "none" }}>{c.name.split(" ")[0]}</p>
       </div>
 
       {/* HP bar + value */}
       <div className="w-full mt-0.5">
-        <div className={`flex items-center justify-between mb-0.5 ${isBoss ? "text-[11px]" : "text-[9px]"}`}>
+        <div className={`flex items-center justify-between mb-0.5 ${isBoss ? "text-[11px]" : "text-[9px] sm:text-[10px] lg:text-xs"}`}>
           <span className="text-fox font-bold">HP</span>
           <span className="text-slate-300 tabular-nums">{c.hp.toLocaleString()}/{c.maxHp.toLocaleString()}</span>
         </div>
-        <div className={`w-full rounded bg-black/60 overflow-hidden ${isBoss ? "h-3" : "h-2"}`}>
+        <div className={`w-full rounded bg-black/60 overflow-hidden ${isBoss ? "h-3" : "h-2 lg:h-2.5"}`}>
           <div className="h-full rounded hp-bar-fill" style={{ width: `${hpPct}%`, background: "linear-gradient(90deg,#FF1744,#FF8A80)" }} />
         </div>
       </div>
@@ -250,11 +251,11 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
 
       {/* Chakra bar + value */}
       <div className="w-full mt-0.5">
-        <div className={`flex items-center justify-between mb-0.5 ${isBoss ? "text-[11px]" : "text-[9px]"}`}>
+        <div className={`flex items-center justify-between mb-0.5 ${isBoss ? "text-[11px]" : "text-[9px] sm:text-[10px] lg:text-xs"}`}>
           <span className="text-chakra font-bold">⚡</span>
           <span className="text-slate-300 tabular-nums">{c.chakra}/{c.maxChakra}</span>
         </div>
-        <div className={`w-full rounded bg-black/60 overflow-hidden ${isBoss ? "h-2.5" : "h-1.5"}`}>
+        <div className={`w-full rounded bg-black/60 overflow-hidden ${isBoss ? "h-2.5" : "h-1.5 lg:h-2"}`}>
           <div className="h-full rounded ck-bar-fill" style={{ width: `${ckPct}%`, background: "#00E5FF" }} />
         </div>
       </div>
@@ -264,16 +265,16 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
         <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center" data-testid={`statuses-${c.uid}`}>
           {c.statuses.map((s) => {
             const STATUS_VISUAL = {
-              burn: { icon: "🔥", color: "#FF5722", label: "Burn" },
-              poison: { icon: "☠", color: "#76FF03", label: "Poison" },
-              bleed: { icon: "🩸", color: "#FF1744", label: "Bleed" },
-              stun: { icon: "💫", color: "#FFCA28", label: "Stun" },
-              freeze: { icon: "❄", color: "#40C4FF", label: "Freeze" },
-              shock: { icon: "⚡", color: "#FFEB3B", label: "Shock" },
-              atk_down: { icon: "⚔", color: "#FF9100", label: "ATK Down" },
-              def_down: { icon: "🛡", color: "#FF9100", label: "DEF Down" },
-              curse_dot: { icon: "👁", color: "#E040FB", label: `Curse x${s.stacks || 1}` },
-              blood_mark: { icon: "🔖", color: "#E040FB", label: `Mark x${s.stacks || 1}` },
+              burn: { icon: GAME_ICONS.fire, color: "#FF5722", label: "Burn" },
+              poison: { icon: GAME_ICONS.poison, color: "#76FF03", label: "Poison" },
+              bleed: { icon: GAME_ICONS.bleed, color: "#FF1744", label: "Bleed" },
+              stun: { icon: GAME_ICONS.stun, color: "#FFCA28", label: "Stun" },
+              freeze: { icon: GAME_ICONS.freeze, color: "#40C4FF", label: "Freeze" },
+              shock: { icon: GAME_ICONS.lightning, color: "#FFEB3B", label: "Shock" },
+              atk_down: { icon: GAME_ICONS.swords, color: "#FF9100", label: "ATK Down" },
+              def_down: { icon: GAME_ICONS.shield, color: "#FF9100", label: "DEF Down" },
+              curse_dot: { icon: GAME_ICONS.curse, color: "#E040FB", label: `Curse x${s.stacks || 1}` },
+              blood_mark: { icon: GAME_ICONS.mark, color: "#E040FB", label: `Mark x${s.stacks || 1}` },
             };
             const vis = STATUS_VISUAL[s.effectType] || { icon: "•", color: "#F48FB1", label: s.effectType };
             const turns = s.duration ?? 0;
@@ -281,8 +282,10 @@ export default function BattleFighter({ c, active, attacking, shake, floaters, h
               <span key={s.id} title={`${vis.label}${turns > 0 ? ` (${turns}t)` : ""}`}
                 className="status-badge flex items-center gap-0.5 leading-none px-1 py-0.5 rounded bg-black/75 border"
                 style={{ color: vis.color, borderColor: `${vis.color}66` }}>
-                <span className={isBoss ? "text-xs" : "text-[9px]"}>{vis.icon}</span>
-                {turns > 0 && turns < 99 && <span className={`${isBoss ? "text-[9px]" : "text-[7px]"} font-bold opacity-80`}>{turns}</span>}
+                {isIconUrl(vis.icon)
+                  ? <img src={vis.icon} alt={vis.label} className={isBoss ? "w-3.5 h-3.5" : "w-2.5 h-2.5 lg:w-4 lg:h-4"} style={{ objectFit: "cover", borderRadius: "2px" }} />
+                  : <span className={isBoss ? "text-xs" : "text-[9px] lg:text-[11px]"}>{vis.icon}</span>}
+                {turns > 0 && turns < 99 && <span className={`${isBoss ? "text-[9px]" : "text-[7px] lg:text-[9px]"} font-bold opacity-80`}>{turns}</span>}
               </span>
             );
           })}

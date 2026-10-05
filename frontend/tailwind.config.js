@@ -17,6 +17,7 @@ module.exports = {
         fox: 'rgb(var(--fox-rgb) / <alpha-value>)',
         jutsu: 'rgb(var(--jutsu-rgb) / <alpha-value>)',
         ink: 'rgb(var(--ink-rgb) / <alpha-value>)',
+        energy: 'rgb(var(--energy-rgb) / <alpha-value>)',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {

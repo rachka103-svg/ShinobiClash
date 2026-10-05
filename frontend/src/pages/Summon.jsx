@@ -529,15 +529,22 @@ export default function Summon() {
           <div className="flex flex-col flex-1 min-h-0 rounded-xl bg-white/[0.04] border border-white/10 p-3 overflow-hidden" data-testid="banner-showcase">
             <div className="flex items-center justify-between mb-2 shrink-0">
               <p className="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">Summonable Heroes</p>
-              <button onClick={() => setAvailableOpen(true)} className="text-[11px] font-semibold text-chakra hover:text-white transition-colors inline-flex items-center gap-0.5" data-testid="showcase-view-all">
-                View All <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setHistoryOpen(true)} className="text-[11px] font-semibold text-slate-400 hover:text-jutsu transition-colors inline-flex items-center gap-0.5" data-testid="open-history-card">
+                  <History className="w-3.5 h-3.5" /> History
+                </button>
+                <button onClick={() => setAvailableOpen(true)} className="text-[11px] font-semibold text-chakra hover:text-white transition-colors inline-flex items-center gap-0.5" data-testid="showcase-view-all">
+                  View All <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-4 gap-2 overflow-y-auto scrollbar-none min-h-0">
               {featuredAll.map((h) => {
                 const r = RARITY[h.rarity] || RARITY.R;
                 const fr = rarityFrame(h.rarity);
                 const isGR = h.rarity === "GR";
+                const elColor = (ELEMENT[h.element] || {}).color || "#94a3b8";
+                const EIcon = ELEMENT_ICON[h.element] || Sparkles;
                 // Rarity-scaled glow + border: each tier visually distinct
                 const glow = isGR
                   ? `0 0 12px ${r.color}88, 0 0 24px ${r.color}44`
@@ -551,22 +558,18 @@ export default function Summon() {
                     <div className="absolute top-0 inset-x-0 h-0.5 z-20" style={{ background: r.color, opacity: fr.tier >= 2 ? 1 : 0.5 }} />
                     <div className="aspect-[3/4] bg-black/40">
                       <img src={h.portrait} alt={h.name} className="w-full h-full object-cover object-top" loading="lazy" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
                     </div>
                     {fr.cornerLevel >= 2 && <DecoCorners rarity={h.rarity} size={10} />}
-                    <span className="absolute top-1 right-1 z-20 text-[8px] font-display px-1 rounded" style={{ background: r.color, color: "#05050A" }}>{r.label}</span>
+                    <span className="absolute top-1 left-1 z-20 text-[8px] font-display px-1 rounded" style={{ color: r.color, background: `${r.color}22`, border: `1px solid ${r.color}55` }}>{r.label}</span>
+                    <span className="absolute top-1 right-1 z-20 w-4 h-4 rounded flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)" }}>
+                      <EIcon className="w-2.5 h-2.5" style={{ color: elColor }} />
+                    </span>
                     <p className="absolute bottom-0.5 inset-x-1 text-[9px] font-display text-white truncate">{h.name}</p>
                   </div>
                 );
               })}
             </div>
-          </div>
-
-          {/* Quick access — secondary panels folded into dialogs */}
-          <div className="grid grid-cols-3 gap-2 shrink-0 pt-1" data-testid="summon-quick-access">
-            <QuickBtn icon={Users2} color="#00E5FF" label="Roster" onClick={() => setAvailableOpen(true)} testid="open-available-card" />
-            <QuickBtn icon={Star} color="#FFCA28" label="Featured" onClick={() => setFeaturedOpen(true)} testid="open-featured-card" />
-            <QuickBtn icon={History} color="#D500F9" label="History" onClick={() => setHistoryOpen(true)} testid="open-history-card" />
           </div>
           </>
           )}

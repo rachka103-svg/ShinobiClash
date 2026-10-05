@@ -1,3 +1,5 @@
+import { GAME_ICONS } from "./gameIcons";
+
 // Endless Spire scaling configuration — mirrors the backend game_data.py
 // SPIRE_PHASES / SPIRE_RARITY_PROBS so the client-side enemy generator
 // (spireEnemies in battle.js) and the Spire UI stay in sync with the
@@ -10,17 +12,17 @@ export const SPIRE_MAX_FLOOR = 1000;
 // placed on the player's team; `enemyElements` defines the weighted pool
 // used to generate enemy compositions for that path.
 export const SPIRE_PATHS = [
-  { id: "normal",  label: "Dragon's Back", icon: "🏰", accent: "#a855f7", element: null,
+  { id: "normal",  label: "Dragon's Back", icon: GAME_ICONS.castle, accent: "#a855f7", element: null,
     enemyElements: null },
-  { id: "fire",    label: "Fire Spire",    icon: "🔥", accent: "#FF5722", element: "Fire",
+  { id: "fire",    label: "Fire Spire",    icon: GAME_ICONS.fire, accent: "#FF5722", element: "Fire",
     enemyElements: { primary: ["Water"], secondary: ["Earth"], neutral: ["Lightning", "Wind", "Light", "Dark"] } },
-  { id: "water",   label: "Water Spire",   icon: "💧", accent: "#29B6F6", element: "Water",
+  { id: "water",   label: "Water Spire",   icon: GAME_ICONS.water, accent: "#29B6F6", element: "Water",
     enemyElements: { primary: ["Earth"], secondary: ["Fire"], neutral: ["Lightning", "Wind", "Light", "Dark"] } },
-  { id: "earth",   label: "Earth Spire",   icon: "🌍", accent: "#A1887F", element: "Earth",
+  { id: "earth",   label: "Earth Spire",   icon: GAME_ICONS.earth, accent: "#A1887F", element: "Earth",
     enemyElements: { primary: ["Fire"], secondary: ["Water"], neutral: ["Lightning", "Wind", "Light", "Dark"] } },
-  { id: "light",   label: "Light Spire",   icon: "☀️", accent: "#FFD54F", element: "Light",
+  { id: "light",   label: "Light Spire",   icon: GAME_ICONS.light, accent: "#FFD54F", element: "Light",
     enemyElements: { primary: ["Dark"], neutral: ["Fire", "Water", "Earth", "Lightning", "Wind"] } },
-  { id: "dark",    label: "Dark Spire",    icon: "🌑", accent: "#7C4DFF", element: "Dark",
+  { id: "dark",    label: "Dark Spire",    icon: GAME_ICONS.dark, accent: "#7C4DFF", element: "Dark",
     enemyElements: { primary: ["Light"], neutral: ["Fire", "Water", "Earth", "Lightning", "Wind"] } },
 ];
 

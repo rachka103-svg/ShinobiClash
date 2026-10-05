@@ -36,8 +36,8 @@ export default function Dungeons() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 min-w-0" data-testid="dungeons-page">
       <div className="mb-6">
-        <h1 className="font-display text-5xl sm:text-6xl tracking-wide text-ink leading-none">RESOURCE DUNGEONS</h1>
-        <p className="text-slate-500 mt-1">Dedicated farming runs — gold, EXP tomes and crafting materials. Repeat forever.</p>
+        <h1 className="font-display text-5xl sm:text-6xl tracking-wide text-ink leading-none">DUNGEONS</h1>
+        <p className="text-slate-500 mt-1">Dedicated farming runs — gold, EXP tomes, and elemental essences. Repeat forever.</p>
       </div>
 
       <div className="space-y-4">
@@ -48,12 +48,25 @@ export default function Dungeons() {
           if (!tier) return null;
           const rec = tier.recommended_power;
           const overpowered = teamPower >= rec;
+          const isElemental = d.category === "elemental";
+          // Insert a section header before the first dungeon of each category
+          const prevCat = dungeons[di - 1]?.category;
+          const showHeader = !prevCat || prevCat !== d.category;
+          const header = d.category === "elemental"
+            ? { title: "ELEMENTAL SANCTUM", sub: "One shrine per element — farm the essence your heroes need to evolve & ascend. Bring 2+ same-element heroes for a Resonance bonus." }
+            : { title: "RESOURCE DUNGEONS", sub: "Dedicated farming runs — gold, EXP tomes and crafting materials. Repeat forever." };
           return (
+            <div key={d.id}>
+              {showHeader && (
+                <div className={showHeader && di > 0 ? "mt-8 mb-3" : "mb-3"}>
+                  <h2 className="font-display text-2xl sm:text-3xl tracking-wide text-ink leading-none">{header.title}</h2>
+                  <p className="text-xs text-slate-500 mt-1 max-w-xl">{header.sub}</p>
+                </div>
+              )}
             <motion.div
-              key={d.id}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: di * 0.08 }}
+              transition={{ delay: di * 0.05 }}
               className="relative panel rounded-2xl p-4 sm:p-5 overflow-hidden"
               style={{ border: `1px solid ${d.color}33` }}
               data-testid={`dungeon-card-${d.id}`}
@@ -68,6 +81,12 @@ export default function Dungeons() {
                   <h2 className="font-display text-2xl sm:text-3xl tracking-wide leading-none" style={{ color: d.color }}>{d.name}</h2>
                   <p className="text-xs text-slate-500 mt-0.5">{d.desc}</p>
                 </div>
+                {isElemental && (
+                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider"
+                        style={{ background: `${d.color}18`, color: d.color, border: `1px solid ${d.color}44` }}>
+                    {d.element} · Resonance
+                  </span>
+                )}
               </div>
 
               {/* Tier selector */}
@@ -124,6 +143,7 @@ export default function Dungeons() {
                 <span className="flex items-center gap-1 text-sm font-sans font-bold"><Zap className="w-4 h-4" />{ENERGY_COST.trial}</span>
               </button>
             </motion.div>
+            </div>
           );
         })}
       </div>

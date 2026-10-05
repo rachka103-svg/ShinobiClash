@@ -1,13 +1,16 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Heart, Sword, Shield, Wind, Star, ChevronsUp, Gem, Coins, Sparkles, Check,
   Scroll, Zap, Loader2, ArrowRight, Anvil, Plus, Maximize2, Minimize2, RotateCcw, X,
+  AlertTriangle, Shirt,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RARITY, ELEMENT } from "@/lib/styles";
+import EvolutionConfirmDialog from "@/components/EvolutionConfirmDialog";
 import { rarityFrame, GOLD } from "@/lib/theme";
 import { DecoCorners } from "@/components/RarityFx";
 import { RarityBadge } from "@/components/RarityBadge";
@@ -17,6 +20,8 @@ import TransformOverlay from "@/components/TransformOverlay";
 import { useAuth } from "@/context/AuthContext";
 import { useGame } from "@/context/GameContext";
 import api, { formatApiErrorDetail } from "@/lib/api";
+import { getItemSource } from "@/lib/itemSources";
+import { getAutoEvolveTotalCost } from "@/lib/evolution";
 
 const CRYSTAL_STAT_LABEL = { hp: "HP", atk: "ATK", def: "DEF", spd: "SPD" };
 
@@ -32,8 +37,8 @@ const EvoStars = ({ count, max, size = "w-4 h-4", testid }) => (
   <div className="flex gap-0.5" data-testid={testid}>
     {Array.from({ length: max }).map((_, i) => (
       <Star key={i} className={size} style={{
-        color: i < count ? "#FFCA28" : "#334155",
-        fill: i < count ? "#FFCA28" : "transparent",
+        color: i < count ? "#E5A540" : "#334155",
+        fill: i < count ? "#E5A540" : "transparent",
       }} />
     ))}
   </div>
@@ -48,7 +53,8 @@ export default function HeroDetailModal({
   open, onClose, template, instance = null, owned = false, obtain = null, progression = null, squad = null,
 }) {
   const { user, setUser } = useAuth();
-  const { gearConfig, items, expTomeGoldCost, reforgeModifiers, reforgeMaxPerJutsu } = useGame();
+  const { gearConfig, items, expTomeGoldCost, reforgeModifiers, reforgeMaxPerJutsu, catalogById, skins } = useGame();
+  const navigate = useNavigate();
   const [tab, setTab] = useState("train");
   const [qty, setQty] = useState(1);
   const [gearSlot, setGearSlot] = useState(null);
@@ -59,10 +65,23 @@ export default function HeroDetailModal({
   const [transformFx, setTransformFx] = useState(null); // { oldRarity, newRarity } during transform sequence
   const [evoMethod, setEvoMethod] = useState("shards");
   const [selectedFodder, setSelectedFodder] = useState([]);
-  const teamIds = new Set(user?.team || []);
+  const [allowSSRFodder, setAllowSSRFodder] = useState(false);
+  const [showEvoConfirm, setShowEvoConfirm] = useState(false);
+  const [autoEvolveTarget, setAutoEvolveTarget] = useState(null);
+  const [showAutoEvolveConfirm, setShowAutoEvolveConfirm] = useState(false);
+  const [skinBusy, setSkinBusy] = useState(false);
   const fodderCandidates = useMemo(() => {
     if (!instance || !template?.element) return [];
+    const teamIds = new Set(user?.team || []);
+    // Merge template data (name, portrait, element) onto each raw instance —
+    // the backend hydrates `element` but `name`/`portrait` live only on the
+    // catalog template.  Instance-specific fields (stars, rarity, locked, etc.)
+    // take precedence via spread order.
     return (user?.ninjas || [])
+      .map((h) => {
+        const tpl = catalogById?.[h.template_id] || {};
+        return { ...tpl, ...h, element: h.element || tpl.element, name: tpl.name, portrait: tpl.portrait };
+      })
       .filter((h) => h.instance_id !== instance.instance_id)
       .filter((h) => h.element === template.element)
       .filter((h) => ["R", "SR", "SSR"].includes(h.evolved_rarity || h.rarity))
@@ -73,43 +92,73 @@ export default function HeroDetailModal({
         const br = rank[b.evolved_rarity || b.rarity] || 9;
         return ar - br || (a.stars || 1) - (b.stars || 1);
       });
-  }, [user?.ninjas, user?.team, instance?.instance_id, template?.element]);
+  }, [user?.ninjas, user?.team, instance, template?.element, catalogById]);
+
+  // ---------- Values needed by hooks before the early return ----------
+  const evoCost = instance?.evolution_cost || null;
+  const currentStars = instance?.stars || 1;
+  const starsMax = instance?.stars_max || 6;
+  const effectiveRarity = instance?.evolved_rarity || instance?.rarity || template?.rarity;
+
+  // ---------- Auto-evolve (rush multiple stars at once) ----------
+  const autoEvolveData = useMemo(() => {
+    if (!evoCost || currentStars >= starsMax) return { steps: [], shards: 0, ryo: 0, items: {} };
+    return getAutoEvolveTotalCost(effectiveRarity, currentStars, starsMax, template?.element);
+  }, [evoCost, currentStars, starsMax, effectiveRarity, template?.element]);
 
   if (!template) return null;
- const effectiveRarity = instance?.evolved_rarity || instance?.rarity || template.rarity;
 
-const rarity = RARITY[effectiveRarity] || RARITY.R;
-const frame = rarityFrame(effectiveRarity);
+  const rarity = RARITY[effectiveRarity] || RARITY.R;
+  const frame = rarityFrame(effectiveRarity);
   const element = ELEMENT[template.element] || {};
   const stats = instance?.stats || template.base_stats;
   const expPct = instance && instance.exp_to_next ? Math.min(100, (instance.exp / instance.exp_to_next) * 100) : 0;
 
   // ---------- Evolution derived state ----------
   const shardsOwned = instance ? (user?.hero_shards?.[instance.template_id] || 0) : 0;
-  const evoCost = instance?.evolution_cost || null;
   const evoFodderCost = instance?.evolution_fodder_cost || null;
   const inv = user?.inventory || {};
-  const fodderValue = (h) => ({ R: 1, SR: 2, SSR: 4 }[h.evolved_rarity || h.rarity] || 0) * Math.max(1, h.stars || 1);
   const selectedFodderHeroes = fodderCandidates.filter((h) => selectedFodder.includes(h.instance_id));
-  const selectedFodderValue = selectedFodderHeroes.reduce((sum, h) => sum + fodderValue(h), 0);
+  const selectedHasSSR = selectedFodderHeroes.some((h) => (h.evolved_rarity || h.rarity) === "SSR");
+
+  // Check fodder slot fulfillment (structured requirements)
+  const fodderSlots = evoFodderCost?.slots || [];
+  const totalSlotsNeeded = evoFodderCost?.total_count || 0;
+  const sortedSelected = [...selectedFodderHeroes].sort((a, b) => (b.stars || 1) - (a.stars || 1));
+  // Expand slots into sorted thresholds (most demanding first)
+  const slotThresholds = [];
+  fodderSlots.forEach((s) => { for (let i = 0; i < s.count; i++) slotThresholds.push(s.min_stars); });
+  slotThresholds.sort((a, b) => b - a);
+  const slotsFilled = slotThresholds.every((minStars, i) => sortedSelected[i] && (sortedSelected[i].stars || 1) >= minStars);
+  const fodderCountOk = selectedFodderHeroes.length === totalSlotsNeeded;
+  const fodderValid = fodderCountOk && slotsFilled && (!selectedHasSSR || allowSSRFodder);
+
   const sharedAffordable = evoCost && (user?.ryo || 0) >= evoCost.ryo && Object.entries(evoCost.items || {}).every(([iid, q]) => (inv[iid] || 0) >= q);
   const evoAffordable = evoCost && (evoMethod === "shards"
     ? shardsOwned >= evoCost.shards && sharedAffordable
-    : selectedFodderValue >= (evoFodderCost?.value || Infinity) && sharedAffordable);
+    : fodderValid && sharedAffordable);
 
   const toggleFodder = (id) => {
     setSelectedFodder((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   };
   const autoSelectFodder = () => {
-    const need = evoFodderCost?.value || 0;
-    let total = 0;
-    const ids = [];
-    for (const h of fodderCandidates) {
-      if (total >= need) break;
-      ids.push(h.instance_id);
-      total += fodderValue(h);
-    }
-    setSelectedFodder(ids);
+    if (!evoFodderCost) return;
+    const minStars = Math.min(...fodderSlots.map((s) => s.min_stars));
+    const need = totalSlotsNeeded;
+    // Filter eligible: R/SR only (unless allowSSR), meeting min stars
+    const eligible = fodderCandidates.filter((h) => {
+      const r = h.evolved_rarity || h.rarity;
+      if (r === "SSR" && !allowSSRFodder) return false;
+      return (h.stars || 1) >= minStars;
+    });
+    // Sort: R first, then SR, then SSR; lower stars first within same rarity
+    const rank = { R: 0, SR: 1, SSR: 2 };
+    eligible.sort((a, b) => {
+      const ra = rank[a.evolved_rarity || a.rarity] ?? 9;
+      const rb = rank[b.evolved_rarity || b.rarity] ?? 9;
+      return ra - rb || (a.stars || 1) - (b.stars || 1);
+    });
+    setSelectedFodder(eligible.slice(0, need).map((h) => h.instance_id));
   };
 
   const doEvolve = async () => {
@@ -119,9 +168,36 @@ const frame = rarityFrame(effectiveRarity);
         instance_id: instance.instance_id,
         method: evoMethod,
         fodder_ids: evoMethod === "fodder" ? selectedFodder : [],
+        allow_ssr: evoMethod === "fodder" ? allowSSRFodder : false,
       });
       setUser(data.profile);
       toast.success(`Evolved to ${data.stars}\u2605! Permanent stat surge unlocked.`);
+      setShowEvoConfirm(false);
+      setSelectedFodder([]);
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally { setBusyLocal(false); }
+  };
+
+  const autoEvolveSteps = autoEvolveData.steps;
+  const autoEvolveTotal = { shards: autoEvolveData.shards, ryo: autoEvolveData.ryo, items: autoEvolveData.items };
+  const autoEvolveAffordable = autoEvolveSteps.length > 0 &&
+    shardsOwned >= autoEvolveTotal.shards &&
+    (user?.ryo || 0) >= autoEvolveTotal.ryo &&
+    Object.entries(autoEvolveTotal.items).every(([iid, q]) => (inv[iid] || 0) >= q);
+
+  const doAutoEvolve = async () => {
+    if (!autoEvolveTarget) return;
+    setBusyLocal(true);
+    try {
+      const { data } = await api.post("/game/hero/auto-evolve", {
+        instance_id: instance.instance_id,
+        target_star: autoEvolveTarget,
+      });
+      setUser(data.profile);
+      toast.success(`Auto-evolved from ${data.from_star}★ to ${data.to_star}★! Rush evolution complete.`);
+      setShowAutoEvolveConfirm(false);
+      setAutoEvolveTarget(null);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally { setBusyLocal(false); }
@@ -250,13 +326,45 @@ const frame = rarityFrame(effectiveRarity);
 
   const closeAll = () => { setImmersive(false); onClose(); };
 
+  // ---------- Skin selection ----------
+  const heroSkins = template ? (skins?.[template.id] || []) : [];
+  const currentSkin = instance?.skin || null;
+
+  const selectSkin = async (skinId) => {
+    if (!instance) return;
+    setSkinBusy(true);
+    try {
+      const { data } = await api.post("/game/hero/skin", {
+        instance_id: instance.instance_id,
+        skin_id: skinId || null,
+      });
+      setUser(data.profile);
+      toast.success(skinId ? "Skin equipped!" : "Skin removed");
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err?.response?.data?.detail) || err.message);
+    } finally {
+      setSkinBusy(false);
+    }
+  };
+
+  // Navigate to the page where an item can be obtained
+  const goToItemSource = (itemId) => {
+    const src = getItemSource(itemId);
+    if (!src) return;
+    closeAll();
+    navigate(src.route);
+  };
+
   return (
     <>
     <Dialog open={open} onOpenChange={(o) => !o && closeAll()}>
       <DialogContent
         data-testid="hero-detail-modal"
-        className="max-w-xl sm:max-w-2xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] overflow-y-auto bg-[#FFFFFF] border-0 rounded-2xl"
-        style={{ border: `${frame.strokeWidth}px solid ${frame.useGold ? GOLD.stroke : rarity.color + "66"}`, boxShadow: `0 0 60px ${(frame.useGold ? GOLD.base : rarity.color)}40` }}
+        className={immersive
+          ? "p-0 gap-0 overflow-hidden bg-black border-0 rounded-none !left-0 !top-0 !translate-x-0 !translate-y-0 !w-screen !max-w-none !max-h-none !h-screen"
+          : "max-w-2xl lg:max-w-4xl w-[calc(100%-1.5rem)] sm:w-full p-0 gap-0 overflow-hidden max-h-[92vh] bg-[#FFFFFF] border-0 rounded-2xl flex flex-col lg:flex-row"
+        }
+        style={immersive ? {} : { border: `${frame.strokeWidth}px solid ${frame.useGold ? GOLD.stroke : rarity.color + "66"}`, boxShadow: `0 0 60px ${(frame.useGold ? GOLD.base : rarity.color)}40` }}
       >
         <DialogTitle className="sr-only">{template.name}</DialogTitle>
         <DialogDescription className="sr-only">Details for {template.name}</DialogDescription>
@@ -275,11 +383,87 @@ const frame = rarityFrame(effectiveRarity);
           )}
         </AnimatePresence>
 
+        {/* ---- Evolution confirmation dialog ---- */}
+        <EvolutionConfirmDialog
+          open={showEvoConfirm}
+          onClose={() => setShowEvoConfirm(false)}
+          onConfirm={doEvolve}
+          busy={busyLocal}
+          template={template}
+          instance={instance}
+          method={evoMethod}
+          targetStar={(instance?.stars || 1) + 1}
+          shardCost={evoMethod === "shards" ? evoCost : null}
+          fodderHeroes={evoMethod === "fodder" ? selectedFodderHeroes : []}
+          sharedCost={evoCost}
+          items={items}
+          hasSSR={evoMethod === "fodder" && selectedHasSSR}
+        />
+
+        {/* Auto-evolve confirmation */}
+        {showAutoEvolveConfirm && autoEvolveTarget && (() => {
+          let cumShards = 0, cumRyo = 0;
+          const cumItems = {};
+          for (const s of autoEvolveSteps) {
+            cumShards += s.cost.shards;
+            cumRyo += s.cost.ryo;
+            for (const [iid, q] of Object.entries(s.cost.items || {}))
+              cumItems[iid] = (cumItems[iid] || 0) + q;
+            if (s.to === autoEvolveTarget) break;
+          }
+          return (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" data-testid="auto-evolve-confirm-dialog">
+              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={busyLocal ? undefined : () => setShowAutoEvolveConfirm(false)} />
+              <div className="relative w-full max-w-sm rounded-2xl bg-[#0F0F1A] border border-white/15 shadow-2xl overflow-hidden">
+                <div className="px-5 pt-5 pb-3 text-center">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/30 mb-3">
+                    <ChevronsUp className="w-3.5 h-3.5 text-amber-300" />
+                    <span className="font-display text-xs tracking-widest text-amber-300">AUTO EVOLVE TO {autoEvolveTarget}★</span>
+                  </div>
+                  <h3 className="font-display text-2xl text-white tracking-wide">{template?.name}</h3>
+                  <p className="text-xs text-slate-400 mt-1">{currentStars}★ → {autoEvolveTarget}★ · {autoEvolveSteps.findIndex(s => s.to === autoEvolveTarget) + 1} star levels at once</p>
+                </div>
+                <div className="px-5 pb-3 space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Total Consuming</p>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03]">
+                    <Star className="w-3.5 h-3.5 text-amber-300" />
+                    <span className="text-xs text-slate-300 flex-1">{template.name} Shards</span>
+                    <span className="text-xs font-bold text-amber-300">×{cumShards}</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03]">
+                    <Coins className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-xs text-slate-300 flex-1">Ryo</span>
+                    <span className="text-xs font-bold text-amber-400">×{cumRyo.toLocaleString()}</span>
+                  </div>
+                  {Object.entries(cumItems).map(([iid, q]) => (
+                    <div key={iid} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03]">
+                      <Sparkles className="w-3.5 h-3.5" style={{ color: items?.[iid]?.color || "#9E9E9E" }} />
+                      <span className="text-xs text-slate-300 flex-1">{items?.[iid]?.name || iid}</span>
+                      <span className="text-xs font-bold" style={{ color: items?.[iid]?.color || "#9E9E9E" }}>×{q}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mx-5 mb-3 rounded-lg bg-emerald-500/8 border border-emerald-500/20 px-3 py-2 flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-xs text-emerald-400">{template?.name} → {autoEvolveTarget}★</span>
+                </div>
+                <p className="text-[10px] text-slate-500 text-center px-5 pb-3">This action cannot be undone.</p>
+                <div className="flex gap-2 px-5 pb-5">
+                  <button onClick={() => setShowAutoEvolveConfirm(false)} disabled={busyLocal} data-testid="auto-evolve-confirm-cancel" className="flex-1 py-2.5 rounded-xl font-display text-sm tracking-wide text-slate-400 border border-white/10 hover:bg-white/5 transition-colors disabled:opacity-40">CANCEL</button>
+                  <button onClick={doAutoEvolve} disabled={busyLocal} data-testid="auto-evolve-confirm-yes" className="flex-1 py-2.5 rounded-xl font-display text-sm tracking-wide bg-gradient-to-r from-amber-400 to-amber-300 text-[#05050A] hover:from-amber-300 hover:to-amber-200 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+                    {busyLocal ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronsUp className="w-4 h-4" />} CONFIRM
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {immersive ? (
           /* ---------- Immersive: art-only, info hidden ---------- */
           <div className="relative bg-black flex items-center justify-center min-h-[70vh]" data-testid="hero-immersive-view">
             <img
-              src={template.portrait}
+              src={instance?.skin?.image || template.portrait}
               alt={template.name}
               className="w-full max-h-[92vh] object-contain select-none"
               draggable={false}
@@ -313,11 +497,13 @@ const frame = rarityFrame(effectiveRarity);
           </div>
         ) : (
         <>
-        {/* ---------- Portrait ---------- */}
-        <div className="relative h-[300px] sm:h-[400px] shrink-0">
-          <img src={template.portrait} alt={template.name} className="w-full h-full object-cover object-top" />
+        {/* ---------- Portrait card (left on desktop, top on mobile) ---------- */}
+        <div className="relative h-[280px] sm:h-[340px] lg:h-auto lg:w-[40%] shrink-0">
+          <img src={instance?.skin?.image || template.portrait} alt={template.name} className="w-full h-full object-cover object-top" />
           <div className="absolute inset-x-0 top-0 h-28 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${element.color}40, transparent)` }} />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#FFFFFF] via-transparent to-transparent pointer-events-none" />
+          {/* Bottom fade on mobile; right fade on desktop */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#FFFFFF] via-transparent to-transparent pointer-events-none lg:hidden" />
+          <div className="hidden lg:block absolute inset-0 pointer-events-none" style={{ background: `linear-gradient(to right, transparent 70%, #FFFFFF 100%)` }} />
           {frame.useGold && <div className="gold-pinstripe absolute top-0 inset-x-0 z-10" />}
           {frame.cornerLevel >= 2 && <DecoCorners rarity={effectiveRarity} size={22} />}
           {owned && (
@@ -340,8 +526,8 @@ const frame = rarityFrame(effectiveRarity);
           </button>
         </div>
 
-        {/* ---------- Profile content ---------- */}
-        <div className="p-4 sm:p-7 overflow-x-hidden min-w-0">
+        {/* ---------- Profile content (right on desktop, below on mobile) ---------- */}
+        <div className="flex-1 p-4 sm:p-7 overflow-x-hidden overflow-y-auto min-w-0 lg:max-h-[92vh] lg:border-l lg:border-black/[0.06]">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-black/[0.06] text-slate-700">{template.role}</span>
             {instance && (
@@ -360,8 +546,8 @@ const frame = rarityFrame(effectiveRarity);
               data-testid="modal-squad-toggle"
               className="w-full mt-4 flex items-center justify-center gap-2 py-3 rounded-xl font-display text-lg tracking-wide transition-colors disabled:opacity-40"
               style={squad.inSquad
-                ? { background: "rgba(0,229,255,0.14)", border: "1px solid rgba(0,229,255,0.5)", color: "#00E5FF" }
-                : { background: "#00E5FF", color: "#05050A" }}
+                ? { background: "rgba(229,165,64,0.14)", border: "1px solid rgba(229,165,64,0.5)", color: "#E5A540" }
+                : { background: "#E5A540", color: "#101010" }}
             >
               {squad.inSquad ? <><Check className="w-5 h-5" /> IN SQUAD · TAP TO REMOVE</> : <><Plus className="w-5 h-5" /> {squad.canAdd ? "ADD TO SQUAD" : "SQUAD FULL"}</>}
             </button>
@@ -379,11 +565,12 @@ const frame = rarityFrame(effectiveRarity);
 
           {progression && instance ? (
             <Tabs value={tab} onValueChange={setTab} className="mt-6 min-w-0" data-testid="hero-detail-tabs">
-              <TabsList className="grid grid-cols-4 w-full bg-black/[0.04] border border-black/10 rounded-xl h-11">
+              <TabsList className="grid grid-cols-5 w-full bg-black/[0.04] border border-black/10 rounded-xl h-11">
                 <TabsTrigger value="train" data-testid="hero-train-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-chakra/15 data-[state=active]:text-chakra rounded-lg">TRAIN</TabsTrigger>
                 <TabsTrigger value="evolve" data-testid="hero-evolve-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-amber-400/15 data-[state=active]:text-amber-300 rounded-lg">EVOLVE</TabsTrigger>
                 <TabsTrigger value="skills" data-testid="hero-skills-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">SKILLS</TabsTrigger>
                 <TabsTrigger value="gear" data-testid="hero-gear-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-fox/15 data-[state=active]:text-fox rounded-lg">GEAR</TabsTrigger>
+                <TabsTrigger value="skins" data-testid="hero-skins-tab" className="font-display tracking-wider text-xs sm:text-sm data-[state=active]:bg-jutsu/15 data-[state=active]:text-jutsu rounded-lg">SKINS</TabsTrigger>
               </TabsList>
 
               {/* ================= TRAIN ================= */}
@@ -393,7 +580,7 @@ const frame = rarityFrame(effectiveRarity);
                   <span className="font-display text-xl text-ink">Lv.{instance.level}<span className="text-slate-500 text-sm">/{instance.level_cap}</span></span>
                   <div className="flex gap-0.5" data-testid="ascension-stars">
                     {Array.from({ length: instance.ascension_max }).map((_, i) => (
-                      <ChevronsUp key={i} className="w-4 h-4" style={{ color: i < instance.ascension ? "#00E5FF" : "#334155" }} />
+                      <ChevronsUp key={i} className="w-4 h-4" style={{ color: i < instance.ascension ? "#E5A540" : "#334155" }} />
                     ))}
                   </div>
                 </div>
@@ -402,7 +589,7 @@ const frame = rarityFrame(effectiveRarity);
                   <span data-testid="hero-exp-label">{progression.atCap ? "MAX — ascend to continue" : `${instance.exp} / ${instance.exp_to_next}`}</span>
                 </div>
                 <div className="h-2 rounded bg-black/50 overflow-hidden">
-                  <div className="h-full rounded" style={{ width: `${expPct}%`, background: "linear-gradient(90deg,#00E5FF,#76FF03)" }} />
+                  <div className="h-full rounded" style={{ width: `${expPct}%`, background: "linear-gradient(90deg,#E5A540,#76FF03)" }} />
                 </div>
                 </div>
 
@@ -452,7 +639,7 @@ const frame = rarityFrame(effectiveRarity);
                     onClick={progression.onAscend}
                     disabled={busy || !progression.canAscend}
                     data-testid="ascend-button"
-                    className="w-full py-3 mt-4 mb-2 rounded-xl font-display text-base sm:text-lg tracking-wide bg-amber-400 text-[#05050A] hover:bg-amber-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 flex-wrap"
+                    className="w-full py-3 mt-4 mb-2 rounded-xl font-display text-base sm:text-lg tracking-wide bg-amber-400 text-[#101010] hover:bg-amber-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 flex-wrap"
                   >
                     {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <ChevronsUp className="w-5 h-5" />}
                     {progression.atCap ? "ASCEND" : "REACH LV.CAP TO ASCEND"}
@@ -547,7 +734,7 @@ const frame = rarityFrame(effectiveRarity);
                         <CostRow icon={<Star className="w-4 h-4 text-amber-300" />} label={`${template.name} Shards`} have={shardsOwned} need={evoCost.shards} testid="evolve-cost-shards" />
                         <CostRow icon={<Coins className="w-4 h-4 text-amber-400" />} label="Ryo" have={user?.ryo || 0} need={evoCost.ryo} testid="evolve-cost-ryo" />
                         {Object.entries(evoCost.items || {}).map(([iid, q]) => (
-                          <CostRow key={iid} icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />} label={items[iid]?.name || iid} have={inv[iid] || 0} need={q} testid={`evolve-cost-${iid}`} />
+                          <CostRow key={iid} icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />} label={items[iid]?.name || iid} have={inv[iid] || 0} need={q} testid={`evolve-cost-${iid}`} itemId={iid} onGoToSource={goToItemSource} />
                         ))}
                       </div>
                     ) : (
@@ -557,22 +744,58 @@ const frame = rarityFrame(effectiveRarity);
                             <p className="font-display text-sm text-ink">{template.element.toUpperCase()} FODDER</p>
                             <p className="text-[10px] text-slate-500">Select R / SR / SSR heroes. Squad, locked and favorite heroes are protected.</p>
                           </div>
-                          <button type="button" onClick={autoSelectFodder} className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-jutsu border border-jutsu/30 bg-jutsu/10">AUTO SELECT</button>
+                          <button type="button" onClick={autoSelectFodder} data-testid="fodder-auto-select" className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-jutsu border border-jutsu/30 bg-jutsu/10">AUTO SELECT</button>
                         </div>
-                        <div className="flex items-center justify-between rounded-lg px-3 py-2 mb-2 border border-black/10 bg-black/[0.03]">
-                          <span className="text-xs text-slate-500">Material Value</span>
-                          <span className={`text-xs font-bold ${selectedFodderValue >= (evoFodderCost?.value || 0) ? "text-emerald-400" : "text-fox"}`}>{selectedFodderValue} / {evoFodderCost?.value || 0}</span>
+
+                        {/* Structured fodder slot requirements */}
+                        <div className="space-y-1.5 mb-2" data-testid="fodder-slot-requirements">
+                          {fodderSlots.map((slot, idx) => {
+                            const filled = sortedSelected.slice(
+                              slotThresholds.indexOf(slot.min_stars) >= 0 ? 0 : 0
+                            );
+                            return (
+                              <div key={idx} className="flex items-center justify-between rounded-lg px-3 py-2 border border-black/10 bg-black/[0.03]">
+                                <span className="text-xs text-slate-500">
+                                  {slot.count}× {slot.min_stars}★+ {template.element} hero{slot.count > 1 ? "es" : ""}
+                                </span>
+                                <span className={`text-xs font-bold ${fodderValid ? "text-emerald-400" : "text-fox"}`}>
+                                  {selectedFodderHeroes.length}/{totalSlotsNeeded} selected
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div className="grid grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1">
-                          {fodderCandidates.map((h) => {
+
+                        {/* SSR toggle */}
+                        <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-lg bg-fox/5 border border-fox/20" data-testid="fodder-ssr-toggle">
+                          <input
+                            type="checkbox"
+                            id="allow-ssr-fodder"
+                            checked={allowSSRFodder}
+                            onChange={(e) => setAllowSSRFodder(e.target.checked)}
+                            className="w-3.5 h-3.5 accent-fox"
+                          />
+                          <label htmlFor="allow-ssr-fodder" className="text-[10px] text-slate-500 flex items-center gap-1 cursor-pointer">
+                            <AlertTriangle className="w-3 h-3 text-fox" /> Allow SSR heroes as fodder
+                          </label>
+                        </div>
+
+                        {/* Fodder candidate grid */}
+                        <div className="grid grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1" data-testid="fodder-candidate-grid">
+                          {fodderCandidates.filter((h) => {
+                            const r = h.evolved_rarity || h.rarity;
+                            return r !== "SSR" || allowSSRFodder;
+                          }).map((h) => {
                             const selected = selectedFodder.includes(h.instance_id);
                             const rr = h.evolved_rarity || h.rarity;
+                            const isSSR = rr === "SSR";
                             return (
-                              <button key={h.instance_id} type="button" onClick={() => toggleFodder(h.instance_id)} className={`relative rounded-lg overflow-hidden border ${selected ? "border-amber-400 ring-1 ring-amber-400/50" : "border-black/10"} bg-black/[0.04]`}>
+                              <button key={h.instance_id} type="button" onClick={() => toggleFodder(h.instance_id)} data-testid={`fodder-hero-${h.instance_id}`}
+                                className={`relative rounded-lg overflow-hidden border ${selected ? "border-amber-400 ring-1 ring-amber-400/50" : "border-black/10"} bg-black/[0.04]`}>
                                 {h.portrait ? <img src={h.portrait} alt="" className="w-full aspect-[3/4] object-cover object-top" /> : <div className="w-full aspect-[3/4] flex items-center justify-center text-xs text-slate-500">{h.name?.slice(0, 2)}</div>}
                                 <div className="px-1 py-1 text-left">
                                   <div className="text-[8px] font-bold text-ink truncate">{h.name}</div>
-                                  <div className="text-[8px] text-slate-500">{rr} · {h.stars || 1}★ · +{fodderValue(h)}</div>
+                                  <div className="text-[8px]" style={{ color: isSSR ? "#A740E5" : "#64748b" }}>{rr} · {h.stars || 1}★</div>
                                 </div>
                                 {selected && <Check className="absolute top-1 right-1 w-4 h-4 text-amber-300 drop-shadow" />}
                               </button>
@@ -580,17 +803,110 @@ const frame = rarityFrame(effectiveRarity);
                           })}
                         </div>
                         {!fodderCandidates.length && <p className="text-[10px] text-slate-500 text-center py-4">No eligible {template.element} fodder heroes available.</p>}
-                        <div className="mt-2 text-[10px] text-slate-500">R = 1× star value · SR = 2× star value · SSR = 4× star value</div>
+
+                        {/* SSR warning when SSR is selected */}
+                        {selectedHasSSR && (
+                          <div className="mt-2 rounded-lg bg-fox/10 border border-fox/30 px-3 py-2 flex items-start gap-2" data-testid="fodder-ssr-warning">
+                            <AlertTriangle className="w-3.5 h-3.5 text-fox shrink-0 mt-0.5" />
+                            <p className="text-[10px] text-fox leading-snug">You are consuming SSR heroes as fodder. This cannot be undone.</p>
+                          </div>
+                        )}
+
+                        <div className="mt-2 text-[10px] text-slate-500">Auto-Select picks R and SR only. SSR requires explicit opt-in above.</div>
                         <div className="mt-2"><CostRow icon={<Coins className="w-4 h-4 text-amber-400" />} label="Ryo" have={user?.ryo || 0} need={evoCost.ryo} testid="evolve-fodder-cost-ryo" />
-                        {Object.entries(evoCost.items || {}).map(([iid, q]) => <CostRow key={iid} icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />} label={items[iid]?.name || iid} have={inv[iid] || 0} need={q} testid={`evolve-fodder-cost-${iid}`} />)}
+                        {Object.entries(evoCost.items || {}).map(([iid, q]) => <CostRow key={iid} icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />} label={items[iid]?.name || iid} have={inv[iid] || 0} need={q} testid={`evolve-fodder-cost-${iid}`} itemId={iid} onGoToSource={goToItemSource} />)}
                         </div>
                       </div>
                     )}
-                    <button onClick={doEvolve} disabled={busy || !evoAffordable} data-testid="hero-evolve-confirm-button" className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-amber-400 to-amber-300 text-[#05050A] hover:from-amber-300 hover:to-amber-200 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+                    <button onClick={() => setShowEvoConfirm(true)} disabled={busy || !evoAffordable} data-testid="hero-evolve-confirm-button" className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-amber-400 to-amber-300 text-[#101010] hover:from-amber-300 hover:to-amber-200 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
                       {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Star className="w-5 h-5" />}
                       EVOLVE TO {(instance.stars || 1) + 1}★
                     </button>
                     {!evoAffordable && <p className="text-[10px] text-slate-500 mt-2 text-center">Choose Hero Shards or Elemental Fodder. Ryo and progression materials are shared between both methods.</p>}
+
+                    {/* ---------- AUTO EVOLVE (rush multiple stars) ---------- */}
+                    {autoEvolveSteps.length > 1 && (
+                      <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-3" data-testid="auto-evolve-panel">
+                        <div className="flex items-center gap-2 mb-1">
+                          <ChevronsUp className="w-4 h-4 text-amber-300" />
+                          <p className="font-display text-sm tracking-wide text-ink">AUTO EVOLVE</p>
+                          <span className="ml-auto text-[10px] text-slate-500">Rush to any star with shards</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mb-3">Skip the grind — evolve from {currentStars}★ to your target star in one step. Uses Hero Shards only.</p>
+
+                        {/* Target star selector */}
+                        <div className="flex flex-wrap gap-1.5 mb-3" data-testid="auto-evolve-targets">
+                          {autoEvolveSteps.map((step) => {
+                            const star = step.to;
+                            const isSelected = autoEvolveTarget === star;
+                            // Compute cumulative cost up to this star
+                            let cumShards = 0, cumRyo = 0;
+                            const cumItems = {};
+                            for (const s of autoEvolveSteps) {
+                              cumShards += s.cost.shards;
+                              cumRyo += s.cost.ryo;
+                              for (const [iid, q] of Object.entries(s.cost.items || {}))
+                                cumItems[iid] = (cumItems[iid] || 0) + q;
+                              if (s.to === star) break;
+                            }
+                            const canAfford = shardsOwned >= cumShards && (user?.ryo || 0) >= cumRyo &&
+                              Object.entries(cumItems).every(([iid, q]) => (inv[iid] || 0) >= q);
+                            return (
+                              <button
+                                key={star}
+                                onClick={() => setAutoEvolveTarget(isSelected ? null : star)}
+                                disabled={!canAfford}
+                                data-testid={`auto-evolve-target-${star}`}
+                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                                  isSelected
+                                    ? "bg-amber-400 text-[#101010] border border-amber-400"
+                                    : canAfford
+                                    ? "bg-amber-400/10 text-amber-300 border border-amber-400/30 hover:bg-amber-400/20"
+                                    : "bg-black/[0.04] text-slate-400 border border-black/10 opacity-50"
+                                }`}
+                              >
+                                <Star className="w-3 h-3" />{star}★
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Selected target cost preview */}
+                        {autoEvolveTarget && (() => {
+                          let cumShards = 0, cumRyo = 0;
+                          const cumItems = {};
+                          for (const s of autoEvolveSteps) {
+                            cumShards += s.cost.shards;
+                            cumRyo += s.cost.ryo;
+                            for (const [iid, q] of Object.entries(s.cost.items || {}))
+                              cumItems[iid] = (cumItems[iid] || 0) + q;
+                            if (s.to === autoEvolveTarget) break;
+                          }
+                          return (
+                            <div className="space-y-1.5 mb-3 rounded-lg bg-black/[0.04] p-2.5" data-testid="auto-evolve-cost-preview">
+                              <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Total cost: {currentStars}★ → {autoEvolveTarget}★</p>
+                              <CostRow icon={<Star className="w-4 h-4 text-amber-300" />} label={`${template.name} Shards`} have={shardsOwned} need={cumShards} testid="auto-evolve-cost-shards" />
+                              <CostRow icon={<Coins className="w-4 h-4 text-amber-400" />} label="Ryo" have={user?.ryo || 0} need={cumRyo} testid="auto-evolve-cost-ryo" />
+                              {Object.entries(cumItems).map(([iid, q]) => (
+                                <CostRow key={iid} icon={<ItemIcon icon={items[iid]?.icon} className="w-4 h-4" style={{ color: items[iid]?.color }} />} label={items[iid]?.name || iid} have={inv[iid] || 0} need={q} testid={`auto-evolve-cost-${iid}`} itemId={iid} onGoToSource={goToItemSource} />
+                              ))}
+                            </div>
+                          );
+                        })()}
+
+                        {autoEvolveTarget && (
+                          <button
+                            onClick={() => setShowAutoEvolveConfirm(true)}
+                            disabled={busy}
+                            data-testid="auto-evolve-confirm-button"
+                            className="w-full py-2.5 rounded-xl font-display text-sm tracking-wide bg-gradient-to-r from-amber-500 to-amber-400 text-[#101010] hover:from-amber-400 hover:to-amber-300 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                          >
+                            <ChevronsUp className="w-4 h-4" />
+                            AUTO EVOLVE TO {autoEvolveTarget}★
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </>
                 ) : ascTarget ? (
                   <>
@@ -607,9 +923,9 @@ const frame = rarityFrame(effectiveRarity);
                     {/* Transform preview */}
                     <div className="rounded-xl bg-black/[0.04] border border-black/10 p-3 mb-4" data-testid="transform-preview">
                       <div className="flex items-center justify-center gap-2 mb-3">
-                        <span className="text-sm font-bold" style={{ color: RARITY[instance.rarity]?.color || "#FFCA28" }}>{instance.rarity || template.rarity}</span>
+                        <span className="text-sm font-bold" style={{ color: RARITY[instance.rarity]?.color || "#E5A540" }}>{instance.rarity || template.rarity}</span>
                         <ArrowRight className="w-4 h-4 text-slate-500" />
-                        <span className="text-sm font-bold" style={{ color: RARITY[ascTarget]?.color || "#00E5FF" }}>{ascTarget}</span>
+                        <span className="text-sm font-bold" style={{ color: RARITY[ascTarget]?.color || "#E5A540" }}>{ascTarget}</span>
                         <span className="text-xs text-slate-500">· {instance.stars_max + 1}★ max</span>
                       </div>
                       <p className="text-xs text-slate-500 text-center mb-3">
@@ -637,6 +953,7 @@ const frame = rarityFrame(effectiveRarity);
                             label={items[iid]?.name || iid}
                             have={inv[iid] || 0} need={q}
                             testid={`transform-cost-${iid}`}
+                            itemId={iid} onGoToSource={goToItemSource}
                           />
                         ))}
                       </div>
@@ -659,7 +976,7 @@ const frame = rarityFrame(effectiveRarity);
                         onClick={doTranscend}
                         disabled={busy || !ascAffordable}
                         data-testid="hero-transform-button"
-                        className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-jutsu to-chakra text-[#05050A] hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2"
+                        className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-jutsu to-chakra text-[#101010] hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2"
                       >
                         {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                         ⭐ TRANSFORM TO {ascTarget}
@@ -693,7 +1010,7 @@ const frame = rarityFrame(effectiveRarity);
                       </div>
                     </div>
                     <div className="h-2 rounded-full bg-black/50 overflow-hidden mb-3">
-                      <div className="h-full rounded-full" style={{ width: `${(skill.rank / skill.rank_max) * 100}%`, background: "linear-gradient(90deg,#7C4DFF,#00E5FF)" }} />
+                      <div className="h-full rounded-full" style={{ width: `${(skill.rank / skill.rank_max) * 100}%`, background: "linear-gradient(90deg,#7C4DFF,#E5A540)" }} />
                     </div>
 
                     {/* Passive unlock status */}
@@ -717,7 +1034,7 @@ const frame = rarityFrame(effectiveRarity);
                           <CostRow icon={<Coins className="w-4 h-4 text-amber-400" />} label="Ryo" have={user?.ryo || 0} need={skillCost.ryo} testid="skill-cost-ryo" />
                         </div>
                         <button onClick={doSkillUp} disabled={busy || !skillAffordable} data-testid="hero-skill-up-button"
-                          className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-jutsu to-chakra text-[#05050A] hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2">
+                          className="w-full py-3 rounded-xl font-display text-lg tracking-wide bg-gradient-to-r from-jutsu to-chakra text-[#101010] hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2">
                           {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <ChevronsUp className="w-5 h-5" />}
                           {(skill.rank + 1) === skill.passive_unlock_rank ? "UNLOCK PASSIVE" : `RANK UP → ${skill.rank + 1}`}
                         </button>
@@ -769,7 +1086,7 @@ const frame = rarityFrame(effectiveRarity);
                                         data-testid={`reforge-${j.id}-${m.id}`}
                                         className="text-[10px] px-2 py-1 rounded-md border transition-colors disabled:opacity-40"
                                         style={{
-                                          color: has ? "#64748b" : "#FFCA28",
+                                          color: has ? "#64748b" : "#E5A540",
                                           borderColor: has ? "rgba(255,255,255,0.1)" : "rgba(255,202,40,0.35)",
                                           background: has ? "transparent" : "rgba(255,202,40,0.08)",
                                         }}
@@ -789,10 +1106,10 @@ const frame = rarityFrame(effectiveRarity);
                       {reforgeNextCost && (
                         <div className="flex items-center gap-3 mt-3 pt-2 border-t border-black/10">
                           <span className="text-[10px] uppercase tracking-widest text-slate-500">Next Reforge</span>
-                          <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: shardsOwned >= reforgeNextCost.shards ? "#FFCA28" : "#FF5722" }}>
+                          <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: shardsOwned >= reforgeNextCost.shards ? "#E5A540" : "#FF5722" }}>
                             <Star className="w-3 h-3" />{shardsOwned}/{reforgeNextCost.shards}
                           </span>
-                          <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: (user?.ryo || 0) >= reforgeNextCost.ryo ? "#FFCA28" : "#FF5722" }}>
+                          <span className="flex items-center gap-1 text-[11px] font-bold" style={{ color: (user?.ryo || 0) >= reforgeNextCost.ryo ? "#E5A540" : "#FF5722" }}>
                             <Coins className="w-3 h-3" />{(user?.ryo || 0)}/{reforgeNextCost.ryo}
                           </span>
                         </div>
@@ -825,7 +1142,7 @@ const frame = rarityFrame(effectiveRarity);
                         onClick={() => setGearSlot(active ? null : slot)}
                         data-testid={`hero-gear-slot-${slot}`}
                         className={`relative p-3 rounded-xl text-left transition-colors ${active ? "bg-black/[0.06]" : "bg-black/[0.04] hover:bg-black/[0.05]"}`}
-                        style={{ border: `1.5px solid ${active ? "#00E5FF" : color}` }}
+                        style={{ border: `1.5px solid ${active ? "#E5A540" : color}` }}
                       >
                         <div className="flex items-center gap-2">
                           <ItemIcon icon={sm.icon} className="w-5 h-5" style={{ color: g ? color : "#64748B" }} />
@@ -939,6 +1256,69 @@ const frame = rarityFrame(effectiveRarity);
                   </div>
                 )}
               </TabsContent>
+
+              {/* ================= SKINS ================= */}
+              <TabsContent value="skins" className="mt-4" data-testid="hero-skins-panel">
+                <div className="flex items-center gap-2 mb-3">
+                  <Shirt className="w-4 h-4 text-jutsu" />
+                  <p className="text-xs uppercase tracking-widest text-slate-500">Hero Skins</p>
+                </div>
+                {heroSkins.length > 0 ? (
+                  <>
+                    <p className="text-xs text-slate-500 mb-3">Select a skin to change this hero's appearance. Skins with stat bonuses apply automatically in battle.</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3" data-testid="skin-grid">
+                      {/* Default / no skin */}
+                      <button
+                        onClick={() => selectSkin(null)}
+                        disabled={skinBusy}
+                        data-testid="skin-default"
+                        className={`relative rounded-lg overflow-hidden border-2 transition-all ${!currentSkin ? "border-chakra ring-1 ring-chakra/40" : "border-black/10 hover:border-white/30"}`}
+                      >
+                        <div className="w-full aspect-[3/4] flex items-center justify-center bg-black/[0.04]">
+                          <img src={template.portrait} alt="Default" className="w-full h-full object-cover object-top opacity-70" />
+                        </div>
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2">
+                          <p className="text-xs font-bold text-white">Default</p>
+                        </div>
+                        {!currentSkin && (
+                          <span className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-chakra text-[#05050A] flex items-center justify-center"><Check className="w-3 h-3" /></span>
+                        )}
+                      </button>
+                      {heroSkins.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => selectSkin(s.id)}
+                          disabled={skinBusy}
+                          data-testid={`skin-select-${s.id}`}
+                          className={`relative rounded-lg overflow-hidden border-2 transition-all ${currentSkin?.id === s.id ? "border-chakra ring-1 ring-chakra/40" : "border-black/10 hover:border-white/30"}`}
+                        >
+                          <img src={s.image} alt={s.name} className="w-full aspect-[3/4] object-cover" />
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2">
+                            <p className="text-xs font-bold text-white truncate">{s.name}</p>
+                            {Object.keys(s.stat_bonuses || {}).length > 0 && (
+                              <div className="flex flex-wrap gap-0.5 mt-0.5">
+                                {Object.entries(s.stat_bonuses).map(([k, v]) => (
+                                  <span key={k} className="text-[8px] font-bold px-1 rounded bg-amber-400/20 text-amber-300">+{v}% {k.replace("_pct", "").toUpperCase()}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {currentSkin?.id === s.id && (
+                            <span className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-chakra text-[#05050A] flex items-center justify-center"><Check className="w-3 h-3" /></span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    {skinBusy && <div className="flex justify-center mt-3"><Loader2 className="w-5 h-5 text-chakra animate-spin" /></div>}
+                  </>
+                ) : (
+                  <div className="text-center py-8">
+                    <Shirt className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500">No skins available for this hero yet.</p>
+                    <p className="text-xs text-slate-500 mt-1">Admins can create skins from the Admin panel → Skins tab.</p>
+                  </div>
+                )}
+              </TabsContent>
             </Tabs>
           ) : (
             <div className="mt-6">
@@ -981,12 +1361,19 @@ const frame = rarityFrame(effectiveRarity);
   );
 }
 
-const CostRow = ({ icon, label, have, need, testid }) => {
+const CostRow = ({ icon, label, have, need, testid, itemId, onGoToSource }) => {
   const ok = have >= need;
+  const src = itemId ? getItemSource(itemId) : null;
+  const clickable = !!src && !!onGoToSource;
   return (
-    <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-black/[0.04] border border-black/10" data-testid={testid}>
+    <div
+      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg bg-black/[0.04] border border-black/10 ${clickable ? "cursor-pointer hover:border-chakra/40 hover:bg-chakra/5 transition-colors" : ""}`}
+      data-testid={testid}
+      onClick={clickable ? () => onGoToSource(itemId) : undefined}
+    >
       {icon}
       <span className="text-xs text-slate-600 flex-1 min-w-0 truncate">{label}</span>
+      {clickable && <span className="text-[9px] text-chakra font-semibold shrink-0">→ {src.label}</span>}
       <span className={`text-xs font-bold tabular-nums ${ok ? "text-emerald-400" : "text-fox"}`}>{have} / {need}</span>
     </div>
   );

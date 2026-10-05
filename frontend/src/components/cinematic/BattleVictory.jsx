@@ -160,6 +160,12 @@ export default function BattleVictory({ open, result, mode, floor, onBack, onNex
               })}
             </div>
           )}
+          {/* Elemental Resonance bonus */}
+          {rewards.resonance_bonus && (
+            <div className="reward-reveal font-display text-lg mt-2 flex items-center gap-1.5" style={{ animationDelay: "1.2s", opacity: 0, animationFillMode: "forwards", color: rewards.resonance_bonus.essence_id === "light_essence" ? "#FFD54F" : "#00E676", textShadow: "0 0 16px rgba(0,230,118,0.5)" }} data-testid="victory-resonance-bonus">
+              <Zap size={18} className="fill-current" /> {rewards.resonance_bonus.element} RESONANCE! +{rewards.resonance_bonus.qty} bonus essence
+            </div>
+          )}
           {/* Ninja recruit */}
           {rewards.ninja && (
             <div className="reward-reveal text-jutsu font-display text-lg mt-1" style={{ animationDelay: "1.3s", opacity: 0, animationFillMode: "forwards" }}>

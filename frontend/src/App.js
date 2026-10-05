@@ -1,5 +1,6 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Suspense, lazy } from "react";
 import { Toaster } from "sonner";
 import { Swords, WifiOff, RotateCw } from "lucide-react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -14,18 +15,20 @@ import Lobby from "@/pages/Lobby";
 import Campaign from "@/pages/Campaign";
 import TeamBuilder from "@/pages/TeamBuilder";
 import Summon from "@/pages/Summon";
-import Leaderboard from "@/pages/Leaderboard";
+import BattleHub from "@/pages/BattleHub";
 import Battle from "@/pages/Battle";
 import Spire from "@/pages/Spire";
-import Gallery from "@/pages/Gallery";
-import Admin from "@/pages/Admin";
-import Arena from "@/pages/Arena";
-import Forge from "@/pages/Forge";
 import Dungeons from "@/pages/Dungeons";
-import BattleHub from "@/pages/BattleHub";
-import Tsukuyomi from "@/pages/Tsukuyomi";
-import BossHunt from "@/pages/BossHunt";
 import Shop from "@/pages/Shop";
+
+// Lazy-load less-visited pages to reduce the initial bundle size.
+const Leaderboard = lazy(() => import("@/pages/Leaderboard"));
+const Gallery = lazy(() => import("@/pages/Gallery"));
+const Admin = lazy(() => import("@/pages/Admin"));
+const Arena = lazy(() => import("@/pages/Arena"));
+const Forge = lazy(() => import("@/pages/Forge"));
+const Tsukuyomi = lazy(() => import("@/pages/Tsukuyomi"));
+const BossHunt = lazy(() => import("@/pages/BossHunt"));
 
 const LoadingScreen = () => (
   <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#05050A]" data-testid="loading-screen">
@@ -69,6 +72,7 @@ const CatalogErrorBanner = () => {
 function Shell({ children, bare }) {
   const loc = useLocation();
   const hideBottomNav = loc.pathname === "/boss-hunt";
+  const hideGameHud = loc.pathname === "/battle";
   if (bare) {
     return (
       <div className="App grain min-h-screen relative">
@@ -79,9 +83,9 @@ function Shell({ children, bare }) {
   return (
     <div className="App grain min-h-screen relative overflow-hidden">
       <CatalogErrorBanner />
-      <GameHud />
+      {!hideGameHud && <GameHud />}
       <main
-        className={`fixed inset-x-0 top-0 bottom-0 z-10 overflow-y-auto pt-[calc(var(--game-header-height)+var(--sat))] ${hideBottomNav ? "" : "pb-[calc(var(--game-nav-height)+var(--sab)+0.5rem)]"}`}
+        className={`fixed inset-x-0 top-0 bottom-0 z-10 overflow-y-auto ${hideGameHud ? "" : "pt-[calc(var(--game-header-height)+var(--sat))]"} ${hideBottomNav ? "" : "pb-[calc(var(--game-nav-height)+var(--sab)+0.5rem)]"}`}
         data-testid="app-main"
       >
         {children}
@@ -124,19 +128,19 @@ function AppRoutes() {
       <Route path="/" element={<Protected><Lobby /></Protected>} />
       <Route path="/campaign" element={<Protected><Campaign /></Protected>} />
       <Route path="/battle" element={<Protected><BattleHub /></Protected>} />
-      <Route path="/tsukuyomi" element={<Protected><Tsukuyomi /></Protected>} />
+      <Route path="/tsukuyomi" element={<Protected><Suspense fallback={<LoadingScreen />}><Tsukuyomi /></Suspense></Protected>} />
       <Route path="/shop" element={<Protected><Shop /></Protected>} />
       <Route path="/spire" element={<Protected><Spire /></Protected>} />
-      <Route path="/arena" element={<Protected><Arena /></Protected>} />
-      <Route path="/gallery" element={<Protected><Gallery /></Protected>} />
+      <Route path="/arena" element={<Protected><Suspense fallback={<LoadingScreen />}><Arena /></Suspense></Protected>} />
+      <Route path="/gallery" element={<Protected><Suspense fallback={<LoadingScreen />}><Gallery /></Suspense></Protected>} />
       <Route path="/roster" element={<Protected><TeamBuilder /></Protected>} />
       <Route path="/team" element={<Protected><TeamBuilder /></Protected>} />
       <Route path="/summon" element={<Protected><Summon /></Protected>} />
-      <Route path="/forge" element={<Protected><Forge /></Protected>} />
+      <Route path="/forge" element={<Protected><Suspense fallback={<LoadingScreen />}><Forge /></Suspense></Protected>} />
       <Route path="/dungeons" element={<Protected><Dungeons /></Protected>} />
-      <Route path="/boss-hunt" element={<Protected><BossHunt /></Protected>} />
-      <Route path="/leaderboard" element={<Protected><Leaderboard /></Protected>} />
-      <Route path="/admin" element={<AdminOnly><Admin /></AdminOnly>} />
+      <Route path="/boss-hunt" element={<Protected><Suspense fallback={<LoadingScreen />}><BossHunt /></Suspense></Protected>} />
+      <Route path="/leaderboard" element={<Protected><Suspense fallback={<LoadingScreen />}><Leaderboard /></Suspense></Protected>} />
+      <Route path="/admin" element={<AdminOnly><Suspense fallback={<LoadingScreen />}><Admin /></Suspense></AdminOnly>} />
       <Route path="/battle/:mode/:id" element={<Protected bare><Battle /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
