@@ -29,7 +29,7 @@ Frontend changes hot-reload; backend changes reload via uvicorn `--reload`. If a
 
 ## Repo fix applied during setup
 - Commit `efb9c98` appended a block of placeholder stubs (`def _kit_support(): ...`, `_ROLE_KIT_BUILDERS = {...}`, `_hero_jutsus(): ...`) at the end of `backend/game_data.py`, shadowing the real implementations and crashing import with `TypeError: _hero_jutsus() takes 0 positional arguments`. The stub block was removed and `_hero_jutsus(hid, name, element, rarity, role)` restored (kit builder → ascendant skill for GR+ → `_apply_rarity_mastery`).
-- `.env.base44-defaults` (placeholder `EMERGENT_LLM_KEY`) is required by compose but gitignored — recreate it if missing.
+- `.env.base44-defaults` (placeholder `EMERGENT_LLM_KEY`) is required by compose and is now TRACKED in git: `.gitignore` has a `!.env.base44-defaults` negation after its `.env.*` pattern. Do not remove the negation — if the file is untracked it vanishes on a fresh sandbox/import and `docker compose up` fails with `env file /app/.env.base44-defaults not found`, leaving the preview stuck on the loading screen.
 
 ## Skin images are files, NEVER base64 in JSON (payload-size trap)
 Skin images used to be stored inline as base64 data URLs on the skin records in
