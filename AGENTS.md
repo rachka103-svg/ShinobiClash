@@ -29,4 +29,4 @@ Frontend changes hot-reload; backend changes reload via uvicorn `--reload`. If a
 
 ## Repo fix applied during setup
 - Commit `efb9c98` appended a block of placeholder stubs (`def _kit_support(): ...`, `_ROLE_KIT_BUILDERS = {...}`, `_hero_jutsus(): ...`) at the end of `backend/game_data.py`, shadowing the real implementations and crashing import with `TypeError: _hero_jutsus() takes 0 positional arguments`. The stub block was removed and `_hero_jutsus(hid, name, element, rarity, role)` restored (kit builder → ascendant skill for GR+ → `_apply_rarity_mastery`).
-- `.env.base44-defaults` (placeholder `EMERGENT_LLM_KEY`) is required by compose but gitignored — recreate it if missing.
+- `.env.base44-defaults` (placeholder `EMERGENT_LLM_KEY`) is required by compose `env_file`. It is committed to the repo (un-ignored via `!.env.base44-defaults` in `.gitignore`) so a fresh checkout boots without manual intervention. The real key from `/run/base44/app.env` overrides the placeholder.
